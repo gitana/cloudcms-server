@@ -1,0 +1,52 @@
+{
+  "author": {
+    "name": "Gitana Software, Inc.",
+    "email": "info@cloudcms.com",
+    "url": "http://www.cloudcms.com"
+  },
+  "name": "cloudcms-server",
+  "description": "Cloud CMS virtualization server module for Node JS app server",
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/gitana/cloudcms-server.git"
+  },
+  "engines": {
+    "node": ">= 0.4.1 < 1.0.0"
+  },
+  "dependencies": {
+      "express": "*",
+      "ejs": "*",
+      "http-proxy": "*",
+      "gitana": "*",
+      "mkdirp": "*",
+      "watch": "*",
+      "node-uuid": "*",
+      "hbs": "*",
+      "wrench": "*",
+      "passport": "*",
+      "passport-local": "*"
+  },
+  "devDependencies": {},
+  "optionalDependencies": {},
+  "contributors": [
+    {
+      "name": "Michael Uzquiano",
+      "email": "uzi@cloudcms.com"
+    }
+  ],
+  "keywords": [
+	"wcm",
+	"web",
+    "cloudcms",
+    "cms",
+    "content",
+    "json",
+    "rest",
+    "mobile",
+    "content management",
+    "javascript",
+	"nodejs"
+  ],
+  "main": "index"
+}

@@ -1,0 +1,54 @@
+<html>
+    <head>
+        <link rel="stylesheet" type="text/css" href="reset.css">
+        <script type="text/javascript" src="easyXDM.min.js"></script>
+        <script type="text/javascript">
+
+            // set up easy XDM
+            var xdm = new easyXDM.Socket({
+
+                "onMessage": function(message, origin)
+                {
+                    //alert("Received '" + message + "' from '" + origin + "'");
+
+                    var payload = JSON.parse(message);
+                    if (payload.type == "reload")
+                    {
+                        window.document.getElementById("myFrame").contentDocument.location.reload(true);
+                    }
+
+                },
+
+                "onReady": function()
+                {
+                    cmsPostMessage({
+                        "type": "resize",
+                        "data": {
+                            "height": document.body.scrollHeight
+                        }
+                    });
+                }
+
+            });
+
+            /**
+             * General handler for posting JSON messages across windows.
+             *
+             * @param payload
+             */
+            var cmsPostMessage = window.cmsPostMessage = function(payload)
+            {
+                xdm.postMessage(JSON.stringify(payload));
+            };
+
+        </script>
+    </head>
+
+    <body>
+
+        <iframe src="/" style="border: 0px; width: 100%; height: 1024px; overflow: hidden; position: absolute;" id="myFrame">
+            Your browser doesn't support iFrames.
+        </iframe>
+
+    </body>
+</html>
