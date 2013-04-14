@@ -48,10 +48,10 @@ exports = module.exports = function()
 
     // init
     if (!process.env.GITANA_PROXY_HOST) {
-        process.env.GITANA_PROXY_HOST = "127.0.0.1";
+        process.env.GITANA_PROXY_HOST = "api.cloudcms.com";
     }
     if (!process.env.GITANA_PROXY_PORT) {
-        process.env.GITANA_PROXY_PORT = 8080;
+        process.env.GITANA_PROXY_PORT = 80;
     }
     if (!process.env.CLOUDCMS_HOSTS_PATH) {
         process.env.CLOUDCMS_HOSTS_PATH = "/hosts";
@@ -59,14 +59,11 @@ exports = module.exports = function()
 
     // assume local path of "." if none provided
     if (!process.env.CLOUDCMS_DEFAULT_ROOT_PATH) {
-        //process.env.CLOUDCMS_DEFAULT_ROOT_PATH = ".";
         process.env.CLOUDCMS_DEFAULT_ROOT_PATH = process.cwd();
-        //console.log("cloudcms default root path: " + process.env.CLOUDCMS_DEFAULT_ROOT_PATH);
     }
 
     if (!process.env.CLOUDCMS_DEFAULT_PUBLIC_PATH) {
         process.env.CLOUDCMS_DEFAULT_PUBLIC_PATH = path.join(process.env.CLOUDCMS_DEFAULT_ROOT_PATH, "public");
-        //console.log("cloudcms default public path: " + process.env.CLOUDCMS_DEFAULT_PUBLIC_PATH);
     }
 
     var r = {};
