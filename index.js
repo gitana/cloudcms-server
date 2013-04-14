@@ -61,12 +61,12 @@ exports = module.exports = function()
     if (!process.env.CLOUDCMS_DEFAULT_ROOT_PATH) {
         //process.env.CLOUDCMS_DEFAULT_ROOT_PATH = ".";
         process.env.CLOUDCMS_DEFAULT_ROOT_PATH = process.cwd();
-        console.log("cloudcms default root path: " + process.env.CLOUDCMS_DEFAULT_ROOT_PATH);
+        //console.log("cloudcms default root path: " + process.env.CLOUDCMS_DEFAULT_ROOT_PATH);
     }
 
     if (!process.env.CLOUDCMS_DEFAULT_PUBLIC_PATH) {
         process.env.CLOUDCMS_DEFAULT_PUBLIC_PATH = path.join(process.env.CLOUDCMS_DEFAULT_ROOT_PATH, "public");
-        console.log("cloudcms default public path: " + process.env.CLOUDCMS_DEFAULT_PUBLIC_PATH);
+        //console.log("cloudcms default public path: " + process.env.CLOUDCMS_DEFAULT_PUBLIC_PATH);
     }
 
     var r = {};
