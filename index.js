@@ -57,14 +57,21 @@ exports = module.exports = function()
         process.env.CLOUDCMS_HOSTS_PATH = "/hosts";
     }
 
-    // assume local path of "." if none provided
-    if (!process.env.CLOUDCMS_DEFAULT_ROOT_PATH) {
-        process.env.CLOUDCMS_DEFAULT_ROOT_PATH = process.cwd();
+    // assume app-server base path if none provided
+    if (!process.env.CLOUDCMS_APPSERVER_BASE_PATH) {
+        process.env.CLOUDCMS_APPSERVER_BASE_PATH = process.cwd();
     }
 
-    if (!process.env.CLOUDCMS_DEFAULT_PUBLIC_PATH) {
-        process.env.CLOUDCMS_DEFAULT_PUBLIC_PATH = path.join(process.env.CLOUDCMS_DEFAULT_ROOT_PATH, "public");
+    if (!process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH) {
+        process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH = path.join(process.env.CLOUDCMS_APPSERVER_BASE_PATH, "public");
     }
+
+    // other paths we can pre-establish
+    process.env.CLOUDCMS_GITANA_JSON_PATH = path.join(process.env.CLOUDCMS_APPSERVER_BASE_PATH, "gitana.json");
+    process.env.CLOUDCMS_CONFIG_BASE_PATH = path.join(process.env.CLOUDCMS_APPSERVER_BASE_PATH, "config");
+
+
+
 
     var r = {};
 
