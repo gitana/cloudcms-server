@@ -1,5 +1,4 @@
 var express = require('express');
-var routes = require('./routes');
 var http = require('http');
 var path = require('path');
 var fs = require('fs');
@@ -8,7 +7,7 @@ var httpProxy = require('http-proxy');
 var app = express();
 
 // cloudcms app server support
-var cloudcms = require("cloudcms-server");
+var cloudcms = require("../index");
 
 // let cloudcms pick up beanstalk params
 cloudcms.beanstalk();
