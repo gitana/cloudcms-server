@@ -17,6 +17,14 @@ var exports = module.exports;
 
 exports.init = function(configFunction)
 {
+    if (!configFunction)
+    {
+        configFunction = function(app, callback)
+        {
+            callback();
+        };
+    }
+
     ////////////////////////////////////////////////////////////////////////////
     //
     // HTTP/HTTPS Proxy Server to Cloud CMS
@@ -137,24 +145,21 @@ exports.init = function(configFunction)
     });
     */
 
-    if (configFunction)
-    {
-        configFunction(app);
-    }
+    configFunction(app, function(err) {
 
+        ////////////////////////////////////////////////////////////////////////////
+        //
+        // SERVER
+        //
+        ////////////////////////////////////////////////////////////////////////////
 
+        // create server
+        http.createServer(app).listen(app.get('port'), function(){
 
-    ////////////////////////////////////////////////////////////////////////////
-    //
-    // SERVER
-    //
-    ////////////////////////////////////////////////////////////////////////////
+            var url = "http://localhost:" + app.get('port') + "/";
 
-    // create server
-    http.createServer(app).listen(app.get('port'), function(){
+            console.log("Cloud CMS Application Server Started - visit: " + url);
+        });
 
-        var url = "http://localhost:" + app.get('port') + "/";
-
-        console.log("Cloud CMS Application Server Started - visit: " + url);
     });
 };
