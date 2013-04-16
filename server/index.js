@@ -55,7 +55,7 @@ exports.init = function(configFunction)
     app.configure(function(){
 
         app.set('port', process.env.PORT || 2999);
-        app.set('views', __dirname + '/');
+        app.set('views', process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH);
         app.set('view engine', 'html'); // html file extension
         app.engine('html', require('hbs').__express);
         app.use(express.favicon());
