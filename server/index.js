@@ -14,6 +14,22 @@ cloudcms.beanstalk();
 
 var exports = module.exports;
 
+exports.configure = function(env, fn)
+{
+    if (typeof(env) === "function")
+    {
+        fn = env;
+        env = null;
+    }
+
+    if (env) {
+        app.configure(env, fn);
+    }
+    else {
+        app.configure(fn);
+    }
+};
+
 exports.init = function(configFunction)
 {
     if (!configFunction)
