@@ -62,12 +62,8 @@ exports = module.exports = function()
         process.env.CLOUDCMS_APPSERVER_BASE_PATH = process.cwd();
     }
 
-    if (!process.env.CLOUDCMS_APPSERVER_PUBLIC_DIRNAME) {
-        process.env.CLOUDCMS_APPSERVER_PUBLIC_DIRNAME = "public";
-    }
-
     if (!process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH) {
-        process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH = path.join(process.env.CLOUDCMS_APPSERVER_BASE_PATH, process.env.CLOUDCMS_APPSERVER_PUBLIC_DIRNAME);
+        process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH = path.join(process.env.CLOUDCMS_APPSERVER_BASE_PATH, "public");
     }
 
     // other paths we can pre-establish
