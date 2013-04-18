@@ -240,7 +240,7 @@ exports.start = function(overrides, callback)
     // CORE OBJECTS
     var server = http.createServer(app);
     var io = require("socket.io").listen(server);
-    process.SOCKET_IO = io;
+    process.IO = io;
 
     // SET INITIAL VALUE FOR SERVER TIMESTAMP
     process.env.CLOUDCMS_APPSERVER_TIMESTAMP = new Date().getTime();
