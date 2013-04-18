@@ -3,6 +3,10 @@ var http = require('http');
 var path = require('path');
 var fs = require('fs');
 var httpProxy = require('http-proxy');
+var clone = require('clone');
+var xtend = require('xtend');
+
+var util = require('./util');
 
 var app = express();
 
@@ -12,33 +16,139 @@ var cloudcms = require("../index");
 // let cloudcms pick up beanstalk params
 cloudcms.beanstalk();
 
-var exports = module.exports;
-
-exports.configure = function(env, fn)
+// set NODE_ENV
+if (!process.env.NODE_ENV)
 {
-    if (typeof(env) === "function")
-    {
-        fn = env;
-        env = null;
+    if (process.env.PARAM5) {
+        process.env.NODE_ENV = process.env.PARAM5;
+    } else {
+        process.env.NODE_ENV = "development";
     }
 
-    if (env) {
-        app.configure(env, fn);
+    // set up modes
+    process.env.CLOUDCMS_APPSERVER_DEVELOPMENT_MODE = true;
+    process.env.CLOUDCMS_APPSERVER_PRODUCTION_MODE = false;
+
+    if (process.env.NODE_ENV === "production")
+    {
+        process.env.CLOUDCMS_APPSERVER_DEVELOPMENT_MODE = false;
+        process.env.CLOUDCMS_APPSERVER_PRODUCTION_MODE = true;
     }
-    else {
-        app.configure(fn);
-    }
+}
+
+// holds configuration settings
+var SETTINGS = {
+    "name": "Cloud CMS Application Server",
+    "socketFunctions": [],
+    "routeFunctions": [],
+    "configureFunctions": {},
+    "beforeFunctions": [],
+    "afterFunctions": []
 };
 
-exports.init = function(configFunction)
+var exports = module.exports;
+
+/**
+ * Sets a configuration key/value.
+ *
+ * @param key
+ * @param value
+ */
+exports.set = function(key, value)
 {
-    if (!configFunction)
-    {
-        configFunction = function(app, callback)
-        {
-            callback();
-        };
+    SETTINGS[key] = value;
+};
+
+/**
+ * Gets a configuration key/value.
+ *
+ * @param key
+ * @return {*}
+ */
+exports.get = function(key)
+{
+    return SETTINGS[key];
+};
+
+/**
+ * Registers an express configuration function for a specific environment.
+ *
+ * @param env
+ * @param fn
+ */
+exports.configure = function(env, fn)
+{
+    if (!SETTINGS.configureFunctions[env]) {
+        SETTINGS.configureFunctions[env] = [];
     }
+
+    SETTINGS.configureFunctions[env].push(fn);
+};
+
+/**
+ * Registers a socket configuration function.
+ *
+ * @param fn
+ */
+exports.sockets = function(fn)
+{
+    SETTINGS.socketFunctions.push(fn);
+};
+
+/**
+ * Registers a route configuration function.
+ *
+ * @param fn
+ */
+exports.routes = function(fn)
+{
+    SETTINGS.routeFunctions.push(fn);
+};
+
+/**
+ * Registers a function to run before the server starts.
+ *
+ * @param fn
+ */
+var before = exports.before = function(fn)
+{
+    SETTINGS.beforeFunctions.push(fn);
+};
+
+/**
+ * Registers a function to run after the server starts.
+ *
+ * @param fn
+ */
+var after = exports.after = function(fn)
+{
+    SETTINGS.afterFunctions.push(fn);
+};
+
+/**
+ * Starts the Cloud CMS server.
+ *
+ * @param overrides optional config overrides
+ * @param callback optional callback function
+ */
+exports.start = function(overrides, callback)
+{
+    if (typeof(overrides) === "function")
+    {
+        callback = overrides;
+        overrides = null;
+    }
+
+    // create our master config
+    var config = clone(SETTINGS);
+    if (overrides) {
+        config = xtend(config, overrides);
+    }
+
+
+    console.log("");
+    console.log("Starting " + config.name);
+
 
     ////////////////////////////////////////////////////////////////////////////
     //
@@ -99,82 +209,111 @@ exports.init = function(configFunction)
 
     });
 
-    /*
-    ////////////////////////////////////////////////////////////////////////////
-    //
-    // DEVELOPMENT CONFIGURATION
-    //
-    ////////////////////////////////////////////////////////////////////////////
-    app.configure('development', function() {
-
-        // configure cloudcms app server command handing
-        cloudcms.interceptors(app, true);
-
-        app.use(app.router);
-        app.use(express.errorHandler());
-
-        // configure cloudcms app server handlers
-        cloudcms.handlers(app, true);
-
-        // mount the /public path
-        //app.use(express.static(path.join(__dirname, 'public')));
-    });
 
 
     ////////////////////////////////////////////////////////////////////////////
     //
-    // PRODUCTION CONFIGURATION
+    // CUSTOM EXPRESS APP CONFIGURE METHODS
     //
     ////////////////////////////////////////////////////////////////////////////
-    app.configure('production', function() {
-
-        // configure cloudcms app server command handing
-        cloudcms.interceptors(app, true);
-
-        app.use(app.router);
-        app.use(express.errorHandler());
-
-        // configure cloudcms app server handlers
-        cloudcms.handlers(app, true);
-
-        // mount the /public path
-        //app.use(express.static(path.join(__dirname, 'public_build')));
-    });
-    */
+    for (var env in config.configureFunctions)
+    {
+        var functions = config.configureFunctions[env];
+        if (functions)
+        {
+            for (var i = 0; i < functions.length; i++)
+            {
+                app.configure(env, functions[i]);
+            }
+        }
+    }
 
 
 
 
     ////////////////////////////////////////////////////////////////////////////
     //
-    // CONTROLLERS
+    // INITIALIZE THE SERVER
     //
     ////////////////////////////////////////////////////////////////////////////
 
-    // define any custom controllers here...
-    /*
-    app.get("/api/list", function(req, res) {
-        res.render("views/list", {
-            "modelVariable": "modelValue"
-        });
-    });
-    */
+    // CORE OBJECTS
+    var server = http.createServer(app);
+    var io = require("socket.io").listen(server);
+    process.SOCKET_IO = io;
 
-    configFunction(app, function(err) {
+    // SET INITIAL VALUE FOR SERVER TIMESTAMP
+    process.env.CLOUDCMS_APPSERVER_TIMESTAMP = new Date().getTime();
 
-        ////////////////////////////////////////////////////////////////////////////
-        //
-        // SERVER
-        //
-        ////////////////////////////////////////////////////////////////////////////
+    // CUSTOM ROUTES
+    for (var i = 0; i < config.routeFunctions.length; i++)
+    {
+        config.routeFunctions[i](app);
+    }
 
-        // create server
-        http.createServer(app).listen(app.get('port'), function(){
+    // BEFORE SERVER START
+    util.series(config.beforeFunctions, [app], function(err) {
 
-            var url = "http://localhost:" + app.get('port') + "/";
+        // START THE APPLICATION SERVER
+        server.listen(app.get('port'), function(){
 
-            console.log("Cloud CMS Application Server Started - visit: " + url);
+            // AFTER SERVER START
+            util.series(config.afterFunctions, [app], function(err) {
+
+                // show standard info
+                var url = "http://localhost:" + app.get('port') + "/";
+
+                console.log(config.name + " started");
+                console.log(" -> visit: " + url);
+                console.log("");
+
+                if (callback)
+                {
+                    callback(app);
+                }
+
+            });
         });
 
+    });
+
+
+    // INIT SOCKET.IO
+    io.sockets.on("connection", function(socket) {
+
+        socket.on("connect", function() {
+
+            console.log("SOCKET.IO HEARD CONNECT");
+        });
+
+        socket.on("disconnect", function() {
+
+            console.log("SOCKET.IO HEARD DISCONNECT");
+        });
+
+        // CUSTOM CONFIGURE SOCKET.IO
+        for (var i = 0; i < config.socketFunctions.length; i++)
+        {
+            config.socketFunctions[i](socket);
+        }
     });
 };
+
+
+
+////////////////////////////////////////////////////////////////////////////
+//
+// DEFAULT HANDLERS
+//
+////////////////////////////////////////////////////////////////////////////
+
+// default before function
+before(function(app, callback) {
+    callback();
+});
+
+// default after function
+after(function(app, callback) {
+    callback();
+});
+

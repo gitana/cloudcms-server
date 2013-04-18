@@ -25,7 +25,10 @@
       "hbs": "*",
       "wrench": "*",
       "passport": "*",
-      "passport-local": "*"
+      "passport-local": "*",
+      "socket.io": "*",
+      "clone": "*",
+      "xtend": "*"
   },
   "devDependencies": {},
   "optionalDependencies": {},
