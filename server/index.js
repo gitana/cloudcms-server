@@ -279,6 +279,7 @@ exports.start = function(overrides, callback)
 
 
     // INIT SOCKET.IO
+    io.set('log level', 1);
     io.sockets.on("connection", function(socket) {
 
         socket.on("connect", function() {
