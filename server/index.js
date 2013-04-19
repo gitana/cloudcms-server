@@ -46,6 +46,10 @@ var SETTINGS = {
     "afterFunctions": []
 };
 
+// default to using long polling
+// amazon and others don't purely support web sockets, but this emulates quite well
+SETTINGS.socketTransports = ["xhr-polling"];
+
 var exports = module.exports;
 
 /**
@@ -280,6 +284,12 @@ exports.start = function(overrides, callback)
 
     // INIT SOCKET.IO
     io.set('log level', 1);
+    console.log("T: " + config.socketTransports);
+    if (config.socketTransports && config.socketTransports.length > 0)
+    {
+        process.IO.set('transports', config.socketTransports);
+
+    }
     io.sockets.on("connection", function(socket) {
 
         socket.on("connect", function() {
