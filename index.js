@@ -86,6 +86,11 @@ exports = module.exports = function()
         if (process.env.PARAM3) {
             process.env.GITANA_PROXY_PORT = process.env.PARAM3;
         }
+
+        // allow NODE_ENV to be set from PARAM5
+        if (process.env.PARAM5) {
+            process.env.NODE_ENV = process.env.PARAM5;
+        }
     };
 
     r.interceptors = function(app, includeCloudCMS)

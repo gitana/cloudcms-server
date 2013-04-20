@@ -16,25 +16,14 @@ var cloudcms = require("../index");
 // let cloudcms pick up beanstalk params
 cloudcms.beanstalk();
 
-// set NODE_ENV
-if (!process.env.NODE_ENV)
+// set up modes
+process.env.CLOUDCMS_APPSERVER_MODE = "development";
+
+if (process.env.NODE_ENV === "production")
 {
-    if (process.env.PARAM5) {
-        process.env.NODE_ENV = process.env.PARAM5;
-    } else {
-        process.env.NODE_ENV = "development";
-    }
-
-    // set up modes
-    process.env.CLOUDCMS_APPSERVER_DEVELOPMENT_MODE = true;
-    process.env.CLOUDCMS_APPSERVER_PRODUCTION_MODE = false;
-
-    if (process.env.NODE_ENV === "production")
-    {
-        process.env.CLOUDCMS_APPSERVER_DEVELOPMENT_MODE = false;
-        process.env.CLOUDCMS_APPSERVER_PRODUCTION_MODE = true;
-    }
+    process.env.CLOUDCMS_APPSERVER_MODE = "production";
 }
+
 
 // holds configuration settings
 var SETTINGS = {
@@ -46,9 +35,9 @@ var SETTINGS = {
     "afterFunctions": []
 };
 
-// default to using long polling
-// amazon and others don't purely support web sockets, but this emulates quite well
-SETTINGS.socketTransports = ["xhr-polling"];
+// default to using long polling?
+// can assist for environments using non-sticky load balancer
+// SETTINGS.socketTransports = ["xhr-polling"];
 
 var exports = module.exports;
 
@@ -284,7 +273,6 @@ exports.start = function(overrides, callback)
 
     // INIT SOCKET.IO
     io.set('log level', 1);
-    console.log("T: " + config.socketTransports);
     if (config.socketTransports && config.socketTransports.length > 0)
     {
         process.IO.set('transports', config.socketTransports);
@@ -293,13 +281,11 @@ exports.start = function(overrides, callback)
     io.sockets.on("connection", function(socket) {
 
         socket.on("connect", function() {
-
-            console.log("SOCKET.IO HEARD CONNECT");
+            //console.log("SOCKET.IO HEARD CONNECT");
         });
 
         socket.on("disconnect", function() {
-
-            console.log("SOCKET.IO HEARD DISCONNECT");
+            //console.log("SOCKET.IO HEARD DISCONNECT");
         });
 
         // CUSTOM CONFIGURE SOCKET.IO
