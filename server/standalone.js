@@ -1,8 +1,15 @@
 var server = require("./index");
-server.init(function(app, callback) {
 
-    // custom setup or routes
+/**
+ * Things we want to run after server start.
+ */
+server.after(function(app, callback) {
+
+    console.log("I STARTED");
 
     callback();
-
 });
+
+// start the server
+server.start();
+
