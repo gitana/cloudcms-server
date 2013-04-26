@@ -276,7 +276,9 @@ exports.start = function(overrides, callback)
     if (config.socketTransports && config.socketTransports.length > 0)
     {
         process.IO.set('transports', config.socketTransports);
-
+    }
+    if (config.socketLogLevel) {
+        io.set('log level', config.socketLogLevel);
     }
     io.sockets.on("connection", function(socket) {
 
