@@ -41,6 +41,7 @@ exports = module.exports = function()
     var cloudcms = require("./lib/cloudcms/cloudcms")(basePath);
     var cms = require("./lib/cms/cms")(basePath);
     var local = require("./lib/local/local")(basePath);
+    var final = require("./lib/final/final")(basePath);
     var libraries = require("./lib/libraries/libraries")(basePath);
 
     // config service
@@ -93,10 +94,12 @@ exports = module.exports = function()
         }
     };
 
-    r.interceptors = function(app, includeCloudCMS)
+    r.interceptors = function(app, includeCloudCMS, virtualDriverConfig)
     {
-        // determines whether the incoming request points to a virtual host and configures request
-        app.use(virtualHost.interceptor());
+        // set up virtualization
+        app.use(virtualHost.virtualHostInterceptor());
+        app.use(virtualHost.virtualDriverConfigInterceptor(virtualDriverConfig));
+        app.use(virtualHost.virtualFilesInterceptor());
 
         if (includeCloudCMS) {
 
@@ -143,6 +146,9 @@ exports = module.exports = function()
 
         // handles default content retrieval from disk
         app.use(local.defaultHandler());
+
+        // handles 404
+        app.use(final.finalHandler());
 
     };
 

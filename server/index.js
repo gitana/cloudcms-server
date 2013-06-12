@@ -32,7 +32,9 @@ var SETTINGS = {
     "routeFunctions": [],
     "configureFunctions": {},
     "beforeFunctions": [],
-    "afterFunctions": []
+    "afterFunctions": [],
+    "virtualDriverConfig": {
+    }
 };
 
 // default to using long polling?
@@ -167,6 +169,7 @@ exports.start = function(overrides, callback)
     ////////////////////////////////////////////////////////////////////////////
     //
     // BASE CONFIGURATION
+    //
     // Configures NodeJS app server using handlebars templating engine
     // Runs on port 2999 by default
     //
@@ -174,7 +177,7 @@ exports.start = function(overrides, callback)
     app.configure(function(){
 
         app.set('port', process.env.PORT || 2999);
-        app.set('views', process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH);
+        app.set('views', process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH + "/../views");
         app.set('view engine', 'html'); // html file extension
         app.engine('html', require('hbs').__express);
         app.use(express.favicon());
@@ -192,7 +195,7 @@ exports.start = function(overrides, callback)
         //app.use(express.session({ secret: 'secret', store: sessionStore }));
 
         // configure cloudcms app server command handing
-        cloudcms.interceptors(app, true);
+        cloudcms.interceptors(app, true, config.virtualDriverConfig);
 
         app.use(app.router);
         app.use(express.errorHandler());
