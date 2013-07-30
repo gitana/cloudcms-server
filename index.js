@@ -52,7 +52,7 @@ exports = module.exports = function()
         process.env.GITANA_PROXY_HOST = "api.cloudcms.com";
     }
     if (!process.env.GITANA_PROXY_PORT) {
-        process.env.GITANA_PROXY_PORT = 80;
+        process.env.GITANA_PROXY_PORT = 443;
     }
     if (!process.env.GITANA_PROXY_SCHEME) {
         process.env.GITANA_PROXY_SCHEME = "https";
