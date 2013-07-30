@@ -54,9 +54,16 @@ exports = module.exports = function()
     if (!process.env.GITANA_PROXY_PORT) {
         process.env.GITANA_PROXY_PORT = 80;
     }
+    if (!process.env.GITANA_PROXY_SCHEME) {
+        process.env.GITANA_PROXY_SCHEME = "https";
+    }
     if (!process.env.CLOUDCMS_HOSTS_PATH) {
         process.env.CLOUDCMS_HOSTS_PATH = "/hosts";
     }
+
+    // assumed admin passwords for virtual host
+    process.env.GITANA_VIRTUALHOST_ADMIN_USERNAME = "admin";
+    process.env.GITANA_VIRTUALHOST_ADMIN_PASSWORD = "admin";
 
     // assume app-server base path if none provided
     if (!process.env.CLOUDCMS_APPSERVER_BASE_PATH) {
@@ -78,6 +85,7 @@ exports = module.exports = function()
 
     r.beanstalk = function()
     {
+        /*
         if (process.env.PARAM1) {
             process.env.CLOUDCMS_HOSTS_PATH = process.env.PARAM1;
         }
@@ -86,6 +94,15 @@ exports = module.exports = function()
         }
         if (process.env.PARAM3) {
             process.env.GITANA_PROXY_PORT = process.env.PARAM3;
+        }
+        if (process.env.PARAM4) {
+            process.env.GITANA_PROXY_SCHEME = process.env.PARAM4;
+        }
+        */
+
+        // set admin password using PARAM1
+        if (process.env.PARAM1) {
+            process.env.GITANA_VIRTUALHOST_ADMIN_PASSWORD = process.env.PARAM1;
         }
 
         // allow NODE_ENV to be set from PARAM5

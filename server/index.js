@@ -183,7 +183,6 @@ exports.start = function(overrides, callback)
         app.use(express.favicon());
         app.use(express.logger('dev'));
 
-
         //app.use(express.cookieParser());
         //app.use(express.cookieParser("secret"));
 
