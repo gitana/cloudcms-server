@@ -186,7 +186,12 @@ exports = module.exports = function()
                     if (responseString.length > 0) {
 
                         try {
-                            req.body = JSON.parse(responseString);
+                            var b = JSON.parse(responseString);
+                            if (b)
+                            {
+                                req.body = b;
+                                req._body = b;
+                            }
                         } catch (e) { }
                     }
 

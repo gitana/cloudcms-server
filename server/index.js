@@ -188,7 +188,7 @@ exports.start = function(overrides, callback)
 
         // use the cloudcms body parser
         app.use(cloudcms.bodyParser());
-        //app.use(express.bodyParser()); CANNOT USE THIS
+        app.use(express.bodyParser());
 
         app.use(express.methodOverride());
         //app.use(express.session({ secret: 'secret', store: sessionStore }));
