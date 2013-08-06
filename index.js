@@ -62,8 +62,14 @@ exports = module.exports = function()
     }
 
     // assumed admin passwords for virtual host
-    process.env.GITANA_VIRTUALHOST_ADMIN_USERNAME = "admin";
-    process.env.GITANA_VIRTUALHOST_ADMIN_PASSWORD = "admin";
+    if (!process.env.GITANA_VIRTUALHOST_ADMIN_USERNAME)
+    {
+        process.env.GITANA_VIRTUALHOST_ADMIN_USERNAME = "admin";
+    }
+    if (!process.env.GITANA_VIRTUALHOST_ADMIN_PASSWORD)
+    {
+        process.env.GITANA_VIRTUALHOST_ADMIN_PASSWORD = "admin";
+    }
 
     // assume app-server base path if none provided
     if (!process.env.CLOUDCMS_APPSERVER_BASE_PATH) {
