@@ -106,10 +106,12 @@ exports = module.exports = function()
         }
         */
 
+        /*
         // set admin password using PARAM1
         if (process.env.PARAM1) {
             process.env.GITANA_VIRTUALHOST_ADMIN_PASSWORD = process.env.PARAM1;
         }
+        */
 
         // allow NODE_ENV to be set from PARAM5
         if (process.env.PARAM5) {
