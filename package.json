@@ -5,8 +5,8 @@
     "url": "http://www.cloudcms.com"
   },
   "name": "cloudcms-server",
-  "description": "Cloud CMS virtualization server module for Node JS app server",
-  "version": "0.3.2",
+  "description": "Cloud CMS app server module",
+  "version": "0.3.3",
   "repository": {
     "type": "git",
     "url": "git://github.com/gitana/cloudcms-server.git"
@@ -29,7 +29,9 @@
       "passport-local": "*",
       "socket.io": "*",
       "clone": "*",
-      "xtend": "*"
+      "xtend": "*",
+      "dustjs-linkedin": "*",
+      "dustjs-helpers": "*"
   },
   "devDependencies": {},
   "optionalDependencies": {},
