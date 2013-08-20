@@ -187,14 +187,19 @@ exports.start = function(overrides, callback)
         //app.use(express.cookieParser("secret"));
 
         // use the cloudcms body parser
+        app.use(express.multipart());
         app.use(cloudcms.bodyParser());
-        app.use(express.bodyParser());
+        app.use(express.json());
+        app.use(express.urlencoded());
+
+        //app.use(cloudcms.bodyParser());
+        //app.use(express.bodyParser());
 
         app.use(express.methodOverride());
         //app.use(express.session({ secret: 'secret', store: sessionStore }));
 
         // configure cloudcms app server command handing
-        cloudcms.interceptors(app, true, config.virtualDriverConfig);
+        cloudcms.interceptors(app, true, config);
 
         app.use(app.router);
         app.use(express.errorHandler());

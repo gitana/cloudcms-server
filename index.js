@@ -119,11 +119,11 @@ exports = module.exports = function()
         }
     };
 
-    r.interceptors = function(app, includeCloudCMS, virtualDriverConfig)
+    r.interceptors = function(app, includeCloudCMS, config)
     {
         // set up virtualization
         app.use(virtualHost.virtualHostInterceptor());
-        app.use(virtualHost.virtualDriverConfigInterceptor(virtualDriverConfig));
+        app.use(virtualHost.virtualDriverConfigInterceptor(config.virtualDriverConfig));
         app.use(virtualHost.virtualFilesInterceptor());
 
         if (includeCloudCMS) {
@@ -143,7 +143,7 @@ exports = module.exports = function()
         }
 
         // cms (tag procesing, injection of scripts, etc, kind of a catch all at the moment)
-        app.use(cms.interceptor());
+        app.use(cms.interceptor(config));
     };
 
     r.handlers = function(app, includeCloudCMS)
