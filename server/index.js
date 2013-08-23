@@ -205,7 +205,7 @@ exports.start = function(overrides, callback)
         app.use(express.errorHandler());
 
         // configure cloudcms app server handlers
-        cloudcms.handlers(app, true);
+        cloudcms.handlers(app, true, config);
 
     });
 

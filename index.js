@@ -39,6 +39,7 @@ exports = module.exports = function()
     var virtualHost = require("./lib/virtualhost/virtualhost")(basePath);
     var authorization = require("./lib/authorization/authorization")(basePath);
     var cloudcms = require("./lib/cloudcms/cloudcms")(basePath);
+    var wcm = require("./lib/cloudcms/wcm")(basePath);
     var cms = require("./lib/cms/cms")(basePath);
     var local = require("./lib/local/local")(basePath);
     var final = require("./lib/final/final")(basePath);
@@ -119,11 +120,11 @@ exports = module.exports = function()
         }
     };
 
-    r.interceptors = function(app, includeCloudCMS, config)
+    r.interceptors = function(app, includeCloudCMS, configuration)
     {
         // set up virtualization
         app.use(virtualHost.virtualHostInterceptor());
-        app.use(virtualHost.virtualDriverConfigInterceptor(config.virtualDriverConfig));
+        app.use(virtualHost.virtualDriverConfigInterceptor(configuration.virtualDriverConfig));
         app.use(virtualHost.virtualFilesInterceptor());
 
         if (includeCloudCMS) {
@@ -143,10 +144,10 @@ exports = module.exports = function()
         }
 
         // cms (tag procesing, injection of scripts, etc, kind of a catch all at the moment)
-        app.use(cms.interceptor(config));
+        app.use(cms.interceptor(configuration));
     };
 
-    r.handlers = function(app, includeCloudCMS)
+    r.handlers = function(app, includeCloudCMS, configuration)
     {
         // handles deploy/undeploy commands
         app.use(deployment.handler());
@@ -161,6 +162,9 @@ exports = module.exports = function()
 
             // cloudcms domain principal authentication
             app.use(cloudcms.authenticationHandler(app));
+
+            // handles WCM
+            app.use(wcm.wcmHandler(configuration));
 
             // handles virtualized content retrieval from Cloud CMS
             app.use(cloudcms.virtualHandler());
