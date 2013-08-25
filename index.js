@@ -62,16 +62,6 @@ exports = module.exports = function()
         process.env.CLOUDCMS_HOSTS_PATH = "/hosts";
     }
 
-    // assumed admin passwords for virtual host
-    if (!process.env.GITANA_VIRTUALHOST_ADMIN_USERNAME)
-    {
-        process.env.GITANA_VIRTUALHOST_ADMIN_USERNAME = "admin";
-    }
-    if (!process.env.GITANA_VIRTUALHOST_ADMIN_PASSWORD)
-    {
-        process.env.GITANA_VIRTUALHOST_ADMIN_PASSWORD = "admin";
-    }
-
     // assume app-server base path if none provided
     if (!process.env.CLOUDCMS_APPSERVER_BASE_PATH) {
         process.env.CLOUDCMS_APPSERVER_BASE_PATH = process.cwd();
@@ -92,28 +82,6 @@ exports = module.exports = function()
 
     r.beanstalk = function()
     {
-        /*
-        if (process.env.PARAM1) {
-            process.env.CLOUDCMS_HOSTS_PATH = process.env.PARAM1;
-        }
-        if (process.env.PARAM2) {
-            process.env.GITANA_PROXY_HOST = process.env.PARAM2;
-        }
-        if (process.env.PARAM3) {
-            process.env.GITANA_PROXY_PORT = process.env.PARAM3;
-        }
-        if (process.env.PARAM4) {
-            process.env.GITANA_PROXY_SCHEME = process.env.PARAM4;
-        }
-        */
-
-        /*
-        // set admin password using PARAM1
-        if (process.env.PARAM1) {
-            process.env.GITANA_VIRTUALHOST_ADMIN_PASSWORD = process.env.PARAM1;
-        }
-        */
-
         // allow NODE_ENV to be set from PARAM5
         if (process.env.PARAM5) {
             process.env.NODE_ENV = process.env.PARAM5;
@@ -122,10 +90,14 @@ exports = module.exports = function()
 
     r.interceptors = function(app, includeCloudCMS, configuration)
     {
+        if (!configuration) {
+            configuration = {};
+        }
+
         // set up virtualization
-        app.use(virtualHost.virtualHostInterceptor());
-        app.use(virtualHost.virtualDriverConfigInterceptor(configuration.virtualDriverConfig));
-        app.use(virtualHost.virtualFilesInterceptor());
+        app.use(virtualHost.virtualHostInterceptor(configuration));
+        app.use(virtualHost.virtualDriverConfigInterceptor(configuration));
+        app.use(virtualHost.virtualFilesInterceptor(configuration));
 
         if (includeCloudCMS) {
 
@@ -149,6 +121,10 @@ exports = module.exports = function()
 
     r.handlers = function(app, includeCloudCMS, configuration)
     {
+        if (!configuration) {
+            configuration = {};
+        }
+
         // handles deploy/undeploy commands
         app.use(deployment.handler());
 

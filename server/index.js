@@ -34,6 +34,15 @@ var SETTINGS = {
     "beforeFunctions": [],
     "afterFunctions": [],
     "virtualDriverConfig": {
+    },
+    "virtualHost": {
+        "enabled": true
+    },
+    "wcm": {
+        "enabled": true
+    },
+    "serverTags": {
+        "enabled": true
     }
 };
 
