@@ -80,14 +80,6 @@ exports = module.exports = function()
 
     var r = {};
 
-    r.beanstalk = function()
-    {
-        // allow NODE_ENV to be set from PARAM5
-        if (process.env.PARAM5) {
-            process.env.NODE_ENV = process.env.PARAM5;
-        }
-    };
-
     r.interceptors = function(app, includeCloudCMS, configuration)
     {
         if (!configuration) {

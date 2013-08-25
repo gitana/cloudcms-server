@@ -13,9 +13,6 @@ var app = express();
 // cloudcms app server support
 var cloudcms = require("../index");
 
-// let cloudcms pick up beanstalk params
-cloudcms.beanstalk();
-
 // set up modes
 process.env.CLOUDCMS_APPSERVER_MODE = "development";
 
