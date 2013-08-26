@@ -30,8 +30,6 @@ var SETTINGS = {
     "configureFunctions": {},
     "beforeFunctions": [],
     "afterFunctions": [],
-    "virtualDriverConfig": {
-    },
     "virtualHost": {
         "enabled": true
     },
@@ -149,6 +147,7 @@ exports.start = function(overrides, callback)
 
     console.log("");
     console.log("Starting " + config.name);
+    //console.log("Settings: " + JSON.stringify(config, null, "   "));
 
 
     ////////////////////////////////////////////////////////////////////////////
