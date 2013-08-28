@@ -131,9 +131,6 @@ exports = module.exports = function()
             // cloudcms domain principal authentication
             app.use(cloudcms.authenticationHandler(app));
 
-            // handles WCM
-            app.use(wcm.wcmHandler(configuration));
-
             // handles virtualized content retrieval from Cloud CMS
             app.use(cloudcms.virtualHandler());
         }
@@ -143,6 +140,12 @@ exports = module.exports = function()
 
         // handles default content retrieval from disk
         app.use(local.defaultHandler());
+
+        if (includeCloudCMS)
+        {
+            // handles WCM
+            app.use(wcm.wcmHandler(configuration));
+        }
 
         // handles 404
         app.use(final.finalHandler());
