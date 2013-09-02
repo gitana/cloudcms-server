@@ -44,6 +44,7 @@ exports = module.exports = function()
     var local = require("./lib/local/local")(basePath);
     var final = require("./lib/final/final")(basePath);
     var libraries = require("./lib/libraries/libraries")(basePath);
+    var cache = require("./lib/cache/cache")(basePath);
 
     // config service
     var config = require("./lib/config")(basePath);
@@ -95,6 +96,9 @@ exports = module.exports = function()
 
             // ensure that a gitana driver instance is bound to the request
             app.use(cloudcms.driverInterceptor());
+
+            // bind a cache helper
+            app.use(cache.cacheInterceptor());
 
             // auto-select which gitana repository to use
             app.use(cloudcms.repositoryInterceptor());
