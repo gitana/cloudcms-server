@@ -77,6 +77,8 @@ exports = module.exports = function()
     process.env.CLOUDCMS_CONFIG_BASE_PATH = path.join(process.env.CLOUDCMS_APPSERVER_BASE_PATH, "config");
 
 
+    // cache
+    process.cache = cache;
 
 
     var r = {};
@@ -86,6 +88,9 @@ exports = module.exports = function()
         if (!configuration) {
             configuration = {};
         }
+
+        // bind cache
+        app.cache = cache;
 
         // set up virtualization
         app.use(virtualHost.virtualHostInterceptor(configuration));
