@@ -6,7 +6,7 @@
   },
   "name": "cloudcms-server",
   "description": "Cloud CMS app server module",
-  "version": "0.6.6",
+  "version": "0.6.7",
   "repository": {
     "type": "git",
     "url": "git://github.com/gitana/cloudcms-server.git"
@@ -31,7 +31,8 @@
       "clone": "*",
       "xtend": "*",
       "dustjs-linkedin": "*",
-      "dustjs-helpers": "*"
+      "dustjs-helpers": "*",
+      "consolidate": "*"
   },
   "devDependencies": {},
   "optionalDependencies": {},

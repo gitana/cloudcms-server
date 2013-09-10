@@ -184,7 +184,12 @@ exports.start = function(overrides, callback)
         app.set('port', process.env.PORT || 2999);
         app.set('views', process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH + "/../views");
         app.set('view engine', 'html'); // html file extension
-        app.engine('html', require('hbs').__express);
+        //app.engine('html', require('hbs').__express);
+
+        //var dust = require('dustjs-linkedin');
+        var cons = require('consolidate');
+        app.engine('html', cons.dust);
+
         app.use(express.favicon());
         app.use(express.logger('dev'));
 
