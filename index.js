@@ -165,8 +165,15 @@ exports = module.exports = function()
     {
         return function(req, res, next)
         {
+            if (req._body)
+            {
+                return next();
+            }
+
             var contentType = req.get("Content-Type");
             if (contentType == "application/json" && req.method.toLowerCase() == "post") {
+
+                req._body = true;
 
                 var responseString = "";
 
@@ -183,7 +190,6 @@ exports = module.exports = function()
                             if (b)
                             {
                                 req.body = b;
-                                req._body = b;
                             }
                         } catch (e) { }
                     }

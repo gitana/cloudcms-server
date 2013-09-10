@@ -198,9 +198,9 @@ exports.start = function(overrides, callback)
 
         // use the cloudcms body parser
         app.use(express.multipart());
-        app.use(cloudcms.bodyParser());
         app.use(express.json());
         app.use(express.urlencoded());
+        app.use(cloudcms.bodyParser());
 
         //app.use(cloudcms.bodyParser());
         //app.use(express.bodyParser());
