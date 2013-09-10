@@ -171,7 +171,8 @@ exports = module.exports = function()
             }
 
             var contentType = req.get("Content-Type");
-            if (contentType == "application/json" && req.method.toLowerCase() == "post") {
+            //if (contentType == "application/json" && req.method.toLowerCase() == "post") {
+            if (req.method.toLowerCase() == "post") {
 
                 req._body = true;
 
