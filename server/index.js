@@ -6,6 +6,8 @@ var httpProxy = require('http-proxy');
 var clone = require('clone');
 var xtend = require('xtend');
 
+var oauth2 = require("../lib/cloudcms/oauth2")();
+
 var util = require('./util');
 
 var app = express();
@@ -152,6 +154,21 @@ exports.start = function(overrides, callback)
 
     ////////////////////////////////////////////////////////////////////////////
     //
+    // VIRTUAL SUPPORT
+    //
+    // Configure NodeJS to load virtual driver and configure for virtual descriptors
+    // ahead of anything else running.
+    //
+    ////////////////////////////////////////////////////////////////////////////
+    app.configure(function() {
+        cloudcms.virtual(app, config);
+    });
+
+    app.use(cloudcms.ensureCORSCrossDomain());
+
+
+    ////////////////////////////////////////////////////////////////////////////
+    //
     // HTTP/HTTPS Proxy Server to Cloud CMS
     // Facilitates Cross-Domain communication between Browser and Cloud Server
     // This must appear at the top of the app.js file (ahead of config) for things to work
@@ -159,6 +176,9 @@ exports.start = function(overrides, callback)
     ////////////////////////////////////////////////////////////////////////////
     // START PROXY SERVER
     app.use("/proxy", httpProxy.createServer(function(req, res, proxy) {
+
+        // used to auto-assign the client header for /oauth/token requests
+        oauth2.autoProxy(req);
 
         proxy.proxyRequest(req, res, {
             "host": process.env.GITANA_PROXY_HOST,
@@ -184,7 +204,6 @@ exports.start = function(overrides, callback)
         app.set('port', process.env.PORT || 2999);
         app.set('views', process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH + "/../views");
         app.set('view engine', 'html'); // html file extension
-        //app.engine('html', require('hbs').__express);
 
         //var dust = require('dustjs-linkedin');
         var cons = require('consolidate');

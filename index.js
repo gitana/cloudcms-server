@@ -83,7 +83,7 @@ exports = module.exports = function()
 
     var r = {};
 
-    r.interceptors = function(app, includeCloudCMS, configuration)
+    r.virtual = function(app, configuration)
     {
         if (!configuration) {
             configuration = {};
@@ -97,10 +97,17 @@ exports = module.exports = function()
         app.use(virtualHost.virtualDriverConfigInterceptor(configuration));
         app.use(virtualHost.virtualFilesInterceptor(configuration));
 
-        if (includeCloudCMS) {
+        // ensure that a gitana driver instance is bound to the request
+        app.use(cloudcms.driverInterceptor());
+    };
 
-            // ensure that a gitana driver instance is bound to the request
-            app.use(cloudcms.driverInterceptor());
+    r.interceptors = function(app, includeCloudCMS, configuration)
+    {
+        if (!configuration) {
+            configuration = {};
+        }
+
+        if (includeCloudCMS) {
 
             // bind a cache helper
             app.use(cache.cacheInterceptor());
@@ -202,6 +209,33 @@ exports = module.exports = function()
             {
                 next();
             }
+        };
+    };
+
+    /**
+     * Ensures that headers are set to enable CORS cross-domain functionality.
+     *
+     * @returns {Function}
+     */
+    r.ensureCORSCrossDomain = function()
+    {
+        return function(req, res, next) {
+
+            if (!req.get('Origin')) {
+                return next();
+            }
+
+            // use "*" here to accept any origin
+            res.set('Access-Control-Allow-Origin', '*');
+            res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+            res.set('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Authorization');
+            // res.set('Access-Control-Allow-Max-Age', 3600);
+
+            if ('OPTIONS' == req.method) {
+                return res.send(200);
+            }
+
+            next();
         };
     };
 
