@@ -5,7 +5,7 @@
     "url": "http://www.cloudcms.com"
   },
   "name": "cloudcms-server",
-  "description": "Cloud CMS app server module",
+  "description": "Cloud CMS Application Server Support Module",
   "version": "0.6.17",
   "repository": {
     "type": "git",

@@ -180,6 +180,40 @@ exports.start = function(overrides, callback)
         // used to auto-assign the client header for /oauth/token requests
         oauth2.autoProxy(req);
 
+        var updateSetCookieHost = function(value)
+        {
+            var newHost = req.host;
+            if (req.virtualHost) {
+                newHost = req.virtualHost;
+            }
+
+            var i = value.indexOf("Domain=");
+            if (i > -1)
+            {
+                var j = value.indexOf(";", i);
+                if (j > -1)
+                {
+                    value = value.substring(0, i+7) + newHost + value.substring(j);
+                }
+            }
+
+            return value;
+        };
+
+        var _setHeader = res.setHeader;
+        res.setHeader = function(key, value)
+        {
+            if (key.toLowerCase() == "set-cookie")
+            {
+                for (var x in value)
+                {
+                    value[x] = updateSetCookieHost(value[x]);
+                }
+            }
+
+            _setHeader.call(this, key, value);
+        };
+
         proxy.proxyRequest(req, res, {
             "host": process.env.GITANA_PROXY_HOST,
             "port": process.env.GITANA_PROXY_PORT,
