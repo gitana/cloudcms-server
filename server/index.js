@@ -161,6 +161,17 @@ exports.start = function(overrides, callback)
     //
     ////////////////////////////////////////////////////////////////////////////
     app.configure(function() {
+
+        app.use(express.logger('dev'));
+
+        // standard body parsing + a special cloud cms body parser that makes a last ditch effort for anything
+        // that might be JSON (regardless of content type)
+        app.use(express.multipart());
+        app.use(express.json());
+        app.use(express.urlencoded());
+        app.use(cloudcms.bodyParser());
+
+        // load virtual config and gitana driver
         cloudcms.virtual(app, config);
     });
 
@@ -253,19 +264,9 @@ exports.start = function(overrides, callback)
         app.engine('html', cons.dust);
 
         app.use(express.favicon());
-        app.use(express.logger('dev'));
 
         //app.use(express.cookieParser());
         //app.use(express.cookieParser("secret"));
-
-        // use the cloudcms body parser
-        app.use(express.multipart());
-        app.use(express.json());
-        app.use(express.urlencoded());
-        app.use(cloudcms.bodyParser());
-
-        //app.use(cloudcms.bodyParser());
-        //app.use(express.bodyParser());
 
         app.use(express.methodOverride());
         //app.use(express.session({ secret: 'secret', store: sessionStore }));
