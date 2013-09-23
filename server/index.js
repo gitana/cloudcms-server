@@ -214,12 +214,21 @@ exports.start = function(overrides, callback)
             _setHeader.call(this, key, value);
         };
 
-        proxy.proxyRequest(req, res, {
+        var proxyConfig = {
             "host": process.env.GITANA_PROXY_HOST,
             "port": process.env.GITANA_PROXY_PORT,
             "xforward": true//,
             //"changeOrigin": true
-        });
+        };
+
+        if (process.env.GITANA_PROXY_PORT === 443)
+        {
+            proxyConfig.target = {
+                "https": true
+            }
+        }
+
+        proxy.proxyRequest(req, res, proxyConfig);
     }));
     // END PROXY SERVER
 
