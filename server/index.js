@@ -225,19 +225,25 @@ exports.start = function(overrides, callback)
             _setHeader.call(this, key, value);
         };
 
+        var proxyHost = process.env.GITANA_PROXY_HOST;
+        var proxyPort = parseInt(process.env.GITANA_PROXY_PORT, 10);
+
         var proxyConfig = {
-            "host": process.env.GITANA_PROXY_HOST,
-            "port": process.env.GITANA_PROXY_PORT,
+            "host": proxyHost,
+            "port": proxyPort,
             "xforward": true//,
             //"changeOrigin": true
         };
 
-        if (process.env.GITANA_PROXY_PORT === 443)
+        if (proxyPort === 443)
         {
             proxyConfig.target = {
                 "https": true
-            }
+            };
+            proxyConfig.changeOrigin = true;
         }
+
+        //console.log(JSON.stringify(proxyConfig));
 
         proxy.proxyRequest(req, res, proxyConfig);
     }));
