@@ -272,7 +272,49 @@ exports.start = function(overrides, callback)
             };
         }
 
-        //console.log(JSON.stringify(proxyConfig));
+        // ten second timeout
+        proxyConfig.timeout = 10000;
+
+        // EVENT HANDLING
+        proxy.on("start", function(req, res, target) {
+            console.log("Heard Proxy Event: start");
+        });
+        proxy.on("forward", function(req, res, forward)	{
+            console.log("Heard Proxy Event: forward");
+        });
+
+        proxy.on("proxyError", function(err, req, res) {
+            console.log("Heard Proxy Event: proxyError");
+            console.log("ERROR:	" + err);
+        });
+
+        proxy.on("end",	function(req, res, proxyResponse) {
+            console.log("Heard Proxy Event: end");
+        });
+
+        proxy.on("proxyResponse", function(req, res, proxyResponse) {
+            console.log("Heard Proxy Event: proxyResponse");
+        });
+
+        /*
+        // strip headers that we don't want
+        var badKeys = [];
+        for (var k in req.headers)
+        {
+            if (k.indexOf("x-") == 0)
+            {
+                badKeys.push(k);
+            }
+        }
+        for (var i = 0; i < badKeys.length; i++)
+        {
+            delete req.headers[badKeys[i]];
+        }
+        for (var k in req.headers)
+        {
+            console.log("HEADER: " + k + " = " + req.headers[k]);
+        }
+        */
 
         proxy.proxyRequest(req, res, proxyConfig);
     }));
