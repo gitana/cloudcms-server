@@ -168,7 +168,7 @@ exports.start = function(overrides, callback)
         // that might be JSON (regardless of content type)
         app.use(function(req, res, next) {
 
-            if (req.url.indexOf("/proxy") === 0)
+            if (req.url.indexOf("/aproxy") === 0)
             {
                 // don't do any payload processing when accessing the proxy
                 next();
@@ -207,7 +207,7 @@ exports.start = function(overrides, callback)
     //
     ////////////////////////////////////////////////////////////////////////////
     // START PROXY SERVER
-    app.use("/proxy", httpProxy.createServer(function(req, res, proxy) {
+    app.use("/aproxy", httpProxy.createServer(function(req, res, proxy) {
 
         // used to auto-assign the client header for /oauth/token requests
         oauth2.autoProxy(req);
@@ -262,6 +262,14 @@ exports.start = function(overrides, callback)
                 "https": true
             };
             proxyConfig.changeOrigin = true;
+        }
+
+        var serverPort = app.get('port');
+        if (serverPort == 443)
+        {
+            proxyConfig.source = {
+                "https": true
+            };
         }
 
         //console.log(JSON.stringify(proxyConfig));
