@@ -16,7 +16,7 @@ server.routes(function(app) {
  * Default socket handlers
  */
 server.sockets(function(socket) {
-    frameworkSockets.sockets(socket);
+    frameworkSockets.init(socket);
 });
 
 /**
