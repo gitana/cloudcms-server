@@ -252,8 +252,7 @@ exports.start = function(overrides, callback)
         var proxyConfig = {
             "host": proxyHost,
             "port": proxyPort,
-            "xforward": true//,
-            //"changeOrigin": true
+            "xforward": true
         };
 
         if (proxyPort === 443)
@@ -262,14 +261,6 @@ exports.start = function(overrides, callback)
                 "https": true
             };
             proxyConfig.changeOrigin = true;
-        }
-
-        var serverPort = app.get('port');
-        if (serverPort == 443)
-        {
-            proxyConfig.source = {
-                "https": true
-            };
         }
 
         // ten second timeout
