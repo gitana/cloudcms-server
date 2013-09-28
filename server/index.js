@@ -268,10 +268,10 @@ exports.start = function(overrides, callback)
 
         // EVENT HANDLING
         proxy.on("start", function(req, res, target) {
-            console.log("Heard Proxy Event: start");
+            //console.log("Heard Proxy Event: start");
         });
         proxy.on("forward", function(req, res, forward)	{
-            console.log("Heard Proxy Event: forward");
+            //console.log("Heard Proxy Event: forward");
         });
 
         proxy.on("proxyError", function(err, req, res) {
@@ -280,11 +280,11 @@ exports.start = function(overrides, callback)
         });
 
         proxy.on("end",	function(req, res, proxyResponse) {
-            console.log("Heard Proxy Event: end");
+            //console.log("Heard Proxy Event: end");
         });
 
         proxy.on("proxyResponse", function(req, res, proxyResponse) {
-            console.log("Heard Proxy Event: proxyResponse");
+            //console.log("Heard Proxy Event: proxyResponse");
         });
 
         /*
