@@ -267,25 +267,25 @@ exports.start = function(overrides, callback)
         proxyConfig.timeout = 10000;
 
         // EVENT HANDLING
-        proxy.on("start", function(req, res, target) {
+        //proxy.on("start", function(req, res, target) {
             //console.log("Heard Proxy Event: start");
-        });
-        proxy.on("forward", function(req, res, forward)	{
+        //});
+        //proxy.on("forward", function(req, res, forward)	{
             //console.log("Heard Proxy Event: forward");
-        });
+        //});
 
         proxy.on("proxyError", function(err, req, res) {
             console.log("Heard Proxy Event: proxyError");
             console.log("ERROR:	" + err);
         });
 
-        proxy.on("end",	function(req, res, proxyResponse) {
+        //proxy.on("end",	function(req, res, proxyResponse) {
             //console.log("Heard Proxy Event: end");
-        });
+        //});
 
-        proxy.on("proxyResponse", function(req, res, proxyResponse) {
+        //proxy.on("proxyResponse", function(req, res, proxyResponse) {
             //console.log("Heard Proxy Event: proxyResponse");
-        });
+        //});
 
         /*
         // strip headers that we don't want

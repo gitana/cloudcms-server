@@ -221,7 +221,13 @@ exports = module.exports = function()
     {
         return function(req, res, next) {
 
-            if (!req.get('Origin')) {
+            var origin = req.get("Origin");
+            if (!origin)
+            {
+                origin = req.get("origin");
+            }
+
+            if (!origin) {
                 return next();
             }
 
