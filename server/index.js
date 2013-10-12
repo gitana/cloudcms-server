@@ -18,7 +18,7 @@ var cloudcms = require("../index");
 // set up modes
 process.env.CLOUDCMS_APPSERVER_MODE = "development";
 
-if (process.env.NODE_ENV === "production")
+if (process.env.NODE_ENV == "production")
 {
     process.env.CLOUDCMS_APPSERVER_MODE = "production";
 }
@@ -147,8 +147,8 @@ exports.start = function(overrides, callback)
     }
 
 
-    console.log("");
-    console.log("Starting " + config.name);
+    //console.log("");
+    //console.log("Starting " + config.name);
     //console.log("Settings: " + JSON.stringify(config, null, "   "));
 
 
@@ -404,6 +404,7 @@ exports.start = function(overrides, callback)
                 // show standard info
                 var url = "http://localhost:" + app.get('port') + "/";
 
+                console.log("");
                 console.log(config.name + " started");
                 console.log(" -> visit: " + url);
                 console.log("");
