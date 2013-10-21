@@ -28,6 +28,10 @@ var mkdirp = require('mkdirp');
  */
 exports = module.exports = function()
 {
+    // TODO: this is to disable really annoying Express 3.0 deprecated's for multipart() which should hopefully
+    // TODO: be resolved soon
+    console.warn = function() {};
+
     // this is the root path where hosts, their public files and content caches are stored
     var basePath = process.env.CLOUDCMS_HOSTS_PATH;
     if (!basePath) {
