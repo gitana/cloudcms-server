@@ -101,7 +101,7 @@ exports = module.exports = function()
         app.use(virtualHost.virtualFilesInterceptor(configuration));
 
         // ensure that a gitana driver instance is bound to the request
-        app.use(cloudcms.driverInterceptor());
+        app.use(cloudcms.driverInterceptor(configuration));
     };
 
     r.interceptors = function(app, includeCloudCMS, configuration)
