@@ -162,7 +162,24 @@ exports.start = function(overrides, callback)
     ////////////////////////////////////////////////////////////////////////////
     app.configure(function() {
 
-        app.use(express.logger('dev'));
+        app.use(express.logger("dev"));
+
+        // cache control
+        if (config.noCache)
+        {
+            config.cacheControl = "no-cache";
+        }
+        if (config.cacheControl)
+        {
+            app.use(function(req, res, next) {
+
+                res.header("Cache-Control", config.cacheControl);
+                //res.header('Cache-Control', 'no-cache, private, no-store, must-revalidate, max-stale=0, post-check=0, pre-check=0');
+
+                next();
+            });
+        }
+
 
         // standard body parsing + a special cloud cms body parser that makes a last ditch effort for anything
         // that might be JSON (regardless of content type)
