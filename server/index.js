@@ -244,6 +244,10 @@ exports.start = function(overrides, callback)
                 {
                     value = value.substring(0, i+7) + newHost + value.substring(j);
                 }
+                else
+                {
+                    value = value.substring(0, i+7) + newHost;
+                }
             }
 
             return value;
