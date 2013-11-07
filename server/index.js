@@ -40,6 +40,9 @@ var SETTINGS = {
     },
     "serverTags": {
         "enabled": true
+    },
+    "insight": {
+        "enabled": true
     }
 };
 
@@ -465,6 +468,13 @@ exports.start = function(overrides, callback)
         {
             config.socketFunctions[i](socket);
         }
+
+        // INSIGHT SERVER
+        if (config.insight && config.insight.enabled)
+        {
+            require("../lib/insight/server").init(socket);
+        }
+
     });
 };
 
