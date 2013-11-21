@@ -10,6 +10,8 @@ var oauth2 = require("../lib/cloudcms/oauth2")();
 
 var util = require('./util');
 
+var perf = require("../lib/perf/perf");
+
 var app = express();
 
 // cloudcms app server support
@@ -167,6 +169,10 @@ exports.start = function(overrides, callback)
 
         app.use(express.logger("dev"));
 
+        // RUNTIME PERFORMANCE FRONT END
+        app.use(perf(config).cacheHeaderInterceptor());
+
+        /*
         // cache control
         if (config.noCache)
         {
@@ -182,6 +188,7 @@ exports.start = function(overrides, callback)
                 next();
             });
         }
+        */
 
 
         // standard body parsing + a special cloud cms body parser that makes a last ditch effort for anything
