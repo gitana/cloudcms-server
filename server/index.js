@@ -294,8 +294,8 @@ exports.start = function(overrides, callback)
             proxyConfig.changeOrigin = true;
         }
 
-        // five minute timeout
-        proxyConfig.timeout = 5 * 60 * 1000;
+        // ten minute timeout
+        proxyConfig.timeout = 10 * 60 * 1000;
 
         // EVENT HANDLING
         //proxy.on("start", function(req, res, target) {

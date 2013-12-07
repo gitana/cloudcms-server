@@ -1733,11 +1733,6 @@ if (typeof JSON !== 'object') {
         "type": "GROUP"
     };
 
-    // whether an automatic configuration should be loaded from the server
-    // if so, we plug in the url we're going to auto-configure for
-    // we leave this undefined by default
-    //Gitana.autoConfigUri = undefined;
-
     // temporary location for this code
     Gitana.toCopyDependencyChain = function(typedID)
     {
@@ -14230,6 +14225,31 @@ Gitana.OAuth2Http.TICKET = "ticket";
         readStack: function()
         {
             return this.subchain(this.getPlatform()).readStack(this["stackId"]);
+        },
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////
+        //
+        // ADMIN
+        //
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        adminMaintenance: function()
+        {
+            var self = this;
+
+            return this.then(function() {
+
+                var chain = this;
+
+                // call
+                var uri = self.getUri() + "/admin/maintenance";
+                self.getDriver().gitanaPost(uri, null, {}, function(response) {
+                    chain.next();
+                });
+
+                // NOTE: we return false to tell the chain that we'll manually call next()
+                return false;
+            });
         }
 
     });
