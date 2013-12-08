@@ -8750,12 +8750,12 @@ Gitana.OAuth2Http.TICKET = "ticket";
          */
         constructor: function(cluster, teamable, teamKey, object)
         {
+            this.teamable = teamable;
+            this.teamKey = teamKey;
+
             this.base(cluster.getDriver(), object);
 
             this.objectType = function() { return "Gitana.Team"; };
-
-            this.teamable = teamable;
-            this.teamKey = teamKey;
 
             this.getCluster = function()
             {
@@ -8989,6 +8989,8 @@ Gitana.OAuth2Http.TICKET = "ticket";
          */
         constructor: function(cluster, teamable, object)
         {
+            this.teamable = teamable;
+
             this.objectType = function() { return "Gitana.TeamMap"; };
 
             this.getCluster = function()
@@ -9003,8 +9005,6 @@ Gitana.OAuth2Http.TICKET = "ticket";
             //////////////////////////////////////////////////////////////////////////////////////////////
 
             this.base(cluster.getDriver(), object);
-
-            this.teamable = teamable;
         },
 
         /**
