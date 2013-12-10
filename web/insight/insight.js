@@ -85,34 +85,6 @@
 
         return iid;
     };
-    /*
-     var createXPathFromElement = function(elm) {
-     var allNodes = document.getElementsByTagName('*');
-     for (var segs = []; elm && elm.nodeType == 1; elm = elm.parentNode)
-     {
-     if (elm.hasAttribute('id')) {
-     var uniqueIdCount = 0;
-     for (var n=0;n < allNodes.length;n++) {
-     if (allNodes[n].hasAttribute('id') && allNodes[n].id == elm.id) uniqueIdCount++;
-     if (uniqueIdCount > 1) break;
-     }
-     if ( uniqueIdCount == 1) {
-     segs.unshift('id("' + elm.getAttribute('id') + '")');
-     return segs.join('/');
-     } else {
-     segs.unshift(elm.localName.toLowerCase() + '[@id="' + elm.getAttribute('id') + '"]');
-     }
-     } else if (elm.hasAttribute('class')) {
-     segs.unshift(elm.localName.toLowerCase() + '[@class="' + elm.getAttribute('class') + '"]');
-     } else {
-     for (var i = 1, sib = elm.previousSibling; sib; sib = sib.previousSibling) {
-     if (sib.localName == elm.localName)  i++; };
-     segs.unshift(elm.localName.toLowerCase() + '[' + i + ']');
-     }
-     }
-     return segs.length ? '/' + segs.join('/') : null;
-     };
-     */
     var hashcode = function(str) {
         var hash = 0;
         if (str.length == 0) return hash;
@@ -233,6 +205,37 @@
             }
 
             return x;
+        },
+        "attributes": function(event) {
+
+            var map = {};
+
+            debugger;
+
+            var el = event.currentTarget;
+
+            $.each(el.attributes, function(i, attribute)
+            {
+                var name = null;
+
+                if (attribute.name.toLowerCase().indexOf("data-insight-") > -1)
+                {
+                    name = name.substring(13);
+                }
+                else if (attribute.name == "href")
+                {
+                    name = attribute.name;
+                }
+
+                if (name)
+                {
+                    map[name] = attribute.value;
+                }
+            });
+
+            console.log(map);
+
+            return map;
         }
     };
 
@@ -427,7 +430,8 @@
             "application": contexts["application"](event),
             "user": contexts["user"](event),
             "source": contexts["source"](event),
-            "node": contexts["node"](event)
+            "node": contexts["node"](event),
+            "attributes": contexts["attributes"](event)
         });
     };
 
@@ -537,7 +541,43 @@
                     var eventType = config.events[i];
 
                     $(this).bind(eventType, function(event) {
+
                         captureEvent(event);
+
+                        var url = this.toString();
+                        if (url.indexOf(document.domain) == -1)
+                        {
+                            event.preventDefault();
+
+                            /*
+                            var target = jQuery(this).attr('target');
+                            if (target == "")
+                            {
+                                target = "_self";
+                            }
+                            */
+
+                            setTimeout(function() {
+
+                                var a = document.createElement("a");
+                                /*
+                                if ((!a.click) || ((jQuery.browser.msie) && (parseInt(jQuery.browser.version) > 8)))
+                                {
+                                    location.href = url; // for chrome and IE9+, target is lost
+                                }
+                                else
+                                {
+                                */
+                                    a.setAttribute("href", url);
+                                    //a.setAttribute("target", target);
+                                    a.style.display = "none";
+                                    var aElm = document.body.appendChild(a);
+                                    aElm.click(); //  for IE6,7,8 to pass on referrer
+                                /*
+                                }
+                                */
+                            }, 100);
+                        }
                     });
                 }
             }

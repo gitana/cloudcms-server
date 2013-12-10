@@ -6156,9 +6156,9 @@ Gitana.OAuth2Http.TICKET = "ticket";
         //
         //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        team: function(cluster, teamable, teamKey, object)
+        team: function(cluster, teamable, object)
         {
-            return new Gitana.Team(cluster, teamable, teamKey, object);
+            return new Gitana.Team(cluster, teamable, object);
         },
 
         teamMap: function(cluster, teamable, object)
@@ -7916,7 +7916,7 @@ Gitana.OAuth2Http.TICKET = "ticket";
                 return this.getUri() + "/teams/" + teamKey;
             };
 
-            var chainable = this.getFactory().team(this.getPlatform(), this, teamKey);
+            var chainable = this.getFactory().team(this.getPlatform(), this);
             return this.chainGet(chainable, uriFunction);
         },
 
@@ -7958,7 +7958,7 @@ Gitana.OAuth2Http.TICKET = "ticket";
 
             var self = this;
 
-            var chainable = this.getFactory().team(this.getPlatform(), this, teamKey);
+            var chainable = this.getFactory().team(this.getPlatform(), this);
             return this.chainPostResponse(chainable, uriFunction, {}, object).then(function() {
                 this.subchain(self).readTeam(teamKey).then(function() {
                     Gitana.copyInto(chainable, this);
@@ -8745,15 +8745,19 @@ Gitana.OAuth2Http.TICKET = "ticket";
          *
          * @param {Gitana.Cluster} cluster
          * @param {Object} teamable
-         * @param {String} teamKey
          * @param [Object] object json object (if no callback required for populating)
          */
-        constructor: function(cluster, teamable, teamKey, object)
+        constructor: function(cluster, teamable, object)
         {
-            this.teamable = teamable;
-            this.teamKey = teamKey;
+            this.__teamable = (function() {
+                var _teamable = null;
+                return function(teamable) {
+                    if (!Gitana.isUndefined(teamable)) { _teamable = teamable; }
+                    return _teamable;
+                }
+            })();
 
-            this.base(cluster.getDriver(), object);
+            this.__teamable(teamable);
 
             this.objectType = function() { return "Gitana.Team"; };
 
@@ -8761,11 +8765,21 @@ Gitana.OAuth2Http.TICKET = "ticket";
             {
                 return cluster;
             };
+
+            this.base(cluster.getDriver(), object);
+        },
+
+        /**
+         * @override
+         */
+        clone: function()
+        {
+            return this.getFactory().team(this.getCluster(), this.__teamable(), this);
         },
 
         getUri: function()
         {
-            return this.teamable.getUri() + "/teams/" + this.teamKey;
+            return this.__teamable().getUri() + "/teams/" + this.getKey();
         },
 
         getType: function()
@@ -8788,7 +8802,7 @@ Gitana.OAuth2Http.TICKET = "ticket";
             };
 
             // NOTE: pass control back to the teamable
-            return this.chainDelete(this.teamable, uriFunction);
+            return this.chainDelete(this.__teamable(), uriFunction);
         },
 
         /**
@@ -8952,7 +8966,7 @@ Gitana.OAuth2Http.TICKET = "ticket";
          */
         getKey: function()
         {
-            return this.teamKey;
+            return this.get("key");
         },
 
         getGroupId: function()
@@ -8989,7 +9003,15 @@ Gitana.OAuth2Http.TICKET = "ticket";
          */
         constructor: function(cluster, teamable, object)
         {
-            this.teamable = teamable;
+            this.__teamable = (function() {
+                var _teamable = null;
+                return function(teamable) {
+                    if (!Gitana.isUndefined(teamable)) { _teamable = teamable; }
+                    return _teamable;
+                }
+            })();
+
+            this.__teamable(teamable);
 
             this.objectType = function() { return "Gitana.TeamMap"; };
 
@@ -9012,7 +9034,7 @@ Gitana.OAuth2Http.TICKET = "ticket";
          */
         clone: function()
         {
-            return this.getFactory().teamMap(this.getCluster(), this.teamable, this);
+            return this.getFactory().teamMap(this.getCluster(), this.__teamable(), this);
         },
 
         /**
@@ -9020,9 +9042,7 @@ Gitana.OAuth2Http.TICKET = "ticket";
          */
         buildObject: function(json)
         {
-            var teamKey = json["_doc"];
-
-            return this.getFactory().team(this.getCluster(), this.teamable, teamKey, json);
+            return this.getFactory().team(this.getCluster(), this.__teamable(), json);
         }
 
     });
@@ -13129,7 +13149,7 @@ Gitana.OAuth2Http.TICKET = "ticket";
                 return this.getUri() + "/teams/" + teamKey;
             };
 
-            var chainable = this.getFactory().team(this.getPlatform(), this, teamKey);
+            var chainable = this.getFactory().team(this.getPlatform(), this);
             return this.chainGet(chainable, uriFunction);
         },
 
@@ -13171,7 +13191,7 @@ Gitana.OAuth2Http.TICKET = "ticket";
 
             var self = this;
 
-            var chainable = this.getFactory().team(this.getPlatform(), this, teamKey);
+            var chainable = this.getFactory().team(this.getPlatform(), this);
             return this.chainPostResponse(chainable, uriFunction, {}, object).then(function() {
                 this.subchain(self).readTeam(teamKey).then(function() {
                     Gitana.copyInto(chainable, this);
