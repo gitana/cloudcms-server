@@ -169,6 +169,11 @@ exports.start = function(overrides, callback)
 
         app.use(express.logger("dev"));
 
+        app.use(function(req, res, next) {
+            req.originalUrl = req.url;
+            next();
+        });
+
         // RUNTIME PERFORMANCE FRONT END
         app.use(perf(config).cacheHeaderInterceptor());
 
@@ -348,7 +353,7 @@ exports.start = function(overrides, callback)
     //
     // BASE CONFIGURATION
     //
-    // Configures NodeJS app server using handlebars templating engine
+    // Configures NodeJS app server using dustjs templating engine
     // Runs on port 2999 by default
     //
     ////////////////////////////////////////////////////////////////////////////
@@ -435,7 +440,6 @@ exports.start = function(overrides, callback)
                 // show standard info
                 var url = "http://localhost:" + app.get('port') + "/";
 
-                console.log("");
                 console.log(config.name + " started");
                 console.log(" -> visit: " + url);
                 console.log("");

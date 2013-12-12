@@ -49,6 +49,7 @@ exports = module.exports = function()
     var final = require("./lib/final/final")(basePath);
     var libraries = require("./lib/libraries/libraries")(basePath);
     var cache = require("./lib/cache/cache")(basePath);
+    var welcome = require("./lib/welcome/welcome")(basePath);
 
     // config service
     var config = require("./lib/config")(basePath);
@@ -83,7 +84,19 @@ exports = module.exports = function()
     // cache
     process.cache = cache;
 
+    // read the package.json file and determine the build timestamp
+    var packageJsonPath = path.resolve("package.json");
+    if (fs.existsSync(packageJsonPath))
+    {
+        var packageJson = JSON.parse(fs.readFileSync(packageJsonPath).toString());
+        if (packageJson && packageJson.buildInfo)
+        {
+            process.env.CLOUDCMS_APPSERVER_BUILD_TIMESTAMP = packageJson.buildInfo.timestamp;
+        }
+    }
 
+
+    // object that we hand back
     var r = {};
 
     r.virtual = function(app, configuration)
@@ -94,6 +107,9 @@ exports = module.exports = function()
 
         // bind cache
         app.cache = cache;
+
+        // welcome support
+        app.use(welcome.welcomeInterceptor(configuration));
 
         // set up virtualization
         app.use(virtualHost.virtualHostInterceptor(configuration));
