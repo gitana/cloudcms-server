@@ -89,10 +89,9 @@ exports = module.exports = function()
     if (fs.existsSync(packageJsonPath))
     {
         var packageJson = JSON.parse(fs.readFileSync(packageJsonPath).toString());
-        if (packageJson && packageJson.buildInfo)
-        {
-            process.env.CLOUDCMS_APPSERVER_BUILD_TIMESTAMP = packageJson.buildInfo.timestamp;
-        }
+
+        process.env.CLOUDCMS_APPSERVER_PACKAGE_NAME = packageJson.name;
+        process.env.CLOUDCMS_APPSERVER_PACKAGE_VERSION = packageJson.version;
     }
 
 
