@@ -1948,9 +1948,15 @@ if (typeof JSON !== 'object') {
             config = {"key": config};
         }
 
-        // if no config key specified, we can generate one...
-        if (!config.key) {
+        // by default, we use cache
+        if (typeof(config.useCache) == "undefined")
+        {
+            config.useCache = true;
+        }
 
+        // if no config key specified, we can generate one...
+        if (!config.key && config.useCache)
+        {
             // "ticket" authentication - key = ticket
             if (config.ticket) {
                 config.key = config.ticket;
@@ -2019,8 +2025,13 @@ if (typeof JSON !== 'object') {
 
         // either retrieve platform from cache or authenticate
         var platform = null;
-        if (config.key) {
+        if (config.key && config.useCache) {
+            console.log("Reusing authentication from cache for key " + config.key);
             platform = Gitana.PLATFORM_CACHE(config.key);
+        }
+        else
+        {
+            console.log("Authenticating anew for key: " + config.key);
         }
         if (platform)
         {
@@ -2050,13 +2061,13 @@ if (typeof JSON !== 'object') {
             // NOTE: this == platform
 
             // cache
-            if (config.key) {
+            if (config.key && config.useCache) {
                 Gitana.PLATFORM_CACHE(config.key, this);
             }
 
             // always cache on ticket as well
             var ticket = this.getDriver().getAuthInfo().getTicket();
-            if (ticket) {
+            if (ticket && config.useCache) {
                 Gitana.PLATFORM_CACHE(ticket, this);
             }
 

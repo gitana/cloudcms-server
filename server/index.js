@@ -239,6 +239,7 @@ exports.start = function(overrides, callback)
     //
     ////////////////////////////////////////////////////////////////////////////
     // START PROXY SERVER
+    var proxyMethodInit = false;
     app.use("/proxy", httpProxy.createServer(function(req, res, proxy) {
 
         // used to auto-assign the client header for /oauth/token requests
@@ -302,26 +303,35 @@ exports.start = function(overrides, callback)
         // ten minute timeout
         proxyConfig.timeout = 10 * 60 * 1000;
 
-        // EVENT HANDLING
-        //proxy.on("start", function(req, res, target) {
-            //console.log("Heard Proxy Event: start");
-        //});
-        //proxy.on("forward", function(req, res, forward)	{
-            //console.log("Heard Proxy Event: forward");
-        //});
+        if (!proxyMethodInit)
+        {
+            // EVENT HANDLING
+            proxy.on("start", function(req, res, target) {
+                console.log("Heard Proxy Event: start");
+                req.startTime = new Date().getTime();
+            });
+            //proxy.on("forward", function(req, res, forward)	{
+                //console.log("Heard Proxy Event: forward");
+            //});
 
-        proxy.on("proxyError", function(err, req, res) {
-            console.log("Heard Proxy Event: proxyError");
-            console.log("ERROR:	" + err);
-        });
+            proxy.on("proxyError", function(err, req, res) {
+                console.log("Heard Proxy Event: proxyError");
+                console.log("ERROR:	" + err);
+            });
 
-        //proxy.on("end",	function(req, res, proxyResponse) {
-            //console.log("Heard Proxy Event: end");
-        //});
+            proxy.on("end",	function(req, res, proxyResponse) {
+                console.log("Heard Proxy Event: end");
+                req.endTime = new Date().getTime();
 
-        //proxy.on("proxyResponse", function(req, res, proxyResponse) {
-            //console.log("Heard Proxy Event: proxyResponse");
-        //});
+                console.log("Total proxy time: " + (req.endTime - req.startTime));
+            });
+
+            //proxy.on("proxyResponse", function(req, res, proxyResponse) {
+                //console.log("Heard Proxy Event: proxyResponse");
+            //});
+
+            proxyMethodInit = true;
+        }
 
         /*
         // strip headers that we don't want
