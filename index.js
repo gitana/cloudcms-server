@@ -160,7 +160,6 @@ exports = module.exports = function()
         // libraries
         app.use(libraries.handler());
         app.use(function(req, res, next) {
-            debugger;
             next();
         });
 
