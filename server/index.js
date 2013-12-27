@@ -242,15 +242,38 @@ exports.start = function(overrides, callback)
     var proxyMethodInit = false;
     app.use("/proxy", httpProxy.createServer(function(req, res, proxy) {
 
+        req.socket.setNoDelay(true);
+
         // used to auto-assign the client header for /oauth/token requests
         oauth2.autoProxy(req);
 
         var updateSetCookieHost = function(value)
         {
-            var newHost = req.host;
+            var newDomain = req.host;
             if (req.virtualHost) {
-                newHost = req.virtualHost;
+                newDomain = req.virtualHost;
             }
+
+            /*
+            // if "origin" is specified as a header, we use that for the new cookie domain
+            if (req.headers && req.headers["origin"])
+            {
+                var origin = req.headers["origin"];
+
+                var z = origin.indexOf("//");
+                if (z > -1)
+                {
+                    origin = origin.substring(z+2);
+                }
+                z = origin.indexOf("/");
+                if (z > -1)
+                {
+                    origin = origin.substring(0, z);
+                }
+
+                newDomain = origin;
+            }
+            */
 
             var i = value.indexOf("Domain=");
             if (i > -1)
@@ -258,11 +281,11 @@ exports.start = function(overrides, callback)
                 var j = value.indexOf(";", i);
                 if (j > -1)
                 {
-                    value = value.substring(0, i+7) + newHost + value.substring(j);
+                    value = value.substring(0, i+7) + newDomain + value.substring(j);
                 }
                 else
                 {
-                    value = value.substring(0, i+7) + newHost;
+                    value = value.substring(0, i+7) + newDomain;
                 }
             }
 
@@ -307,6 +330,7 @@ exports.start = function(overrides, callback)
         {
             // EVENT HANDLING
             proxy.on("start", function(req, res, target) {
+                req.socket.setNoDelay(true);
                 console.log("Heard Proxy Event: start");
                 req.startTime = new Date().getTime();
             });
@@ -426,6 +450,9 @@ exports.start = function(overrides, callback)
 
     // CORE OBJECTS
     var server = http.createServer(app);
+    server.on("connection", function(socket) {
+        socket.setNoDelay(true);
+    });
     var io = require("socket.io").listen(server);
     process.IO = io;
 
