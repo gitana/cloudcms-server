@@ -2026,12 +2026,12 @@ if (typeof JSON !== 'object') {
         // either retrieve platform from cache or authenticate
         var platform = null;
         if (config.key && config.useCache) {
-            console.log("Reusing authentication from cache for key " + config.key);
+            //console.log("Reusing authentication from cache for key " + config.key);
             platform = Gitana.PLATFORM_CACHE(config.key);
         }
         else
         {
-            console.log("Authenticating anew for key: " + config.key);
+            //console.log("Authenticating anew for key: " + config.key);
         }
         if (platform)
         {
