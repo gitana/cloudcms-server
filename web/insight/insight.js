@@ -210,8 +210,6 @@
 
             var map = {};
 
-            debugger;
-
             var el = event.currentTarget;
 
             $.each(el.attributes, function(i, attribute)
@@ -220,7 +218,7 @@
 
                 if (attribute.name.toLowerCase().indexOf("data-insight-") > -1)
                 {
-                    name = name.substring(13);
+                    name = attribute.name.substring(13);
                 }
                 else if (attribute.name == "href")
                 {
@@ -232,8 +230,6 @@
                     map[name] = attribute.value;
                 }
             });
-
-            console.log(map);
 
             return map;
         }

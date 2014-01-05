@@ -51,6 +51,7 @@ var SETTINGS = {
 // default to using long polling?
 // can assist for environments using non-sticky load balancer
 // SETTINGS.socketTransports = ["xhr-polling"];
+SETTINGS.socketTransports= ["xhr-polling", "jsonp-polling"];
 
 var exports = module.exports;
 
@@ -331,7 +332,7 @@ exports.start = function(overrides, callback)
             // EVENT HANDLING
             proxy.on("start", function(req, res, target) {
                 req.socket.setNoDelay(true);
-                console.log("Heard Proxy Event: start");
+                //console.log("Heard Proxy Event: start");
                 req.startTime = new Date().getTime();
             });
             //proxy.on("forward", function(req, res, forward)	{
@@ -344,7 +345,7 @@ exports.start = function(overrides, callback)
             });
 
             proxy.on("end",	function(req, res, proxyResponse) {
-                console.log("Heard Proxy Event: end");
+                //console.log("Heard Proxy Event: end");
                 req.endTime = new Date().getTime();
 
                 console.log("Total proxy time: " + (req.endTime - req.startTime));
