@@ -46,6 +46,7 @@
     var CLASS_INSIGHT = "insight";
     var ATTR_DATA_INSIGHT_ID = "data-insight-id";
     var ATTR_DATA_INSIGHT_NODE = "data-insight-node";
+    var ATTR_DATA_INSIGHT_DISABLED = "data-insight-disabled";
 
     var iidCounter = 0;
 
@@ -540,40 +541,54 @@
         //
         $(el).each(function() {
 
-            if (!$(this).hasClass(CLASS_INSIGHT))
+            var eventEl = this;
+
+            if (!$(eventEl).hasClass(CLASS_INSIGHT))
             {
                 // this adds class CLASS_INSIGHT and also the attribute ATTR_DATA_INSIGHT_ID
-                insightId($(this), createInsightId());
+                insightId($(eventEl), createInsightId());
 
                 // event handlers
                 for (var i = 0; i < config.events.length; i++)
                 {
                     var eventType = config.events[i];
 
-                    $(this).bind(eventType, function(event) {
+                    $(eventEl).bind(eventType, function(event) {
 
+                        var isInsightDisabled = ($(eventEl).attr(ATTR_DATA_INSIGHT_DISABLED) == "true");
+                        if (isInsightDisabled)
+                        {
+                            return;
+                        }
+
+                        event.preventDefault();
+
+                        // capture and flush interactions to server
                         captureInteraction(event);
+                        Dispatcher.flush();
 
-                        var url = this.toString();
+                        // brief timeout
+                        setTimeout(function() {
 
-                        // if an external domain, we custom handle the event trigger via a setTimeout
-                        // so as to allow the socket to complete
-                        //if (url.indexOf(document.domain) == -1)
-                        //{
-                            event.preventDefault();
+                            // disable our dom element for insight
+                            $(eventEl).attr(ATTR_DATA_INSIGHT_DISABLED, "true");
 
-                            Dispatcher.flush();
+                            // re-fire the event
+                            var refEvent = event.originalEvent;
+                            refEvent.cancelBubble = false;
+                            refEvent.defaultPrevented = false;
+                            refEvent.returnValue = true;
+                            refEvent.timeStamp = (new Date()).getTime();
+                            if (event.target.dispatchEvent){
+                                event.target.dispatchEvent(refEvent);
+                            } else if (event.target.fireEvent) {
+                                event.target.fireEvent(refEvent);
+                            }
 
-                            setTimeout(function() {
+                            // enable our dom-element for insight
+                            $(eventEl).attr(ATTR_DATA_INSIGHT_DISABLED, null);
 
-                                var a = document.createElement("a");
-                                a.setAttribute("href", url);
-                                a.style.display = "none";
-                                var aElm = document.body.appendChild(a);
-                                aElm.click();
-
-                            }, 150);
-                        //}
+                        }, 150);
                     });
                 }
             }
