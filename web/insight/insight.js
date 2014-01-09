@@ -178,7 +178,8 @@
             return {
                 "uri": window.location.pathname,
                 "hash": window.location.hash,
-                "fullUri": window.location.pathname + window.location.hash
+                "fullUri": window.location.pathname + window.location.hash,
+                "title": document.title
             };
         },
         "application": function(event) {
@@ -288,6 +289,8 @@
                         data.rows.push(QUEUE[i]);
                     }
 
+                    console.log("Insight sending " + data.rows.length + " rows");
+
                     // send via socket.io
                     socket.emit("insight-push", data);
 
@@ -321,6 +324,12 @@
         r.push = function(interaction)
         {
             QUEUE.push(interaction);
+        };
+
+        r.flush = function()
+        {
+            syncFunction(function(err) {
+            });
         };
 
         return r;
@@ -541,39 +550,25 @@
                         captureEvent(event);
 
                         var url = this.toString();
-                        if (url.indexOf(document.domain) == -1)
-                        {
+
+                        // if an external domain, we custom handle the event trigger via a setTimeout
+                        // so as to allow the socket to complete
+                        //if (url.indexOf(document.domain) == -1)
+                        //{
                             event.preventDefault();
 
-                            /*
-                            var target = jQuery(this).attr('target');
-                            if (target == "")
-                            {
-                                target = "_self";
-                            }
-                            */
+                            Dispatcher.flush();
 
                             setTimeout(function() {
 
                                 var a = document.createElement("a");
-                                /*
-                                if ((!a.click) || ((jQuery.browser.msie) && (parseInt(jQuery.browser.version) > 8)))
-                                {
-                                    location.href = url; // for chrome and IE9+, target is lost
-                                }
-                                else
-                                {
-                                */
-                                    a.setAttribute("href", url);
-                                    //a.setAttribute("target", target);
-                                    a.style.display = "none";
-                                    var aElm = document.body.appendChild(a);
-                                    aElm.click(); //  for IE6,7,8 to pass on referrer
-                                /*
-                                }
-                                */
-                            }, 100);
-                        }
+                                a.setAttribute("href", url);
+                                a.style.display = "none";
+                                var aElm = document.body.appendChild(a);
+                                aElm.click();
+
+                            }, 150);
+                        //}
                     });
                 }
             }
