@@ -165,16 +165,16 @@
     // construct a map of provider functions
     // this can be overridden with config
     var CONTEXTS_DEFAULTS = {
-        "user": function(event) {
+        "user": function() {
             return {};
         },
-        "source": function(event) {
+        "source": function() {
             return {
                 "user-agent": navigator.userAgent,
                 "platform": navigator.platform
             };
         },
-        "page": function(event) {
+        "page": function() {
             return {
                 "uri": window.location.pathname,
                 "hash": window.location.hash,
@@ -182,7 +182,7 @@
                 "title": document.title
             };
         },
-        "application": function(event) {
+        "application": function() {
             return {
                 "host": window.location.host,
                 "hostname": window.location.hostname,
@@ -382,7 +382,7 @@
     // a tag that is created on the browser side (here) to identify the user
     var USER_KEY = null;
 
-    var captureEvent = function(event)
+    var startSession = function()
     {
         var now = new Date().getTime();
 
@@ -404,14 +404,19 @@
                 //"appKey": Insight.APPLICATION_KEY,
                 "sessionKey": SESSION_KEY,
                 "userKey": USER_KEY,
-                "page": contexts["page"](event),
-                "application": contexts["application"](event),
-                "user": contexts["user"](event),
-                "source": contexts["source"](event)
+                "page": contexts["page"](),
+                "application": contexts["application"](),
+                "user": contexts["user"](),
+                "source": contexts["source"]()
             });
         }
+    };
 
-        // mark the event
+    var captureInteraction = function(event)
+    {
+        var now = new Date().getTime();
+
+        // push the interaction
         Dispatcher.push({
             "event": {
                 "type": event.type,
@@ -431,10 +436,10 @@
             //"appKey": Insight.APPLICATION_KEY,
             "sessionKey": SESSION_KEY,
             "userKey": USER_KEY,
-            "page": contexts["page"](event),
-            "application": contexts["application"](event),
-            "user": contexts["user"](event),
-            "source": contexts["source"](event),
+            "page": contexts["page"](),
+            "application": contexts["application"](),
+            "user": contexts["user"](),
+            "source": contexts["source"](),
             "node": contexts["node"](event),
             "attributes": contexts["attributes"](event)
         });
@@ -547,7 +552,7 @@
 
                     $(this).bind(eventType, function(event) {
 
-                        captureEvent(event);
+                        captureInteraction(event);
 
                         var url = this.toString();
 
@@ -574,7 +579,8 @@
             }
         });
 
-
+        // start session
+        startSession();
     };
 
 
