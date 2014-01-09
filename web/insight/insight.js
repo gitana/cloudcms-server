@@ -46,7 +46,6 @@
     var CLASS_INSIGHT = "insight";
     var ATTR_DATA_INSIGHT_ID = "data-insight-id";
     var ATTR_DATA_INSIGHT_NODE = "data-insight-node";
-    var ATTR_DATA_INSIGHT_DISABLED = "data-insight-disabled";
 
     var iidCounter = 0;
 
@@ -545,51 +544,21 @@
 
             if (!$(eventEl).hasClass(CLASS_INSIGHT))
             {
-                // this adds class CLASS_INSIGHT and also the attribute ATTR_DATA_INSIGHT_ID
-                insightId($(eventEl), createInsightId());
-
                 // event handlers
                 for (var i = 0; i < config.events.length; i++)
                 {
                     var eventType = config.events[i];
 
-                    $(eventEl).bind(eventType, function(event) {
+                    $(eventEl).bindFirst(eventType, function(eventType) {
 
-                        var isInsightDisabled = ($(eventEl).attr(ATTR_DATA_INSIGHT_DISABLED) == "true");
-                        if (isInsightDisabled)
-                        {
-                            return;
-                        }
+                        return function(event) {
 
-                        event.preventDefault();
+                            // capture and flush interactions to server
+                            captureInteraction(event);
+                            Dispatcher.flush();
+                        };
 
-                        // capture and flush interactions to server
-                        captureInteraction(event);
-                        Dispatcher.flush();
-
-                        // brief timeout
-                        setTimeout(function() {
-
-                            // disable our dom element for insight
-                            $(eventEl).attr(ATTR_DATA_INSIGHT_DISABLED, "true");
-
-                            // re-fire the event
-                            var refEvent = event.originalEvent;
-                            refEvent.cancelBubble = false;
-                            refEvent.defaultPrevented = false;
-                            refEvent.returnValue = true;
-                            refEvent.timeStamp = (new Date()).getTime();
-                            if (event.target.dispatchEvent){
-                                event.target.dispatchEvent(refEvent);
-                            } else if (event.target.fireEvent) {
-                                event.target.fireEvent(refEvent);
-                            }
-
-                            // enable our dom-element for insight
-                            $(eventEl).attr(ATTR_DATA_INSIGHT_DISABLED, null);
-
-                        }, 150);
-                    });
+                    }(eventType));
                 }
             }
         });
@@ -605,8 +574,6 @@
     //
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    //$.insight = Insight;
-
     $.fn.insight = function()
     {
         var args = makeArray(arguments);
@@ -617,5 +584,119 @@
         // invoke, hand back field instance
         return FunctionHandler.apply(this, newArgs);
     };
+
+
+
+
+    // https://github.com/private-face/jquery.bind-first/blob/master/dev/jquery.bind-first.js
+    // jquery.bind-first.js
+    (function($) {
+        var splitVersion = $.fn.jquery.split(".");
+        var major = parseInt(splitVersion[0]);
+        var minor = parseInt(splitVersion[1]);
+
+        var JQ_LT_17 = (major < 1) || (major == 1 && minor < 7);
+
+        function eventsData($el)
+        {
+            return JQ_LT_17 ? $el.data('events') : $._data($el[0]).events;
+        }
+
+        function moveHandlerToTop($el, eventName, isDelegated)
+        {
+            var data = eventsData($el);
+            var events = data[eventName];
+
+            if (!JQ_LT_17) {
+                var handler = isDelegated ? events.splice(events.delegateCount - 1, 1)[0] : events.pop();
+                events.splice(isDelegated ? 0 : (events.delegateCount || 0), 0, handler);
+
+                return;
+            }
+
+            if (isDelegated) {
+                data.live.unshift(data.live.pop());
+            } else {
+                events.unshift(events.pop());
+            }
+        }
+
+        function moveEventHandlers($elems, eventsString, isDelegate) {
+            var events = eventsString.split(/\s+/);
+            $elems.each(function() {
+                for (var i = 0; i < events.length; ++i) {
+                    var pureEventName = $.trim(events[i]).match(/[^\.]+/i)[0];
+                    moveHandlerToTop($(this), pureEventName, isDelegate);
+                }
+            });
+        }
+
+        $.fn.bindFirst = function()
+        {
+            var args = $.makeArray(arguments);
+            var eventsString = args.shift();
+
+            if (eventsString) {
+                $.fn.bind.apply(this, arguments);
+                moveEventHandlers(this, eventsString);
+            }
+
+            return this;
+        };
+
+        $.fn.delegateFirst = function()
+        {
+            var args = $.makeArray(arguments);
+            var eventsString = args[1];
+
+            if (eventsString) {
+                args.splice(0, 2);
+                $.fn.delegate.apply(this, arguments);
+                moveEventHandlers(this, eventsString, true);
+            }
+
+            return this;
+        };
+
+        $.fn.liveFirst = function()
+        {
+            var args = $.makeArray(arguments);
+
+            // live = delegate to document
+            args.unshift(this.selector);
+            $.fn.delegateFirst.apply($(document), args);
+
+            return this;
+        };
+
+        if (!JQ_LT_17)
+        {
+            $.fn.onFirst = function(types, selector) {
+                var $el = $(this);
+                var isDelegated = typeof selector === 'string';
+
+                $.fn.on.apply($el, arguments);
+
+                // events map
+                if (typeof types === 'object')
+                {
+                    for (var i = 0; i < types.length; i++)
+                    {
+                        var type = types[i];
+
+                        if (types.hasOwnProperty(type))
+                        {
+                            moveEventHandlers($el, type, isDelegated);
+                        }
+                    }
+                } else if (typeof types === 'string') {
+                    moveEventHandlers($el, types, isDelegated);
+                }
+
+                return $el;
+            };
+        }
+
+    })($);
 
 }));
