@@ -276,6 +276,7 @@
             BUSY = true;
 
             var queueLength = QUEUE.length;
+            console.log("QUEUE SIZE: " + queueLength);
             if (queueLength > 0)
             {
                 try
@@ -544,6 +545,9 @@
 
             if (!$(eventEl).hasClass(CLASS_INSIGHT))
             {
+                // generate a new id and bind to element (apply CLASS_INSIGHT)
+                insightId(eventEl, createInsightId());
+
                 // event handlers
                 for (var i = 0; i < config.events.length; i++)
                 {
