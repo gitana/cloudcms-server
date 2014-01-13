@@ -141,7 +141,7 @@ exports = module.exports = function()
             app.use(cloudcms.iceInterceptor());
         }
 
-        // cms (tag procesing, injection of scripts, etc, kind of a catch all at the moment)
+        // cms (tag processing, injection of scripts, etc, kind of a catch all at the moment)
         app.use(cms.interceptor(configuration));
     };
 
