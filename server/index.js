@@ -274,7 +274,7 @@ exports.start = function(overrides, callback)
         res.end('Something went wrong while proxying the request.');
     });
     proxyServer.on('proxyRes', function (res) {
-        console.log('RAW Response from the target', JSON.stringify(res.headers, true, 2));
+        //console.log('RAW Response from the target', JSON.stringify(res.headers, true, 2));
     });
     app.use("/proxy", http.createServer(function(req, res) {
 
