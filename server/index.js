@@ -240,8 +240,43 @@ exports.start = function(overrides, callback)
     //
     ////////////////////////////////////////////////////////////////////////////
     // START PROXY SERVER
-    var proxyMethodInit = false;
-    app.use("/proxy", httpProxy.createServer(function(req, res, proxy) {
+    var Agent = require('agentkeepalive');
+    var agent = new Agent({
+        maxSockets: 10,
+        maxFreeSockets: 10,
+        keepAlive: true,
+        keepAliveMsecs: 30000 // keepalive for 30 seconds
+    });
+    var proxyScheme = process.env.GITANA_PROXY_SCHEME;
+    var proxyHost = process.env.GITANA_PROXY_HOST;
+    var proxyPort = parseInt(process.env.GITANA_PROXY_PORT, 10);
+    proxyPort = 80;
+    var proxyConfig = {
+        "target": {
+            "host": proxyHost,
+            "port": proxyPort
+        },
+        "agent": agent,
+        "xfwd": true
+    };
+    if (proxyScheme.toLowerCase() === "https")
+    {
+        proxyConfig.secure = true;
+    }
+    // ten minute timeout
+    // proxyConfig.timeout = 10 * 60 * 1000;
+    var proxyServer = new httpProxy.createProxyServer(proxyConfig);
+    proxyServer.on("error", function(err, req, res) {
+        res.writeHead(500, {
+            'Content-Type': 'text/plain'
+        });
+
+        res.end('Something went wrong while proxying the request.');
+    });
+    proxyServer.on('proxyRes', function (res) {
+        console.log('RAW Response from the target', JSON.stringify(res.headers, true, 2));
+    });
+    app.use("/proxy", http.createServer(function(req, res) {
 
         req.socket.setNoDelay(true);
 
@@ -254,27 +289,6 @@ exports.start = function(overrides, callback)
             if (req.virtualHost) {
                 newDomain = req.virtualHost;
             }
-
-            /*
-            // if "origin" is specified as a header, we use that for the new cookie domain
-            if (req.headers && req.headers["origin"])
-            {
-                var origin = req.headers["origin"];
-
-                var z = origin.indexOf("//");
-                if (z > -1)
-                {
-                    origin = origin.substring(z+2);
-                }
-                z = origin.indexOf("/");
-                if (z > -1)
-                {
-                    origin = origin.substring(0, z);
-                }
-
-                newDomain = origin;
-            }
-            */
 
             var i = value.indexOf("Domain=");
             if (i > -1)
@@ -307,78 +321,7 @@ exports.start = function(overrides, callback)
             _setHeader.call(this, key, value);
         };
 
-        var proxyHost = process.env.GITANA_PROXY_HOST;
-        var proxyPort = parseInt(process.env.GITANA_PROXY_PORT, 10);
-
-        var proxyConfig = {
-            "host": proxyHost,
-            "port": proxyPort,
-            "xforward": true
-        };
-
-        if (proxyPort === 443)
-        {
-            proxyConfig.target = {
-                "https": true
-            };
-            proxyConfig.changeOrigin = true;
-        }
-
-        // ten minute timeout
-        proxyConfig.timeout = 10 * 60 * 1000;
-
-        if (!proxyMethodInit)
-        {
-            // EVENT HANDLING
-            proxy.on("start", function(req, res, target) {
-                req.socket.setNoDelay(true);
-                //console.log("Heard Proxy Event: start");
-                req.startTime = new Date().getTime();
-            });
-            //proxy.on("forward", function(req, res, forward)	{
-                //console.log("Heard Proxy Event: forward");
-            //});
-
-            proxy.on("proxyError", function(err, req, res) {
-                console.log("Heard Proxy Event: proxyError");
-                console.log("ERROR:	" + err);
-            });
-
-            proxy.on("end",	function(req, res, proxyResponse) {
-                //console.log("Heard Proxy Event: end");
-                req.endTime = new Date().getTime();
-
-                console.log("Total proxy time: " + (req.endTime - req.startTime));
-            });
-
-            //proxy.on("proxyResponse", function(req, res, proxyResponse) {
-                //console.log("Heard Proxy Event: proxyResponse");
-            //});
-
-            proxyMethodInit = true;
-        }
-
-        /*
-        // strip headers that we don't want
-        var badKeys = [];
-        for (var k in req.headers)
-        {
-            if (k.indexOf("x-") == 0)
-            {
-                badKeys.push(k);
-            }
-        }
-        for (var i = 0; i < badKeys.length; i++)
-        {
-            delete req.headers[badKeys[i]];
-        }
-        for (var k in req.headers)
-        {
-            console.log("HEADER: " + k + " = " + req.headers[k]);
-        }
-        */
-
-        proxy.proxyRequest(req, res, proxyConfig);
+        proxyServer.web(req, res, proxyConfig);
     }));
     // END PROXY SERVER
 
