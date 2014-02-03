@@ -276,7 +276,6 @@
             BUSY = true;
 
             var queueLength = QUEUE.length;
-            console.log("QUEUE SIZE: " + queueLength);
             if (queueLength > 0)
             {
                 try
@@ -309,16 +308,6 @@
 
             callback();
         };
-
-        var f = function()
-        {
-            window.setTimeout(function() {
-                syncFunction(function(err) {
-                    f(); // repeat
-                });
-            }, 5000); // five seconds
-        };
-        f();
 
         var r = {};
 
@@ -353,7 +342,7 @@
     /**
      * This is the "endSession" method which can be called at any time to end the current session.
      */
-    methods.endSession = function()
+    methods.endSession = function(callback)
     {
         var now = new Date().getTime();
 
@@ -372,6 +361,16 @@
                 "userKey": USER_KEY
             });
 
+            // flush
+            Dispatcher.flush(function(err) {
+
+                if (callback)
+                {
+                    callback(err);
+                }
+
+            });
+
             SESSION_KEY = null;
         }
     };
@@ -388,7 +387,7 @@
     // a tag that is created on the browser side (here) to identify the user
     var USER_KEY = null;
 
-    var startSession = function()
+    var startSession = function(callback)
     {
         var now = new Date().getTime();
 
@@ -415,10 +414,20 @@
                 "user": contexts["user"](),
                 "source": contexts["source"]()
             });
+
+            // flush
+            Dispatcher.flush(function(err) {
+
+                if (callback)
+                {
+                    callback(err);
+                }
+
+            });
         }
     };
 
-    var captureInteraction = function(event)
+    var captureInteraction = function(event, callback)
     {
         var now = new Date().getTime();
 
@@ -449,6 +458,17 @@
             "node": contexts["node"](event),
             "attributes": contexts["attributes"](event)
         });
+
+        // flush
+        Dispatcher.flush(function(err) {
+
+            if (callback)
+            {
+                callback(err);
+            }
+
+        });
+
     };
 
 
@@ -568,22 +588,23 @@
                             if (!flushed)
                             {
                                 // stop event handling chain
-                                //event.preventDefault();
-                                event.stopImmediatePropagation();
+                                event.preventDefault();
 
-                                // capture the interaction
-                                captureInteraction(event);
+                                // some breathing room
+                                window.setTimeout(function() {
 
-                                // flush to the server and wait for completion
-                                Dispatcher.flush(function(err) {
+                                    // capture the interaction
+                                    captureInteraction(event, function(err) {
 
-                                    // mark as flushed
-                                    $(eventEl).attr("data-insight-flushed", "flushed");
+                                        // mark as flushed
+                                        $(eventEl).attr("data-insight-flushed", "flushed");
 
-                                    // fire event again
-                                    $(eventEl).trigger(event.type);
+                                        // fire event again
+                                        $(eventEl).trigger(event.type);
 
-                                });
+                                    });
+
+                                }, 25);
                             }
                             else
                             {
@@ -598,7 +619,9 @@
         });
 
         // start session
-        startSession();
+        startSession(function(err) {
+            // TODO: session started successfully
+        });
     };
 
 
@@ -618,8 +641,6 @@
         // invoke, hand back field instance
         return FunctionHandler.apply(this, newArgs);
     };
-
-
 
     // https://github.com/private-face/jquery.bind-first/blob/master/dev/jquery.bind-first.js
     // jquery.bind-first.js
@@ -677,79 +698,6 @@
             return this;
         };
 
-        $.fn.delegateFirst = function()
-        {
-            var args = $.makeArray(arguments);
-            var eventsString = args[1];
-
-            if (eventsString) {
-                args.splice(0, 2);
-                $.fn.delegate.apply(this, arguments);
-                moveEventHandlers(this, eventsString, true);
-            }
-
-            return this;
-        };
-
-        $.fn.liveFirst = function()
-        {
-            var args = $.makeArray(arguments);
-
-            // live = delegate to document
-            args.unshift(this.selector);
-            $.fn.delegateFirst.apply($(document), args);
-
-            return this;
-        };
-
-        if (!JQ_LT_17)
-        {
-            $.fn.onFirst = function(types, selector) {
-                var $el = $(this);
-                var isDelegated = typeof selector === 'string';
-
-                $.fn.on.apply($el, arguments);
-
-                // events map
-                if (typeof types === 'object')
-                {
-                    for (var i = 0; i < types.length; i++)
-                    {
-                        var type = types[i];
-
-                        if (types.hasOwnProperty(type))
-                        {
-                            moveEventHandlers($el, type, isDelegated);
-                        }
-                    }
-                } else if (typeof types === 'string') {
-                    moveEventHandlers($el, types, isDelegated);
-                }
-
-                return $el;
-            };
-        }
-
     })($);
-
-    var cloneEventObj = function(eventObj, overrideObj)
-    {
-        if (!overrideObj)
-        {
-            overrideObj = {};
-        }
-
-        function EventCloneFactory(overProps)
-        {
-            for (var x in overProps)
-            {
-                this[x] = overProps[x];
-            }
-        }
-
-        EventCloneFactory.prototype = eventObj;
-
-        return new EventCloneFactory(overrideObj);
-    };
 
 }));
