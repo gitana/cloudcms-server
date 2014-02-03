@@ -327,9 +327,14 @@
             QUEUE.push(interaction);
         };
 
-        r.flush = function()
+        r.flush = function(callback)
         {
             syncFunction(function(err) {
+
+                if (callback) {
+                    callback(err);
+                }
+
             });
         };
 
@@ -553,16 +558,41 @@
                 {
                     var eventType = config.events[i];
 
-                    $(eventEl).bindFirst(eventType, function(eventType) {
+                    $(eventEl).bindFirst(eventType, function(eventEl, eventType) {
 
                         return function(event) {
 
-                            // capture and flush interactions to server
-                            captureInteraction(event);
-                            Dispatcher.flush();
+                            // check if already flushed
+                            // if so, we skip through our event handler
+                            var flushed = $(eventEl).attr("data-insight-flushed");
+                            if (!flushed)
+                            {
+                                // stop event handling chain
+                                //event.preventDefault();
+                                event.stopImmediatePropagation();
+
+                                // capture the interaction
+                                captureInteraction(event);
+
+                                // flush to the server and wait for completion
+                                Dispatcher.flush(function(err) {
+
+                                    // mark as flushed
+                                    $(eventEl).attr("data-insight-flushed", "flushed");
+
+                                    // fire event again
+                                    $(eventEl).trigger(event.type);
+
+                                });
+                            }
+                            else
+                            {
+                                // remove the flushed marker
+                                $(eventEl).attr("data-insight-flushed", null);
+                            }
                         };
 
-                    }(eventType));
+                    }(eventEl, eventType));
                 }
             }
         });
@@ -588,7 +618,6 @@
         // invoke, hand back field instance
         return FunctionHandler.apply(this, newArgs);
     };
-
 
 
 
@@ -702,5 +731,25 @@
         }
 
     })($);
+
+    var cloneEventObj = function(eventObj, overrideObj)
+    {
+        if (!overrideObj)
+        {
+            overrideObj = {};
+        }
+
+        function EventCloneFactory(overProps)
+        {
+            for (var x in overProps)
+            {
+                this[x] = overProps[x];
+            }
+        }
+
+        EventCloneFactory.prototype = eventObj;
+
+        return new EventCloneFactory(overrideObj);
+    };
 
 }));
