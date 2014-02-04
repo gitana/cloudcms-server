@@ -1,5 +1,6 @@
 var express = require('express');
 var http = require('http');
+var https = require('https');
 var path = require('path');
 var fs = require('fs');
 var httpProxy = require('http-proxy');
@@ -240,6 +241,7 @@ exports.start = function(overrides, callback)
     //
     ////////////////////////////////////////////////////////////////////////////
     // START PROXY SERVER
+    /*
     var Agent = require('agentkeepalive');
     var agent = new Agent({
         maxSockets: 10,
@@ -247,21 +249,34 @@ exports.start = function(overrides, callback)
         keepAlive: true,
         keepAliveMsecs: 30000 // keepalive for 30 seconds
     });
+    */
     var proxyScheme = process.env.GITANA_PROXY_SCHEME;
     var proxyHost = process.env.GITANA_PROXY_HOST;
     var proxyPort = parseInt(process.env.GITANA_PROXY_PORT, 10);
-    proxyPort = 80;
+
+    var target = proxyScheme + "://" + proxyHost + ":" + proxyPort;
     var proxyConfig = {
-        "target": {
-            "host": proxyHost,
-            "port": proxyPort
-        },
-        "agent": agent,
+        "target": target,
+        "agent": false,
         "xfwd": true
     };
-    if (proxyScheme.toLowerCase() === "https")
+    if (proxyScheme.toLowerCase() == "https")
     {
-        proxyConfig.secure = true;
+//        proxyConfig.secure = true;
+        /*
+        proxyConfig.agent = new https.Agent({
+            maxSockets: 100
+        });
+        */
+    }
+    if (proxyScheme.toLowerCase() == "http")
+    {
+        /*
+        proxyConfig.agent = new http.Agent({
+            maxSockets: 100
+        });
+        */
+        proxyConfig.agent = http.globalAgent;
     }
     // ten minute timeout
     // proxyConfig.timeout = 10 * 60 * 1000;

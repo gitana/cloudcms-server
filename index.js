@@ -94,6 +94,16 @@ exports = module.exports = function()
         process.env.CLOUDCMS_APPSERVER_PACKAGE_VERSION = packageJson.version;
     }
 
+    // make sure that the /hosts directory exists if it does not
+    if (!fs.existsSync(process.env.CLOUDCMS_HOSTS_PATH))
+    {
+        console.log("Creating hosts path: " + process.env.CLOUDCMS_HOSTS_PATH);
+
+        mkdirp(process.env.CLOUDCMS_HOSTS_PATH, function() {
+            // all done
+        });
+    }
+    console.log("Mounting hosts path: " + process.env.CLOUDCMS_HOSTS_PATH);
 
     // object that we hand back
     var r = {};
