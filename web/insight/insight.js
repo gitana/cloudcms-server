@@ -589,6 +589,7 @@
                             {
                                 // stop event handling chain
                                 event.preventDefault();
+                                event.stopImmediatePropagation();
 
                                 // some breathing room
                                 window.setTimeout(function() {
@@ -604,7 +605,7 @@
 
                                     });
 
-                                }, 25);
+                                }, 1);
                             }
                             else
                             {
