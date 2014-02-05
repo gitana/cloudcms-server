@@ -601,7 +601,10 @@
                                         $(eventEl).attr("data-insight-flushed", "flushed");
 
                                         // fire event again
-                                        $(eventEl).trigger(event.type);
+                                        if (event.originalEvent && event.originalEvent.target && event.originalEvent.type)
+                                        {
+                                            $(event.originalEvent.target).trigger(event.originalEvent.type);
+                                        }
 
                                     });
 
