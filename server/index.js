@@ -296,7 +296,10 @@ exports.start = function(overrides, callback)
     });
     app.use("/proxy", http.createServer(function(req, res) {
 
+        // make sure request socket is optimized for speed
         req.socket.setNoDelay(true);
+        req.socket.setTimeout(0);
+        req.socket.setKeepAlive(true, 0);
 
         // used to auto-assign the client header for /oauth/token requests
         oauth2.autoProxy(req);
