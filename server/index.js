@@ -46,6 +46,9 @@ var SETTINGS = {
     },
     "insight": {
         "enabled": true
+    },
+    "perf": {
+        "enabled": true
     }
 };
 

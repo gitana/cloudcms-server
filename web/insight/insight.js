@@ -591,11 +591,10 @@
                                 event.preventDefault();
                                 event.stopImmediatePropagation();
 
-                                // some breathing room
-                                window.setTimeout(function() {
+                                // capture the interaction
+                                captureInteraction(event, function(err) {
 
-                                    // capture the interaction
-                                    captureInteraction(event, function(err) {
+                                    window.setTimeout(function() {
 
                                         // mark as flushed
                                         $(eventEl).attr("data-insight-flushed", "flushed");
@@ -606,9 +605,9 @@
                                             $(event.originalEvent.target).trigger(event.originalEvent.type);
                                         }
 
-                                    });
+                                    }, 100);
 
-                                }, 1);
+                                });
                             }
                             else
                             {
