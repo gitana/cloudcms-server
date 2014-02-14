@@ -310,9 +310,12 @@ exports.start = function(overrides, callback)
             if (req.virtualHost) {
                 newDomain = req.virtualHost;
             }
+            // TODO: why was this needed?
+            /*
             if (req.headers["x-forwarded-host"]) {
                 newDomain = req.headers["x-forwarded-host"];
             }
+            */
 
             var i = value.indexOf("Domain=");
             if (i > -1)
