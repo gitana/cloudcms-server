@@ -265,26 +265,41 @@ exports.start = function(overrides, callback)
     };
     if (proxyScheme.toLowerCase() == "https")
     {
-//        proxyConfig.secure = true;
         /*
-        proxyConfig.agent = new https.Agent({
-            maxSockets: 100
-        });
+//        proxyConfig.secure = true;
         */
+        //https.globalAgent.options.secureProtocol = 'SSLv3_method';
+        //proxyConfig.agent = https.globalAgent;
+
+        // TODO: why does https://api.cloudcms.com throw "Hostname/IP doesn't match certificate's altname"
+        // temporary workaround
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
+
+        // keep-alive agent
+        proxyConfig.agent = new https.Agent({
+            maxSockets: 100,
+            maxFreeSockets: 100,
+            keepAlive: true,
+            keepAliveMsecs: 30000
+        });
+
     }
     if (proxyScheme.toLowerCase() == "http")
     {
-        /*
+        // keep-alive agent
         proxyConfig.agent = new http.Agent({
-            maxSockets: 100
+            maxSockets: 100,
+            maxFreeSockets: 100,
+            keepAlive: true,
+            keepAliveMsecs: 30000
         });
-        */
-        proxyConfig.agent = http.globalAgent;
+        //proxyConfig.agent = http.globalAgent;
     }
     // ten minute timeout
     // proxyConfig.timeout = 10 * 60 * 1000;
     var proxyServer = new httpProxy.createProxyServer(proxyConfig);
     proxyServer.on("error", function(err, req, res) {
+        console.log(err);
         res.writeHead(500, {
             'Content-Type': 'text/plain'
         });
