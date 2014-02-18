@@ -6,6 +6,7 @@ var fs = require('fs');
 var httpProxy = require('http-proxy');
 var clone = require('clone');
 var xtend = require('xtend');
+var bytes = require('bytes');
 
 var oauth2 = require("../lib/cloudcms/oauth2")();
 
@@ -172,7 +173,62 @@ exports.start = function(overrides, callback)
     ////////////////////////////////////////////////////////////////////////////
     app.configure(function() {
 
-        app.use(express.logger("dev"));
+        if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
+        {
+            // production is non-color formatted
+            express.logger.format('cloudcms', '[:date] :referrer (:remote-addr) :status :response-time ms ":method :url" :res[content-length]');
+        }
+        else
+        {
+            // development uses color formatting
+            express.logger.format('cloudcms', function(tokens, req, res) {
+
+                var status = res.statusCode;
+                var len = parseInt(res.getHeader('Content-Length'), 10);
+                var referrer = req.get("Referrer");
+                var dateString = new Date().toDateString();
+
+                // swap the color around
+                var color = 32;
+                if (status >= 500) color = 31
+                else if (status >= 400) color = 33
+                else if (status >= 300) color = 36;
+
+                len = isNaN(len) ? '0b' : len = bytes(len);
+
+                return '\x1b[90m' + '[' + dateString + '] '
+                    + '\x1b[90m' + referrer + ' '
+                    + '\x1b[90m' + '(' + req.ip + ') '
+                    + '\x1b[' + color + 'm' + res.statusCode + ' '
+                    + (new Date - req._startTime) + ' ms '
+                    + '\x1b[90m' + '"' + req.method + ' '
+                    + '\x1b[90m' + req.originalUrl + ' " '
+                    + '\x1b[90m' + len + ' '
+                    + '\x1b[0m';
+            });
+        }
+        app.use(express.logger("cloudcms"));
+        //app.use(express.logger("dev"));
+
+        // add req.log function
+        app.use(function(req, res, next) {
+
+            req.log = function(text)
+            {
+                var referrer = req.get("Referrer");
+                var dateString = new Date().toDateString();
+
+                var message = '\x1b[90m' + '[' + dateString + '] '
+                    + '\x1b[90m' + referrer + ' '
+                    + '\x1b[90m' + '(' + req.ip + ') '
+                    + '' + text + ''
+                    + '\x1b[0m';
+
+                console.log(message);
+            };
+
+            next();
+        });
 
         app.use(function(req, res, next) {
             req.originalUrl = req.url;
