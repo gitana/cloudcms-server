@@ -27,6 +27,8 @@ if (process.env.NODE_ENV == "production")
     process.env.CLOUDCMS_APPSERVER_MODE = "production";
 }
 
+var requestCounter = 0;
+
 
 // holds configuration settings
 var SETTINGS = {
@@ -226,18 +228,29 @@ exports.start = function(overrides, callback)
                 finalColor = "";
             }
 
-            return grayColor + '[' + dateString + ' ' + timeString + '] '
-                + grayColor + host + ' '
-                + grayColor + '(' + req.ip + ') '
-                + statusColor + res.statusCode + ' '
-                + statusColor + (new Date - req._startTime) + ' ms '
-                + grayColor + '"' + req.method + ' '
-                + grayColor + req.originalUrl + ' " '
-                + grayColor + len + ' '
-                + finalColor;
+            var message = '';
+            message += grayColor + '<' + req.id + '> ';
+            message += grayColor + '[' + dateString + ' ' + timeString + '] ';
+            message += grayColor + host + ' ';
+            message += grayColor + '(' + req.ip + ') ';
+            message += statusColor + res.statusCode + ' ';
+            message += statusColor + (new Date - req._startTime) + ' ms ';
+            message += grayColor + '"' + req.method + ' ';
+            message += grayColor + req.originalUrl + ' " ';
+            message += grayColor + len + ' ';
+            message += finalColor;
+
+            return message;
         });
         app.use(express.logger("cloudcms"));
         //app.use(express.logger("dev"));
+
+        // add req.id
+        app.use(function(req, res, next) {
+            requestCounter++;
+            req.id = requestCounter;
+            next();
+        });
 
         // add req.log function
         app.use(function(req, res, next) {
@@ -250,11 +263,13 @@ exports.start = function(overrides, callback)
                 var dateString = d.toDateString();
                 var timeString = d.toTimeString();
 
-                var message = '\x1b[90m' + '[' + dateString + ' ' + timeString + '] '
-                    + '\x1b[90m' + referrer + ' '
-                    + '\x1b[90m' + '(' + req.ip + ') '
-                    + '' + text + ''
-                    + '\x1b[0m';
+                var message = '';
+                message += '\x1b[90m' + '<' + req.id + '> ';
+                message += '\x1b[90m' + '[' + dateString + ' ' + timeString + '] ';
+                message += '\x1b[90m' + referrer + ' ';
+                message += '\x1b[90m' + '(' + req.ip + ') ';
+                message += '' + text + '';
+                message += '\x1b[0m';
 
                 console.log(message);
             };
