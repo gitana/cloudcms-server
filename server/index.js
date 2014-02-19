@@ -157,6 +157,21 @@ exports.start = function(overrides, callback)
         config = xtend(config, overrides);
     }
 
+    // memwatch
+    if (config.memwatch)
+    {
+        var memwatch = require('memwatch');
+        memwatch.on('leak', function(info) {
+            console.log("[memwatch] ---> POTENTIAL MEMORY LEAK DETECTED <---");
+            console.log(JSON.stringify(info, null, "  "));
+        });
+        memwatch.on('stats', function(stats) {
+            console.log("[memwatch] Garbage collection ran, new base = " + stats["estimated_base"]);
+        });
+        app.memwatch = memwatch;
+        console.log("[memwatch] Started");
+    }
+
 
     //console.log("");
     //console.log("Starting " + config.name);
@@ -183,8 +198,11 @@ exports.start = function(overrides, callback)
             {
                 host = req.host;
             }
-            var dateString = new Date().toDateString();
             len = isNaN(len) ? '0b' : len = bytes(len);
+
+            var d = new Date();
+            var dateString = d.toDateString();
+            var timeString = d.toTimeString();
 
             // gray color
             var grayColor = "\x1b[90m";
@@ -206,7 +224,7 @@ exports.start = function(overrides, callback)
                 finalColor = "";
             }
 
-            return grayColor + '[' + dateString + '] '
+            return grayColor + '[' + dateString + ' ' + timeString + '] '
                 + grayColor + host + ' '
                 + grayColor + '(' + req.ip + ') '
                 + statusColor + res.statusCode + ' '
@@ -225,9 +243,12 @@ exports.start = function(overrides, callback)
             req.log = function(text)
             {
                 var referrer = req.get("Referrer");
-                var dateString = new Date().toDateString();
 
-                var message = '\x1b[90m' + '[' + dateString + '] '
+                var d = new Date();
+                var dateString = d.toDateString();
+                var timeString = d.toTimeString();
+
+                var message = '\x1b[90m' + '[' + dateString + ' ' + timeString + '] '
                     + '\x1b[90m' + referrer + ' '
                     + '\x1b[90m' + '(' + req.ip + ') '
                     + '' + text + ''
