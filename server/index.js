@@ -157,6 +157,7 @@ exports.start = function(overrides, callback)
         config = xtend(config, overrides);
     }
 
+    /*
     // memwatch
     if (config.memwatch)
     {
@@ -171,6 +172,7 @@ exports.start = function(overrides, callback)
         app.memwatch = memwatch;
         console.log("[memwatch] Started");
     }
+    */
 
 
     //console.log("");
