@@ -232,7 +232,7 @@ exports.start = function(overrides, callback)
             message += grayColor + '<' + req.id + '> ';
             message += grayColor + '[' + dateString + ' ' + timeString + '] ';
             message += grayColor + host + ' ';
-            message += grayColor + '(' + req.ip + ') ';
+            //message += grayColor + '(' + req.ip + ') ';
             message += statusColor + res.statusCode + ' ';
             message += statusColor + (new Date - req._startTime) + ' ms ';
             message += grayColor + '"' + req.method + ' ';
@@ -257,7 +257,11 @@ exports.start = function(overrides, callback)
 
             req.log = function(text)
             {
-                var referrer = req.get("Referrer");
+                var host = req.virtualHost;
+                if (!host)
+                {
+                    host = req.host;
+                }
 
                 var d = new Date();
                 var dateString = d.toDateString();
@@ -266,9 +270,9 @@ exports.start = function(overrides, callback)
                 var message = '';
                 message += '\x1b[90m' + '<' + req.id + '> ';
                 message += '\x1b[90m' + '[' + dateString + ' ' + timeString + '] ';
-                message += '\x1b[90m' + referrer + ' ';
-                message += '\x1b[90m' + '(' + req.ip + ') ';
-                message += '' + text + '';
+                message += '\x1b[90m' + host + ' ';
+                //message += '\x1b[90m' + '(' + req.ip + ') ';
+                message += '\x1b[90m' + text + '';
                 message += '\x1b[0m';
 
                 console.log(message);
