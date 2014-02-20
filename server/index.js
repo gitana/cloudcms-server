@@ -236,7 +236,7 @@ exports.start = function(overrides, callback)
             message += statusColor + res.statusCode + ' ';
             message += statusColor + (new Date - req._startTime) + ' ms ';
             message += grayColor + '"' + req.method + ' ';
-            message += grayColor + req.originalUrl + ' " ';
+            message += grayColor + req.originalUrl + '" ';
             message += grayColor + len + ' ';
             message += finalColor;
 
@@ -278,6 +278,12 @@ exports.start = function(overrides, callback)
                 console.log(message);
             };
 
+            next();
+        });
+
+        // initial log
+        app.use(function(req, res, next) {
+            req.log("Start of request");
             next();
         });
 
