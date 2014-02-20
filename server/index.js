@@ -561,6 +561,7 @@ exports.start = function(overrides, callback)
 
     // CORE OBJECTS
     var server = http.createServer(app);
+    server.setTimeout(30000); // 30 seconds
     server.on("connection", function(socket) {
         socket.setNoDelay(true);
     });
