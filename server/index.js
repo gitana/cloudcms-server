@@ -245,7 +245,7 @@ exports.start = function(overrides, callback)
         app.use(express.logger("cloudcms"));
         //app.use(express.logger("dev"));
 
-        // add req.id
+        // add req.id  re
         app.use(function(req, res, next) {
             requestCounter++;
             req.id = requestCounter;
@@ -267,13 +267,25 @@ exports.start = function(overrides, callback)
                 var dateString = d.toDateString();
                 var timeString = d.toTimeString();
 
+                // gray color
+                var grayColor = "\x1b[90m";
+
+                // final color
+                var finalColor = "\x1b[0m";
+
+                if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
+                {
+                    grayColor = "";
+                    finalColor = "";
+                }
+
                 var message = '';
-                message += '\x1b[90m' + '<' + req.id + '> ';
-                message += '\x1b[90m' + '[' + dateString + ' ' + timeString + '] ';
-                message += '\x1b[90m' + host + ' ';
-                //message += '\x1b[90m' + '(' + req.ip + ') ';
-                message += '\x1b[90m' + text + '';
-                message += '\x1b[0m';
+                message += grayColor + '<' + req.id + '> ';
+                message += grayColor + '[' + dateString + ' ' + timeString + '] ';
+                message += grayColor + host + ' ';
+                //message += grayColor + '(' + req.ip + ') ';
+                message += grayColor + text + '';
+                message += finalColor;
 
                 console.log(message);
             };
