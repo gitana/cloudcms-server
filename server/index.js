@@ -290,6 +290,8 @@ exports.start = function(overrides, callback)
                 console.log(message);
             };
 
+            req._log = req.log;
+
             next();
         });
 
@@ -614,6 +616,40 @@ exports.start = function(overrides, callback)
         io.set('log level', config.socketLogLevel);
     }
     io.sockets.on("connection", function(socket) {
+
+        // attach _log function
+        if (!socket._log)
+        {
+            socket._log = function(text)
+            {
+                var host = socket.host;
+
+                var d = new Date();
+                var dateString = d.toDateString();
+                var timeString = d.toTimeString();
+
+                // gray color
+                var grayColor = "\x1b[90m";
+
+                // final color
+                var finalColor = "\x1b[0m";
+
+                if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
+                {
+                    grayColor = "";
+                    finalColor = "";
+                }
+
+                var message = '';
+                message += grayColor + '<socket> ';
+                message += grayColor + '[' + dateString + ' ' + timeString + '] ';
+                message += grayColor + host + ' ';
+                message += grayColor + text + '';
+                message += finalColor;
+
+                console.log(message);
+            };
+        }
 
         socket.on("connect", function() {
             //console.log("SOCKET.IO HEARD CONNECT");
