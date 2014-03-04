@@ -3858,6 +3858,12 @@ Gitana.OAuth2Http.TICKET = "ticket";
             };
         }
 
+        // apply auto trap?
+        if (autoTrap())
+        {
+            proxiedObject.trap(autoTrap());
+        }
+
         return proxiedObject;
     };
 
@@ -3950,6 +3956,17 @@ Gitana.OAuth2Http.TICKET = "ticket";
         Gitana.copyInto(clone, object);
 
         return clone;
+    };
+
+    var autoTrapValue = null;
+    var autoTrap = Chain.autoTrap = function(_autoTrap)
+    {
+        if (_autoTrap)
+        {
+            autoTrapValue = _autoTrap;
+        }
+
+        return autoTrapValue;
     };
 
     Chain.idCount = 0;
