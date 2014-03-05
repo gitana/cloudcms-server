@@ -459,6 +459,49 @@ exports.start = function(overrides, callback)
             }
             */
 
+            /*
+
+             / NOTE
+             // req.host = cloudcms-oneteam-env-58pc8mdwgg.elasticbeanstalk.com
+             // req.virtualHost = tre624b7.cloudcms.net
+             // req.headers["x-forwarded-host"] = terramaradmin.solocal.mobi, tre624b7.cloud$
+             // req.headers["referer"] = http://terramaradmin.solocal.mobi/
+
+            */
+
+            //
+            // if the incoming request is coming off of a CNAME entry that is maintained elsewhere (and they're just
+            // forwarding the CNAME request to our machine), then we try to detect this...
+            //
+            // our algorithm here is pretty weak but suffices for the moment.
+            // if the req.headers["x-forwarded-host"] first entry is in the req.headers["referer"] then we consider
+            // things to have been CNAME forwarded
+            // and so we write cookies back to the req.headers["x-forwarded-host"] first entry domain
+            //
+
+            var xForwardedHost = req.headers["x-forwarded-host"];
+            if (xForwardedHost)
+            {
+                xForwardedHost = xForwardedHost.split(",");
+                if (xForwardedHost.length > 0)
+                {
+                    var cnameCandidate = xForwardedHost[0];
+
+                    var referer = req.headers["referer"];
+                    if (referer && referer.indexOf("://" + cnameCandidate) > -1)
+                    {
+                        req.log("Detected CNAME: " + cnameCandidate);
+
+                        newDomain = cnameCandidate;
+                    }
+                }
+            }
+
+
+
+            // now proceed
+
+
             var i = value.indexOf("Domain=");
             if (i > -1)
             {
