@@ -47,6 +47,8 @@
     var ATTR_DATA_INSIGHT_ID = "data-insight-id";
     var ATTR_DATA_INSIGHT_NODE = "data-insight-node";
 
+    var MAX_SOCKET_RECONNECT_ATTEMPTS = 5;
+
     var iidCounter = 0;
 
     /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -260,6 +262,21 @@
     var Dispatcher = function() {
 
         var socket = io.connect();
+
+        socket.on("reconnecting", function(delay, attempt) {
+            if (attempt === MAX_SOCKET_RECONNECT_ATTEMPTS) {
+                setTimeout(function(){
+                    console.log("DO RECONNECT");
+                    socket.socket.reconnect();
+                }, 5000);
+                return console.log("Failed to reconnect socket.  Will attempt again in 5 seconds.");
+            }
+        });
+
+        socket.on('error', function(){
+            console.log("DO RECONNECT");
+            socket.socket.reconnect();
+        });
 
         var QUEUE = [];
         var BUSY = false;

@@ -1,6 +1,5 @@
 var path = require('path');
 var fs = require('fs');
-
 var mkdirp = require('mkdirp');
 
 /**
@@ -35,24 +34,22 @@ exports = module.exports = function()
     // this is the root path where hosts, their public files and content caches are stored
     var basePath = process.env.CLOUDCMS_HOSTS_PATH;
     if (!basePath) {
-        basePath = "/hosts";
+        basePath = process.env.CLOUDCMS_HOSTS_PATH = "/hosts";
     }
 
-    // subsystems
-    var deployment = require("./lib/deployment/deployment")(basePath);
-    var virtualHost = require("./lib/virtualhost/virtualhost")(basePath);
-    var authorization = require("./lib/authorization/authorization")(basePath);
-    var cloudcms = require("./lib/cloudcms/cloudcms")(basePath);
-    var wcm = require("./lib/cloudcms/wcm")(basePath);
-    var cms = require("./lib/cms/cms")(basePath);
-    var local = require("./lib/local/local")(basePath);
-    var final = require("./lib/final/final")(basePath);
-    var libraries = require("./lib/libraries/libraries")(basePath);
-    var cache = require("./lib/cache/cache")(basePath);
-    var welcome = require("./lib/welcome/welcome")(basePath);
-
-    // config service
-    var config = require("./lib/config")(basePath);
+    // middleware
+    var virtual = require("./middleware/virtual/virtual")(basePath);
+    var deployment = require("./middleware/deployment/deployment")(basePath);
+    var authorization = require("./middleware/authorization/authorization")(basePath);
+    var cloudcms = require("./middleware/cloudcms/cloudcms")(basePath);
+    var wcm = require("./middleware/wcm/wcm")(basePath);
+    var textout = require("./middleware/textout/textout")(basePath);
+    var local = require("./middleware/local/local")(basePath);
+    var final = require("./middleware/final/final")(basePath);
+    var libraries = require("./middleware/libraries/libraries")(basePath);
+    var cache = require("./middleware/cache/cache")(basePath);
+    var welcome = require("./middleware/welcome/welcome")(basePath);
+    var config = require("./middleware/config")(basePath);
 
     // init
     if (!process.env.GITANA_PROXY_HOST) {
@@ -108,7 +105,7 @@ exports = module.exports = function()
     // object that we hand back
     var r = {};
 
-    r.virtual = function(app, configuration)
+    r.common = function(app, configuration)
     {
         if (!configuration) {
             configuration = {};
@@ -117,15 +114,41 @@ exports = module.exports = function()
         // bind cache
         app.cache = cache;
 
-        // welcome support
+        app.use(function(req, res, next) {
+
+            fs.readFile(process.env.CLOUDCMS_GITANA_JSON_PATH, function(err, data) {
+
+                if (!err)
+                {
+                    try {
+                        var json = JSON.parse(data.toString());
+
+                        req.gitanaJsonPath = process.env.CLOUDCMS_GITANA_JSON_PATH;
+                        req.gitanaConfig = json;
+                    }
+                    catch (e)
+                    {
+
+                    }
+                }
+
+                next();
+            });
+        });
+
+        // support for "welcome" files (i.e. index.html)
         app.use(welcome.welcomeInterceptor(configuration));
+    };
 
-        // set up virtualization
-        app.use(virtualHost.virtualHostInterceptor(configuration));
-        app.use(virtualHost.virtualDriverConfigInterceptor(configuration));
-        app.use(virtualHost.virtualFilesInterceptor(configuration));
+    r.virtual = function(app, configuration)
+    {
+        // binds virtual interceptors
+        virtual.interceptors(app, configuration);
+    };
 
-        // ensure that a gitana driver instance is bound to the request
+    r.driver = function(app, configuration)
+    {
+        // loads gitana.json from appropriate place and binds "req.gitana"
         app.use(cloudcms.driverInterceptor(configuration));
     };
 
@@ -135,8 +158,8 @@ exports = module.exports = function()
             configuration = {};
         }
 
-        if (includeCloudCMS) {
-
+        if (includeCloudCMS)
+        {
             // bind a cache helper
             app.use(cache.cacheInterceptor());
 
@@ -151,8 +174,8 @@ exports = module.exports = function()
             app.use(cloudcms.iceInterceptor());
         }
 
-        // cms (tag processing, injection of scripts, etc, kind of a catch all at the moment)
-        app.use(cms.interceptor(configuration));
+        // textout (tag processing, injection of scripts, etc, kind of a catch all at the moment)
+        app.use(textout.interceptor(configuration));
     };
 
     r.handlers = function(app, includeCloudCMS, configuration)
@@ -164,21 +187,18 @@ exports = module.exports = function()
         // handles deploy/undeploy commands
         app.use(deployment.handler());
 
-        // handles the retrieval of configuration
+        // handles calls to the configuration service
         app.use(config.handler());
 
-        // libraries
+        // handles thirdparty browser libraries that are included with cloudcms-server
         app.use(libraries.handler());
-        app.use(function(req, res, next) {
-            next();
-        });
 
-        if (includeCloudCMS) {
-
-            // cloudcms domain principal authentication
+        if (includeCloudCMS)
+        {
+            // handles /login and /logout for cloudcms principals
             app.use(cloudcms.authenticationHandler(app));
 
-            // handles virtualized content retrieval from Cloud CMS
+            // handles virtualized content retrieval from cloud cms
             app.use(cloudcms.virtualHandler());
         }
 
@@ -190,13 +210,12 @@ exports = module.exports = function()
 
         if (includeCloudCMS)
         {
-            // handles WCM
+            // handles retrieval of content from wcm
             app.use(wcm.wcmHandler(configuration));
         }
 
         // handles 404
         app.use(final.finalHandler());
-
     };
 
     r.bodyParser = function()

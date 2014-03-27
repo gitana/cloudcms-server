@@ -1,7 +1,7 @@
 var server = require("./index");
 
-var frameworkControllers = require("../lib/framework/controllers");
-var frameworkSockets = require("../lib/framework/sockets");
+var frameworkControllers = require("../framework/controllers");
+var frameworkSockets = require("../framework/sockets");
 
 var exports = module.exports;
 

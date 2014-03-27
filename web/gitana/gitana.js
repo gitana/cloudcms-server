@@ -25476,6 +25476,61 @@ Gitana.OAuth2Http.TICKET = "ticket";
             return this.chainGet(chainable, uriFunction, params);
         },
 
+        /**
+         * Queries for relatives of this node.
+         *
+         * @chained node map
+         *
+         * @public
+         *
+         * @param {Object} query
+         * @param {Object} config
+         * @param [Object] pagination
+         */
+        queryRelatives: function(query, config, pagination)
+        {
+            var type = null;
+            var direction = null;
+
+            if (config)
+            {
+                type = config.type;
+                if (config.direction)
+                {
+                    direction = config.direction.toUpperCase();
+                }
+            }
+
+            var params = {};
+            if (pagination)
+            {
+                Gitana.copyInto(params, pagination);
+            }
+
+            var uriFunction = function()
+            {
+                var url = "/repositories/" + this.getRepositoryId() + "/branches/" + this.getBranchId() + "/nodes/" + this.getId() + "/relatives/query";
+                if (type)
+                {
+                    url = url + "?type=" + type;
+                }
+                if (direction)
+                {
+                    if (type)
+                    {
+                        url = url + "&direction=" + direction;
+                    }
+                    else
+                    {
+                        url = url + "?direction=" + direction;
+                    }
+                }
+                return url;
+            };
+
+            var chainable = this.getFactory().nodeMap(this.getBranch());
+            return this.chainPost(chainable, uriFunction, params, query);
+        },
 
         /**
          * Retrieves all of the association objects for this node.

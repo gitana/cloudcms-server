@@ -8,16 +8,16 @@ var clone = require('clone');
 var xtend = require('xtend');
 var bytes = require('bytes');
 
-var oauth2 = require("../lib/cloudcms/oauth2")();
+var oauth2 = require("../util/oauth2")();
 
-var util = require('./util');
+var async = require('../util/async');
 
-var perf = require("../lib/perf/perf");
+var perf = require("../middleware/perf/perf");
 
 var app = express();
 
 // cloudcms app server support
-var cloudcms = require("../index");
+var main = require("../index");
 
 // set up modes
 process.env.CLOUDCMS_APPSERVER_MODE = "development";
@@ -52,6 +52,9 @@ var SETTINGS = {
     },
     "perf": {
         "enabled": true
+    },
+    "virtualDriver": {
+        "enabled": false
     }
 };
 
@@ -158,6 +161,9 @@ exports.start = function(overrides, callback)
     if (overrides) {
         config = xtend(config, overrides);
     }
+
+    // store config on process instance
+    process.configuration = config;
 
     /*
     // memwatch
@@ -309,25 +315,6 @@ exports.start = function(overrides, callback)
         // RUNTIME PERFORMANCE FRONT END
         app.use(perf(config).cacheHeaderInterceptor());
 
-        /*
-        // cache control
-        if (config.noCache)
-        {
-            config.cacheControl = "no-cache";
-        }
-        if (config.cacheControl)
-        {
-            app.use(function(req, res, next) {
-
-                res.header("Cache-Control", config.cacheControl);
-                //res.header('Cache-Control', 'no-cache, private, no-store, must-revalidate, max-stale=0, post-check=0, pre-check=0');
-
-                next();
-            });
-        }
-        */
-
-
         // standard body parsing + a special cloud cms body parser that makes a last ditch effort for anything
         // that might be JSON (regardless of content type)
         app.use(function(req, res, next) {
@@ -342,7 +329,7 @@ exports.start = function(overrides, callback)
                 express.multipart()(req, res, function(err) {
                     express.json()(req, res, function(err) {
                         express.urlencoded()(req, res, function(err) {
-                            cloudcms.bodyParser()(req, res, function(err) {
+                            main.bodyParser()(req, res, function(err) {
                                 next(err);
                             });
                         });
@@ -351,16 +338,18 @@ exports.start = function(overrides, callback)
             }
 
         });
-        //app.use(express.multipart());
-        //app.use(express.json());
-        //app.use(express.urlencoded());
-        //app.use(cloudcms.bodyParser());
 
-        // load virtual config and gitana driver
-        cloudcms.virtual(app, config);
+        // common interceptors and config
+        main.common(app, config);
+
+        // virtual configuration interceptors
+        main.virtual(app, config);
+
+        // driver interceptor
+        main.driver(app, config);
     });
 
-    app.use(cloudcms.ensureCORSCrossDomain());
+    app.use(main.ensureCORSCrossDomain());
 
 
     ////////////////////////////////////////////////////////////////////////////
@@ -566,13 +555,13 @@ exports.start = function(overrides, callback)
         //app.use(express.session({ secret: 'secret', store: sessionStore }));
 
         // configure cloudcms app server command handing
-        cloudcms.interceptors(app, true, config);
+        main.interceptors(app, true, config);
 
         app.use(app.router);
         app.use(express.errorHandler());
 
         // configure cloudcms app server handlers
-        cloudcms.handlers(app, true, config);
+        main.handlers(app, true, config);
 
     });
 
@@ -623,13 +612,13 @@ exports.start = function(overrides, callback)
     }
 
     // BEFORE SERVER START
-    util.series(config.beforeFunctions, [app], function(err) {
+    async.series(config.beforeFunctions, [app], function(err) {
 
         // START THE APPLICATION SERVER
         server.listen(app.get('port'), function(){
 
             // AFTER SERVER START
-            util.series(config.afterFunctions, [app], function(err) {
+            async.series(config.afterFunctions, [app], function(err) {
 
                 // show standard info
                 var url = "http://localhost:" + app.get('port') + "/";
@@ -711,7 +700,7 @@ exports.start = function(overrides, callback)
         // INSIGHT SERVER
         if (config.insight && config.insight.enabled)
         {
-            require("../lib/insight/server").init(socket);
+            require("../insight/insight").init(socket);
         }
 
     });
