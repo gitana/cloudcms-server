@@ -58,7 +58,7 @@ exports.bindGitana = function(socket, callback)
 
             var cloudcms = require("../middleware/cloudcms/cloudcms")(process.env.CLOUDCMS_HOSTS_PATH);
 
-            cloudcms.connect(gitanaJson, function(err) {
+            cloudcms.doConnect(socket, gitanaJson, function(err) {
 
                 if (err)
                 {

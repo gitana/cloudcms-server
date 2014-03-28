@@ -391,7 +391,7 @@ exports = module.exports = function(basePath)
 
     var r = {};
 
-    var doConnect = function(req, gitanaConfig, callback)
+    var doConnect = r.doConnect = function(req, gitanaConfig, callback)
     {
         var configuration = process.configuration;
 
