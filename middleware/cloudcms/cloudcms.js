@@ -411,9 +411,12 @@ exports = module.exports = function(basePath)
                 {
                     if (req.virtualHost)
                     {
-                        var virtualHostDirectoryPath = storage.hostDirectoryPath(req.virtualHost);
-
-                        var gitanaJsonPath = path.join(virtualHostDirectoryPath, "gitana.json");
+                        var gitanaJsonPath = req.virtualHostGitanaJsonPath;
+                        if (!gitanaJsonPath)
+                        {
+                            var virtualHostDirectoryPath = storage.hostDirectoryPath(req.virtualHost);
+                            gitanaJsonPath = path.join(virtualHostDirectoryPath, "gitana.json");
+                        }
                         if (fs.existsSync(gitanaJsonPath))
                         {
                             // we only delete if the gitana.json is marked as "_virtual": true
