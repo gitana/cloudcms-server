@@ -51,6 +51,7 @@ exports.bindGitana = function(socket, callback)
         virtual.acquireGitanaJson(socket.host, socket._log, function(err, gitanaJsonPath, gitanaJson) {
 
             socket.virtualHost = host;
+            socket.virtualHostDirectoryPath =
             socket.virtualHostGitanaJsonPath = gitanaJsonPath;
             socket.virtualHostGitanaConfig = gitanaJson;
             socket.gitanaJsonPath = gitanaJsonPath;
@@ -77,7 +78,7 @@ exports.bindGitana = function(socket, callback)
     {
         var cloudcms = require("../middleware/cloudcms/cloudcms")(process.env.CLOUDCMS_HOSTS_PATH);
 
-        cloudcms.connect(socket.gitanaConfig, function(err) {
+        cloudcms.doConnect(socket, socket.gitanaConfig, function(err) {
 
             if (err)
             {

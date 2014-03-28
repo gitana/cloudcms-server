@@ -152,6 +152,7 @@ passport.deserializeUser(function(id, done) {
 
 exports = module.exports = function(basePath)
 {
+    var storage = require("../../util/storage")(basePath);
     var cloudcmsUtil = require("../../util/cloudcms")(basePath);
 
     var resolveGitanaJson = function(req, callback)
@@ -408,9 +409,11 @@ exports = module.exports = function(basePath)
                 // if we have virtual driver mode at the app server level...
                 if (configuration.virtualDriver)
                 {
-                    if (req.virtualHost && req.virtualHostDirectoryPath)
+                    if (req.virtualHost)
                     {
-                        var gitanaJsonPath = path.join(req.virtualHostDirectoryPath, "gitana.json");
+                        var virtualHostDirectoryPath = storage.hostDirectoryPath(req.virtualHost);
+
+                        var gitanaJsonPath = path.join(virtualHostDirectoryPath, "gitana.json");
                         if (fs.existsSync(gitanaJsonPath))
                         {
                             // we only delete if the gitana.json is marked as "_virtual": true
