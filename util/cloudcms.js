@@ -516,6 +516,8 @@ exports = module.exports = function(basePath)
                 var gitanaHost = process.env.GITANA_PROXY_HOST;// || "localhost";
                 var gitanaPort = process.env.GITANA_PROXY_PORT;// || 8080;
 
+                console.log(uri);
+
                 // grab from Cloud CMS and write to disk
                 writeToDisk(gitanaHost, gitanaPort, uri, gitana, filePath, function(err, filePath, cacheInfo) {
 

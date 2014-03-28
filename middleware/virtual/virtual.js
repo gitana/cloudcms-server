@@ -233,8 +233,14 @@ exports = module.exports = function(basePath)
 
                     if (err)
                     {
+                        callback(err);
+                        return;
+                    }
+
+                    if (!virtualConfig)
+                    {
                         callback({
-                            "message": "Unable to load virtual driver config for host: " + virtualHost
+                            "message": "No virtual config found for host"
                         });
                         return;
                     }
@@ -310,6 +316,13 @@ exports = module.exports = function(basePath)
             if (req.virtualHost)
             {
                 acquireGitanaJson(req.virtualHost, req.log, function(err, path, json) {
+
+                    if (err)
+                    {
+                        req.log(err.message);
+                        next();
+                        return;
+                    }
 
                     // store path to virtualized gitana.json file
                     req.virtualHostGitanaJsonPath = path;

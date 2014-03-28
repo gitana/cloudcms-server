@@ -390,7 +390,7 @@ exports = module.exports = function(basePath)
 
     var r = {};
 
-    var connect = r.connect = function(gitanaConfig, callback)
+    var doConnect = function(req, gitanaConfig, callback)
     {
         var configuration = process.configuration;
 
@@ -490,7 +490,7 @@ exports = module.exports = function(basePath)
                 }
 
                 // either connect anew or re-use an existing connection to Cloud CMS for this application
-                connect(gitanaConfig, function(err) {
+                doConnect(req, gitanaConfig, function(err) {
 
                     if (err)
                     {
