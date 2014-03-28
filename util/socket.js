@@ -28,17 +28,20 @@ exports.bindGitana = function(socket, callback)
     // store host
     socket.host = host;
 
-    var dataStr = fs.readFileSync(process.env.CLOUDCMS_GITANA_JSON_PATH);
-    if (dataStr)
+    if (fs.existsSync(process.env.CLOUDCMS_GITANA_JSON_PATH))
     {
-        try
+        var dataStr = fs.readFileSync(process.env.CLOUDCMS_GITANA_JSON_PATH);
+        if (dataStr)
         {
-            var json = JSON.parse(dataStr.toString());
-            socket.gitanaJsonPath = process.env.CLOUDCMS_GITANA_JSON_PATH;
-            socket.gitanaConfig = json;
-        }
-        catch (e)
-        {
+            try
+            {
+                var json = JSON.parse(dataStr.toString());
+                socket.gitanaJsonPath = process.env.CLOUDCMS_GITANA_JSON_PATH;
+                socket.gitanaConfig = json;
+            }
+            catch (e)
+            {
+            }
         }
     }
 
