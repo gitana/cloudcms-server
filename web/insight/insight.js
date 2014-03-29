@@ -266,7 +266,6 @@
         socket.on("reconnecting", function(delay, attempt) {
             if (attempt === MAX_SOCKET_RECONNECT_ATTEMPTS) {
                 setTimeout(function(){
-                    console.log("DO RECONNECT");
                     socket.socket.reconnect();
                 }, 5000);
                 return console.log("Failed to reconnect socket.  Will attempt again in 5 seconds.");
@@ -274,7 +273,6 @@
         });
 
         socket.on('error', function(){
-            console.log("DO RECONNECT");
             socket.socket.reconnect();
         });
 

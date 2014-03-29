@@ -82,7 +82,7 @@ exports = module.exports = function()
     process.cache = cache;
 
     // read the package.json file and determine the build timestamp
-    var packageJsonPath = path.resolve("package.json");
+    var packageJsonPath = path.resolve(__dirname, "package.json");
     if (fs.existsSync(packageJsonPath))
     {
         var packageJson = JSON.parse(fs.readFileSync(packageJsonPath).toString());

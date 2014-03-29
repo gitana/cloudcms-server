@@ -28,6 +28,9 @@ exports.bindGitana = function(socket, callback)
     // store host
     socket.host = host;
 
+    var virtual = require("../middleware/virtual/virtual")(process.env.CLOUDCMS_HOSTS_PATH);
+    var cloudcms = require("../middleware/cloudcms/cloudcms")(process.env.CLOUDCMS_HOSTS_PATH);
+
     if (fs.existsSync(process.env.CLOUDCMS_GITANA_JSON_PATH))
     {
         var dataStr = fs.readFileSync(process.env.CLOUDCMS_GITANA_JSON_PATH);
@@ -36,6 +39,7 @@ exports.bindGitana = function(socket, callback)
             try
             {
                 var json = JSON.parse(dataStr.toString());
+
                 socket.gitanaJsonPath = process.env.CLOUDCMS_GITANA_JSON_PATH;
                 socket.gitanaConfig = json;
             }
@@ -45,9 +49,8 @@ exports.bindGitana = function(socket, callback)
         }
     }
 
-    if (process.configuration.virtualDriver && process.configuration.virtualDriver.enabled)
+    if (process.configuration.virtualDriver)
     {
-        var virtual = require("../middleware/virtual/virtual")(process.env.CLOUDCMS_HOSTS_PATH);
         virtual.acquireGitanaJson(socket.host, socket._log, function(err, gitanaJsonPath, gitanaJson) {
 
             socket.virtualHost = host;
@@ -56,13 +59,10 @@ exports.bindGitana = function(socket, callback)
             socket.gitanaJsonPath = gitanaJsonPath;
             socket.gitanaConfig = gitanaJson;
 
-            var cloudcms = require("../middleware/cloudcms/cloudcms")(process.env.CLOUDCMS_HOSTS_PATH);
-
             cloudcms.doConnect(socket, gitanaJson, function(err) {
 
                 if (err)
                 {
-                    console.log("socket.connect.err = " + JSON.stringify(err));
                     callback(err);
                     return;
                 }
@@ -73,7 +73,7 @@ exports.bindGitana = function(socket, callback)
             });
         });
     }
-    else
+    else if (socket.gitanaConfig)
     {
         var cloudcms = require("../middleware/cloudcms/cloudcms")(process.env.CLOUDCMS_HOSTS_PATH);
 
@@ -81,7 +81,6 @@ exports.bindGitana = function(socket, callback)
 
             if (err)
             {
-                console.log("socket.connect2.err = " + JSON.stringify(err));
                 callback(err);
                 return;
             }

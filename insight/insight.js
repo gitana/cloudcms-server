@@ -10,17 +10,46 @@ var util = require("../util/util");
  */
 var exports = module.exports;
 
+var firstConnection = true;
+
 exports.init = function(socket)
 {
     // listen for pushes from the client
     socket.on("insight-push", function(data) {
 
-        //console.log("Received insight push: " + JSON.stringify(data, null, "  "));
-
         if (data && data.rows)
         {
-            socket._log("Event: insight-push, interactions: " + data.rows.length);
-            handleInsightPush(socket, data);
+            handleInsightPush(socket, data, function(err) {
+
+                if (err && firstConnection)
+                {
+                    socket._log("Socket initialization - will retry insight-push in 10 seconds");
+
+                    // give it another shot in 10 seconds
+                    window.setTimeout(function() {
+                        handleInsightPush(socket, data, function(err) {
+                            if (!err)
+                            {
+                                socket._log("Event: insight-push, interactions: " + data.rows.length);
+                            }
+                            else
+                            {
+                                socket._log("Error: " + JSON.stringify(err));
+                            }
+                        });
+                        firstConnection = false;
+                    }, 10000);
+                }
+                else if (err)
+                {
+                    socket._log("Error: " + JSON.stringify(err));
+                }
+                else
+                {
+                    socket._log("Event: insight-push, interactions: " + data.rows.length);
+                }
+
+            });
         }
     });
 };
@@ -30,12 +59,14 @@ exports.init = function(socket)
  *
  * @param data
  */
-var handleInsightPush = function(socket, data)
+var handleInsightPush = function(socket, data, callback)
 {
     var gitana = socket.gitana;
     if (!gitana)
     {
-        console.log("Socket does not have a gitana instance bound to it!");
+        callback({
+            "code": "no_gitana"
+        });
         return;
     }
 
@@ -81,6 +112,7 @@ var handleInsightPush = function(socket, data)
         if (response && response.statusCode == 200 && body)
         {
             // success
+            callback();
         }
         else
         {
@@ -89,7 +121,7 @@ var handleInsightPush = function(socket, data)
                 // an HTTP error
                 socket._log("Response error: " + JSON.stringify(err));
 
-                // TODO: what do we do here?
+                callback(err);
 
                 return;
             }
@@ -99,6 +131,10 @@ var handleInsightPush = function(socket, data)
                 // some kind of operational error
                 socket._log("Operational error");
                 socket._log(JSON.stringify(body));
+
+                callback({
+                    "message": body.error
+                });
 
                 return;
             }

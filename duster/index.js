@@ -175,33 +175,40 @@ var ensureInit = function()
         var watch = require("watch");
         if (process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH)
         {
-            console.log("Watching directory: " + process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH);
+            var watchPath = path.resolve(process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH);
+            fs.exists(watchPath, function(exists) {
 
-            var watchPath = path.join(process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH);
-            watch.watchTree(watchPath, {
-                "ignoreDotFiles": true
-            }, function (f, curr, prev) {
-
-                console.log("Template changes detected - invalidating dust cache");
-                var applicationIds = [];
-                for (var applicationId in dustInstances)
+                if (exists)
                 {
-                    //console.log("Consider: " + applicationId);
-                    var dust = dustInstances[applicationId];
-                    for (var k in dust.cache)
-                    {
-                        //console.log("Removing app: " + applicationId + ", template: " + k);
-                        delete dust.cache[k];
-                    }
-                    applicationIds.push(applicationId);
-                }
+                    console.log("Watching directory: " + process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH);
 
-                for (var i = 0; i < applicationIds.length; i++)
-                {
-                    delete dustInstances[applicationIds[i]];
-                }
+                    watch.watchTree(watchPath, {
+                        "ignoreDotFiles": true
+                    }, function (f, curr, prev) {
 
-                dustInstances = [];
+                        console.log("Template changes detected - invalidating dust cache");
+                        var applicationIds = [];
+                        for (var applicationId in dustInstances)
+                        {
+                            //console.log("Consider: " + applicationId);
+                            var dust = dustInstances[applicationId];
+                            for (var k in dust.cache)
+                            {
+                                //console.log("Removing app: " + applicationId + ", template: " + k);
+                                delete dust.cache[k];
+                            }
+                            applicationIds.push(applicationId);
+                        }
+
+                        for (var i = 0; i < applicationIds.length; i++)
+                        {
+                            delete dustInstances[applicationIds[i]];
+                        }
+
+                        dustInstances = [];
+
+                    });
+                }
 
             });
         }

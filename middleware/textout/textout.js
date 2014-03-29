@@ -70,11 +70,7 @@ exports = module.exports = function(basePath)
                         fullFilePath = path.join(options.root, fullFilePath);
                     }
 
-                    var t1 = new Date().getTime();
                     duster.execute(req, fullFilePath, function(err, out) {
-
-                        var t2 = new Date().getTime();
-                        console.log("Dust time: " + (t2-t1));
 
                         if (err)
                         {
