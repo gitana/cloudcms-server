@@ -126,7 +126,7 @@ var handleInsightPush = function(socket, data, callback)
                 return;
             }
 
-            if (body.error)
+            if (body && body.error)
             {
                 // some kind of operational error
                 socket._log("Operational error");
