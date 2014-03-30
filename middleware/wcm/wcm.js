@@ -46,8 +46,13 @@ exports = module.exports = function(basePath)
      */
     r.wcmHandler = function(configuration)
     {
-        // thirty seconds
-        var WCM_CACHE_TIMEOUT = 30000;
+        // assume thirty seconds (for development mode)
+        var WCM_CACHE_TIMEOUT = 60 * 1000 * 0.5; // 30 seconds
+        if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
+        {
+            // for production, set to 24 hours
+            WCM_CACHE_TIMEOUT = 60 * 1000 * 60 * 24;
+        }
 
         var preloadPages = function(req, callback)
         {
@@ -106,7 +111,7 @@ exports = module.exports = function(basePath)
                 return;
             }
 
-            //console.log("WCM populate cache");
+            console.log("WCM populate cache, cache timeout: " + WCM_CACHE_TIMEOUT);
             pages = {};
 
             // cache is not valid, let's populate it
@@ -184,7 +189,7 @@ exports = module.exports = function(basePath)
 
                     var t2 = new Date().getTime();
 
-                    console.log("WCM page time: " + (t2-t1));
+                    //console.log("WCM page time: " + (t2-t1));
 
                 //console.log("Writing pages to WCM cache");
                 //for (var uri in pages)
