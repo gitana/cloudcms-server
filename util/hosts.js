@@ -25,8 +25,17 @@ var push = function(candidates, text)
     }
 };
 
-exports.determineHostForRequest = function(configuration, req)
+exports.determineHostForRequest = function(req)
 {
+    var configuration = process.configuration;
+
+    var domain = "cloudcms.net";
+    if (configuration && configuration.virtualHost && configuration.virtualHost.domain)
+    {
+        domain = configuration.virtualHost.domain;
+    }
+    domain = domain.toLowerCase();
+
     // collect all of the candidates
     var candidates = [];
 
@@ -53,15 +62,12 @@ exports.determineHostForRequest = function(configuration, req)
     // REQ.HOST
     push(candidates, req.host);
 
-    // find the one that is "cloudcms.net"
-    //console.log("Resolving host from candidates: ");
+    // find the one that is for our domain
     var host = null;
     for (var x = 0; x < candidates.length; x++)
     {
-        //console.log("Candidate " + x + ": " + candidates[x]);
-
-        // keep "cloudcms.net"
-        if (candidates[x].indexOf(".cloudcms.net") > -1)
+        // keep only those that are subdomains of our intended parent domain (i.e. "cloudcms.net")
+        if (candidates[x].toLowerCase().indexOf(domain) > -1)
         {
             host = candidates[x];
             break;
@@ -90,6 +96,16 @@ exports.determineHostForRequest = function(configuration, req)
 
 exports.determineHostForSocket = function(socket)
 {
+    var configuration = process.configuration;
+
+    var domain = "cloudcms.net";
+    if (configuration && configuration.virtualHost && configuration.virtualHost.domain)
+    {
+        domain = configuration.virtualHost.domain;
+    }
+    domain = domain.toLowerCase();
+
+    // find the host
     var host = null;
 
     // check headers
@@ -110,10 +126,11 @@ exports.determineHostForSocket = function(socket)
         {
             var candidates = host.split(",");
 
-            // find the one that is "cloudcms.net"
+            // find the one that is for our domain
             for (var x = 0; x < candidates.length; x++)
             {
-                if (candidates[x].indexOf(".cloudcms.net") > -1)
+                // keep only those that are subdomains of our intended parent domain (i.e. "cloudcms.net")
+                if (candidates[x].toLowerCase().indexOf(domain) > -1)
                 {
                     host = candidates[x];
                     break;

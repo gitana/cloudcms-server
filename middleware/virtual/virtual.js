@@ -6,6 +6,10 @@ var util = require("../../util/util");
 var hosts = require("../../util/hosts");
 var Gitana = require("gitana");
 
+var DESCRIPTOR_CACHE = require("../../cache/descriptors");
+var GITANA_DRIVER_CONFIG_CACHE = require("../../cache/driverconfigs");
+
+
 /**
  * Virtual middleware.
  *
@@ -95,11 +99,12 @@ exports = module.exports = function(basePath)
             configuration.virtualDriver.key = "virtual";
         }
 
-        // determine "req.virtualHost" and "req.virtualHostDirectoryPath"
+        // determine "req.virtualHost"
         app.use(virtualHostInterceptor(configuration));
 
-        // ensures that the "gitana.json" file is written to the virtual host location on disk
-        // sets "req.virtualHostGitanaJsonPath" and "req.virtualHostGitanaConfig"
+        // if using virtual driver configs, the config is loaded from Cloud CMS for the virtual host
+        // and written to disk
+        // this overwrites "req.gitanaConfig" with virtual config
         app.use(virtualDriverConfigInterceptor(configuration));
 
         // if "descriptor.json" exists, write "req.descriptor" and "req.virtualFiles = true"
@@ -185,7 +190,7 @@ exports = module.exports = function(basePath)
      * Virtual Host interceptor.
      *
      * Determines the virtual host to use for the request.
-     * Sets the "req.virtualHost" and "req.virtualHostDirectoryPath" parameters.
+     * Sets the "req.virtualHost" parameter.
      *
      * The latter describes the location on disk where files related to this host may be stored.  The location
      * may not yet exist on disk.
@@ -196,11 +201,10 @@ exports = module.exports = function(basePath)
     {
         return function(req, res, next)
         {
-            var host = hosts.determineHostForRequest(configuration, req);
+            var host = hosts.determineHostForRequest(req);
             if (host)
             {
                 req.virtualHost = host;
-                req.virtualHostDirectoryPath = storage.hostDirectoryPath(host);
 
                 next();
             }
@@ -305,7 +309,7 @@ exports = module.exports = function(basePath)
     /**
      * Virtual driver config interceptor.
      *
-     * Loads the gitana driver.  Sets the "req.virtualHostGitanaJsonPath" and "req.virtualHostGitanaConfig" properties.
+     * Loads the gitana driver.  Overwrites "req.gitanaConfig"
      *
      * @returns {Function}
      */
@@ -315,25 +319,52 @@ exports = module.exports = function(basePath)
         {
             if (req.virtualHost)
             {
-                acquireGitanaJson(req.virtualHost, req.log, function(err, path, json) {
-
+                var completionFunction = function(err, gitanaJsonPath, gitanaConfig)
+                {
                     if (err)
                     {
                         req.log(err.message);
-                        next();
                         return;
                     }
 
-                    // store path to virtualized gitana.json file
-                    req.virtualHostGitanaJsonPath = path;
-                    req.virtualHostGitanaConfig = json;
-
-                    // overwrite path to gitana.json file
-                    req.gitanaJsonPath = path;
-                    req.gitanaConfig = json;
+                    if (gitanaJsonPath && gitanaConfig)
+                    {
+                        // overwrite path to gitana.json file
+                        req.gitanaJsonPath = gitanaJsonPath;
+                        req.gitanaConfig = gitanaConfig;
+                    }
 
                     next();
-                });
+                };
+
+                var cachedValue = GITANA_DRIVER_CONFIG_CACHE.read(req.virtualHost);
+                if (typeof(cachedValue) !== "undefined" || cachedValue === null)
+                {
+                    if (cachedValue == null)
+                    {
+                        completionFunction();
+                    }
+                    else
+                    {
+                        completionFunction(null, cachedValue.path, cachedValue.config);
+                    }
+                }
+                else
+                {
+                    // try to load from disk
+                    acquireGitanaJson(req.virtualHost, req.log, function(err, gitanaJsonPath, gitanaConfig) {
+
+                        if (gitanaJsonPath && gitanaConfig)
+                        {
+                            GITANA_DRIVER_CONFIG_CACHE.write(req.virtualHost, {
+                                "path": gitanaJsonPath,
+                                "config": gitanaConfig
+                            });
+                        }
+
+                        completionFunction(err, gitanaJsonPath, gitanaConfig);
+                    });
+                }
             }
             else
             {
@@ -356,21 +387,23 @@ exports = module.exports = function(basePath)
         {
             if (req.virtualHost)
             {
-                // load the descriptor
-                var descriptorFilePath = path.join(storage.hostDirectoryPath(req.virtualHost), "descriptor.json");
-                fs.readFile(descriptorFilePath, function(err, descriptor) {
-
+                var completionFunction = function(err, descriptor)
+                {
                     if (err)
                     {
-                        // no file descriptor, virtual files not deployed
+                        // something went wrong
                         next();
                         return;
                     }
 
-                    // yes, there is a descriptor, so we have virtual files
+                    if (!descriptor)
+                    {
+                        // nothing found
+                        next();
+                        return;
+                    }
 
-                    // convert descriptor to JSON
-                    descriptor = JSON.parse(descriptor);
+                    // yes, virtual host deployed, store a few interesting things on the request
 
                     // write descriptor to request
                     req.descriptor = descriptor;
@@ -384,17 +417,63 @@ exports = module.exports = function(basePath)
                         return;
                     }
 
-                    // yes, virtual host deployed, store a few interesting things on the request
-
                     // mark that we're able to handle virtual files
                     req.virtualFiles = true;
 
+                    // continue middleware chain
                     next();
+                };
 
-                });
+                // CACHE: is there a cached descriptor for this host?
+                // NOTE: null is a valid sentinel value (meaning none)
+                var descriptor = DESCRIPTOR_CACHE.read(req.virtualHost);
+                if (typeof(descriptor) != "undefined" || descriptor == null)
+                {
+                    // all done
+                    completionFunction(null, descriptor);
+                    return;
+                }
+                else
+                {
+                    // nothing in cache, load from disk
+                    // check if there is a descriptor on disk
+                    var descriptorFilePath = path.join(storage.hostDirectoryPath(req.virtualHost), "descriptor.json");
+                    fs.exists(descriptorFilePath, function(exists) {
+
+                        if (exists)
+                        {
+                            // load the descriptor
+                            fs.readFile(descriptorFilePath, function(err, descriptor) {
+
+                                if (err)
+                                {
+                                    // no file descriptor, virtual files not deployed
+                                    next();
+                                    return;
+                                }
+
+                                // yes, there is a descriptor, so we have virtual files
+
+                                // convert descriptor to JSON
+                                descriptor = JSON.parse(descriptor);
+
+                                // CACHE: write
+                                DESCRIPTOR_CACHE.write(req.virtualHost, descriptor);
+
+                                // all done
+                                completionFunction(null, descriptor);
+                            });
+                        }
+                        else
+                        {
+                            completionFunction();
+                        }
+                    });
+                }
             }
             else
             {
+                // skip
                 next();
             }
 

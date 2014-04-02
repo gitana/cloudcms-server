@@ -441,7 +441,7 @@ exports.start = function(overrides, callback)
             if (req.virtualHost) {
                 newDomain = req.virtualHost;
             }
-            // TODO: why was this needed?
+            // TODO: why was this needed?  CNAME wip
             /*
             if (req.headers["x-forwarded-host"]) {
                 newDomain = req.headers["x-forwarded-host"];

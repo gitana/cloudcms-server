@@ -15,7 +15,7 @@ exports = module.exports = function(basePath)
      * This directory looks like:
      *
      *   /hosts
-     *      /abc.cloudcms.net
+     *      /<host>
      *          /cloudcms
      *              /<repositoryId>
      *                  /<branchId>

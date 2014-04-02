@@ -60,7 +60,7 @@ exports = module.exports = function(basePath)
 
             next();
         };
-    };                            r
+    };
 
     return r;
 };

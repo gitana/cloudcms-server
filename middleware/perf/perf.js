@@ -30,7 +30,7 @@ exports = module.exports = function(config)
      * Files are served from:
      *
      *   /hosts
-     *     /abc.cloudcms.net
+     *     /<host>
      *       /public
      *
      * @return {Function}

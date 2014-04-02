@@ -6,6 +6,10 @@ var uuid = require("node-uuid");
 var Gitana = require("gitana");
 var duster = require("../../duster");
 
+var DESCRIPTOR_CACHE = require("../../cache/descriptors");
+var GITANA_DRIVER_CONFIG_CACHE = require("../../cache/driverconfigs");
+
+
 /**
  * Deployment middleware.
  *
@@ -129,7 +133,7 @@ exports = module.exports = function(basePath)
      * HTML content is deployed to:
      *
      *   /hosts
-     *     /abc.cloudcms.net
+     *     /<host>
      *       /public
      *
      * @param descriptor
@@ -179,6 +183,10 @@ exports = module.exports = function(basePath)
                         {
                             // optionally write any require gitana config into the virtual host
                             doHandleWriteGitanaConfiguration(descriptor, hostDirectoryPath, function(err) {
+
+                                // CACHE: INVALIDATE
+                                DESCRIPTOR_CACHE.invalidate(host);
+                                GITANA_DRIVER_CONFIG_CACHE.invalidate(host);
 
                                 req.log("Completed deployment of application: " + descriptor.application.id + " to host: " + host);
 
@@ -250,6 +258,10 @@ exports = module.exports = function(basePath)
                 // remove host directory
                 req.log("Removing host directory: " + host);
                 storage.removeHostDirectory(host, function(err) {
+
+                    // CACHE: INVALIDATE
+                    DESCRIPTOR_CACHE.invalidate(host);
+                    GITANA_DRIVER_CONFIG_CACHE.invalidate(host);
 
                     req.log("Completed undeployment of application: " + descriptor.application.id + " from host: " + host);
 

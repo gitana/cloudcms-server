@@ -308,12 +308,14 @@ var copyChildrenToDirectory = function(sourceDirectoryPath, targetDirectoryPath)
  * @param req
  * @returns {*}
  */
-exports.publicPath = function(req)
+exports.publicPath = function(req, storage)
 {
     var publicPath = process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH;
-    if (req.virtualHost && req.virtualHostDirectoryPath)
+    if (req.virtualHost)
     {
-        publicPath = path.join(req.virtualHostDirectoryPath, "public");
+        var virtualHostDirectoryPath = storage.hostDirectoryPath(req.virtualHost);
+
+        publicPath = path.join(virtualHostDirectoryPath, "public");
         if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
         {
             var publicBuildPath = path.join(req.virtualHostDirectoryPath, "public_build");

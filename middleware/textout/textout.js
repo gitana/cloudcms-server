@@ -87,37 +87,21 @@ exports = module.exports = function(basePath)
                 // if they request "gitana.js", we plug in client key info
                 else if (filename == "gitana.js" || filename == "gitana.min.js")
                 {
-                    // check for the "gitana.json" file
-                    // either in process root or in virtual host path
-                    //var gitanaJsonPath = path.join(process.cwd(), "gitana.json");
-                    var gitanaJsonPath = "./gitana.json";
-                    if (req.virtualHostGitanaJsonPath)
+                    if (!req.gitanaConfig)
                     {
-                        gitanaJsonPath = req.virtualHostGitanaJsonPath;
+                        // serve the file straight away, no processing
+                        _sendfile.call(res, filePath, options, fn);
                     }
-                    else if (process.env.CLOUDCMS_GITANA_JSON_PATH)
+                    else
                     {
-                        gitanaJsonPath = process.env.CLOUDCMS_GITANA_JSON_PATH;
-                    }
-
-                    //console.log("Gitana JSON Path: " + gitanaJsonPath);
-
-                    fs.readFile(gitanaJsonPath, function(err, text) {
-
-                        if (err)
-                        {
-                            // hand back 404
-                            res.send(404);
-                            return;
-                        }
-
-                        // parse
-                        var json = JSON.parse(text);
+                        // process file and insert CLIENT_KEY into the served gitana driver
+                        var json = req.gitanaConfig;
                         if (json.clientKey)
                         {
                             if (options.root) {
                                 filePath = path.join(options.root, filePath);
                             }
+
                             fs.readFile(filePath, function(err, text) {
 
                                 if (err)
@@ -160,7 +144,6 @@ exports = module.exports = function(basePath)
                                     text = text.substring(0, i1) + itext + text.substring(i2);
                                 }
 
-                                //res.send(200, html);
                                 _send.call(res, 200, text);
 
                                 fn();
@@ -173,7 +156,7 @@ exports = module.exports = function(basePath)
                             });
                             return;
                         }
-                    });
+                    }
                 }
                 else
                 {

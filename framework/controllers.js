@@ -220,6 +220,7 @@ exports.init = function(app)
     /**
      * TEST CONTROLLER
      */
+    /*
     app.get("/_test1", function(req, res) {
 
         // kill the access token
@@ -233,7 +234,7 @@ exports.init = function(app)
         {
             Gitana.connect(virtualDriverConfig, function(err) {
 
-                var gitanaJsonPath = path.join(req.virtualHostDirectoryPath, "gitana.json");
+                var gitanaJsonPath = req.gitanaJsonPath;
 
                 if (fs.existsSync(gitanaJsonPath))
                 {
@@ -251,6 +252,7 @@ exports.init = function(app)
             res.send("no virtual driver config");
         }
     });
+    */
 
     /*
     // TEMP

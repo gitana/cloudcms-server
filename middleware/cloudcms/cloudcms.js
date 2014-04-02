@@ -124,7 +124,8 @@ passport.use(new LocalStrategy({
 
                 done(null, user, {
                     "ticket": ticket,
-                    "user": user
+                    "user": user,
+                    "test": 1
                 });
             });
         });
@@ -157,46 +158,18 @@ exports = module.exports = function(basePath)
 
     var resolveGitanaJson = function(req, callback)
     {
-        // if we already loaded the gitana config in the virtual host interceptor
-        // then we just copy the values here
-        if (req.virtualHostGitanaConfig)
+        var json = req.gitanaConfig;
+        if (json)
         {
-            callback(null, req.virtualHostGitanaConfig);
-            return;
-        }
-
-        var gitanaJsonPath = null;
-        if (req.virtualHostGitanaJsonPath)
-        {
-            gitanaJsonPath = req.virtualHostGitanaJsonPath;
-        }
-        else if (process.env.CLOUDCMS_GITANA_JSON_PATH)
-        {
-            gitanaJsonPath = process.env.CLOUDCMS_GITANA_JSON_PATH;
-        }
-
-        fs.readFile(gitanaJsonPath, function(err, text) {
-
-            if (err) {
-                callback(err);
-                return;
-            }
-
-            var json = JSON.parse(text);
-
             // we force the cache key to the application id
             json.key = json.application;
             if (!json.key)
             {
                 json.key = "default";
             }
+        }
 
-            // store these properties
-            req.virtualHostGitanaJsonPath = gitanaJsonPath;
-            req.virtualHostGitanaConfig = json;
-
-            callback(null, json);
-        });
+        callback(null, json);
     };
 
     var handleLogin = function(req, res, next)
@@ -411,41 +384,17 @@ exports = module.exports = function(basePath)
                 {
                     if (req.virtualHost)
                     {
-                        var gitanaJsonPath = req.virtualHostGitanaJsonPath;
-                        if (!gitanaJsonPath)
+                        // if the gitana config was virtually loaded, we remove it from disk
+                        if (req.gitanaConfig && req.gitanaConfig._virtual)
                         {
-                            var virtualHostDirectoryPath = storage.hostDirectoryPath(req.virtualHost);
-                            gitanaJsonPath = path.join(virtualHostDirectoryPath, "gitana.json");
-                        }
-                        if (fs.existsSync(gitanaJsonPath))
-                        {
-                            // we only delete if the gitana.json is marked as "_virtual": true
-                            // this indicates the application's config was loaded via virtual driver call
-                            var isVirtual = false;
-                            try
-                            {
-                                var contents = fs.readFileSync(gitanaJsonPath);
-                                if (JSON.parse(contents)._virtual)
-                                {
-                                    isVirtual = true;
-                                }
-                            }
-                            catch (e)
-                            {
+                            var backupGitanaJsonPath = req.gitanaJsonPath + ".backup-" + new Date().getTime();
 
-                            }
+                            // first make a BACKUP of the original gitana.json file
+                            console.log("Backing up: " + req.gitanaJsonPath + " to: " + backupGitanaJsonPath);
+                            util.copyFile(req.gitanaJsonPath, backupGitanaJsonPath);
 
-                            if (isVirtual)
-                            {
-                                var backupGitanaJsonPath = gitanaJsonPath + ".backup-" + new Date().getTime();
-
-                                // first make a BACKUP of the original gitana.json file
-                                console.log("Backing up: " + gitanaJsonPath + " to: " + backupGitanaJsonPath);
-                                util.copyFile(gitanaJsonPath, backupGitanaJsonPath);
-
-                                // now remove
-                                fs.unlinkSync(gitanaJsonPath);
-                            }
+                            // now remove
+                            fs.unlinkSync(req.gitanaJsonPath);
                         }
                     }
                 }
@@ -485,6 +434,13 @@ exports = module.exports = function(basePath)
             resolveGitanaJson(req, function(err, gitanaConfig) {
 
                 if (err) {
+                    req.log("Error loading gitana config: " + JSON.stringify(err));
+                    next();
+                    return;
+                }
+
+                if (!gitanaConfig)
+                {
                     req.log("Could not find gitana.json file");
                     next();
                     return;

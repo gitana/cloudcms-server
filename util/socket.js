@@ -54,8 +54,6 @@ exports.bindGitana = function(socket, callback)
         virtual.acquireGitanaJson(socket.host, socket._log, function(err, gitanaJsonPath, gitanaJson) {
 
             socket.virtualHost = host;
-            socket.virtualHostGitanaJsonPath = gitanaJsonPath;
-            socket.virtualHostGitanaConfig = gitanaJson;
             socket.gitanaJsonPath = gitanaJsonPath;
             socket.gitanaConfig = gitanaJson;
 

@@ -8,7 +8,7 @@ var mkdirp = require('mkdirp');
  *
  *   /hosts
  *
- *      /abc.cloudcms.net
+ *      /<host>
  *
  *         /public
               index.html
@@ -116,23 +116,36 @@ exports = module.exports = function()
 
         app.use(function(req, res, next) {
 
-            fs.readFile(process.env.CLOUDCMS_GITANA_JSON_PATH, function(err, data) {
+            fs.exists(process.env.CLOUDCMS_GITANA_JSON_PATH, function(exists) {
 
-                if (!err)
+                if (exists)
                 {
-                    try {
-                        var json = JSON.parse(data.toString());
+                    fs.readFile(process.env.CLOUDCMS_GITANA_JSON_PATH, function(err, data) {
 
-                        req.gitanaJsonPath = process.env.CLOUDCMS_GITANA_JSON_PATH;
-                        req.gitanaConfig = json;
-                    }
-                    catch (e)
-                    {
+                        if (!err)
+                        {
+                            try {
+                                var json = JSON.parse(data.toString());
 
-                    }
+                                console.log("FOUND LOCAL GITANA JSON");
+
+                                req.gitanaJsonPath = process.env.CLOUDCMS_GITANA_JSON_PATH;
+                                req.gitanaConfig = json;
+                            }
+                            catch (e)
+                            {
+
+                            }
+                        }
+
+                        next();
+                    });
+                }
+                else
+                {
+                    next();
                 }
 
-                next();
             });
         });
 
@@ -148,7 +161,7 @@ exports = module.exports = function()
 
     r.driver = function(app, configuration)
     {
-        // loads gitana.json from appropriate place and binds "req.gitana"
+        // binds "req.gitana" into the request for the loaded "req.gitanaConfig"
         app.use(cloudcms.driverInterceptor(configuration));
     };
 
@@ -171,7 +184,7 @@ exports = module.exports = function()
             app.use(cloudcms.branchInterceptor());
 
             // enables ICE menu
-            app.use(cloudcms.iceInterceptor());
+            // app.use(cloudcms.iceInterceptor());
         }
 
         // textout (tag processing, injection of scripts, etc, kind of a catch all at the moment)

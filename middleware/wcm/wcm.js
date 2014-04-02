@@ -14,6 +14,8 @@ var duster = require("../../duster");
  */
 exports = module.exports = function(basePath)
 {
+    var storage = require("../../util/storage")(basePath);
+
     var isWCMEnabled = function(configuration)
     {
         var enabled = false;
@@ -141,7 +143,7 @@ exports = module.exports = function(basePath)
                 return;
             }
 
-            var t1 = new Date().getTime();
+            //var t1 = new Date().getTime();
             Chain(repository).trap(errorHandler).readBranch("master").then(function() {
 
                 var branch = this;
@@ -187,9 +189,9 @@ exports = module.exports = function(basePath)
 
             }).then(function() {
 
-                    var t2 = new Date().getTime();
+                //var t2 = new Date().getTime();
 
-                    //console.log("WCM page time: " + (t2-t1));
+                //console.log("WCM page time: " + (t2-t1));
 
                 //console.log("Writing pages to WCM cache");
                 //for (var uri in pages)
@@ -257,7 +259,7 @@ exports = module.exports = function(basePath)
                         }
                     }
 
-                    var filePath = path.join(util.publicPath(req), page.templatePath);
+                    var filePath = path.join(util.publicPath(req, storage), page.templatePath);
 
                     // dust it
                     duster.execute(req, filePath, model, function(err, out) {

@@ -29,7 +29,7 @@ exports = module.exports = function(basePath)
      * Files are served from:
      *
      *   /hosts
-     *     /abc.cloudcms.net
+     *     /<host>
      *       /public
      *
      * @return {Function}
