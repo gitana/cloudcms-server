@@ -866,7 +866,8 @@ exports = module.exports = function(basePath)
                             }
                             else
                             {
-                                applyResponseContentType(res, cacheInfo, filename);
+                                var contentType = applyResponseContentType(res, cacheInfo, filename);
+                                applyDefaultContentTypeCaching(res, contentType);
 
                                 res.sendfile(filePath, function(err)
                                 {
@@ -1156,7 +1157,50 @@ exports = module.exports = function(basePath)
         {
             response.setHeader("Content-Type", contentType);
         }
+
+        return contentType;
     };
+
+    //var MAXAGE_ONE_YEAR = 31536000;
+    //var MAXAGE_ONE_HOUR = 3600;
+    //var MAXAGE_ONE_WEEK = 604800;
+    var MAXAGE_THIRTY_MINUTES = 1800;
+
+    var applyDefaultContentTypeCaching = function(res, mimetype)
+    {
+        if (!mimetype || !res)
+        {
+            return;
+        }
+
+        var cacheControl = null;
+
+        var isCSS = ("text/css" == mimetype);
+        var isImage = (mimetype.indexOf("image/") > -1);
+        var isJS = ("text/javascript" == mimetype) || ("application/javascript" == mimetype);
+        var isHTML = ("text/html" == mimetype);
+
+        // html
+        if (isHTML)
+        {
+            cacheControl = "public, max-age=" + MAXAGE_THIRTY_MINUTES;
+        }
+
+        // css, images and js get 1 year
+        if (isCSS || isImage || isJS)
+        {
+            cacheControl = "public, max-age=" + MAXAGE_THIRTY_MINUTES;
+        }
+
+        if (!cacheControl)
+        {
+            // set to no-cache
+            cacheControl = "no-cache";
+        }
+
+        res.header('Cache-Control', cacheControl);
+    };
+
 
     return r;
 };
