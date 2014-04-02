@@ -98,8 +98,13 @@ exports = module.exports = function(basePath)
                         var json = req.gitanaConfig;
                         if (json.clientKey)
                         {
-                            // load from Gitana node_modules
+                            // check "cloudcms-server" node modules
                             filePath = path.join(__dirname, "..", "..", "node_modules", "gitana", "lib", filename);
+                            if (!fs.existsSync(filePath))
+                            {
+                                // check another level up
+                                filePath = path.join(__dirname, "..", "..", "..", "..", "node_modules", "gitana", "lib", filename);
+                            }
 
                             fs.readFile(filePath, function(err, text) {
 
