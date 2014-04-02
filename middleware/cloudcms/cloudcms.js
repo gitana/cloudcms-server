@@ -387,14 +387,17 @@ exports = module.exports = function(basePath)
                         // if the gitana config was virtually loaded, we remove it from disk
                         if (req.gitanaConfig && req.gitanaConfig._virtual)
                         {
-                            var backupGitanaJsonPath = req.gitanaJsonPath + ".backup-" + new Date().getTime();
+                            if (fs.existsSync(req.gitanaJsonPath))
+                            {
+                                var backupGitanaJsonPath = req.gitanaJsonPath + ".backup-" + new Date().getTime();
 
-                            // first make a BACKUP of the original gitana.json file
-                            console.log("Backing up: " + req.gitanaJsonPath + " to: " + backupGitanaJsonPath);
-                            util.copyFile(req.gitanaJsonPath, backupGitanaJsonPath);
+                                // first make a BACKUP of the original gitana.json file
+                                console.log("Backing up: " + req.gitanaJsonPath + " to: " + backupGitanaJsonPath);
+                                util.copyFile(req.gitanaJsonPath, backupGitanaJsonPath);
 
-                            // now remove
-                            fs.unlinkSync(req.gitanaJsonPath);
+                                // now remove
+                                fs.unlinkSync(req.gitanaJsonPath);
+                            }
                         }
                     }
                 }

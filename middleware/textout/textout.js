@@ -85,7 +85,7 @@ exports = module.exports = function(basePath)
                 }
 
                 // if they request "gitana.js", we plug in client key info
-                else if (filename == "gitana.js" || filename == "gitana.min.js")
+                else if (filePath == "/gitana/gitana.js" || filePath == "/gitana/gitana.min.js")
                 {
                     if (!req.gitanaConfig)
                     {
@@ -98,9 +98,8 @@ exports = module.exports = function(basePath)
                         var json = req.gitanaConfig;
                         if (json.clientKey)
                         {
-                            if (options.root) {
-                                filePath = path.join(options.root, filePath);
-                            }
+                            // load from Gitana node_modules
+                            filePath = path.join(__dirname, "..", "..", "node_modules", "gitana", "lib", filename);
 
                             fs.readFile(filePath, function(err, text) {
 
