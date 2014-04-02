@@ -546,7 +546,7 @@ exports.start = function(overrides, callback)
         var cons = require('consolidate');
         app.engine('html', cons.dust);
 
-        app.use(express.favicon());
+        app.use(express.favicon(process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH + "/favicon.ico"));
 
         //app.use(express.cookieParser());
         //app.use(express.cookieParser("secret"));

@@ -1175,21 +1175,24 @@ exports = module.exports = function(basePath)
 
         var cacheControl = null;
 
-        var isCSS = ("text/css" == mimetype);
-        var isImage = (mimetype.indexOf("image/") > -1);
-        var isJS = ("text/javascript" == mimetype) || ("application/javascript" == mimetype);
-        var isHTML = ("text/html" == mimetype);
-
-        // html
-        if (isHTML)
+        if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
         {
-            cacheControl = "public, max-age=" + MAXAGE_THIRTY_MINUTES;
-        }
+            var isCSS = ("text/css" == mimetype);
+            var isImage = (mimetype.indexOf("image/") > -1);
+            var isJS = ("text/javascript" == mimetype) || ("application/javascript" == mimetype);
+            var isHTML = ("text/html" == mimetype);
 
-        // css, images and js get 1 year
-        if (isCSS || isImage || isJS)
-        {
-            cacheControl = "public, max-age=" + MAXAGE_THIRTY_MINUTES;
+            // html
+            if (isHTML)
+            {
+                cacheControl = "public, max-age=" + MAXAGE_THIRTY_MINUTES;
+            }
+
+            // css, images and js get 1 year
+            if (isCSS || isImage || isJS)
+            {
+                cacheControl = "public, max-age=" + MAXAGE_THIRTY_MINUTES;
+            }
         }
 
         if (!cacheControl)
@@ -1199,6 +1202,7 @@ exports = module.exports = function(basePath)
         }
 
         res.header('Cache-Control', cacheControl);
+
     };
 
 
