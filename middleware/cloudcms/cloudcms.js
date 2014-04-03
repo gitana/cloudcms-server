@@ -866,8 +866,8 @@ exports = module.exports = function(basePath)
                             }
                             else
                             {
-                                var contentType = applyResponseContentType(res, cacheInfo, filename);
-                                applyDefaultContentTypeCaching(res, contentType);
+                                applyResponseContentType(res, cacheInfo, filename);
+                                applyDefaultContentTypeCaching(res, cacheInfo);
 
                                 res.sendfile(filePath, function(err)
                                 {
@@ -996,6 +996,7 @@ exports = module.exports = function(basePath)
                             else
                             {
                                 applyResponseContentType(res, cacheInfo, filename);
+                                applyDefaultContentTypeCaching(res, cacheInfo);
 
                                 res.sendfile(filePath, function(err)
                                 {
@@ -1166,15 +1167,23 @@ exports = module.exports = function(basePath)
     //var MAXAGE_ONE_WEEK = 604800;
     var MAXAGE_THIRTY_MINUTES = 1800;
 
-    var applyDefaultContentTypeCaching = function(res, mimetype)
+    var applyDefaultContentTypeCaching = function(res, cacheInfo)
     {
-        if (!mimetype || !res)
+        if (!cacheInfo || !res)
         {
             return;
         }
 
-        var cacheControl = null;
+        var mimetype = cacheInfo.mimetype;
+        if (!mimetype)
+        {
+            return;
+        }
 
+        // assume no caching
+        var cacheControl = "no-cache";
+
+        // if we're in production mode, we apply caching
         if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
         {
             var isCSS = ("text/css" == mimetype);
@@ -1195,14 +1204,10 @@ exports = module.exports = function(basePath)
             }
         }
 
-        if (!cacheControl)
-        {
-            // set to no-cache
-            cacheControl = "no-cache";
-        }
-
         res.header('Cache-Control', cacheControl);
 
+        // test
+        res.header("Expires", "Mon, 7 Apr 2014, 16:00:00 GMT");
     };
 
     return r;

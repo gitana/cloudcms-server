@@ -563,8 +563,8 @@ exports = module.exports = function(basePath)
 
             if (!previewId)
             {
-                previewId = "_unknown";
-                forceReload = true;
+                previewId = "_preview";
+                //forceReload = true;
             }
 
             var filePath = path.join(contentDirectoryPath, "previews", previewId);
@@ -606,12 +606,12 @@ exports = module.exports = function(basePath)
                     uri += "&force=" + forceReload;
                 }
 
-                var gitanaHost = process.env.GITANA_PROXY_HOST;// || "localhost";
-                var gitanaPort = process.env.GITANA_PROXY_PORT;// || 8080;
+                var gitanaHost = process.env.GITANA_PROXY_HOST; // || "localhost";
+                var gitanaPort = process.env.GITANA_PROXY_PORT; // || 8080;
 
                 //console.log("PREVIEW HOST: " + gitanaHost);
                 //console.log("PREVIEW PORT: " + gitanaPort);
-                console.log("PREVIEW URL: " + uri);
+                //console.log("PREVIEW URL: " + uri);
 
                 writeToDisk(gitanaHost, gitanaPort, uri, gitana, filePath, function(err, filePath, responseHeaders) {
 
