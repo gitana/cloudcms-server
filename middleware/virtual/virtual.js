@@ -427,7 +427,7 @@ exports = module.exports = function(basePath)
                 // CACHE: is there a cached descriptor for this host?
                 // NOTE: null is a valid sentinel value (meaning none)
                 var descriptor = DESCRIPTOR_CACHE.read(req.virtualHost);
-                if (typeof(descriptor) != "undefined" || descriptor == null)
+                if (typeof(descriptor) !== "undefined" || descriptor === null)
                 {
                     // all done
                     completionFunction(null, descriptor);
