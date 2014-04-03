@@ -318,7 +318,7 @@ exports.publicPath = function(req, storage)
         publicPath = path.join(virtualHostDirectoryPath, "public");
         if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
         {
-            var publicBuildPath = path.join(req.virtualHostDirectoryPath, "public_build");
+            var publicBuildPath = path.join(virtualHostDirectoryPath, "public_build");
             if (fs.existsSync(publicBuildPath))
             {
                 var filenames = fs.readdirSync(publicBuildPath);
