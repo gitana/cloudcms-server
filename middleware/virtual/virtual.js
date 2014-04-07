@@ -324,6 +324,7 @@ exports = module.exports = function(basePath)
                     if (err)
                     {
                         req.log(err.message);
+                        next();
                         return;
                     }
 

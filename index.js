@@ -127,8 +127,6 @@ exports = module.exports = function()
                             try {
                                 var json = JSON.parse(data.toString());
 
-                                console.log("FOUND LOCAL GITANA JSON");
-
                                 req.gitanaJsonPath = process.env.CLOUDCMS_GITANA_JSON_PATH;
                                 req.gitanaConfig = json;
                             }
