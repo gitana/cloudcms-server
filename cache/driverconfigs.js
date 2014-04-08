@@ -31,5 +31,17 @@ exports = module.exports = function()
         delete map[key];
     };
 
+    var keys = r.keys = function()
+    {
+        var keys = [];
+
+        for (var k in map)
+        {
+            keys.push(k);
+        }
+
+        return keys;
+    };
+
     return r;
 }();

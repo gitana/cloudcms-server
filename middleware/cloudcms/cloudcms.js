@@ -12,6 +12,8 @@ var LocalStrategy = require('passport-local').Strategy;
 
 var mime = require("mime");
 
+var GITANA_DRIVER_CONFIG_CACHE = require("../../cache/driverconfigs");
+
 /**
  * Cloud CMS middleware.
  *
@@ -272,14 +274,17 @@ exports = module.exports = function(basePath)
             {
                 driverConfigs["virtual"] = configuration.virtualDriver;
             }
-            /*
-             if (process.cache)
-             {
-             process.cache.each("hostGitanaConfigs", function(host, gitanaConfig) {
-             driverConfigs[host] = gitanaConfig;
-             });
-             }
-             */
+
+            // also refresh any of our cached driver config state
+            var keys = GITANA_DRIVER_CONFIG_CACHE.keys();
+            for (var t = 0; t < keys.length; t++)
+            {
+                var c = GITANA_DRIVER_CONFIG_CACHE.read(keys[t]);
+                if (c)
+                {
+                    driverConfigs[keys[t]] = c.config;
+                }
+            }
 
             var hosts = [];
             for (var host in driverConfigs)
@@ -299,6 +304,9 @@ exports = module.exports = function(basePath)
                 var host = hosts[i];
                 var gitanaConfig = driverConfigs[host];
 
+                //console.log("WORKING ON HOST: " + host);
+                //console.log("WORKING ON CONFIG: " + JSON.stringify(gitanaConfig, null, "  "));
+
                 Gitana.connect(gitanaConfig, function(err) {
 
                     diLog(" -> [" + host + "] running health check");
@@ -314,9 +322,8 @@ exports = module.exports = function(basePath)
                         diLog(" -> [" + host + "] Removing key: " + gitanaConfig.key);
                         Gitana.disconnect(gitanaConfig.key);
 
-                        /*
-                         process.cache.clear("hostGitanaConfigs", host);
-                         */
+                        // remove from cache
+                        GITANA_DRIVER_CONFIG_CACHE.invalidate(host);
 
                         f(i+1);
                         return;
@@ -333,9 +340,8 @@ exports = module.exports = function(basePath)
                                 diLog(" -> [" + host + "] Auto disconnecting key: " + gitanaConfig.key);
                                 Gitana.disconnect(gitanaConfig.key);
 
-                                /*
-                                 process.cache.clear("hostGitanaConfigs", host);
-                                 */
+                                // remove from cache
+                                GITANA_DRIVER_CONFIG_CACHE.invalidate(host);
 
                             } else {
                                 diLog(" -> [" + host + "] Successfully refreshed authentication for appuser");
