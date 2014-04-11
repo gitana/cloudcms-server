@@ -15,7 +15,7 @@
     "node": ">= 0.4.1 < 1.0.0"
   },
   "dependencies": {
-      "express": "*",
+      "express": "3.x.x",
       "http-proxy": "*",
       "request": "*",
       "gitana": "*",
