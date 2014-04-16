@@ -1,5 +1,5 @@
 /*
-Gitana JavaScript Driver - Version 1.0.86
+Gitana JavaScript Driver - Version 1.0.87
 
 Copyright 2013 Gitana Software, Inc.
 
@@ -2179,7 +2179,7 @@ if (typeof JSON !== 'object') {
     Gitana.requestCount = 0;
 
     // version of the driver
-    Gitana.VERSION = "1.0.86";
+    Gitana.VERSION = "1.0.87";
 
     // allow for optional global assignment
     // TODO: until we clean up the "window" variable reliance, we have to always set onto window again
@@ -2207,6 +2207,10 @@ if (typeof JSON !== 'object') {
     Gitana.Error.prototype.constructor = Gitana.Error;
 }(this));(function(global)
 {
+    // the default timeout for xhr connections
+    // this is set long at 2 minutes
+    Gitana.HTTP_TIMEOUT = 120000;
+
     Gitana.Http = Base.extend(
     /** @lends Gitana.Http.prototype */
     {
@@ -2301,7 +2305,7 @@ if (typeof JSON !== 'object') {
                 };
 
                 xhr.open(method, url, true);
-                xhr.timeout = 120000; // long, 2 minutes
+                xhr.timeout = Gitana.HTTP_TIMEOUT;
 
                 xhr.setRequestHeader('X-Requested-With','XMLHttpRequest');
                 for (var header in headers)
@@ -24697,6 +24701,29 @@ Gitana.OAuth2Http.TICKET = "ticket";
         },
 
         /**
+         * Deletes the nodes described the given array of node ids.
+         *
+         * @hcained branch
+         *
+         * @param nodeIds
+         *
+         * @returns Gitana.Branch
+         */
+        deleteNodes: function(nodeIds)
+        {
+            var self = this;
+
+            var uriFunction = function()
+            {
+                return self.getUri() + "/nodes/delete";
+            };
+
+            return this.chainPost(this, uriFunction, {}, {
+                "_docs": nodeIds
+            });
+        },
+
+        /**
          * Performs a bulk check of permissions against permissioned objects of type node.
          *
          * Example of checks array:
@@ -26611,6 +26638,32 @@ Gitana.OAuth2Http.TICKET = "ticket";
         buildObject: function(json)
         {
             return this.getFactory().node(this.getBranch(), json);
+        },
+
+        /**
+         * Delete
+         *
+         * @chained this
+         *
+         * @public
+         */
+        del: function()
+        {
+            var self = this;
+
+            var uriFunction = function()
+            {
+                return self.getBranch().getUri() + "/nodes/delete";
+            };
+
+            return this.subchain().then(function() {
+
+                var nodeIds = this.__keys();
+
+                return this.chainPost(this, uriFunction, {}, {
+                    "_docs": nodeIds
+                });
+            });
         }
 
     });

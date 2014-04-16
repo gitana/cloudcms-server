@@ -3,16 +3,14 @@ var http = require('http');
 var https = require('https');
 var path = require('path');
 var fs = require('fs');
-var httpProxy = require('http-proxy');
 var clone = require('clone');
 var xtend = require('xtend');
 var bytes = require('bytes');
 
-var oauth2 = require("../util/oauth2")();
-
 var async = require('../util/async');
 
 var perf = require("../middleware/perf/perf");
+var proxy = require("../middleware/proxy/proxy");
 
 var app = express();
 
@@ -248,6 +246,7 @@ exports.start = function(overrides, callback)
 
             return message;
         });
+
         app.use(express.logger("cloudcms"));
         //app.use(express.logger("dev"));
 
@@ -255,6 +254,11 @@ exports.start = function(overrides, callback)
         app.use(function(req, res, next) {
             requestCounter++;
             req.id = requestCounter;
+            next();
+        });
+
+        app.use(function(req, res, next) {
+            req.originalUrl = req.url;
             next();
         });
 
@@ -303,40 +307,8 @@ exports.start = function(overrides, callback)
 
         // initial log
         app.use(function(req, res, next) {
-            req.log("Start of request");
+            req.log("Start of request: " + req.url);
             next();
-        });
-
-        app.use(function(req, res, next) {
-            req.originalUrl = req.url;
-            next();
-        });
-
-        // RUNTIME PERFORMANCE FRONT END
-        app.use(perf(config).cacheHeaderInterceptor());
-
-        // standard body parsing + a special cloud cms body parser that makes a last ditch effort for anything
-        // that might be JSON (regardless of content type)
-        app.use(function(req, res, next) {
-
-            if (req.url.indexOf("/proxy") === 0)
-            {
-                // don't do any payload processing when accessing the proxy
-                next();
-            }
-            else
-            {
-                express.multipart()(req, res, function(err) {
-                    express.json()(req, res, function(err) {
-                        express.urlencoded()(req, res, function(err) {
-                            main.bodyParser()(req, res, function(err) {
-                                next(err);
-                            });
-                        });
-                    });
-                });
-            }
-
         });
 
         // common interceptors and config
@@ -345,6 +317,32 @@ exports.start = function(overrides, callback)
         // virtual configuration interceptors
         main.virtual(app, config);
 
+        // proxy
+        // anything that goes to /proxy is handled here early and nothing processes afterwards
+        app.use(proxy());
+
+        // welcome files
+        main.welcome(app, config);
+
+        // RUNTIME PERFORMANCE FRONT END
+        app.use(perf(config).cacheHeaderInterceptor());
+
+        // standard body parsing + a special cloud cms body parser that makes a last ditch effort for anything
+        // that might be JSON (regardless of content type)
+        app.use(function(req, res, next) {
+
+            express.multipart()(req, res, function(err) {
+                express.json()(req, res, function(err) {
+                    express.urlencoded()(req, res, function(err) {
+                        main.bodyParser()(req, res, function(err) {
+                            next(err);
+                        });
+                    });
+                });
+            });
+
+        });
+
         // driver interceptor
         main.driver(app, config);
     });
@@ -352,179 +350,7 @@ exports.start = function(overrides, callback)
     app.use(main.ensureCORSCrossDomain());
 
 
-    ////////////////////////////////////////////////////////////////////////////
-    //
-    // HTTP/HTTPS Proxy Server to Cloud CMS
-    // Facilitates Cross-Domain communication between Browser and Cloud Server
-    // This must appear at the top of the app.js file (ahead of config) for things to work
-    //
-    ////////////////////////////////////////////////////////////////////////////
-    // START PROXY SERVER
-    /*
-    var Agent = require('agentkeepalive');
-    var agent = new Agent({
-        maxSockets: 10,
-        maxFreeSockets: 10,
-        keepAlive: true,
-        keepAliveMsecs: 30000 // keepalive for 30 seconds
-    });
-    */
-    var proxyScheme = process.env.GITANA_PROXY_SCHEME;
-    var proxyHost = process.env.GITANA_PROXY_HOST;
-    var proxyPort = parseInt(process.env.GITANA_PROXY_PORT, 10);
 
-    var target = proxyScheme + "://" + proxyHost + ":" + proxyPort;
-    var proxyConfig = {
-        "target": target,
-        "agent": false,
-        "xfwd": true
-    };
-    if (proxyScheme.toLowerCase() == "https")
-    {
-        /*
-//        proxyConfig.secure = true;
-        */
-        //https.globalAgent.options.secureProtocol = 'SSLv3_method';
-        //proxyConfig.agent = https.globalAgent;
-
-        // TODO: why does https://api.cloudcms.com throw "Hostname/IP doesn't match certificate's altname"
-        // temporary workaround
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
-
-        // keep-alive agent
-        proxyConfig.agent = new https.Agent({
-            maxSockets: 100,
-            maxFreeSockets: 100,
-            keepAlive: true,
-            keepAliveMsecs: 30000
-        });
-
-    }
-    if (proxyScheme.toLowerCase() == "http")
-    {
-        // keep-alive agent
-        proxyConfig.agent = new http.Agent({
-            maxSockets: 100,
-            maxFreeSockets: 100,
-            keepAlive: true,
-            keepAliveMsecs: 30000
-        });
-        //proxyConfig.agent = http.globalAgent;
-    }
-    // ten minute timeout
-    // proxyConfig.timeout = 10 * 60 * 1000;
-    var proxyServer = new httpProxy.createProxyServer(proxyConfig);
-    proxyServer.on("error", function(err, req, res) {
-        console.log(err);
-        res.writeHead(500, {
-            'Content-Type': 'text/plain'
-        });
-
-        res.end('Something went wrong while proxying the request.');
-    });
-    proxyServer.on('proxyRes', function (res) {
-        //console.log('RAW Response from the target', JSON.stringify(res.headers, true, 2));
-    });
-    app.use("/proxy", http.createServer(function(req, res) {
-
-        // make sure request socket is optimized for speed
-        req.socket.setNoDelay(true);
-        req.socket.setTimeout(0);
-        req.socket.setKeepAlive(true, 0);
-
-        // used to auto-assign the client header for /oauth/token requests
-        oauth2.autoProxy(req);
-
-        var updateSetCookieHost = function(value)
-        {
-            var newDomain = req.host;
-            if (req.virtualHost) {
-                newDomain = req.virtualHost;
-            }
-            // TODO: why was this needed?  CNAME wip
-            /*
-            if (req.headers["x-forwarded-host"]) {
-                newDomain = req.headers["x-forwarded-host"];
-            }
-            */
-
-            /*
-
-             / NOTE
-             // req.host = cloudcms-oneteam-env-58pc8mdwgg.elasticbeanstalk.com
-             // req.virtualHost = tre624b7.cloudcms.net
-             // req.headers["x-forwarded-host"] = terramaradmin.solocal.mobi, tre624b7.cloud$
-             // req.headers["referer"] = http://terramaradmin.solocal.mobi/
-
-            */
-
-            //
-            // if the incoming request is coming off of a CNAME entry that is maintained elsewhere (and they're just
-            // forwarding the CNAME request to our machine), then we try to detect this...
-            //
-            // our algorithm here is pretty weak but suffices for the moment.
-            // if the req.headers["x-forwarded-host"] first entry is in the req.headers["referer"] then we consider
-            // things to have been CNAME forwarded
-            // and so we write cookies back to the req.headers["x-forwarded-host"] first entry domain
-            //
-
-            var xForwardedHost = req.headers["x-forwarded-host"];
-            if (xForwardedHost)
-            {
-                xForwardedHost = xForwardedHost.split(",");
-                if (xForwardedHost.length > 0)
-                {
-                    var cnameCandidate = xForwardedHost[0];
-
-                    var referer = req.headers["referer"];
-                    if (referer && referer.indexOf("://" + cnameCandidate) > -1)
-                    {
-                        req.log("Detected CNAME: " + cnameCandidate);
-
-                        newDomain = cnameCandidate;
-                    }
-                }
-            }
-
-
-
-            // now proceed
-
-
-            var i = value.indexOf("Domain=");
-            if (i > -1)
-            {
-                var j = value.indexOf(";", i);
-                if (j > -1)
-                {
-                    value = value.substring(0, i+7) + newDomain + value.substring(j);
-                }
-                else
-                {
-                    value = value.substring(0, i+7) + newDomain;
-                }
-            }
-
-            return value;
-        };
-
-        var _setHeader = res.setHeader;
-        res.setHeader = function(key, value)
-        {
-            if (key.toLowerCase() == "set-cookie")
-            {
-                for (var x in value)
-                {
-                    value[x] = updateSetCookieHost(value[x]);
-                }
-            }
-
-            _setHeader.call(this, key, value);
-        };
-
-        proxyServer.web(req, res, proxyConfig);
-    }));
-    // END PROXY SERVER
 
 
 

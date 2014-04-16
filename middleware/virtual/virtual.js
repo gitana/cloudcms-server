@@ -104,7 +104,7 @@ exports = module.exports = function(basePath)
 
         // if using virtual driver configs, the config is loaded from Cloud CMS for the virtual host
         // and written to disk
-        // this overwrites "req.gitanaConfig" with virtual config
+        // this overwrites "req.gitanaConfig" with virtual config and "req.gitanaJsonPath" with path to file
         app.use(virtualDriverConfigInterceptor(configuration));
 
         // if "descriptor.json" exists, write "req.descriptor" and "req.virtualFiles = true"
@@ -309,7 +309,7 @@ exports = module.exports = function(basePath)
     /**
      * Virtual driver config interceptor.
      *
-     * Loads the gitana driver.  Overwrites "req.gitanaConfig"
+     * Loads the gitana driver.  Overwrites "req.gitanaConfig" and "req.gitanaJsonPath"
      *
      * @returns {Function}
      */
@@ -339,21 +339,30 @@ exports = module.exports = function(basePath)
                 };
 
                 var cachedValue = GITANA_DRIVER_CONFIG_CACHE.read(req.virtualHost);
-                if (typeof(cachedValue) !== "undefined" || cachedValue === null)
+                if (cachedValue)
                 {
-                    if (cachedValue == null)
+                    if (cachedValue == "null")
                     {
+                        // null means there verifiably isn't anything on disk (null used as sentinel marker)
                         completionFunction();
                     }
                     else
                     {
+                        // we have something in cache
                         completionFunction(null, cachedValue.path, cachedValue.config);
                     }
                 }
                 else
                 {
                     // try to load from disk
+                    console.log("virtualDriverConfigInterceptor - disk hit");
                     acquireGitanaJson(req.virtualHost, req.log, function(err, gitanaJsonPath, gitanaConfig) {
+
+                        if (err)
+                        {
+                            completionFunction(err);
+                            return;
+                        }
 
                         if (gitanaJsonPath && gitanaConfig)
                         {
@@ -361,9 +370,16 @@ exports = module.exports = function(basePath)
                                 "path": gitanaJsonPath,
                                 "config": gitanaConfig
                             });
-                        }
 
-                        completionFunction(err, gitanaJsonPath, gitanaConfig);
+                            completionFunction(null, gitanaJsonPath, gitanaConfig);
+                        }
+                        else
+                        {
+                            // mark with sentinel
+                            GITANA_DRIVER_CONFIG_CACHE.write(req.virtualHost, "null");
+
+                            completionFunction();
+                        }
                     });
                 }
             }

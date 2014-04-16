@@ -2,6 +2,8 @@ var path = require('path');
 var fs = require('fs');
 var mkdirp = require('mkdirp');
 
+var GITANA_DRIVER_CONFIG_CACHE = require("./cache/driverconfigs");
+
 /**
  * Supports the following directory structure:
  *
@@ -116,37 +118,87 @@ exports = module.exports = function()
 
         app.use(function(req, res, next) {
 
-            fs.exists(process.env.CLOUDCMS_GITANA_JSON_PATH, function(exists) {
-
-                if (exists)
+            var completionFunction = function(err, gitanaJsonPath, gitanaConfig)
+            {
+                if (err)
                 {
-                    fs.readFile(process.env.CLOUDCMS_GITANA_JSON_PATH, function(err, data) {
+                    req.log(err.message);
+                    next();
+                    return;
+                }
 
-                        if (!err)
-                        {
-                            try {
-                                var json = JSON.parse(data.toString());
+                if (gitanaJsonPath && gitanaConfig)
+                {
+                    // overwrite path to gitana.json file
+                    req.gitanaJsonPath = gitanaJsonPath;
+                    req.gitanaConfig = gitanaConfig;
+                }
 
-                                req.gitanaJsonPath = process.env.CLOUDCMS_GITANA_JSON_PATH;
-                                req.gitanaConfig = json;
-                            }
-                            catch (e)
-                            {
+                next();
+            };
 
-                            }
-                        }
-
-                        next();
-                    });
+            var cachedValue = GITANA_DRIVER_CONFIG_CACHE.read("local");
+            if (cachedValue)
+            {
+                if (cachedValue == "null")
+                {
+                    // null means there verifiably isn't anything on disk (null used as sentinel marker)
+                    completionFunction();
                 }
                 else
                 {
-                    next();
+                    // we have something in cache
+                    completionFunction(null, cachedValue.path, cachedValue.config);
                 }
+            }
+            else
+            {
+                // try to load from disk
+                console.log("local driver check - disk hit");
+                fs.exists(process.env.CLOUDCMS_GITANA_JSON_PATH, function(exists) {
 
-            });
+                    if (exists)
+                    {
+                        fs.readFile(process.env.CLOUDCMS_GITANA_JSON_PATH, function(err, data) {
+
+                            if (err)
+                            {
+                                completionFunction(err);
+                                return;
+                            }
+
+                            try
+                            {
+                                var gitanaConfig = JSON.parse(data.toString());
+
+                                GITANA_DRIVER_CONFIG_CACHE.write("local", {
+                                    "path": process.env.CLOUDCMS_GITANA_JSON_PATH,
+                                    "config": gitanaConfig
+                                });
+
+                                completionFunction(null, process.env.CLOUDCMS_GITANA_JSON_PATH, gitanaConfig);
+                            }
+                            catch (e)
+                            {
+                                console.log("Error reading json file in local driver check: " + process.env.CLOUDCMS_GITANA_JSON_PATH);
+                                completionFunction();
+                            }
+                        });
+                    }
+                    else
+                    {
+                        // mark with sentinel
+                        GITANA_DRIVER_CONFIG_CACHE.write("local", "null");
+
+                        completionFunction();
+                    }
+                });
+            }
         });
+    };
 
+    r.welcome = function(app, configuration)
+    {
         // support for "welcome" files (i.e. index.html)
         app.use(welcome.welcomeInterceptor(configuration));
     };
