@@ -1,6 +1,7 @@
 var path = require('path');
 var fs = require('fs');
 var http = require('http');
+var https = require('https');
 
 var httpProxy = require('http-proxy');
 

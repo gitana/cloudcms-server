@@ -256,6 +256,7 @@ exports = module.exports = function(basePath)
         var diLog = function(text)
         {
             var shouldLog = configuration && configuration.autoRefresh && configuration.autoRefresh.log;
+            shouldLog = true;
             if (shouldLog)
             {
                 console.log(text);
@@ -292,6 +293,8 @@ exports = module.exports = function(basePath)
                 hosts.push(host);
             }
 
+            console.log("Processing hosts: " + JSON.stringify(hosts));
+
             var f = function(i)
             {
                 if (i == hosts.length)
@@ -304,55 +307,65 @@ exports = module.exports = function(basePath)
                 var host = hosts[i];
                 var gitanaConfig = driverConfigs[host];
 
-                //console.log("WORKING ON HOST: " + host);
-                //console.log("WORKING ON CONFIG: " + JSON.stringify(gitanaConfig, null, "  "));
+                if (gitanaConfig && typeof(gitanaConfig) == "object")
+                {
+                    console.log("WORKING ON HOST: " + host);
+                    console.log("WORKING ON CONFIG: " + JSON.stringify(gitanaConfig, null, "  "));
 
-                Gitana.connect(gitanaConfig, function(err) {
+                    Gitana.connect(gitanaConfig, function(err) {
 
-                    diLog(" -> [" + host + "] running health check");
+                        diLog(" -> [" + host + "] running health check");
 
-                    var g = this;
+                        var g = this;
 
-                    if (err)
-                    {
-                        diLog(" -> [" + host + "] Caught error while running auto-refresh");
-                        diLog(" -> [" + host + "] " + err);
-                        diLog(" -> [" + host + "] " + JSON.stringify(err));
+                        if (err)
+                        {
+                            diLog(" -> [" + host + "] Caught error while running auto-refresh");
+                            diLog(" -> [" + host + "] " + err);
+                            diLog(" -> [" + host + "] " + JSON.stringify(err));
 
-                        diLog(" -> [" + host + "] Removing key: " + gitanaConfig.key);
-                        Gitana.disconnect(gitanaConfig.key);
+                            diLog(" -> [" + host + "] Removing key: " + gitanaConfig.key);
+                            Gitana.disconnect(gitanaConfig.key);
 
-                        // remove from cache
-                        GITANA_DRIVER_CONFIG_CACHE.invalidate(host);
-
-                        f(i+1);
-                        return;
-                    }
-                    else
-                    {
-                        diLog(" -> [" + host + "] refresh for host: " + host);
-
-                        g.getDriver().refreshAuthentication(function(err) {
-
-                            if (err) {
-                                diLog(" -> [" + host + "] Refresh Authentication caught error: " + JSON.stringify(err));
-
-                                diLog(" -> [" + host + "] Auto disconnecting key: " + gitanaConfig.key);
-                                Gitana.disconnect(gitanaConfig.key);
-
-                                // remove from cache
-                                GITANA_DRIVER_CONFIG_CACHE.invalidate(host);
-
-                            } else {
-                                diLog(" -> [" + host + "] Successfully refreshed authentication for appuser");
-                                diLog(" -> [" + host + "] grant time: " + new Date(g.getDriver().http.grantTime()));
-                                diLog(" -> [" + host + "] access token: " + g.getDriver().http.accessToken());
-                            }
+                            // remove from cache
+                            GITANA_DRIVER_CONFIG_CACHE.invalidate(host);
 
                             f(i+1);
-                        });
-                    }
-                });
+                            return;
+                        }
+                        else
+                        {
+                            diLog(" -> [" + host + "] refresh for host: " + host);
+
+                            g.getDriver().refreshAuthentication(function(err) {
+
+                                if (err) {
+                                    diLog(" -> [" + host + "] Refresh Authentication caught error: " + JSON.stringify(err));
+
+                                    diLog(" -> [" + host + "] Auto disconnecting key: " + gitanaConfig.key);
+                                    Gitana.disconnect(gitanaConfig.key);
+
+                                    // remove from cache
+                                    GITANA_DRIVER_CONFIG_CACHE.invalidate(host);
+
+                                } else {
+                                    diLog(" -> [" + host + "] Successfully refreshed authentication for appuser");
+                                    diLog(" -> [" + host + "] grant time: " + new Date(g.getDriver().http.grantTime()));
+                                    diLog(" -> [" + host + "] access token: " + g.getDriver().http.accessToken());
+                                }
+
+                                f(i+1);
+                            });
+                        }
+                    });
+                }
+                else
+                {
+                    // otherwise, skip
+                    console.log("SKIPPING SINCE NO CONFIGURATION FOUND");
+
+                    f(i+1);
+                }
 
             };
 
