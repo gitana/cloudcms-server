@@ -27,9 +27,10 @@ exports = module.exports = function(basePath)
     {
         var configuration = process.configuration;
 
-        if (configuration.virtualDriver)
+        if (configuration.virtualDriver && configuration.virtualDriver.enabled)
         {
             // either connect anew or re-use an existing connection to Cloud CMS for this application
+            console.log("virtualdriver.connect.1");
             Gitana.connect(configuration.virtualDriver, function(err) {
 
                 if (err)
@@ -115,75 +116,82 @@ exports = module.exports = function(basePath)
     {
         var configuration = process.configuration;
 
-        connectAsVirtualDriver(function(err, gitana) {
+        if (configuration.virtualDriver && configuration.virtualDriver.enabled)
+        {
+            connectAsVirtualDriver(function(err, gitana) {
 
-            if (err)
-            {
-                console.log("Unable to find virtual driver gitana instance for host: " + host);
-                console.log(JSON.stringify(err, null, "   "));
-                callback(err);
-                return;
-            }
-
-            // Basic Authentication request back to server
-            var uri = "http://" + host;
-            // as related above, this adjusts the URL
-            if (configuration.virtualDriver && configuration.virtualDriver.appKey)
-            {
-                uri += "/" + configuration.virtualDriver.appKey;
-            }
-            var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT + "/virtual/driver/config";
-            var qs = {
-                "uri": uri
-            };
-            if (configuration.virtualDriver && configuration.virtualDriver.webhost)
-            {
-                qs.w = configuration.virtualDriver.webhost;
-            }
-            var requestConfig = {
-                "url": URL,
-                "qs": qs
-            };
-
-            util.retryGitanaRequest(logMethod, gitana, requestConfig, 2, function(err, response, body) {
-
-                if (response && response.statusCode == 200 && body)
+                if (err)
                 {
-                    var config = JSON.parse(body).config;
-                    if (!config)
+                    console.log("Unable to find virtual driver gitana instance for host: " + host);
+                    console.log(JSON.stringify(err, null, "   "));
+                    callback(err);
+                    return;
+                }
+
+                // Basic Authentication request back to server
+                var uri = "http://" + host;
+                // as related above, this adjusts the URL
+                if (configuration.virtualDriver && configuration.virtualDriver.appKey)
+                {
+                    uri += "/" + configuration.virtualDriver.appKey;
+                }
+                var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT + "/virtual/driver/config";
+                var qs = {
+                    "uri": uri
+                };
+                if (configuration.virtualDriver && configuration.virtualDriver.webhost)
+                {
+                    qs.w = configuration.virtualDriver.webhost;
+                }
+                var requestConfig = {
+                    "url": URL,
+                    "qs": qs
+                };
+
+                util.retryGitanaRequest(logMethod, gitana, requestConfig, 2, function(err, response, body) {
+
+                    if (response && response.statusCode == 200 && body)
                     {
-                        // nothing found
-                        callback();
+                        var config = JSON.parse(body).config;
+                        if (!config)
+                        {
+                            // nothing found
+                            callback();
+                        }
+                        else
+                        {
+                            callback(null, config);
+                        }
                     }
                     else
                     {
-                        callback(null, config);
+                        logMethod("Load virtual driver config failed");
+                        if (response && response.statusCode)
+                        {
+                            logMethod("Response status code: " + response.statusCode);
+                        }
+                        if (err) {
+                            logMethod("Err: " + JSON.stringify(err));
+                        }
+                        if (body) {
+                            logMethod("Body: " + body);
+                        }
+                        var message = body;
+                        if (!message) {
+                            message = "Unable to load virtual driver configuration";
+                        }
+                        callback({
+                            "message": message,
+                            "err": err
+                        });
                     }
-                }
-                else
-                {
-                    logMethod("Load virtual driver config failed");
-                    if (response && response.statusCode)
-                    {
-                        logMethod("Response status code: " + response.statusCode);
-                    }
-                    if (err) {
-                        logMethod("Err: " + JSON.stringify(err));
-                    }
-                    if (body) {
-                        logMethod("Body: " + body);
-                    }
-                    var message = body;
-                    if (!message) {
-                        message = "Unable to load virtual driver configuration";
-                    }
-                    callback({
-                        "message": message,
-                        "err": err
-                    });
-                }
+                });
             });
-        });
+        }
+        else
+        {
+            callback();
+        }
     };
 
     /**

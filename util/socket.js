@@ -49,7 +49,7 @@ exports.bindGitana = function(socket, callback)
         }
     }
 
-    if (process.configuration.virtualDriver)
+    if (process.configuration.virtualDriver && process.configuration.virtualDriver.enabled)
     {
         virtual.acquireGitanaJson(socket.host, socket._log, function(err, gitanaJsonPath, gitanaJson) {
 

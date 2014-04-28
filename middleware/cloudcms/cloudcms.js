@@ -399,7 +399,7 @@ exports = module.exports = function(basePath)
                 // to allow that, we delete the file from disk here
                 //
                 // if we have virtual driver mode at the app server level...
-                if (configuration.virtualDriver)
+                if (configuration.virtualDriver && configuration.virtualDriver.enabled)
                 {
                     if (req.virtualHost)
                     {
