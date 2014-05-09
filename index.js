@@ -154,7 +154,6 @@ exports = module.exports = function()
             else
             {
                 // try to load from disk
-                console.log("local driver check - disk hit");
                 fs.exists(process.env.CLOUDCMS_GITANA_JSON_PATH, function(exists) {
 
                     if (exists)

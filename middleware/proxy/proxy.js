@@ -9,6 +9,8 @@ var mkdirp = require('mkdirp');
 
 var oauth2 = require("../../util/oauth2")();
 
+var ForeverAgent = require('forever-agent');
+
 
 /**
  * Proxy middleware.
@@ -23,15 +25,7 @@ exports = module.exports = function() {
     //
     ////////////////////////////////////////////////////////////////////////////
     // START PROXY SERVER
-    /*
-     var Agent = require('agentkeepalive');
-     var agent = new Agent({
-     maxSockets: 10,
-     maxFreeSockets: 10,
-     keepAlive: true,
-     keepAliveMsecs: 30000 // keepalive for 30 seconds
-     });
-     */
+
     var proxyScheme = process.env.GITANA_PROXY_SCHEME;
     var proxyHost = process.env.GITANA_PROXY_HOST;
     var proxyPort = parseInt(process.env.GITANA_PROXY_PORT, 10);
@@ -55,24 +49,47 @@ exports = module.exports = function() {
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
 
         // keep-alive agent
+        /*
         proxyConfig.agent = new https.Agent({
-            maxSockets: 100,
+            maxSockets: 500,
             maxFreeSockets: 100,
             keepAlive: true,
             keepAliveMsecs: 30000
         });
+        */
+
+        proxyConfig.agent = new ForeverAgent.SSL({
+            maxSockets: 500,
+            maxFreeSockets: 100,
+            keepAlive: true,
+            keepAliveMsecs: 1000 * 60 * 5 // five minutes
+        });
+
+        //proxyConfig.agent = https.globalAgent;
+        //https.globalAgent.maxSockets = Infinity;
 
     }
     if (proxyScheme.toLowerCase() == "http")
     {
+        /*
         // keep-alive agent
         proxyConfig.agent = new http.Agent({
-            maxSockets: 100,
+            maxSockets: 500,
             maxFreeSockets: 100,
             keepAlive: true,
             keepAliveMsecs: 30000
         });
+        */
         //proxyConfig.agent = http.globalAgent;
+        //http.globalAgent.maxSockets = Infinity;
+
+        proxyConfig.agent = new ForeverAgent({
+            maxSockets: 500,
+            maxFreeSockets: 100,
+            keepAlive: true,
+            keepAliveMsecs: 1000 * 60 * 5 // five minutes
+        });
+
     }
     // ten minute timeout
     // proxyConfig.timeout = 10 * 60 * 1000;
@@ -90,6 +107,7 @@ exports = module.exports = function() {
     });
     var proxyHandlerServer = http.createServer(function(req, res) {
 
+        /*
         // make sure request socket is optimized for speed
         req.socket.setNoDelay(true);
         req.socket.setTimeout(0);
@@ -99,6 +117,7 @@ exports = module.exports = function() {
         res.socket.setNoDelay(true);
         res.socket.setTimeout(0);
         res.socket.setKeepAlive(true, 0);
+        */
 
         // used to auto-assign the client header for /oauth/token requests
         oauth2.autoProxy(req);

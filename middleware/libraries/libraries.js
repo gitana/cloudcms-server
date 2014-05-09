@@ -11,6 +11,15 @@ var util = require("../../util/util");
  */
 exports = module.exports = function(basePath)
 {
+    var GITANA_JS_PATH = "../../node_modules/gitana/lib";
+
+    if (!fs.existsSync(path.join(__dirname, GITANA_JS_PATH, "gitana.js")))
+    {
+        GITANA_JS_PATH = path.join("..", "..", GITANA_JS_PATH);
+    }
+
+    console.log("Found GITANA_JS_PATH: " + GITANA_JS_PATH);
+
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
     // RESULTING OBJECT
@@ -42,14 +51,12 @@ exports = module.exports = function(basePath)
 
             var dirPath = "../../web";
 
-            /*
             if (uri == "/gitana/gitana.js" || uri == "/gitana.js")
             {
                 // we serve this right from node_modules
-                dirPath = "../../node_modules/gitana/lib";
+                dirPath = GITANA_JS_PATH;
                 uri = "/gitana.js";
             }
-            */
 
             //res.header('Cache-Control', "public, max-age=2592000");
 

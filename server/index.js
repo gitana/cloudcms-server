@@ -465,14 +465,16 @@ exports.start = function(overrides, callback)
 
 
     // INIT SOCKET.IO
-    io.set('log level', 1);
+    //io.set('log level', 1);
     if (config.socketTransports && config.socketTransports.length > 0)
     {
         process.IO.set('transports', config.socketTransports);
     }
+    /*
     if (config.socketLogLevel) {
         io.set('log level', config.socketLogLevel);
     }
+    */
     io.sockets.on("connection", function(socket) {
 
         // attach _log function
