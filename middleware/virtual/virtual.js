@@ -30,7 +30,6 @@ exports = module.exports = function(basePath)
         if (configuration.virtualDriver && configuration.virtualDriver.enabled)
         {
             // either connect anew or re-use an existing connection to Cloud CMS for this application
-            console.log("virtualdriver.connect.1");
             Gitana.connect(configuration.virtualDriver, function(err) {
 
                 if (err)
@@ -363,7 +362,6 @@ exports = module.exports = function(basePath)
                 else
                 {
                     // try to load from disk
-                    console.log("virtualDriverConfigInterceptor - disk hit");
                     acquireGitanaJson(req.virtualHost, req.log, function(err, gitanaJsonPath, gitanaConfig) {
 
                         if (err)
