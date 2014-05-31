@@ -615,7 +615,7 @@ exports = module.exports = function(basePath)
      * @param directory
      * @return {Function}
      */
-    r.virtualHandler = function()
+    r.virtualNodeHandler = function()
     {
         return function(req, res, next)
         {
@@ -914,25 +914,24 @@ exports = module.exports = function(basePath)
 
                     });
                 }
-                else
-
-                /*
-                    Params are:
-
-                        "name"
-                        "mimetype"
-                        "size"
-                        "force"
-
-                    Preview path is:
-                        /preview/path/{...path}?name={name}...rest of options
-
-                    Preview node is:
-                        /preview/node/{nodeId}?name={name}... rest of options
-                        /preview/node/GUID/tommy.jpg?name={name}... rest of options
-                 */
-                if (previewPath || previewNode)
+                else if (previewPath || previewNode)
                 {
+                    /*
+                        Params are:
+
+                            "name"
+                            "mimetype"
+                            "size"
+                            "force"
+
+                        Preview path is:
+                            /preview/path/{...path}?name={name}...rest of options
+
+                        Preview node is:
+                            /preview/node/{nodeId}?name={name}... rest of options
+                            /preview/node/GUID/tommy.jpg?name={name}... rest of options
+                    */
+
                     // node and path to offset against
                     var nodePath = null;
                     var nodeId = null;
@@ -989,6 +988,342 @@ exports = module.exports = function(basePath)
                     }
 
                     cloudcmsUtil.preview(host, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, function(err, filePath, cacheInfo) {
+
+                        if (err)
+                        {
+                            req.log("PREVIEW ERR: " + JSON.stringify(err));
+                        }
+
+                        // if the file was found on disk or was downloaded, then stream it back
+                        if (!err && filePath)
+                        {
+                            var filename = resolveFilename(filePath, cacheInfo, requestedFilename);
+
+                            if (useContentDispositionResponse)
+                            {
+                                res.download(filePath, filename, function(err) {
+
+                                    // something went wrong while streaming the content back...
+                                    if (err) {
+                                        res.send(503, err);
+                                        res.end();
+                                    }
+
+                                });
+                            }
+                            else
+                            {
+                                applyResponseContentType(res, cacheInfo, filename);
+                                applyDefaultContentTypeCaching(res, cacheInfo);
+
+                                res.sendfile(filePath, function(err)
+                                {
+                                    // something went wrong while streaming the content back...
+                                    if (err) {
+                                        res.send(503, err);
+                                        res.end();
+                                    }
+                                });
+                            }
+                        }
+                        else
+                        {
+                            if (req.param("fallback"))
+                            {
+                                // redirect to the fallback
+                                res.redirect(req.param("fallback"));
+                                return;
+                            }
+
+                            // otherwise, allow other handlers to process this request
+                            next();
+                        }
+
+                    });
+                }
+                else
+                {
+                    // not something we virtualize
+                    next();
+                }
+            }
+            else
+            {
+                // if gitana not being used, then allow other handlers to handle the request
+                next();
+            }
+        };
+    };
+
+    /**
+     * Provides virtualized principal retrieval from Cloud CMS.
+     *
+     * This handler checks to see if the requested resource is already cached to disk.  If not, it makes an attempt
+     * to retrieve the content from Cloud CMS (and cache to disk).
+     *
+     * If nothing found, this handler passes through, allowing other handlers downstream to serve back the content.
+     *
+     * URIs may include the following structures:
+     *
+     *    /static/principal/{principalId}
+     *    /static/principal/{principalId}/{attachmentId}
+     *    /static/principal/{principalId}/{attachmentId}/{filename}
+     *    /preview/principal/{principalId}
+     *    /preview/principal/{principalId}/{filename}
+     *
+     * And the following flags are supported:
+     *
+     *    metadata          - set to true to retrieve JSON metadata for object
+     *    full              - set to true to retrieve JSON recordset data
+     *    attachment        - the ID of the attachment ("default")
+     *    force             - whether to overwrite saved state
+     *    a                 - set to true to set Content Disposition response header
+     *
+     * For preview, the following are also supported:
+     *
+     *    name              - sets the name of the preview attachment id to be written / cached
+     *    mimetype          - sets the desired mimetype of response
+     *    size              - for images, sets the width in px of response image
+     *
+     * @param directory
+     * @return {Function}
+     */
+    r.virtualPrincipalHandler = function()
+    {
+        return function(req, res, next)
+        {
+            var host = req.virtualHost;
+            var domainId = req.domainId;
+            var locale = localeUtil.determineLocale(req);
+
+            var previewId = null;
+
+            var gitana = req.gitana;
+            if (gitana)
+            {
+                var offsetPath = req.path;
+
+                var virtualizedPrincipal = null;
+                var virtualizedPrincipalExtra = null;
+                var previewPrincipal = null;
+                if (offsetPath.indexOf("/static/principal/") === 0)
+                {
+                    virtualizedPrincipal = offsetPath.substring(13);
+
+                    // trim off anything extra...
+                    var x = virtualizedPrincipal.indexOf("/");
+                    if (x > 0)
+                    {
+                        virtualizedPrincipalExtra = virtualizedPrincipal.substring(x+1);
+                        virtualizedPrincipal = virtualizedPrincipal.substring(0,x);
+                    }
+                }
+                if (offsetPath.indexOf("/preview/principal/") === 0)
+                {
+                    previewPrincipal = offsetPath.substring(14);
+
+                    // trim off anything extra...
+                    var x = previewPrincipal.indexOf("/");
+                    if (x > 0)
+                    {
+                        previewPrincipal = previewPrincipal.substring(0,x);
+                    }
+                }
+
+                // TODO: handle certain mimetypes
+                // TODO: images, css, html, js?
+
+                // virtualized content retrieval
+                // these urls can have request parameters
+                //
+                //    "metadata"
+                //    "full"
+                //    "attachment"
+                //    "force"
+                //    "a" (to force content disposition header)
+                //
+                // Virtual Principal is:
+                //    /static/principal/{principalId}?options...
+                //    /static/principal/GUID/tommy.jpg?options...
+                //
+                if (virtualizedPrincipal)
+                {
+                    var principalId = null;
+                    if (virtualizedPrincipal) {
+                        principalId = virtualizedPrincipal;
+                    }
+                    var requestedFilename = null;
+
+                    var attachmentId = "default";
+                    if (virtualizedPrincipal && virtualizedPrincipalExtra)
+                    {
+                        attachmentId = virtualizedPrincipalExtra;
+                        if (attachmentId)
+                        {
+                            // if the attachment id is "a/b" or something with a slash in it
+                            // we keep everything ahead of the slash
+                            var p = attachmentId.indexOf("/");
+                            if (p > -1)
+                            {
+                                requestedFilename = attachmentId.substring(p+1);
+                                attachmentId = attachmentId.substring(0, p);
+                            }
+                            else
+                            {
+                                requestedFilename = attachmentId;
+                            }
+                        }
+                        if (attachmentId)
+                        {
+                            var a = attachmentId.indexOf(".");
+                            if (a > -1)
+                            {
+                                attachmentId = attachmentId.substring(0, a);
+                            }
+                        }
+                    }
+
+                    // pass in the ?metadata=true parameter to get back the JSON for any Gitana object
+                    // otherwise, the "default" attachment is gotten
+                    if (req.param("metadata"))
+                    {
+                        attachmentId = null;
+                    }
+
+                    // or override the attachmentId
+                    if (req.param("attachment"))
+                    {
+                        attachmentId = req.param("attachment");
+                    }
+
+                    // the cache can be invalidated with either the "force" or "invalidate" request parameters
+                    var forceCommand = req.param("force") ? req.param("force") : false;
+                    var invalidateCommand = req.param("invalidate") ? req.param("invalidate") : false;
+                    var forceReload = forceCommand || invalidateCommand;
+
+                    // whether to set content disposition on response
+                    var useContentDispositionResponse = false;
+                    var a = req.param("a");
+                    if (a == "true") {
+                        useContentDispositionResponse = true;
+                    }
+
+                    cloudcmsUtil.downloadAttachable(host, gitana, "domain", domainId, "principal", principalId, attachmentId, locale, forceReload, function(err, filePath, cacheInfo) {
+
+                        // if the file was found on disk or was downloaded, then stream it back
+                        if (!err && filePath)
+                        {
+                            var filename = resolveFilename(filePath, cacheInfo, requestedFilename);
+
+                            if (useContentDispositionResponse)
+                            {
+                                res.download(filePath, filename, function(err) {
+
+                                    // something went wrong while streaming the content back...
+                                    if (err) {
+                                        res.send(503, err);
+                                        res.end();
+                                    }
+
+                                });
+                            }
+                            else
+                            {
+                                applyResponseContentType(res, cacheInfo, filename);
+                                applyDefaultContentTypeCaching(res, cacheInfo);
+
+                                res.sendfile(filePath, function(err)
+                                {
+                                    // something went wrong while streaming the content back...
+                                    if (err) {
+                                        res.send(503, err);
+                                        res.end();
+                                    }
+
+                                });
+                            }
+                        }
+                        else
+                        {
+                            if (req.param("fallback"))
+                            {
+                                // redirect to the fallback
+                                res.redirect(req.param("fallback"));
+                                return;
+                            }
+
+                            // otherwise, allow other handlers to process this request
+                            next();
+                        }
+
+                    });
+                }
+                else if (previewPrincipal)
+                {
+                    /*
+                        Params are:
+
+                            "name"
+                            "mimetype"
+                            "size"
+                            "force"
+
+                        Preview principal is:
+                            /preview/principal/{principalId}?name={name}... rest of options
+                            /preview/principal/GUID/tommy.jpg?name={name}... rest of options
+                    */
+
+                    // principal
+                    var principalId = null;
+                    if (previewPrincipal) {
+                        principalId = previewPrincipal;
+                    }
+
+                    if (!previewId)
+                    {
+                        previewId = req.param("name");
+                    }
+
+                    // determine attachment id
+                    var attachmentId = "default";
+                    if (req.param("attachment"))
+                    {
+                        attachmentId = req.param("attachment");
+                    }
+
+                    var requestedFilename = null;
+                    if (previewId)
+                    {
+                        requestedFilename = previewId;
+
+                        var p = previewId.indexOf(".");
+                        if (p > -1)
+                        {
+                            previewId = previewId.substring(0, p);
+                        }
+                    }
+
+                    // size
+                    var size = req.param("size") ? req.param("size") : -1;
+                    if (size && (typeof(size) == "string"))
+                    {
+                        size = parseInt(size, 10);
+                    }
+
+                    // mimetype
+                    var mimetype = req.param("mimetype") ? req.param("mimetype") : "image/jpeg";
+
+                    // force
+                    var forceReload = req.param("force") ? req.param("force") : false;
+
+                    // whether to set content disposition on response
+                    var useContentDispositionResponse = false;
+                    var a = req.param("a");
+                    if (a == "true") {
+                        useContentDispositionResponse = true;
+                    }
+
+                    cloudcmsUtil.previewAttachable(host, gitana, "domain", domainId, "principal", principalId, attachmentId, locale, previewId, size, mimetype, forceReload, function(err, filePath, cacheInfo) {
 
                         if (err)
                         {

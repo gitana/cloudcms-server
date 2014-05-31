@@ -261,7 +261,10 @@ exports = module.exports = function()
             app.use(cloudcms.authenticationHandler(app));
 
             // handles virtualized content retrieval from cloud cms
-            app.use(cloudcms.virtualHandler());
+            app.use(cloudcms.virtualNodeHandler());
+
+            // handles virtualized principal retrieval from cloud cms
+            app.use(cloudcms.virtualPrincipalHandler());
         }
 
         // handles virtualized local content retrieval from disk

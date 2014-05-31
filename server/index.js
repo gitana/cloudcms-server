@@ -25,6 +25,14 @@ if (process.env.NODE_ENV == "production")
     process.env.CLOUDCMS_APPSERVER_MODE = "production";
 }
 
+// set up domain hosting
+// if not otherwise specified, we assume hosting at *.cloudcms.net
+if (!process.env.CLOUDCMS_DOMAIN)
+{
+    process.env.CLOUDCMS_DOMAIN = "cloudcms.net";
+}
+
+
 var requestCounter = 0;
 
 

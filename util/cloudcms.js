@@ -9,6 +9,21 @@ exports = module.exports = function(basePath)
 {
     var storage = require("./storage")(basePath);
 
+    var generateURL = function(datastoreTypeId, datastoreId, objectTypeId, objectId)
+    {
+        var uri = null;
+
+        if (datastoreTypeId == "domain")
+        {
+            if (objectTypeId == "principal")
+            {
+                uri = "/domains/" + datastoreId + "/principals/" + objectId;
+            }
+        }
+
+        return uri;
+    };
+
     /**
      * Ensures that the content deployment root directory for Cloud CMS assets.
      *
@@ -16,14 +31,17 @@ exports = module.exports = function(basePath)
      *
      *   /hosts
      *      /<host>
-     *          /cloudcms
+     *          /content
      *              /<repositoryId>
      *                  /<branchId>
      *                      /<nodeId>
      *                          /<localeKey>
-     *                              /content
+     *                              /attachments
+     *                                  <attachmentId>
+     *                                  <attachmentId>.cache
      *
      * @param host
+     * @param repositoryId
      * @param branchId
      * @parma nodeId
      * @param locale
@@ -45,6 +63,64 @@ exports = module.exports = function(basePath)
             }
 
             var contentDirectoryPath = path.join(hostDirectoryPath, "content", repositoryId, branchId, nodeId, locale);
+
+            fs.exists(contentDirectoryPath, function(exists) {
+
+                if (!exists)
+                {
+                    mkdirp(contentDirectoryPath, function() {
+                        callback(null, contentDirectoryPath);
+                    });
+                }
+                else
+                {
+                    callback(null, contentDirectoryPath);
+                }
+            });
+        });
+    };
+
+    /**
+     * Ensures that the content deployment root directory for Cloud CMS assets.
+     *
+     * This directory looks like:
+     *
+     *   /hosts
+     *      /<host>
+     *          /data
+     *              /<datastoreType>
+     *                  /<datastoreId>
+     *                      /<objectTypeId>
+     *                          /<objectId>
+     *                              /<localeKey>
+     *                                  /attachments
+     *                                      [attachmentId]
+     *                                      [attachmentId].cache
+     *
+     * @param host
+     * @param datastoreTypeId
+     * @param datastoreId
+     * @param objectTypeId
+     * @param objectId
+     * @param locale
+     * @param callback
+     *
+     * @return {*}
+     */
+    var ensureAttachableDirectory = function(host, datastoreTypeId, datastoreId, objectTypeId, objectId, locale, callback)
+    {
+        if (!host) {
+            host = "default";
+        }
+
+        storage.ensureHostDirectory(host, function(err, hostDirectoryPath) {
+
+            if (err) {
+                callback(err);
+                return;
+            }
+
+            var contentDirectoryPath = path.join(hostDirectoryPath, "data", datastoreTypeId, datastoreId, objectTypeId, objectId, locale);
 
             fs.exists(contentDirectoryPath, function(exists) {
 
@@ -465,7 +541,7 @@ exports = module.exports = function(basePath)
      * @param forceReload
      * @param callback
      */
-    var download = function(host, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, callback)
+    var downloadNode = function(host, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, callback)
     {
         // base storage directory
         ensureContentDirectory(host, repositoryId, branchId, nodeId, locale, function(err, contentDirectoryPath) {
@@ -548,10 +624,11 @@ exports = module.exports = function(basePath)
      * @param locale
      * @param previewId
      * @param size
+     * @param mimetype
      * @param forceReload
      * @param callback
      */
-    var preview = function(host, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, callback)
+    var previewNode = function(host, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, callback)
     {
         // base storage directory
         ensureContentDirectory(host, repositoryId, branchId, nodeId, locale, function(err, contentDirectoryPath) {
@@ -629,6 +706,165 @@ exports = module.exports = function(basePath)
         });
     };
 
+    /**
+     * Downloads attachable metadata or an attachment and saves it to disk.
+     *
+     * @param host
+     * @param gitana driver instance
+     * @param datastoreTypeId
+     * @param datastoreId
+     * @param objectTypeId
+     * @param objectId
+     * @param attachmentId
+     * @param locale
+     * @param forceReload
+     * @param callback
+     */
+    var downloadAttachable = function(host, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, forceReload, callback)
+    {
+        // base storage directory
+        ensureAttachableDirectory(host, datastoreTypeId, datastoreId, objectTypeId, objectId, locale, function(err, dataDirectoryPath) {
+
+            if (err) {
+                callback(err);
+                return;
+            }
+
+            var filePath = dataDirectoryPath;
+            if (attachmentId) {
+                filePath = path.join(filePath, "attachments", attachmentId);
+            } else {
+                filePath = path.join(filePath, "metadata.json");
+            }
+
+            // if force reload, delete from disk if exist
+            if (forceReload) {
+                try { fs.unlinkSync(filePath); } catch (e) { }
+            }
+
+            // if the cached asset is on disk, we serve it back
+            readFromDisk(filePath, function(err, cacheInfo) {
+
+                if (!err)
+                {
+                    callback(null, filePath, cacheInfo);
+                    return;
+                }
+
+                // either there was an error (in which case things were cleaned up)
+                // or there was nothing on disk
+
+                // begin constructing a URI
+                var uri = generateURL(datastoreTypeId, datastoreId, objectTypeId, objectId);
+                if (attachmentId) {
+                    uri += "/attachments/" + attachmentId;
+                }
+                // force content disposition information to come back
+                uri += "?a=true"
+
+                var gitanaHost = process.env.GITANA_PROXY_HOST;
+                var gitanaPort = process.env.GITANA_PROXY_PORT;
+
+                //console.log(uri);
+
+                // grab from Cloud CMS and write to disk
+                writeToDisk(gitanaHost, gitanaPort, uri, gitana, filePath, function(err, filePath, cacheInfo) {
+
+                    if (err) {
+                        callback(err);
+                    }
+                    else {
+                        callback(null, filePath, cacheInfo);
+                    }
+                });
+            });
+        });
+    };
+
+    /**
+     * Downloads a preview image for an attachable.
+     *
+     * @param host
+     * @param gitana driver instance
+     * @param datastoreTypeId
+     * @param datastoreId
+     * @param objectTypeId
+     * @param objectId
+     * @param attachmentId
+     * @param locale
+     * @param previewId
+     * @param size
+     * @param mimetype
+     * @param forceReload
+     * @param callback
+     */
+    var previewAttachable = function(host, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, previewId, size, mimetype, forceReload, callback)
+    {
+        // base storage directory
+        ensureAttachableDirectory(host, datastoreTypeId, datastoreId, objectTypeId, objectId, locale, function(err, dataDirectoryPath) {
+
+            if (err) {
+                callback(err);
+                return;
+            }
+
+            if (!previewId)
+            {
+                previewId = "_preview";
+                //forceReload = true;
+            }
+
+            var filePath = path.join(dataDirectoryPath, "previews", previewId);
+
+            // if force reload, delete from disk if exist
+            if (forceReload && fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
+
+            // if the cached asset is on disk, we serve it back
+            readFromDisk(filePath, function(err, cacheInfo) {
+
+                if (!err)
+                {
+                    callback(null, filePath, cacheInfo);
+                    return;
+                }
+
+                // either there was an error (in which case things were cleaned up)
+                // or there was nothing on disk
+
+                // begin constructing a URI
+                var uri = generateURL(datastoreTypeId, datastoreId, objectTypeId, objectId);
+                uri += "?a=true"
+                if (attachmentId) {
+                    uri += "&attachment=" + attachmentId;
+                }
+                if (size > -1) {
+                    uri += "&size=" + size;
+                }
+                if (mimetype) {
+                    uri += "&mimetype=" + mimetype;
+                }
+                if (forceReload) {
+                    uri += "&force=" + forceReload;
+                }
+
+                var gitanaHost = process.env.GITANA_PROXY_HOST;
+                var gitanaPort = process.env.GITANA_PROXY_PORT;
+
+                writeToDisk(gitanaHost, gitanaPort, uri, gitana, filePath, function(err, filePath, responseHeaders) {
+
+                    if (err) {
+                        callback(err);
+                    }
+                    else {
+                        callback(null, filePath, responseHeaders);
+                    }
+                });
+            });
+        });
+    };
+
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
     // RESULTING OBJECT
@@ -636,11 +872,6 @@ exports = module.exports = function(basePath)
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     var r = {};
-
-    r.download = function(host, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, callback)
-    {
-        download(host, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, callback);
-    };
 
     r.determineBranchId = function(req) {
 
@@ -653,9 +884,24 @@ exports = module.exports = function(basePath)
         return branchId;
     };
 
+    r.download = function(host, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, callback)
+    {
+        downloadNode(host, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, callback);
+    };
+
     r.preview = function(host, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, callback)
     {
-        preview(host, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, callback);
+        previewNode(host, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, callback);
+    };
+
+    r.downloadAttachable = function(host, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, forceReload, callback)
+    {
+        downloadAttachable(host, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, forceReload, callback);
+    };
+
+    r.previewAttachable = function(host, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, previewId, size, mimetype, forceReload, callback)
+    {
+        previewAttachable(host, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, previewId, size, mimetype, forceReload, callback);
     };
 
     return r;

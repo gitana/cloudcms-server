@@ -29,7 +29,7 @@ exports.determineHostForRequest = function(req)
 {
     var configuration = process.configuration;
 
-    var domain = "cloudcms.net";
+    var domain = process.env.CLOUDCMS_DOMAIN;
     if (configuration && configuration.virtualHost && configuration.virtualHost.domain)
     {
         domain = configuration.virtualHost.domain;
@@ -98,7 +98,7 @@ exports.determineHostForSocket = function(socket)
 {
     var configuration = process.configuration;
 
-    var domain = "cloudcms.net";
+    var domain = process.env.CLOUDCMS_DOMAIN;
     if (configuration && configuration.virtualHost && configuration.virtualHost.domain)
     {
         domain = configuration.virtualHost.domain;
