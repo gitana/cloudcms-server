@@ -67,7 +67,8 @@ var SETTINGS = {
 // default to using long polling?
 // can assist for environments using non-sticky load balancer
 // SETTINGS.socketTransports = ["xhr-polling"];
-SETTINGS.socketTransports= ["xhr-polling", "jsonp-polling"];
+//SETTINGS.socketTransports= ["xhr-polling", "jsonp-polling"];
+SETTINGS.socketTransports = [];
 
 var exports = module.exports;
 
