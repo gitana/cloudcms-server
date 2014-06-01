@@ -30,11 +30,13 @@ exports.determineHostForRequest = function(req)
     var configuration = process.configuration;
 
     var domain = process.env.CLOUDCMS_DOMAIN;
+    /*
     if (configuration && configuration.virtualHost && configuration.virtualHost.domain)
     {
         domain = configuration.virtualHost.domain;
     }
-    domain = domain.toLowerCase();
+     domain = domain.toLowerCase();
+    */
 
     // collect all of the candidates
     var candidates = [];
@@ -96,14 +98,16 @@ exports.determineHostForRequest = function(req)
 
 exports.determineHostForSocket = function(socket)
 {
-    var configuration = process.configuration;
+    //var configuration = process.configuration;
 
     var domain = process.env.CLOUDCMS_DOMAIN;
+    /*
     if (configuration && configuration.virtualHost && configuration.virtualHost.domain)
     {
         domain = configuration.virtualHost.domain;
     }
     domain = domain.toLowerCase();
+    */
 
     // find the host
     var host = null;

@@ -172,6 +172,23 @@ exports.start = function(overrides, callback)
     // store config on process instance
     process.configuration = config;
 
+    // some config overrides can come in through process.configuration
+    if (process.configuration)
+    {
+        if (process.configuration.virtualHost && process.configuration.virtualHost.domain)
+        {
+            if (!process.env.CLOUDCMS_DOMAIN)
+            {
+                process.env.CLOUDCMS_DOMAIN = process.configuration.virtualHost.domain;
+            }
+        }
+    }
+    if (process.env.CLOUDCMS_DOMAIN)
+    {
+        process.env.CLOUDCMS_DOMAIN = process.env.CLOUDCMS_DOMAIN.toLowerCase();
+        console.log("Configured for domain: " + process.env.CLOUDCMS_DOMAIN);
+    }
+
     /*
     // memwatch
     if (config.memwatch)
