@@ -516,7 +516,7 @@ exports = module.exports = function(basePath)
     {
         return function(req, res, next)
         {
-            if (req.gitana)
+            if (req.gitana && req.gitana.datastore)
             {
                 var repository = req.gitana.datastore("content");
                 if (repository) {
