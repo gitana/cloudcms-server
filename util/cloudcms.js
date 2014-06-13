@@ -9,7 +9,7 @@ exports = module.exports = function(basePath)
 {
     var storage = require("./storage")(basePath);
 
-    var generateURL = function(datastoreTypeId, datastoreId, objectTypeId, objectId)
+    var generateURL = function(datastoreTypeId, datastoreId, objectTypeId, objectId, previewId)
     {
         var uri = null;
 
@@ -18,6 +18,14 @@ exports = module.exports = function(basePath)
             if (objectTypeId == "principal")
             {
                 uri = "/domains/" + datastoreId + "/principals/" + objectId;
+            }
+        }
+
+        if (uri)
+        {
+            if (previewId)
+            {
+                uri += "/preview/" + previewId;
             }
         }
 
@@ -841,7 +849,7 @@ exports = module.exports = function(basePath)
                 // or there was nothing on disk
 
                 // begin constructing a URI
-                var uri = generateURL(datastoreTypeId, datastoreId, objectTypeId, objectId);
+                var uri = generateURL(datastoreTypeId, datastoreId, objectTypeId, objectId, previewId);
                 uri += "?a=true"
                 if (attachmentId) {
                     uri += "&attachment=" + attachmentId;
