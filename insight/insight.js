@@ -17,39 +17,42 @@ exports.init = function(socket)
     // listen for pushes from the client
     socket.on("insight-push", function(data) {
 
-        if (data && data.rows)
+        if (process.configuration && process.configuration.insight && process.configuration.insight.enabled)
         {
-            handleInsightPush(socket, data, function(err) {
+            if (data && data.rows)
+            {
+                handleInsightPush(socket, data, function(err) {
 
-                if (err && firstConnection)
-                {
-                    socket._log("Socket initialization - will retry insight-push in 10 seconds");
+                    if (err && firstConnection)
+                    {
+                        socket._log("Socket initialization - will retry insight-push in 10 seconds");
 
-                    // give it another shot in 10 seconds
-                    window.setTimeout(function() {
-                        handleInsightPush(socket, data, function(err) {
-                            if (!err)
-                            {
-                                socket._log("Event: insight-push, interactions: " + data.rows.length);
-                            }
-                            else
-                            {
-                                socket._log("Error: " + JSON.stringify(err));
-                            }
-                        });
-                        firstConnection = false;
-                    }, 10000);
-                }
-                else if (err)
-                {
-                    socket._log("Error: " + JSON.stringify(err));
-                }
-                else
-                {
-                    socket._log("Event: insight-push, interactions: " + data.rows.length);
-                }
+                        // give it another shot in 10 seconds
+                        window.setTimeout(function() {
+                            handleInsightPush(socket, data, function(err) {
+                                if (!err)
+                                {
+                                    socket._log("Event: insight-push, interactions: " + data.rows.length);
+                                }
+                                else
+                                {
+                                    socket._log("Error: " + JSON.stringify(err));
+                                }
+                            });
+                            firstConnection = false;
+                        }, 10000);
+                    }
+                    else if (err)
+                    {
+                        socket._log("Error: " + JSON.stringify(err));
+                    }
+                    else
+                    {
+                        socket._log("Event: insight-push, interactions: " + data.rows.length);
+                    }
 
-            });
+                });
+            }
         }
     });
 };
@@ -79,7 +82,7 @@ var handleInsightPush = function(socket, data, callback)
         }
     }
     if (!warehouseId) {
-        console.log("Could not determine warehouse id");
+        console.log("Insight - could not determine warehouse id");
         return;
     }
 

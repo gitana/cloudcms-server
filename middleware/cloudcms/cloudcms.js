@@ -271,7 +271,7 @@ exports = module.exports = function(basePath)
 
             // gather all of the configs that we'll refresh (keyed by host -> gitana config)
             var driverConfigs = {};
-            if (configuration.virtualDriver)
+            if (configuration.virtualDriver && configuration.virtualDriver.enabled)
             {
                 driverConfigs["virtual"] = configuration.virtualDriver;
             }

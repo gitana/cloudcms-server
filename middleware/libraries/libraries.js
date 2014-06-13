@@ -18,8 +18,6 @@ exports = module.exports = function(basePath)
         GITANA_JS_PATH = path.join("..", "..", GITANA_JS_PATH);
     }
 
-    console.log("Found GITANA_JS_PATH: " + GITANA_JS_PATH);
-
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
     // RESULTING OBJECT

@@ -12,6 +12,12 @@ var async = require('../util/async');
 var perf = require("../middleware/perf/perf");
 var proxy = require("../middleware/proxy/proxy");
 
+var morgan = require("morgan");
+var bodyParser = require("body-parser");
+var methodOverride = require('method-override');
+var errorHandler = require("errorhandler");
+var multipart = require("connect-multiparty");
+
 var app = express();
 
 // cloudcms app server support
@@ -220,10 +226,13 @@ exports.start = function(overrides, callback)
     // ahead of anything else running.
     //
     ////////////////////////////////////////////////////////////////////////////
-    app.configure(function() {
 
-        //express.logger.format('cloudcms', '[:date] :referrer (:remote-addr) :status :response-time ms ":method :url" :res[content-length]');
-        express.logger.format('cloudcms', function(tokens, req, res) {
+    // all environments
+    var all = true;
+    if (all)
+    {
+        // custom morgan logger
+        morgan(function(tokens, req, res) {
 
             var status = res.statusCode;
             var len = parseInt(res.getHeader('Content-Length'), 10);
@@ -272,9 +281,6 @@ exports.start = function(overrides, callback)
 
             return message;
         });
-
-        app.use(express.logger("cloudcms"));
-        //app.use(express.logger("dev"));
 
         // add req.id  re
         app.use(function(req, res, next) {
@@ -357,9 +363,9 @@ exports.start = function(overrides, callback)
         // that might be JSON (regardless of content type)
         app.use(function(req, res, next) {
 
-            express.multipart()(req, res, function(err) {
-                express.json()(req, res, function(err) {
-                    express.urlencoded()(req, res, function(err) {
+            multipart()(req, res, function(err) {
+                bodyParser.json()(req, res, function(err) {
+                    bodyParser.urlencoded()(req, res, function(err) {
                         main.bodyParser()(req, res, function(err) {
                             next(err);
                         });
@@ -371,7 +377,7 @@ exports.start = function(overrides, callback)
 
         // driver interceptor
         main.driver(app, config);
-    });
+    }
 
     app.use(main.ensureCORSCrossDomain());
 
@@ -388,8 +394,10 @@ exports.start = function(overrides, callback)
     // Runs on port 2999 by default
     //
     ////////////////////////////////////////////////////////////////////////////
-    app.configure(function(){
 
+    // all environments
+    if (all)
+    {
         app.set('port', process.env.PORT || 2999);
         app.set('views', process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH + "/../views");
         app.set('view engine', 'html'); // html file extension
@@ -403,19 +411,19 @@ exports.start = function(overrides, callback)
         //app.use(express.cookieParser());
         //app.use(express.cookieParser("secret"));
 
-        app.use(express.methodOverride());
+        //app.use(express.methodOverride());
+        app.use(methodOverride());
         //app.use(express.session({ secret: 'secret', store: sessionStore }));
 
         // configure cloudcms app server command handing
         main.interceptors(app, true, config);
 
-        app.use(app.router);
-        app.use(express.errorHandler());
+        //app.use(app.router);
+        app.use(errorHandler());
 
         // configure cloudcms app server handlers
         main.handlers(app, true, config);
-
-    });
+    }
 
 
 
@@ -431,10 +439,11 @@ exports.start = function(overrides, callback)
         {
             for (var i = 0; i < functions.length; i++)
             {
-                app.configure(env, functions[i]);
+                functions[i](app);
             }
         }
     }
+
 
 
 

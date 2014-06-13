@@ -973,4 +973,32 @@ exports = module.exports = function(dust)
         });
     };
 
+    /**
+     * Shows debug information about the current context
+     *
+     * Syntax:
+     *
+     *    {@debug/}
+     *
+     * @param chunk
+     * @param context
+     * @param bodies
+     * @param params
+     */
+    dust.helpers.debug = function(chunk, context, bodies, params)
+    {
+        params = params || {};
+
+        return map(chunk, function(chunk) {
+            setTimeout(function() {
+
+                var json = JSON.stringify(context.stack.head, null, "  ");
+                var html = "<textarea>" + json + "</textarea>"
+                chunk.write(html);
+
+                end(chunk, context);
+            });
+        });
+    };
+
 };
