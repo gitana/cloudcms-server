@@ -529,6 +529,27 @@ exports = module.exports = function(basePath)
     };
 
     /**
+     * Determines which gitana domain to use in future operations.
+     *
+     * @return {Function}
+     */
+    r.domainInterceptor = function()
+    {
+        return function(req, res, next)
+        {
+            if (req.gitana && req.gitana.datastore)
+            {
+                var domain = req.gitana.datastore("principals");
+                if (domain) {
+                    req.domainId = domain.getId();
+                }
+            }
+
+            next();
+        }
+    };
+
+    /**
      * Allows for branch switching via request parameter.
      *
      * @return {Function}
@@ -1108,7 +1129,7 @@ exports = module.exports = function(basePath)
                 var previewPrincipal = null;
                 if (offsetPath.indexOf("/static/principal/") === 0)
                 {
-                    virtualizedPrincipal = offsetPath.substring(13);
+                    virtualizedPrincipal = offsetPath.substring(18);
 
                     // trim off anything extra...
                     var x = virtualizedPrincipal.indexOf("/");
@@ -1120,7 +1141,7 @@ exports = module.exports = function(basePath)
                 }
                 if (offsetPath.indexOf("/preview/principal/") === 0)
                 {
-                    previewPrincipal = offsetPath.substring(14);
+                    previewPrincipal = offsetPath.substring(19);
 
                     // trim off anything extra...
                     var x = previewPrincipal.indexOf("/");
@@ -1148,13 +1169,10 @@ exports = module.exports = function(basePath)
                 //
                 if (virtualizedPrincipal)
                 {
-                    var principalId = null;
-                    if (virtualizedPrincipal) {
-                        principalId = virtualizedPrincipal;
-                    }
+                    var principalId = virtualizedPrincipal;
                     var requestedFilename = null;
-
                     var attachmentId = "default";
+
                     if (virtualizedPrincipal && virtualizedPrincipalExtra)
                     {
                         attachmentId = virtualizedPrincipalExtra;
@@ -1274,10 +1292,7 @@ exports = module.exports = function(basePath)
                     */
 
                     // principal
-                    var principalId = null;
-                    if (previewPrincipal) {
-                        principalId = previewPrincipal;
-                    }
+                    var principalId = previewPrincipal;
 
                     if (!previewId)
                     {

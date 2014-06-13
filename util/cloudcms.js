@@ -120,6 +120,13 @@ exports = module.exports = function(basePath)
                 return;
             }
 
+            console.log("hostDirectoryPath: " + hostDirectoryPath);
+            console.log("datastoreTypeId: " + datastoreTypeId);
+            console.log("datastoreId: " + datastoreId);
+            console.log("objectTypeId: " + objectTypeId);
+            console.log("objectId: " + objectId);
+            console.log("locale: " + locale);
+
             var contentDirectoryPath = path.join(hostDirectoryPath, "data", datastoreTypeId, datastoreId, objectTypeId, objectId, locale);
 
             fs.exists(contentDirectoryPath, function(exists) {

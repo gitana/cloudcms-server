@@ -232,6 +232,9 @@ exports = module.exports = function()
             // allows for branch specification via request parameter
             app.use(cloudcms.branchInterceptor());
 
+            // auto-select which gitana domain to use
+            app.use(cloudcms.domainInterceptor());
+
             // enables ICE menu
             // app.use(cloudcms.iceInterceptor());
         }
