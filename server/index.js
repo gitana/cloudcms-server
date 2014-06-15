@@ -343,6 +343,10 @@ exports.start = function(overrides, callback)
             next();
         });
 
+        // set up CORS allowances
+        // this lets CORS requests float through the proxy
+        app.use(main.ensureCORSCrossDomain());
+
         // common interceptors and config
         main.common(app, config);
 
@@ -378,8 +382,6 @@ exports.start = function(overrides, callback)
         // driver interceptor
         main.driver(app, config);
     }
-
-    app.use(main.ensureCORSCrossDomain());
 
 
 
