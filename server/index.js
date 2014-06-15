@@ -217,6 +217,7 @@ exports.start = function(overrides, callback)
     //console.log("Starting " + config.name);
     //console.log("Settings: " + JSON.stringify(config, null, "   "));
 
+    app.enable('strict routing');
 
     ////////////////////////////////////////////////////////////////////////////
     //
@@ -423,6 +424,12 @@ exports.start = function(overrides, callback)
         //app.use(app.router);
         app.use(errorHandler());
 
+        // CUSTOM ROUTES
+        for (var i = 0; i < config.routeFunctions.length; i++)
+        {
+            config.routeFunctions[i](app);
+        }
+
         // configure cloudcms app server handlers
         main.handlers(app, true, config);
     }
@@ -467,12 +474,6 @@ exports.start = function(overrides, callback)
 
     // SET INITIAL VALUE FOR SERVER TIMESTAMP
     process.env.CLOUDCMS_APPSERVER_TIMESTAMP = new Date().getTime();
-
-    // CUSTOM ROUTES
-    for (var i = 0; i < config.routeFunctions.length; i++)
-    {
-        config.routeFunctions[i](app);
-    }
 
     // BEFORE SERVER START
     async.series(config.beforeFunctions, [app], function(err) {
