@@ -52,6 +52,7 @@ exports = module.exports = function()
     var cache = require("./middleware/cache/cache")(basePath);
     var welcome = require("./middleware/welcome/welcome")(basePath);
     var config = require("./middleware/config")(basePath);
+    var flow = require("./middleware/flow/flow")(basePath);
 
     // init
     if (!process.env.GITANA_PROXY_HOST) {
@@ -269,6 +270,9 @@ exports = module.exports = function()
             // handles virtualized principal retrieval from cloud cms
             app.use(cloudcms.virtualPrincipalHandler());
         }
+
+        // handles calls to web flow controllers
+        app.use(flow.handlers(configuration));
 
         // handles virtualized local content retrieval from disk
         app.use(local.virtualHandler());

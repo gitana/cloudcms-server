@@ -67,6 +67,9 @@ var SETTINGS = {
     },
     "virtualDriver": {
         "enabled": false
+    },
+    "flow": {
+
     }
 };
 
@@ -427,7 +430,7 @@ exports.start = function(overrides, callback)
         // CUSTOM ROUTES
         for (var i = 0; i < config.routeFunctions.length; i++)
         {
-            config.routeFunctions[i](app);
+            config.routeFunctions[i](app, config);
         }
 
         // configure cloudcms app server handlers
