@@ -655,7 +655,8 @@ exports = module.exports = function(basePath)
 
             if (!previewId)
             {
-                previewId = "_preview";
+                previewId = attachmentId;
+                //previewId = "_preview";
                 //forceReload = true;
             }
 
@@ -825,7 +826,8 @@ exports = module.exports = function(basePath)
 
             if (!previewId)
             {
-                previewId = "_preview";
+                previewId = attachmentId;
+                //previewId = "_preview";
                 //forceReload = true;
             }
 
