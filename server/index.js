@@ -53,19 +53,19 @@ var SETTINGS = {
     "beforeFunctions": [],
     "afterFunctions": [],
     "virtualHost": {
-        "enabled": false // true
+        "enabled": true
     },
     "wcm": {
-        "enabled": false // true
+        "enabled": true
     },
     "serverTags": {
-        "enabled": false // true
+        "enabled": true
     },
     "insight": {
-        "enabled": false // true
+        "enabled": true
     },
     "perf": {
-        "enabled": false // true
+        "enabled": true
     },
     "virtualDriver": {
         "enabled": false
