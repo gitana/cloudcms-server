@@ -53,6 +53,7 @@ exports = module.exports = function()
     var welcome = require("./middleware/welcome/welcome")(basePath);
     var config = require("./middleware/config")(basePath);
     var flow = require("./middleware/flow/flow")(basePath);
+    var authentication = require("./middleware/authentication")(basePath);
 
     // init
     if (!process.env.GITANA_PROXY_HOST) {
@@ -258,6 +259,9 @@ exports = module.exports = function()
 
         // handles thirdparty browser libraries that are included with cloudcms-server
         app.use(libraries.handler());
+
+        // authentication
+        app.use(authentication.handler(app));
 
         if (includeCloudCMS)
         {

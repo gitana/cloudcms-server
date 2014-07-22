@@ -5,8 +5,8 @@
     "url": "http://www.cloudcms.com"
   },
   "name": "cloudcms-server",
-  "description": "Cloud CMS Application Server Support Module",
-  "version": "0.7.124",
+  "description": "Cloud CMS Application Server Module",
+  "version": "0.7.125",
   "repository": {
     "type": "git",
     "url": "git://github.com/gitana/cloudcms-server.git"
@@ -23,7 +23,7 @@
       "cookie-parser": "*",
       "express-session": "*",
       "serve-favicon": "*",
-      "connect-multiparty": "*",
+      "connect-multiparty": "*",      
 
       "http-proxy": "*",
       "request": "*",
@@ -42,7 +42,11 @@
       "consolidate": "*",
       "mime": "*",
       "bytes": "*",
-      "forever-agent": "*"
+      "forever-agent": "*",
+
+      "passport-facebook": "*",
+      "passport-twitter": "*",
+      "passport-linkedin": "*"
   },
   "devDependencies": {},
   "optionalDependencies": {},

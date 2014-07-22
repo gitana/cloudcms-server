@@ -17,6 +17,8 @@ var bodyParser = require("body-parser");
 var methodOverride = require('method-override');
 var errorHandler = require("errorhandler");
 var multipart = require("connect-multiparty");
+var session = require('express-session');
+var cookieParser = require('cookie-parser');
 
 var app = express();
 
@@ -51,25 +53,35 @@ var SETTINGS = {
     "beforeFunctions": [],
     "afterFunctions": [],
     "virtualHost": {
-        "enabled": true
+        "enabled": false // true
     },
     "wcm": {
-        "enabled": true
+        "enabled": false // true
     },
     "serverTags": {
-        "enabled": true
+        "enabled": false // true
     },
     "insight": {
-        "enabled": true
+        "enabled": false // true
     },
     "perf": {
-        "enabled": true
+        "enabled": false // true
     },
     "virtualDriver": {
         "enabled": false
     },
     "flow": {
-
+        "enabled": false
+    },
+    "auth": {
+        "facebook": {
+            "enabled": false,
+            "appId": "",
+            "appSecret": "",
+            "callbackUrl": "",
+            "successUrl": "",
+            "failureUrl": ""
+        }
     }
 };
 
@@ -414,12 +426,10 @@ exports.start = function(overrides, callback)
 
         //app.use(express.favicon(process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH + "/favicon.ico"));
 
-        //app.use(express.cookieParser());
-        //app.use(express.cookieParser("secret"));
-
-        //app.use(express.methodOverride());
+        app.use(cookieParser("secret"));
         app.use(methodOverride());
         //app.use(express.session({ secret: 'secret', store: sessionStore }));
+        app.use(session({secret: 'secret'}));
 
         // configure cloudcms app server command handing
         main.interceptors(app, true, config);
