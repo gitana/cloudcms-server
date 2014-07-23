@@ -62,7 +62,7 @@ exports.determineHostForRequest = function(req)
     }
 
     // REQ.HOST
-    push(candidates, req.host);
+    push(candidates, req.hostname);
 
     // find the one that is for our domain
     var host = null;

@@ -39,7 +39,7 @@ exports = module.exports = function(passport, config)
 
         var twitterId = profile.id;
         var query = {
-            "twitterProfile.id": twitterId
+            "twitterProfile.id1": twitterId
         };
 
         Chain(domain).queryPrincipals(query).then(function() {
@@ -68,9 +68,19 @@ exports = module.exports = function(passport, config)
      */
     var autoRegister = function(req, token, tokenSecret, profile, callback)
     {
-        //console.log("AUTO REGISTER: " + JSON.stringify(profile, null, "  "));
-
         var domain = req.gitana.datastore("principals");
+
+        if (req.session.user)
+        {
+            Chain(domain).readPrincipal(req.session.user._doc).then(function() {
+                this.twitterProfile = profile._json;
+                this.update().then(function() {
+                    callback(null, this);
+                })
+            });
+
+            return;
+        }
 
         var username = uuid.v4();
         var obj = {
@@ -142,12 +152,12 @@ exports = module.exports = function(passport, config)
         passport.authenticate("twitter")(req, res, next);
     };
 
-    r.handleCallback = function(req, res, next)
+    r.handleCallback = function(req, res, next, cb)
     {
         passport.authenticate("twitter", {
             failureRedirect: config.failureRedirect,
             session: false
-        })(req, res, next);
+        }, cb)(req, res, next);
     };
 
     return r;

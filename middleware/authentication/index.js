@@ -4,6 +4,14 @@ var http = require('http');
 
 var passport = require('passport');
 
+passport.serializeUser(function(user, done) {
+    done(null, user);
+});
+
+passport.deserializeUser(function(user, done) {
+    done(null, user);
+});
+
 /**
  * Authentication middleware.
  *
@@ -69,7 +77,35 @@ exports = module.exports = function(basePath)
                         {
                             handled = true;
 
-                            lib.handleCallback(req, res, next);
+                            var config = process.configuration.auth[providerId];
+
+                            var cb = function(err, user, info) {
+
+                                if (err)
+                                {
+                                    return next(err);
+                                }
+
+                                if (!user)
+                                {
+                                    return res.redirect(config.failureRedirect);
+                                }
+
+                                req.session.user = user;
+
+                                req.logIn(user, function(err) {
+
+                                    if (err)
+                                    {
+                                        return next(err);
+                                    }
+
+                                    return res.redirect(config.successRedirect);
+                                });
+
+                            };
+
+                            lib.handleCallback(req, res, next, cb);
                         }
                         else
                         {

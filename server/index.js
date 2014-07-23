@@ -52,20 +52,21 @@ var SETTINGS = {
     "configureFunctions": {},
     "beforeFunctions": [],
     "afterFunctions": [],
+    "viewEngine": "handlebars",
     "virtualHost": {
-        "enabled": true
+        "enabled": false // true
     },
     "wcm": {
-        "enabled": true
+        "enabled": false // true
     },
     "serverTags": {
-        "enabled": true
+        "enabled": false // true
     },
     "insight": {
-        "enabled": true
+        "enabled": false // true
     },
     "perf": {
-        "enabled": true
+        "enabled": false // true
     },
     "virtualDriver": {
         "enabled": false
@@ -75,12 +76,13 @@ var SETTINGS = {
     },
     "auth": {
         "facebook": {
-            "enabled": false,
-            "appId": "",
-            "appSecret": "",
-            "callbackUrl": "",
-            "successUrl": "",
-            "failureUrl": ""
+            "enabled": false
+        },
+        "twitter": {
+            "enabled": false
+        },
+        "linkedin": {
+            "enabled": false
         }
     }
 };
@@ -255,7 +257,7 @@ exports.start = function(overrides, callback)
             var host = req.virtualHost;
             if (!host)
             {
-                host = req.host;
+                host = req.hostname;
             }
             len = isNaN(len) ? '0b' : len = bytes(len);
 
@@ -318,7 +320,7 @@ exports.start = function(overrides, callback)
                 var host = req.virtualHost;
                 if (!host)
                 {
-                    host = req.host;
+                    host = req.hostname;
                 }
 
                 var d = new Date();
@@ -385,7 +387,9 @@ exports.start = function(overrides, callback)
 
             multipart()(req, res, function(err) {
                 bodyParser.json()(req, res, function(err) {
-                    bodyParser.urlencoded()(req, res, function(err) {
+                    bodyParser.urlencoded({
+                        extended: true
+                    })(req, res, function(err) {
                         main.bodyParser()(req, res, function(err) {
                             next(err);
                         });
@@ -418,18 +422,28 @@ exports.start = function(overrides, callback)
     {
         app.set('port', process.env.PORT || 2999);
         app.set('views', process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH + "/../views");
-        app.set('view engine', 'html'); // html file extension
 
-        //var dust = require('dustjs-linkedin');
-        var cons = require('consolidate');
-        app.engine('html', cons.dust);
+        if (config.viewEngine == "dust")
+        {
+            app.set('view engine', 'html');
+            var cons = require('consolidate');
+            app.engine('html', cons.dust);
+        }
+        else if (config.viewEngine == "jade")
+        {
+            app.set('view engine', 'jade');
+        }
 
         //app.use(express.favicon(process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH + "/favicon.ico"));
 
         app.use(cookieParser("secret"));
         app.use(methodOverride());
         //app.use(express.session({ secret: 'secret', store: sessionStore }));
-        app.use(session({secret: 'secret'}));
+        app.use(session({
+            secret: 'secret',
+            resave: false,
+            saveUninitialized: false
+        }));
 
         // configure cloudcms app server command handing
         main.interceptors(app, true, config);
