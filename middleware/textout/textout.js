@@ -181,7 +181,7 @@ exports = module.exports = function(basePath)
                     var stats = fs.statSync(fullFilePath);
                     if (stats.size == 0)
                     {
-                        res.send(200, "");
+                        res.status(200).send("");
                         return;
                     }
 

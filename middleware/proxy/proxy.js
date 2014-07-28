@@ -124,7 +124,7 @@ exports = module.exports = function() {
 
         var updateSetCookieHost = function(value)
         {
-            var newDomain = req.host;
+            var newDomain = req.hostname;
             if (req.virtualHost) {
                 newDomain = req.virtualHost;
             }

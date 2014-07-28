@@ -119,7 +119,7 @@ exports = module.exports = function(basePath)
                         }, function(err) {
 
                             // some kind of IO issue streaming back
-                            res.send(503, err);
+                            res.status(503).send(err);
                             res.end();
                         });
                     }
