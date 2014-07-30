@@ -168,22 +168,24 @@ exports = module.exports = function()
                                 return;
                             }
 
+                            var gitanaConfig = null;
                             try
                             {
-                                var gitanaConfig = JSON.parse(data.toString());
-
-                                GITANA_DRIVER_CONFIG_CACHE.write("local", {
-                                    "path": process.env.CLOUDCMS_GITANA_JSON_PATH,
-                                    "config": gitanaConfig
-                                });
-
-                                completionFunction(null, process.env.CLOUDCMS_GITANA_JSON_PATH, gitanaConfig);
+                                gitanaConfig = JSON.parse(data.toString());
                             }
                             catch (e)
                             {
                                 console.log("Error reading json file in local driver check: " + process.env.CLOUDCMS_GITANA_JSON_PATH);
                                 completionFunction();
+                                return;
                             }
+
+                            GITANA_DRIVER_CONFIG_CACHE.write("local", {
+                                "path": process.env.CLOUDCMS_GITANA_JSON_PATH,
+                                "config": gitanaConfig
+                            });
+
+                            completionFunction(null, process.env.CLOUDCMS_GITANA_JSON_PATH, gitanaConfig);
                         });
                     }
                     else
