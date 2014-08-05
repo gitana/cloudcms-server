@@ -31,8 +31,7 @@ exports = module.exports = function(basePath)
         return function(req, res, next)
         {
             // hand back a 404
-            res.send(404);
-            res.end();
+            res.status(404).end();
         };
     };
 
