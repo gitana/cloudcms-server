@@ -433,6 +433,12 @@ exports.start = function(overrides, callback)
         {
             app.set('view engine', 'jade');
         }
+        else if (config.viewEngine == "handlebars" || config.viewEngine == "hbs")
+        {
+            app.set('view engine', 'html');
+            var hbs = require('hbs');
+            app.engine('html', hbs.__express);
+        }
 
         //app.use(express.favicon(process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH + "/favicon.ico"));
 
