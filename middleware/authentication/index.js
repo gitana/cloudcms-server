@@ -50,6 +50,12 @@ exports = module.exports = function(basePath)
         // return the middleware function
         return function(req, res, next)
         {
+            if (!req.gitana || !req.gitana.application)
+            {
+                next();
+                return;
+            }
+
             var handled = false;
 
             // CONFIGURATION
