@@ -61,7 +61,7 @@ exports = module.exports = function(passport, config)
         adapter.syncProfile(profile, user, function() {
 
             // description
-            if (profile._json.description)
+            if (!user.description)
             {
                 user.description = profile._json.description;
             }

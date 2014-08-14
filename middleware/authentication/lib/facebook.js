@@ -60,6 +60,22 @@ exports = module.exports = function(passport, config)
     r.handleSyncProfile = function(req, token, tokenSecret, profile, user, callback)
     {
         adapter.syncProfile(profile, user, function() {
+
+            if (!user.firstName)
+            {
+                user.firstName = profile._json.name.givenName;
+            }
+
+            if (!user.lastName)
+            {
+                user.lastName = profile._json.name.familyName;
+            }
+
+            if (!user.gender)
+            {
+                user.gender = profile._json.gender;
+            }
+
             callback();
         });
     };
