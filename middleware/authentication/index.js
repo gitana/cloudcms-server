@@ -21,11 +21,11 @@ exports = module.exports = function(basePath)
 {
     var LIBS = {};
 
-    var addLibrary = function(providerId)
+    var addLibrary = function(configuration, providerId)
     {
-        if (process.configuration && process.configuration.auth[providerId] && process.configuration.auth[providerId].enabled)
+        if (configuration.auth[providerId] && configuration.auth[providerId].enabled)
         {
-            LIBS[providerId] = require("./lib/" + providerId)(passport, process.configuration.auth[providerId]);
+            LIBS[providerId] = require("./lib/" + providerId)(passport, configuration.auth[providerId]);
         }
     };
 
@@ -47,16 +47,41 @@ exports = module.exports = function(basePath)
         app.use(passport.initialize());
         app.use(passport.session());
 
-        // require any libraries
-        addLibrary("facebook");
-        addLibrary("twitter");
-        addLibrary("linkedin");
-
         // return the middleware function
         return function(req, res, next)
         {
             var handled = false;
 
+            // CONFIGURATION
+            var configuration = {
+                "auth": {}
+            };
+            if (process.configuration.auth) {
+                for (var providerId in process.configuration.auth)
+                {
+                    configuration.auth[providerId] = process.configuration.auth[providerId];
+                }
+            }
+            var app = req.gitana.application();
+            if (app && app.runtime && app.runtime.auth) {
+                for (var providerId in app.runtime.auth)
+                {
+                    configuration.auth[providerId] = app.runtime.auth[providerId];
+                }
+            }
+
+            // LIBRARIES
+            //addLibrary(configuration, "facebook");
+            //addLibrary(configuration, "twitter");
+            //addLibrary(configuration, "linkedin");
+
+            // add in any libraries
+            for (var providerId in configuration.auth)
+            {
+                addLibrary(configuration, providerId);
+            }
+
+            // HANDLE
             if (req.method.toLowerCase() == "get")
             {
                 var i = req.url.indexOf("/auth/");
@@ -77,33 +102,64 @@ exports = module.exports = function(basePath)
                         {
                             handled = true;
 
-                            var config = process.configuration.auth[providerId];
+                            var config = configuration.auth[providerId];
 
-                            var cb = function(err, user, info) {
-
-                                if (err)
+                            var cb = function(providerId, config)
+                            {
+                                return function(err, user, info)
                                 {
-                                    return next(err);
-                                }
-
-                                if (!user)
-                                {
-                                    return res.redirect(config.failureRedirect);
-                                }
-
-                                req.session.user = user;
-
-                                req.logIn(user, function(err) {
-
                                     if (err)
                                     {
                                         return next(err);
                                     }
 
-                                    return res.redirect(config.successRedirect);
-                                });
+                                    if (!user)
+                                    {
+                                        return res.redirect(config.failureRedirect);
+                                    }
 
-                            };
+                                    req.session.user = user;
+
+                                    req.logIn(user, function(err) {
+
+                                        if (err)
+                                        {
+                                            return next(err);
+                                        }
+
+                                        if (config.passTicket)
+                                        {
+                                            var domain = req.gitana.datastore("principals");
+
+                                            // connect and get ticket
+                                            var x = {
+                                                "clientKey": req.gitanaConfig.clientKey,
+                                                "clientSecret": req.gitanaConfig.clientSecret,
+                                                "username": domain.getId() + "/" + info.token,
+                                                "password": info.tokenSecret,
+                                                "baseURL": req.gitanaConfig.baseURL
+                                            };
+                                            Gitana.connect(x, function(err) {
+
+                                                if (err)
+                                                {
+                                                    return res.redirect(config.failureRedirect);
+                                                }
+
+                                                var ticket = this.getDriver().getAuthInfo().getTicket();
+
+                                                return res.redirect(config.successRedirect + "?ticket=" + ticket);
+
+                                            });
+                                        }
+                                        else
+                                        {
+                                            return res.redirect(config.successRedirect);
+                                        }
+                                    });
+
+                                }
+                            }(providerId, config);
 
                             lib.handleCallback(req, res, next, cb);
                         }
