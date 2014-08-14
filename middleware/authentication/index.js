@@ -133,7 +133,7 @@ exports = module.exports = function(basePath)
                                             return next(err);
                                         }
 
-                                        if (config.passTicket)
+                                        if (config.passTicket || config.passTokens)
                                         {
                                             var domain = req.gitana.datastore("principals");
 
@@ -153,8 +153,22 @@ exports = module.exports = function(basePath)
                                                 }
 
                                                 var ticket = this.getDriver().getAuthInfo().getTicket();
+                                                var token = info.token;
+                                                var secret = info.tokenSecret;
 
-                                                return res.redirect(config.successRedirect + "?ticket=" + ticket);
+                                                var params = [];
+                                                params.push("providerId=" + providerId);
+                                                if (config.passTicket) {
+                                                    params.push("ticket=" + this.getDriver().getAuthInfo().getTicket());
+                                                }
+                                                if (config.passTokens) {
+                                                    params.push("token=" + info.token);
+                                                    params.push("secret=" + info.tokenSecret);
+                                                }
+
+                                                var url = config.successRedirect + "?" + params.join("&");
+
+                                                return res.redirect(url);
 
                                             });
                                         }

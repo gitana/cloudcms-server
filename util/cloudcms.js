@@ -128,12 +128,12 @@ exports = module.exports = function(basePath)
                 return;
             }
 
-            console.log("hostDirectoryPath: " + hostDirectoryPath);
-            console.log("datastoreTypeId: " + datastoreTypeId);
-            console.log("datastoreId: " + datastoreId);
-            console.log("objectTypeId: " + objectTypeId);
-            console.log("objectId: " + objectId);
-            console.log("locale: " + locale);
+            //console.log("hostDirectoryPath: " + hostDirectoryPath);
+            //console.log("datastoreTypeId: " + datastoreTypeId);
+            //console.log("datastoreId: " + datastoreId);
+            //console.log("objectTypeId: " + objectTypeId);
+            //console.log("objectId: " + objectId);
+            //console.log("locale: " + locale);
 
             var contentDirectoryPath = path.join(hostDirectoryPath, "data", datastoreTypeId, datastoreId, objectTypeId, objectId, locale);
 
@@ -607,7 +607,7 @@ exports = module.exports = function(basePath)
                 var gitanaHost = process.env.GITANA_PROXY_HOST;// || "localhost";
                 var gitanaPort = process.env.GITANA_PROXY_PORT;// || 8080;
 
-                console.log(uri);
+                //console.log(uri);
 
                 // grab from Cloud CMS and write to disk
                 writeToDisk(gitanaHost, gitanaPort, uri, gitana, filePath, function(err, filePath, cacheInfo) {

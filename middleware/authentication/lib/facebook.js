@@ -54,14 +54,11 @@ exports = module.exports = function(passport, config)
 
     r.providerUserId = function(profile)
     {
-        console.log("PROFILE: " + JSON.stringify(profile, null, "  "));
         return profile.id;
     };
 
     r.handleSyncProfile = function(req, token, tokenSecret, profile, user, callback)
     {
-        console.log("HANDLE SYNC PROFILE: " + PROVIDER_ID);
-
         adapter.syncProfile(profile, user, function() {
             callback();
         });

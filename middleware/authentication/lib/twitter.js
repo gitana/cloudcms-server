@@ -59,7 +59,28 @@ exports = module.exports = function(passport, config)
     r.handleSyncProfile = function(req, token, tokenSecret, profile, user, callback)
     {
         adapter.syncProfile(profile, user, function() {
-            callback();
+
+            // description
+            if (profile._json.description)
+            {
+                user.description = profile._json.description;
+            }
+
+            // sync avatar photo
+            if (profile.photos && profile.photos.length > 0)
+            {
+                // use the 0th one as the avatar
+                var photoUrl = profile.photos[0].value;
+
+                // download and attach to user
+                adapter.downloadAndAttach(req, photoUrl, user, "avatar", function(err) {
+                    callback();
+                });
+            }
+            else
+            {
+                callback();
+            }
         });
     };
 

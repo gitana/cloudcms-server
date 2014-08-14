@@ -1,6 +1,8 @@
 var path = require('path');
 var fs = require('fs');
 var mkdirp = require('mkdirp');
+var temp = require('temp');
+var url = require('url');
 
 var GITANA_DRIVER_CONFIG_CACHE = require("./cache/driverconfigs");
 
@@ -29,6 +31,9 @@ var GITANA_DRIVER_CONFIG_CACHE = require("./cache/driverconfigs");
  */
 exports = module.exports = function()
 {
+    // track temporary files
+    temp.track();
+
     // TODO: this is to disable really annoying Express 3.0 deprecated's for multipart() which should hopefully
     // TODO: be resolved soon
     console.warn = function() {};
@@ -81,6 +86,26 @@ exports = module.exports = function()
     // other paths we can pre-establish
     process.env.CLOUDCMS_GITANA_JSON_PATH = path.join(process.env.CLOUDCMS_APPSERVER_BASE_PATH, "gitana.json");
     process.env.CLOUDCMS_CONFIG_BASE_PATH = path.join(process.env.CLOUDCMS_APPSERVER_BASE_PATH, "config");
+
+    // if gitana.json is in root path, we override GITANA_PROXY_HOST, GITANA_PROXY_PORT, GITANA_PROXY_SCHEME
+    if (fs.existsSync(process.env.CLOUDCMS_GITANA_JSON_PATH))
+    {
+        var text = fs.readFileSync(process.env.CLOUDCMS_GITANA_JSON_PATH);
+        var json = JSON.parse(text);
+        if (json.baseURL)
+        {
+            var urlObject = url.parse(json.baseURL);
+            process.env.GITANA_PROXY_HOST = urlObject.hostname;
+            process.env.GITANA_PROXY_PORT = urlObject.port;
+            process.env.GITANA_PROXY_SCHEME = urlObject.protocol;
+            if (process.env.GITANA_PROXY_SCHEME && process.env.GITANA_PROXY_SCHEME.indexOf(":") > -1)
+            {
+                process.env.GITANA_PROXY_SCHEME = process.env.GITANA_PROXY_SCHEME.substring(0, process.env.GITANA_PROXY_SCHEME.length - 1);
+            }
+
+            console.log("Local gitana.json file found - setting proxy: " + json.baseURL);
+        }
+    }
 
     // cache
     process.cache = cache;

@@ -1,4 +1,7 @@
-var uuid = require("node-uuid");
+var request = require('request');
+var path = require('path');
+
+var request = require("request");
 
 /**
  * Helper methods for working with domains, identities and connections.
@@ -136,6 +139,12 @@ exports = module.exports = function(providerId, lib, config)
     {
         var userObject = {};
 
+        // if user properties provided in config, copy those in
+        if (config.user)
+        {
+            userObject = JSON.parse(JSON.stringify(config.user));
+        }
+
         // if existing user, layer sign-on onto existing user
         if (req.session.user)
         {
@@ -221,6 +230,29 @@ exports = module.exports = function(providerId, lib, config)
         user.profiles[providerId] = profile;
 
         callback();
+    };
+
+    r.downloadAndAttach = function(req, url, attachable, attachmentId, callback)
+    {
+        var targetUrl = req.gitanaConfig.baseURL + attachable.getUri() + "/attachments/" + attachmentId;
+
+        console.log("url:" + url);
+        console.log("targetUrl: " + targetUrl);
+
+        // add "authorization" for OAuth2 bearer token
+        var headers = {};
+        headers["Authorization"] = req.gitana.platform().getDriver().getHttpHeaders()["Authorization"];
+
+        console.log(JSON.stringify(headers));
+
+        request.get(url)
+            .pipe(request.post({
+                url: targetUrl,
+                headers: headers
+            }))
+            .on("response", function(response) {
+                callback();
+            });
     };
 
     return r;
