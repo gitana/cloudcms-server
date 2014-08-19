@@ -75,6 +75,11 @@ exports = module.exports = function(passport, config)
         });
     };
 
+    r.handleSyncAvatar = function(req, token, tokenSecret, profile, user, callback)
+    {
+        callback();
+    };
+
     return r;
 };
 

@@ -168,7 +168,13 @@ exports = module.exports = function(providerId, lib, config)
                     // read the user
                     var domain = req.gitana.datastore("principals");
                     domain.readPrincipal(data.user._doc).then(function() {
-                        callback(null, this);
+
+                        var user = this;
+
+                        lib.handleSyncAvatar(req, profile, user, function(err) {
+                            callback(null, user);
+                        });
+
                     });
 
                 });
@@ -199,8 +205,24 @@ exports = module.exports = function(providerId, lib, config)
             if (user)
             {
                 lib.handleSyncProfile(req, token, tokenSecret, profile, user, function(err) {
-                    user.update().then(function() {
-                        done(err, user, info);
+
+                    if (err)
+                    {
+                        done(err);
+                        return;
+                    }
+
+                    lib.handleSyncAvatar(req, token, tokenSecret, profile, user, function(err) {
+
+                        if (err)
+                        {
+                            done(err);
+                            return;
+                        }
+
+                        user.update().then(function() {
+                            done(err, user, info);
+                        });
                     });
                 });
 
@@ -242,8 +264,6 @@ exports = module.exports = function(providerId, lib, config)
         // add "authorization" for OAuth2 bearer token
         var headers = {};
         headers["Authorization"] = req.gitana.platform().getDriver().getHttpHeaders()["Authorization"];
-
-        console.log(JSON.stringify(headers));
 
         request.get(url)
             .pipe(request.post({

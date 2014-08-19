@@ -56,32 +56,37 @@ exports = module.exports = function(passport, config)
         return profile.id;
     };
 
-    r.handleSyncProfile = function(req, token, tokenSecret, profile, user, callback)
+    r.handleSyncProfile = function(req, token, tokenSecret, profile, userObject, callback)
     {
-        adapter.syncProfile(profile, user, function() {
+        adapter.syncProfile(profile, userObject, function() {
 
             // description
-            if (!user.description)
+            if (!userObject.description)
             {
-                user.description = profile._json.description;
+                userObject.description = profile._json.description;
             }
 
-            // sync avatar photo
-            if (profile.photos && profile.photos.length > 0)
-            {
-                // use the 0th one as the avatar
-                var photoUrl = profile.photos[0].value;
-
-                // download and attach to user
-                adapter.downloadAndAttach(req, photoUrl, user, "avatar", function(err) {
-                    callback();
-                });
-            }
-            else
-            {
-                callback();
-            }
+            callback();
         });
+    };
+
+    r.handleSyncAvatar = function(req, token, tokenSecret, profile, user, callback)
+    {
+        // sync avatar photo
+        if (profile && profile.photos && profile.photos.length > 0)
+        {
+            // use the 0th one as the avatar
+            var photoUrl = profile.photos[0].value;
+
+            // download and attach to user
+            adapter.downloadAndAttach(req, photoUrl, user, "avatar", function(err) {
+                callback();
+            });
+        }
+        else
+        {
+            callback();
+        }
     };
 
     return r;
