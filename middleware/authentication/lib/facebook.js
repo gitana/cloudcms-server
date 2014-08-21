@@ -80,7 +80,7 @@ exports = module.exports = function(passport, config)
         });
     };
 
-    r.handleSyncAvatar = function(req, token, tokenSecret, profile, user, callback)
+    r.handleSyncAvatar = function(req, profile, user, callback)
     {
         callback();
     };

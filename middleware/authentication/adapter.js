@@ -212,7 +212,7 @@ exports = module.exports = function(providerId, lib, config)
                         return;
                     }
 
-                    lib.handleSyncAvatar(req, token, tokenSecret, profile, user, function(err) {
+                    lib.handleSyncAvatar(req, profile, user, function(err) {
 
                         if (err)
                         {
