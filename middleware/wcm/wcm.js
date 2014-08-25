@@ -165,6 +165,7 @@ exports = module.exports = function(basePath)
                             // merge into our pages collection
                             for (var i = 0; i < page.uris.length; i++)
                             {
+                                // console.log("Mapping page: " + page.uris[i] + " to " + JSON.stringify(page));
                                 pages[page.uris[i]] = page;
                             }
                         }
@@ -270,7 +271,7 @@ exports = module.exports = function(basePath)
                         }
                         else
                         {
-                            res.send.call(res, 200, out);
+                            res.status(200).send.call(res, out);
                         }
 
                     });

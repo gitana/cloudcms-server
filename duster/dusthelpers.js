@@ -78,6 +78,7 @@ exports = module.exports = function(dust)
 
         // pagination
         var sort = dust.helpers.tap(params.sort, chunk, context);
+        var sortDirection = dust.helpers.tap(params.sortDirection, chunk, context);
         var limit = dust.helpers.tap(params.limit, chunk, context);
         var skip = dust.helpers.tap(params.skip, chunk, context);
 
@@ -120,8 +121,17 @@ exports = module.exports = function(dust)
                 pagination.limit = limit;
                 if (isDefined(sort))
                 {
+                    if (typeof(sortDirection) !== "undefined")
+                    {
+                        sortDirection = parseInt(sortDirection, 10);
+                    }
+                    else
+                    {
+                        sortDirection = 1;
+                    }
+
                     pagination.sort = {};
-                    pagination.sort[sort] = 1;
+                    pagination.sort[sort] = sortDirection;
                 }
                 if (isDefined(skip))
                 {
@@ -298,6 +308,7 @@ exports = module.exports = function(dust)
 
         // pagination
         var sort = dust.helpers.tap(params.sort, chunk, context);
+        var sortDirection = dust.helpers.tap(params.sortDirection, chunk, context);
         var limit = dust.helpers.tap(params.limit, chunk, context);
         var skip = dust.helpers.tap(params.skip, chunk, context);
 
@@ -341,8 +352,17 @@ exports = module.exports = function(dust)
                     pagination.limit = limit;
                     if (sort)
                     {
+                        if (typeof(sortDirection) !== "undefined")
+                        {
+                            sortDirection = parseInt(sortDirection, 10);
+                        }
+                        else
+                        {
+                            sortDirection = 1;
+                        }
+
                         pagination.sort = {};
-                        pagination.sort[sort] = 1;
+                        pagination.sort[sort] = sortDirection;
                     }
                     if (skip)
                     {
