@@ -63,7 +63,14 @@ var loadPages = function(dirPath, pageKey, context)
     if (configs["page.json"])
     {
         // populate page into context
-        context.pages[pageKey] = configs["page.json"];
+        // if it already exists, merge
+        var d = context.pages[pageKey];
+        if (!d)
+        {
+            d = {};
+        }
+        merge(configs["page.json"], d);
+        context.pages[pageKey] = d;
         delete configs["page.json"];
 
         console.log(" -> Registered page: " + pageKey);
