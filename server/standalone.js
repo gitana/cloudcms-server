@@ -27,4 +27,21 @@ server.after(function(app, callback) {
 });
 
 // start the server
-server.start();
+server.start({
+    "socketTransports": ["polling"],
+    "virtualHost": {
+        "enabled": true
+    },
+    "wcm": {
+        "enabled": true
+    },
+    "serverTags": {
+        "enabled": true
+    },
+    "autoRefresh": {
+        "log": true
+    },
+    "insight": {
+        "enabled": true
+    }
+});
