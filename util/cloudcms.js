@@ -395,6 +395,7 @@ exports = module.exports = function(basePath)
                     headers["Authorization"] = headers2["Authorization"];
 
                     var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT + uri;
+                    console.log("aaaaaaaa -> " + URL);
                     var request = require("request");
                     request({
                         "method": "GET",
@@ -607,7 +608,7 @@ exports = module.exports = function(basePath)
                 var gitanaHost = process.env.GITANA_PROXY_HOST;// || "localhost";
                 var gitanaPort = process.env.GITANA_PROXY_PORT;// || 8080;
 
-                //console.log(uri);
+                // console.log(uri);
 
                 // grab from Cloud CMS and write to disk
                 writeToDisk(gitanaHost, gitanaPort, uri, gitana, filePath, function(err, filePath, cacheInfo) {

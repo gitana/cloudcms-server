@@ -102,7 +102,17 @@ exports = module.exports = function()
             {
                 process.env.GITANA_PROXY_SCHEME = process.env.GITANA_PROXY_SCHEME.substring(0, process.env.GITANA_PROXY_SCHEME.length - 1);
             }
-
+            if (!process.env.GITANA_PROXY_PORT || process.env.GITANA_PROXY_PORT == "null")
+            {
+                if (process.env.GITANA_PROXY_SCHEME == "http")
+                {
+                    process.env.GITANA_PROXY_PORT = 80;
+                }
+                else if (process.env.GITANA_PROXY_SCHEME == "https")
+                {
+                    process.env.GITANA_PROXY_PORT = 443;
+                }
+            }
             console.log("Local gitana.json file found - setting proxy: " + json.baseURL);
         }
     }
