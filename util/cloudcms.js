@@ -395,7 +395,6 @@ exports = module.exports = function(basePath)
                     headers["Authorization"] = headers2["Authorization"];
 
                     var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT + uri;
-                    console.log("aaaaaaaa -> " + URL);
                     var request = require("request");
                     request({
                         "method": "GET",

@@ -88,6 +88,11 @@ exports = module.exports = function(dust)
         // as
         var as = dust.helpers.tap(params.as, chunk, context);
 
+        // single field constraints
+        var field = dust.helpers.tap(params.field, chunk, context);
+        var fieldRegex = dust.helpers.tap(params.fieldRegex, chunk, context);
+        var fieldValue = dust.helpers.tap(params.fieldValue, chunk, context);
+
         // ensure limit and skip are numerical
         if (isDefined(limit))
         {
@@ -112,6 +117,20 @@ exports = module.exports = function(dust)
                 if (isDefined(type))
                 {
                     query._type = type;
+                }
+                if (isDefined(field))
+                {
+                    if (isDefined(fieldRegex))
+                    {
+                        query[field] = {
+                            $regex: fieldRegex,
+                            $options: "i"
+                        };
+                    }
+                    else if (isDefined(fieldValue))
+                    {
+                        query[field] = fieldValue;
+                    }
                 }
 
                 var pagination = {};
