@@ -175,7 +175,7 @@ exports = module.exports = function(basePath)
                     var exists = fs.existsSync(fullFilePath);
                     if (!exists)
                     {
-                        res.send(404);
+                        res.status(404).end();
                         return;
                     }
                     var stats = fs.statSync(fullFilePath);

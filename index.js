@@ -38,11 +38,22 @@ exports = module.exports = function()
     // TODO: be resolved soon
     console.warn = function() {};
 
+    // init
+    if (!process.env.GITANA_PROXY_HOST) {
+        process.env.GITANA_PROXY_HOST = "api.cloudcms.com";
+    }
+    if (!process.env.GITANA_PROXY_PORT) {
+        process.env.GITANA_PROXY_PORT = 443;
+    }
+    if (!process.env.GITANA_PROXY_SCHEME) {
+        process.env.GITANA_PROXY_SCHEME = "https";
+    }
+    if (!process.env.CLOUDCMS_HOSTS_PATH) {
+        process.env.CLOUDCMS_HOSTS_PATH = "/hosts";
+    }
+
     // this is the root path where hosts, their public files and content caches are stored
     var basePath = process.env.CLOUDCMS_HOSTS_PATH;
-    if (!basePath) {
-        basePath = process.env.CLOUDCMS_HOSTS_PATH = "/hosts";
-    }
 
     // middleware
     var virtual = require("./middleware/virtual/virtual")(basePath);
@@ -59,20 +70,6 @@ exports = module.exports = function()
     var config = require("./middleware/config")(basePath);
     var flow = require("./middleware/flow/flow")(basePath);
     var authentication = require("./middleware/authentication")(basePath);
-
-    // init
-    if (!process.env.GITANA_PROXY_HOST) {
-        process.env.GITANA_PROXY_HOST = "api.cloudcms.com";
-    }
-    if (!process.env.GITANA_PROXY_PORT) {
-        process.env.GITANA_PROXY_PORT = 443;
-    }
-    if (!process.env.GITANA_PROXY_SCHEME) {
-        process.env.GITANA_PROXY_SCHEME = "https";
-    }
-    if (!process.env.CLOUDCMS_HOSTS_PATH) {
-        process.env.CLOUDCMS_HOSTS_PATH = "/hosts";
-    }
 
     // assume app-server base path if none provided
     if (!process.env.CLOUDCMS_APPSERVER_BASE_PATH) {

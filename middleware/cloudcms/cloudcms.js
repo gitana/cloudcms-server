@@ -909,8 +909,8 @@ exports = module.exports = function(basePath)
                                 applyResponseContentType(res, cacheInfo, filename);
                                 applyDefaultContentTypeCaching(res, cacheInfo);
 
-                                res.sendFile(filePath, function(err)
-                                {
+                                util.sendFile(res, filePath, function(err) {
+
                                     // something went wrong while streaming the content back...
                                     if (err) {
                                         res.send(503, err);
@@ -1037,13 +1037,14 @@ exports = module.exports = function(basePath)
                                 applyResponseContentType(res, cacheInfo, filename);
                                 applyDefaultContentTypeCaching(res, cacheInfo);
 
-                                res.sendFile(filePath, function(err)
-                                {
+                                util.sendFile(res, filePath, function(err) {
+
                                     // something went wrong while streaming the content back...
                                     if (err) {
                                         res.send(503, err);
                                         res.end();
                                     }
+
                                 });
                             }
                         }
@@ -1250,8 +1251,8 @@ exports = module.exports = function(basePath)
                                 applyResponseContentType(res, cacheInfo, filename);
                                 applyDefaultContentTypeCaching(res, cacheInfo);
 
-                                res.sendFile(filePath, function(err)
-                                {
+                                util.sendFile(res, filePath, function(err) {
+
                                     // something went wrong while streaming the content back...
                                     if (err) {
                                         res.send(503, err);
@@ -1367,13 +1368,14 @@ exports = module.exports = function(basePath)
                                 applyResponseContentType(res, cacheInfo, filename);
                                 applyDefaultContentTypeCaching(res, cacheInfo);
 
-                                res.sendFile(filePath, function(err)
-                                {
+                                util.sendFile(res, filePath, function(err) {
+
                                     // something went wrong while streaming the content back...
                                     if (err) {
                                         res.send(503, err);
                                         res.end();
                                     }
+
                                 });
                             }
                         }

@@ -65,10 +65,12 @@ var executeCommands = function(commands, callback)
 {
     var terminal = require('child_process').spawn('bash');
 
+    console.log("COMMANDS: " + JSON.stringify(commands));
+
     var text = "";
 
     terminal.stdout.on('data', function (data) {
-//        console.log('stdout: ' + data);
+        console.log('stdout: ' + data);
         text = text + data;
     });
 
@@ -77,7 +79,7 @@ var executeCommands = function(commands, callback)
         var err = null;
         if (code != 0)
         {
-//            console.log('child process exited with code ' + code + ' for commands: ' + commands);
+            console.log('child process exited with code ' + code + ' for commands: ' + commands);
 
             err = {
                 "commands": commands,
@@ -90,7 +92,7 @@ var executeCommands = function(commands, callback)
     });
 
     setTimeout(function() {
-//        console.log('Sending stdin to terminal');
+        console.log('Sending stdin to terminal');
 
         for (var i = 0; i < commands.length; i++)
         {
@@ -338,10 +340,10 @@ exports.trim = function(text)
     return text.replace(/^\s+|\s+$/g,'');
 };
 
-var sendFile = exports.sendFile = function(res, filepath, options, callback)
+var sendFile = exports.sendFile = function(res, filePath, options, callback)
 {
     if (typeof(options) == "function") {
-        errHandler = options;
+        callback = options;
         options = {};
     }
 
@@ -349,9 +351,13 @@ var sendFile = exports.sendFile = function(res, filepath, options, callback)
         options = {};
     }
 
+    if (!options.root) {
+        options.root = "/";
+    }
+
     var mimetype = null;
 
-    var filename = path.basename(filepath);
+    var filename = path.basename(filePath);
     if (filename)
     {
         var ext = path.extname(filename);
@@ -366,7 +372,11 @@ var sendFile = exports.sendFile = function(res, filepath, options, callback)
         res.setHeader("Content-Type", mimetype);
     }
 
-    res.sendfile(filepath, options, function(err) {
+    console.log("SEND FILE:");
+    console.log(" -> filePath: " + filePath);
+    console.log(" -> root: " + (options ? options.root : ""));
+
+    res.sendFile(filePath, options, function(err) {
         callback(err);
     });
 };
