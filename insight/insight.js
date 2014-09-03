@@ -76,6 +76,14 @@ var handleInsightPush = function(socket, data, callback)
     var warehouseId = data.warehouseId;
     if (!warehouseId)
     {
+        var application = gitana.application();
+        if (application)
+        {
+            warehouseId = application.warehouseId;
+        }
+    }
+    if (!warehouseId)
+    {
         var analytics = gitana.datastore("analytics");
         if (analytics) {
             warehouseId = analytics.getId();

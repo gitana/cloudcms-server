@@ -909,7 +909,7 @@ exports = module.exports = function(basePath)
                                 applyResponseContentType(res, cacheInfo, filename);
                                 applyDefaultContentTypeCaching(res, cacheInfo);
 
-                                res.sendfile(filePath, function(err)
+                                res.sendFile(filePath, function(err)
                                 {
                                     // something went wrong while streaming the content back...
                                     if (err) {
@@ -1037,7 +1037,7 @@ exports = module.exports = function(basePath)
                                 applyResponseContentType(res, cacheInfo, filename);
                                 applyDefaultContentTypeCaching(res, cacheInfo);
 
-                                res.sendfile(filePath, function(err)
+                                res.sendFile(filePath, function(err)
                                 {
                                     // something went wrong while streaming the content back...
                                     if (err) {
@@ -1250,7 +1250,7 @@ exports = module.exports = function(basePath)
                                 applyResponseContentType(res, cacheInfo, filename);
                                 applyDefaultContentTypeCaching(res, cacheInfo);
 
-                                res.sendfile(filePath, function(err)
+                                res.sendFile(filePath, function(err)
                                 {
                                     // something went wrong while streaming the content back...
                                     if (err) {
@@ -1367,7 +1367,7 @@ exports = module.exports = function(basePath)
                                 applyResponseContentType(res, cacheInfo, filename);
                                 applyDefaultContentTypeCaching(res, cacheInfo);
 
-                                res.sendfile(filePath, function(err)
+                                res.sendFile(filePath, function(err)
                                 {
                                     // something went wrong while streaming the content back...
                                     if (err) {

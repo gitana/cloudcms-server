@@ -63,6 +63,30 @@ exports = module.exports = function(basePath)
             host = "default";
         }
 
+        if (!repositoryId)
+        {
+            callback({
+                "message": "Missing repositoryId in ensureContentDirectory()"
+            });
+            return;
+        }
+
+        if (!branchId)
+        {
+            callback({
+                "message": "Missing branchId in ensureContentDirectory()"
+            });
+            return;
+        }
+
+        if (!locale)
+        {
+            callback({
+                "message": "Missing locale in ensureContentDirectory()"
+            });
+            return;
+        }
+
         storage.ensureHostDirectory(host, function(err, hostDirectoryPath) {
 
             if (err) {

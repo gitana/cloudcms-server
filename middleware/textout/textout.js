@@ -45,10 +45,10 @@ exports = module.exports = function(basePath)
             // wrap the res.render function
             // this allows us to peek at HTML that flows back and plug in additional tags
 
-            var _sendfile = res.sendfile;
+            var _sendFile = res.sendFile;
             var _send = res.send;
 
-            res.sendfile = function(filePath, options, fn)
+            res.sendFile = function(filePath, options, fn)
             {
                 var filename = path.basename(filePath);
 
@@ -75,7 +75,7 @@ exports = module.exports = function(basePath)
                         if (err)
                         {
                             // use the original method
-                            _sendfile.call(res, filePath, options, fn);
+                            _sendFile.call(res, filePath, options, fn);
                         }
                         else
                         {
@@ -90,7 +90,7 @@ exports = module.exports = function(basePath)
                     if (!req.gitanaConfig)
                     {
                         // serve the file straight away, no processing
-                        _sendfile.call(res, filePath, options, fn);
+                        _sendFile.call(res, filePath, options, fn);
                     }
                     else
                     {
@@ -186,7 +186,7 @@ exports = module.exports = function(basePath)
                     }
 
                     // use the original method
-                    return _sendfile.call(res, filePath, options, fn);
+                    return _sendFile.call(res, filePath, options, fn);
                 }
             };
 

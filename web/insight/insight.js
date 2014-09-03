@@ -47,7 +47,7 @@
     var ATTR_DATA_INSIGHT_ID = "data-insight-id";
     var ATTR_DATA_INSIGHT_NODE = "data-insight-node";
 
-    var MAX_SOCKET_RECONNECT_ATTEMPTS = 5;
+    //var MAX_SOCKET_RECONNECT_ATTEMPTS = 5;
 
     var iidCounter = 0;
 
@@ -261,20 +261,7 @@
     // the dispatcher which uses socket.io to fire messages over to server and listen for special events
     var Dispatcher = function() {
 
-        var socket = io.connect();
-
-        socket.on("reconnecting", function(delay, attempt) {
-            if (attempt === MAX_SOCKET_RECONNECT_ATTEMPTS) {
-                setTimeout(function(){
-                    socket.socket.reconnect();
-                }, 5000);
-                return console.log("Failed to reconnect socket.  Will attempt again in 5 seconds.");
-            }
-        });
-
-        socket.on('error', function(){
-            socket.socket.reconnect();
-        });
+        var socket = io();
 
         var QUEUE = [];
         var BUSY = false;
@@ -617,10 +604,10 @@
                                         // fire event again
                                         if (event.originalEvent && event.originalEvent.target && event.originalEvent.type)
                                         {
-                                            $(event.originalEvent.target).trigger(event.originalEvent.type);
+                                            $(event.originalEvent.target).simulate(event.originalEvent.type);
                                         }
 
-                                    }, 100);
+                                    }, 250);
 
                                 });
                             }
@@ -662,6 +649,16 @@
 
     // https://github.com/private-face/jquery.bind-first/blob/master/dev/jquery.bind-first.js
     // jquery.bind-first.js
+    /*
+     * jQuery.bind-first library v0.2.3
+     * Copyright (c) 2013 Vladimir Zhuravlev
+     *
+     * Released under MIT License
+     * @license
+     *
+     * Date: Thu Feb  6 10:13:59 ICT 2014
+     **/
+
     (function($) {
         var splitVersion = $.fn.jquery.split(".");
         var major = parseInt(splitVersion[0]);
@@ -669,13 +666,11 @@
 
         var JQ_LT_17 = (major < 1) || (major == 1 && minor < 7);
 
-        function eventsData($el)
-        {
+        function eventsData($el) {
             return JQ_LT_17 ? $el.data('events') : $._data($el[0]).events;
         }
 
-        function moveHandlerToTop($el, eventName, isDelegated)
-        {
+        function moveHandlerToTop($el, eventName, isDelegated) {
             var data = eventsData($el);
             var events = data[eventName];
 
@@ -703,18 +698,225 @@
             });
         }
 
-        $.fn.bindFirst = function()
-        {
+        function makeMethod(methodName) {
+            $.fn[methodName + 'First'] = function() {
+                var args = $.makeArray(arguments);
+                var eventsString = args.shift();
+
+                if (eventsString) {
+                    $.fn[methodName].apply(this, arguments);
+                    moveEventHandlers(this, eventsString);
+                }
+
+                return this;
+            }
+        }
+
+        // bind
+        makeMethod('bind');
+
+        // one
+        makeMethod('one');
+
+        // delegate
+        $.fn.delegateFirst = function() {
             var args = $.makeArray(arguments);
-            var eventsString = args.shift();
+            var eventsString = args[1];
 
             if (eventsString) {
-                $.fn.bind.apply(this, arguments);
-                moveEventHandlers(this, eventsString);
+                args.splice(0, 2);
+                $.fn.delegate.apply(this, arguments);
+                moveEventHandlers(this, eventsString, true);
             }
 
             return this;
         };
+
+        // live
+        $.fn.liveFirst = function() {
+            var args = $.makeArray(arguments);
+
+            // live = delegate to the document
+            args.unshift(this.selector);
+            $.fn.delegateFirst.apply($(document), args);
+
+            return this;
+        };
+
+        // on (jquery >= 1.7)
+        if (!JQ_LT_17) {
+            $.fn.onFirst = function(types, selector) {
+                var $el = $(this);
+                var isDelegated = typeof selector === 'string';
+
+                $.fn.on.apply($el, arguments);
+
+                // events map
+                if (typeof types === 'object') {
+                    for (var type in types)
+                        if (types.hasOwnProperty(type)) {
+                            moveEventHandlers($el, type, isDelegated);
+                        }
+                } else if (typeof types === 'string') {
+                    moveEventHandlers($el, types, isDelegated);
+                }
+
+                return $el;
+            };
+        }
+
+    })($);
+
+    /*
+     * jquery.simulate - simulate browser mouse and keyboard events
+     *
+     * Copyright (c) 2009 Eduardo Lundgren (eduardolundgren@gmail.com)
+     * and Richard D. Worth (rdworth@gmail.com)
+     *
+     * Dual licensed under the MIT (http://www.opensource.org/licenses/mit-license.php)
+     * and GPL (http://www.opensource.org/licenses/gpl-license.php) licenses.
+     *
+     */
+
+    (function($) {
+
+        $.fn.extend({
+            simulate: function(type, options) {
+                return this.each(function() {
+                    var opt = $.extend({}, $.simulate.defaults, options || {});
+                    new $.simulate(this, type, opt);
+                });
+            }
+        });
+
+        $.simulate = function(el, type, options) {
+            this.target = el;
+            this.options = options;
+
+            if (/^drag$/.test(type)) {
+                this[type].apply(this, [this.target, options]);
+            } else {
+                this.simulateEvent(el, type, options);
+            }
+        };
+
+        $.extend($.simulate.prototype, {
+            simulateEvent: function(el, type, options) {
+                var evt = this.createEvent(type, options);
+                this.dispatchEvent(el, type, evt, options);
+                return evt;
+            },
+            createEvent: function(type, options) {
+                if (/^mouse(over|out|down|up|move)|(dbl)?click$/.test(type)) {
+                    return this.mouseEvent(type, options);
+                } else if (/^key(up|down|press)$/.test(type)) {
+                    return this.keyboardEvent(type, options);
+                }
+            },
+            mouseEvent: function(type, options) {
+                var evt;
+                var e = $.extend({
+                    bubbles: true, cancelable: (type != "mousemove"), view: window, detail: 0,
+                    screenX: 0, screenY: 0, clientX: 0, clientY: 0,
+                    ctrlKey: false, altKey: false, shiftKey: false, metaKey: false,
+                    button: 0, relatedTarget: undefined
+                }, options);
+
+                var relatedTarget = $(e.relatedTarget)[0];
+
+                if ($.isFunction(document.createEvent)) {
+                    evt = document.createEvent("MouseEvents");
+                    evt.initMouseEvent(type, e.bubbles, e.cancelable, e.view, e.detail,
+                        e.screenX, e.screenY, e.clientX, e.clientY,
+                        e.ctrlKey, e.altKey, e.shiftKey, e.metaKey,
+                        e.button, e.relatedTarget || document.body.parentNode);
+                } else if (document.createEventObject) {
+                    evt = document.createEventObject();
+                    $.extend(evt, e);
+                    evt.button = { 0:1, 1:4, 2:2 }[evt.button] || evt.button;
+                }
+                return evt;
+            },
+            keyboardEvent: function(type, options) {
+                var evt;
+
+                var e = $.extend({ bubbles: true, cancelable: true, view: window,
+                    ctrlKey: false, altKey: false, shiftKey: false, metaKey: false,
+                    keyCode: 0, charCode: 0
+                }, options);
+
+                if ($.isFunction(document.createEvent)) {
+                    try {
+                        evt = document.createEvent("KeyEvents");
+                        evt.initKeyEvent(type, e.bubbles, e.cancelable, e.view,
+                            e.ctrlKey, e.altKey, e.shiftKey, e.metaKey,
+                            e.keyCode, e.charCode);
+                    } catch(err) {
+                        evt = document.createEvent("Events");
+                        evt.initEvent(type, e.bubbles, e.cancelable);
+                        $.extend(evt, { view: e.view,
+                            ctrlKey: e.ctrlKey, altKey: e.altKey, shiftKey: e.shiftKey, metaKey: e.metaKey,
+                            keyCode: e.keyCode, charCode: e.charCode
+                        });
+                    }
+                } else if (document.createEventObject) {
+                    evt = document.createEventObject();
+                    $.extend(evt, e);
+                }
+                if (($.browser !== undefined) && ($.browser.msie || $.browser.opera)) {
+                    evt.keyCode = (e.charCode > 0) ? e.charCode : e.keyCode;
+                    evt.charCode = undefined;
+                }
+                return evt;
+            },
+
+            dispatchEvent: function(el, type, evt) {
+                if (el.dispatchEvent) {
+                    el.dispatchEvent(evt);
+                } else if (el.fireEvent) {
+                    el.fireEvent('on' + type, evt);
+                }
+                return evt;
+            },
+
+            drag: function(el) {
+                var self = this, center = this.findCenter(this.target),
+                    options = this.options,	x = Math.floor(center.x), y = Math.floor(center.y),
+                    dx = options.dx || 0, dy = options.dy || 0, target = this.target;
+                var coord = { clientX: x, clientY: y };
+                this.simulateEvent(target, "mousedown", coord);
+                coord = { clientX: x + 1, clientY: y + 1 };
+                this.simulateEvent(document, "mousemove", coord);
+                coord = { clientX: x + dx, clientY: y + dy };
+                this.simulateEvent(document, "mousemove", coord);
+                this.simulateEvent(document, "mousemove", coord);
+                this.simulateEvent(target, "mouseup", coord);
+            },
+            findCenter: function(el) {
+                var el = $(this.target), o = el.offset();
+                return {
+                    x: o.left + el.outerWidth() / 2,
+                    y: o.top + el.outerHeight() / 2
+                };
+            }
+        });
+
+        $.extend($.simulate, {
+            defaults: {
+                speed: 'sync'
+            },
+            VK_TAB: 9,
+            VK_ENTER: 13,
+            VK_ESC: 27,
+            VK_PGUP: 33,
+            VK_PGDN: 34,
+            VK_END: 35,
+            VK_HOME: 36,
+            VK_LEFT: 37,
+            VK_UP: 38,
+            VK_RIGHT: 39,
+            VK_DOWN: 40
+        });
 
     })($);
 
