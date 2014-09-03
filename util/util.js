@@ -372,9 +372,9 @@ var sendFile = exports.sendFile = function(res, filePath, options, callback)
         res.setHeader("Content-Type", mimetype);
     }
 
-    console.log("SEND FILE:");
-    console.log(" -> filePath: " + filePath);
-    console.log(" -> root: " + (options ? options.root : ""));
+    //console.log("SEND FILE:");
+    //console.log(" -> filePath: " + filePath);
+    //console.log(" -> root: " + (options ? options.root : ""));
 
     res.sendFile(filePath, options, function(err) {
         callback(err);
