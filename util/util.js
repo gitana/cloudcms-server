@@ -461,19 +461,29 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
             var isInvalidToken = false;
             if (body)
             {
-                console.log("E0: " + body);
-                console.log("E0.1: " + JSON.stringify(body));
+                console.log("E0.hasBody");
                 try
                 {
-                    var json = JSON.parse(body);
-                    if (json && json.error == "invalid_token")
+                    var json = body;
+                    if (typeof(json) == "string")
                     {
+                        console.log("E0.1.parse body");
+
+                        // convert to json
+                        json = JSON.parse(json);
+                    }
+                    console.log("E0.333: " + json);
+                    console.log("E0.334: " + JSON.stringify(json));
+                    if (json.error == "invalid_token")
+                    {
+                        console.log("E0.2.markInvalidToken");
                         isInvalidToken = true;
                     }
                 }
                 catch (e)
                 {
-                    console.log("E1: " + JSON.stringify(e));
+                    console.log("E1.1: " + JSON.stringify(e));
+                    console.log("E1.2: " + e);
                 }
             }
             console.log("E2: " + isInvalidToken);
