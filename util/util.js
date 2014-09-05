@@ -405,15 +405,19 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
 
     var _retryHandler = function(gitana, config, currentAttempts, maxAttempts, previousError, cb)
     {
+        console.log("aaaaaaa1");
         logMethod("Heard invalid_token, attempting retry (" + currentAttempts + " / " + maxAttempts + ")");
 
         // tell gitana driver to refresh access token
         gitana.getDriver().refreshAuthentication(function(err) {
 
+            console.log("aaaaaaa2: " + JSON.stringify(err));
             if (err)
             {
                 logMethod("Failed to refresh access_token: " + JSON.stringify(err));
             }
+
+            console.log("aaaaaaa3");
 
             // try again with attempt count + 1
             _handler(gitana, config, currentAttempts + 1, maxAttempts, previousError, cb)
@@ -424,6 +428,7 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
     {
         if (currentAttempts === maxAttempts)
         {
+            console.log("b1toomany");
             cb({
                 "message": "Maximum number of connection attempts exceeded(" + maxAttempts + ")",
                 "err": previousError
@@ -456,6 +461,8 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
             var isInvalidToken = false;
             if (body)
             {
+                console.log("E0: " + body);
+                console.log("E0.1: " + JSON.stringify(body));
                 try
                 {
                     var json = JSON.parse(body);
@@ -466,8 +473,10 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
                 }
                 catch (e)
                 {
+                    console.log("E1: " + JSON.stringify(e));
                 }
             }
+            console.log("E2: " + isInvalidToken);
             if (isInvalidToken)
             {
                 // we go through the retry handler
