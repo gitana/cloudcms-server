@@ -4,6 +4,8 @@ var mkdirp = require('mkdirp');
 var temp = require('temp');
 var url = require('url');
 
+var os = require('os');
+
 var GITANA_DRIVER_CONFIG_CACHE = require("./cache/driverconfigs");
 
 /**
@@ -48,9 +50,43 @@ exports = module.exports = function()
     if (!process.env.GITANA_PROXY_SCHEME) {
         process.env.GITANA_PROXY_SCHEME = "https";
     }
-    if (!process.env.CLOUDCMS_HOSTS_PATH) {
-        process.env.CLOUDCMS_HOSTS_PATH = "/hosts";
+    if (!process.env.CLOUDCMS_HOSTS_PATH)
+    {
+        process.env.CLOUDCMS_HOSTS_PATH = path.join(os.tmpdir(), "/hosts");
     }
+
+    // make sure that the /hosts directory exists if it does not
+    if (!fs.existsSync(process.env.CLOUDCMS_HOSTS_PATH))
+    {
+        console.log("Creating hosts path: " + process.env.CLOUDCMS_HOSTS_PATH);
+    }
+
+    mkdirp(process.env.CLOUDCMS_HOSTS_PATH, function() {
+        handleMountHostsDirectory();
+    });
+
+    var handleMountHostsDirectory = function()
+    {
+        // if the hosts path doesn't exist, switch to temp path
+        if (!fs.existsSync(process.env.CLOUDCMS_HOSTS_PATH))
+        {
+            throw new Error("Cloud CMS hosts path does not exist: " + process.env.CLOUDCMS_HOSTS_PATH);
+        }
+
+        // test to make sure that the hosts directory can be written to
+        var testFilePath = path.join(process.env.CLOUDCMS_HOSTS_PATH, "test-" + new Date().getTime() + ".tmp");
+        try
+        {
+            fs.writeFileSync(testFilePath, "test");
+            fs.unlinkSync(testFilePath);
+        }
+        catch (e)
+        {
+            throw new Error("The hosts path: " + process.env.CLOUDCMS_HOSTS_PATH + " is not writable");
+        }
+
+        console.log("Mounting hosts path: " + process.env.CLOUDCMS_HOSTS_PATH);
+    };
 
     // this is the root path where hosts, their public files and content caches are stored
     var basePath = process.env.CLOUDCMS_HOSTS_PATH;
@@ -127,16 +163,6 @@ exports = module.exports = function()
         process.env.CLOUDCMS_APPSERVER_PACKAGE_VERSION = packageJson.version;
     }
 
-    // make sure that the /hosts directory exists if it does not
-    if (!fs.existsSync(process.env.CLOUDCMS_HOSTS_PATH))
-    {
-        console.log("Creating hosts path: " + process.env.CLOUDCMS_HOSTS_PATH);
-
-        mkdirp(process.env.CLOUDCMS_HOSTS_PATH, function() {
-            // all done
-        });
-    }
-    console.log("Mounting hosts path: " + process.env.CLOUDCMS_HOSTS_PATH);
 
     // object that we hand back
     var r = {};
@@ -148,7 +174,7 @@ exports = module.exports = function()
         }
 
         // bind cache
-        app.cache = cache;
+        app.cache = process.cache;
 
         app.use(function(req, res, next) {
 
