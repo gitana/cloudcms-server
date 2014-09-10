@@ -916,10 +916,13 @@ exports = module.exports = function(basePath)
 
                                 util.sendFile(res, filePath, function(err) {
 
-                                    // something went wrong while streaming the content back...
-                                    if (err) {
-                                        res.status(503);
-                                        res.send(err);
+                                    if (err)
+                                    {
+                                        console.log("ERR: " + err);
+                                        console.log("ERR: " + JSON.stringify(err));
+
+                                        // some kind of IO issue streaming back
+                                        try { res.status(503).send(err); } catch (e) { }
                                         res.end();
                                     }
 
@@ -1046,10 +1049,13 @@ exports = module.exports = function(basePath)
 
                                 util.sendFile(res, filePath, function(err) {
 
-                                    // something went wrong while streaming the content back...
-                                    if (err) {
-                                        res.status(503);
-                                        res.send(err);
+                                    if (err)
+                                    {
+                                        console.log("ERR: " + err);
+                                        console.log("ERR: " + JSON.stringify(err));
+
+                                        // some kind of IO issue streaming back
+                                        try { res.status(503).send(err); } catch (e) { }
                                         res.end();
                                     }
 
@@ -1262,10 +1268,13 @@ exports = module.exports = function(basePath)
 
                                 util.sendFile(res, filePath, function(err) {
 
-                                    // something went wrong while streaming the content back...
-                                    if (err) {
-                                        res.status(503);
-                                        res.send(err);
+                                    if (err)
+                                    {
+                                        console.log("ERR: " + err);
+                                        console.log("ERR: " + JSON.stringify(err));
+
+                                        // some kind of IO issue streaming back
+                                        try { res.status(503).send(err); } catch (e) { }
                                         res.end();
                                     }
 
@@ -1381,10 +1390,13 @@ exports = module.exports = function(basePath)
 
                                 util.sendFile(res, filePath, function(err) {
 
-                                    // something went wrong while streaming the content back...
-                                    if (err) {
-                                        res.status(503);
-                                        res.send(err);
+                                    if (err)
+                                    {
+                                        console.log("ERR: " + err);
+                                        console.log("ERR: " + JSON.stringify(err));
+
+                                        // some kind of IO issue streaming back
+                                        try { res.status(503).send(err); } catch (e) { }
                                         res.end();
                                     }
 

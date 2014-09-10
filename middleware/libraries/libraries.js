@@ -64,8 +64,11 @@ exports = module.exports = function(basePath)
 
                 if (err)
                 {
+                    console.log("ERR: " + err);
+                    console.log("ERR: " + JSON.stringify(err));
+
                     // some kind of IO issue streaming back
-                    res.send(503, err);
+                    try { res.status(503).send(err); } catch (e) { }
                     res.end();
                 }
 
