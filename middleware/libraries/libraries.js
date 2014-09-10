@@ -66,9 +66,8 @@ exports = module.exports = function(basePath)
                 {
                     // some kind of IO issue streaming back
                     res.send(503, err);
+                    res.end();
                 }
-
-                res.end();
 
             });
         };

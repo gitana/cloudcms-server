@@ -118,9 +118,13 @@ exports = module.exports = function(basePath)
                             "root": rootPath
                         }, function(err) {
 
-                            // some kind of IO issue streaming back
-                            res.status(503).send(err);
-                            res.end();
+                            if (err)
+                            {
+                                // some kind of IO issue streaming back
+                                res.status(503).send(err);
+                                res.end();
+                            }
+
                         });
                     }
                     else
