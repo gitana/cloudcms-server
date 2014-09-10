@@ -190,17 +190,21 @@ exports.gitCheckout = function(hostDirectoryPath, gitUrl, callback)
 
                         var copied = false;
 
-                        // if the temp folder has a "public" directory, copy all of its children into "public"
+                        // if the temp folder has a "public" directory...
+                        // and the "public" directory has "index.html",
+                        // then copy all of its children into "public"
                         var tempPublicDirectory = path.join(tempDirectoryPath, "public");
-                        if (fs.existsSync(tempPublicDirectory))
+                        if (fs.existsSync(tempPublicDirectory) && fs.existsSync(path.join(tempPublicDirectory, "index.html")))
                         {
                             copyChildrenToDirectory(tempPublicDirectory, publicDirectoryPath);
                             copied = true;
                         }
 
-                        // if the temp folder has a "public_build" directory, copy all of its children into "public_build"
+                        // if the temp folder has a "public_build" directory...
+                        // and the "public_build" directory has "index.html"
+                        // then copy all of its children into "public_build"
                         var tempPublicBuildDirectory = path.join(tempDirectoryPath, "public_build");
-                        if (fs.existsSync(tempPublicBuildDirectory))
+                        if (fs.existsSync(tempPublicBuildDirectory) && fs.existsSync(path.join(tempPublicBuildDirectory, "index.html")))
                         {
                             copyChildrenToDirectory(tempPublicBuildDirectory, publicBuildDirectoryPath);
                             copied = true;

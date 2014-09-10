@@ -200,7 +200,8 @@ exports = module.exports = function(basePath)
                     return res.redirect(failureUrl);
                 }
 
-                res.send(503, {
+                res.status(503);
+                res.send({
                     "ok": false,
                     "message": info.message
                 });
@@ -218,7 +219,8 @@ exports = module.exports = function(basePath)
                     return;
                 }
 
-                res.send(200, {
+                res.status(200);
+                res.send({
                     "ok": true,
                     "ticket": ticket,
                     "user": user
@@ -246,7 +248,8 @@ exports = module.exports = function(basePath)
             res.end();
         }
 
-        res.send(200, {
+        res.status(200);
+        res.send({
             "ok": true
         });
     };
@@ -486,7 +489,8 @@ exports = module.exports = function(basePath)
                         console.log("Cannot connect to Cloud CMS for config: " + configString + ", message: " + JSON.stringify(err));
 
                         // send back error
-                        res.status(err.status).send(err.output);
+                        res.status(err.status);
+                        res.send(err.output);
                         res.end();
                         return;
                     }
@@ -898,7 +902,8 @@ exports = module.exports = function(basePath)
 
                                     // something went wrong while streaming the content back...
                                     if (err) {
-                                        res.send(503, err);
+                                        res.status(503);
+                                        res.send(err);
                                         res.end();
                                     }
 
@@ -913,7 +918,8 @@ exports = module.exports = function(basePath)
 
                                     // something went wrong while streaming the content back...
                                     if (err) {
-                                        res.send(503, err);
+                                        res.status(503);
+                                        res.send(err);
                                         res.end();
                                     }
 
@@ -1026,7 +1032,8 @@ exports = module.exports = function(basePath)
 
                                     // something went wrong while streaming the content back...
                                     if (err) {
-                                        res.send(503, err);
+                                        res.status(503);
+                                        res.send(err);
                                         res.end();
                                     }
 
@@ -1041,7 +1048,8 @@ exports = module.exports = function(basePath)
 
                                     // something went wrong while streaming the content back...
                                     if (err) {
-                                        res.send(503, err);
+                                        res.status(503);
+                                        res.send(err);
                                         res.end();
                                     }
 
@@ -1240,7 +1248,8 @@ exports = module.exports = function(basePath)
 
                                     // something went wrong while streaming the content back...
                                     if (err) {
-                                        res.send(503, err);
+                                        res.status(503);
+                                        res.send(err);
                                         res.end();
                                     }
 
@@ -1255,7 +1264,8 @@ exports = module.exports = function(basePath)
 
                                     // something went wrong while streaming the content back...
                                     if (err) {
-                                        res.send(503, err);
+                                        res.status(503);
+                                        res.send(err);
                                         res.end();
                                     }
 
@@ -1357,7 +1367,8 @@ exports = module.exports = function(basePath)
 
                                     // something went wrong while streaming the content back...
                                     if (err) {
-                                        res.send(503, err);
+                                        res.status(503);
+                                        res.send(err);
                                         res.end();
                                     }
 
@@ -1372,7 +1383,8 @@ exports = module.exports = function(basePath)
 
                                     // something went wrong while streaming the content back...
                                     if (err) {
-                                        res.send(503, err);
+                                        res.status(503);
+                                        res.send(err);
                                         res.end();
                                     }
 
