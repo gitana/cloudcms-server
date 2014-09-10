@@ -62,7 +62,7 @@ exports = module.exports = function(basePath)
                     }
                 }
 
-                fs.exists(localDirectoryPath, function(exists) {
+                fs.exists(path.join(localDirectoryPath, uri), function(exists) {
 
                     if (exists)
                     {
