@@ -46,7 +46,19 @@ exports = module.exports = function(basePath)
             {
                 var publicPath = util.publicPath(req, storage);
 
-                res.sendfile(path.join(publicPath, "index.html"));
+                util.sendFile(res, path.join(publicPath, "index.html"), function(err) {
+
+                    if (err)
+                    {
+                        console.log("ERR12: " + err);
+                        console.log("ERR12: " + JSON.stringify(err));
+
+                        // some kind of IO issue streaming back
+                        try { res.status(503).send(err); } catch (e) { }
+                        res.end();
+                    }
+
+                });
             }
             else
             {

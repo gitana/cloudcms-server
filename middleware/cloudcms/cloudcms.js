@@ -918,12 +918,12 @@ exports = module.exports = function(basePath)
 
                                     if (err)
                                     {
-                                        console.log("ERR: " + err);
-                                        console.log("ERR: " + JSON.stringify(err));
+                                        console.log("ERR1: " + err);
+                                        console.log("ERR1: " + JSON.stringify(err));
 
                                         // some kind of IO issue streaming back
-                                        //try { res.status(503).send(err); } catch (e) { }
-                                        //res.end();
+                                        try { res.status(503).send(err); } catch (e) { }
+                                        res.end();
                                     }
 
                                 });
@@ -1051,12 +1051,12 @@ exports = module.exports = function(basePath)
 
                                     if (err)
                                     {
-                                        console.log("ERR: " + err);
-                                        console.log("ERR: " + JSON.stringify(err));
+                                        console.log("ERR2: " + err);
+                                        console.log("ERR2: " + JSON.stringify(err));
 
                                         // some kind of IO issue streaming back
-                                        //try { res.status(503).send(err); } catch (e) { }
-                                        //res.end();
+                                        try { res.status(503).send(err); } catch (e) { }
+                                        res.end();
                                     }
 
                                 });
@@ -1270,12 +1270,12 @@ exports = module.exports = function(basePath)
 
                                     if (err)
                                     {
-                                        console.log("ERR: " + err);
-                                        console.log("ERR: " + JSON.stringify(err));
+                                        console.log("ERR3: " + err);
+                                        console.log("ERR3: " + JSON.stringify(err));
 
                                         // some kind of IO issue streaming back
-                                        //try { res.status(503).send(err); } catch (e) { }
-                                        //res.end();
+                                        try { res.status(503).send(err); } catch (e) { }
+                                        res.end();
                                     }
 
                                 });
@@ -1392,12 +1392,12 @@ exports = module.exports = function(basePath)
 
                                     if (err)
                                     {
-                                        console.log("ERR: " + err);
-                                        console.log("ERR: " + JSON.stringify(err));
+                                        console.log("ERR4: " + err);
+                                        console.log("ERR4: " + JSON.stringify(err));
 
                                         // some kind of IO issue streaming back
-                                        //try { res.status(503).send(err); } catch (e) { }
-                                        //res.end();
+                                        try { res.status(503).send(err); } catch (e) { }
+                                        res.end();
                                     }
 
                                 });
