@@ -68,8 +68,8 @@ exports = module.exports = function(basePath)
                     console.log("ERR: " + JSON.stringify(err));
 
                     // some kind of IO issue streaming back
-                    try { res.status(503).send(err); } catch (e) { }
-                    res.end();
+                    //try { res.status(503).send(err); } catch (e) { }
+                    //res.end();
                 }
 
             });
