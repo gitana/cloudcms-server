@@ -24,7 +24,7 @@
     /* CommonJS */
     if (typeof exports == 'object') {
         var $ = require("jquery");
-        var io = require("socket");
+        var io = require("socket.io");
         module.exports = factory($, io);
     }
 
@@ -265,7 +265,23 @@
     // the dispatcher which uses socket.io to fire messages over to server and listen for special events
     var Dispatcher = function() {
 
-        var socket = io();
+        /*
+         reconnection whether to reconnect automatically (true)
+         reconnectionDelay how long to wait before attempting a new reconnection (1000)
+         reconnectionDelayMax maximum amount of time to wait between reconnections (5000). Each attempt increases the reconnection by the amount specified by reconnectionDelay.
+         timeout connection timeout before a connect_error and connect_timeout events are emitted (20000)
+         autoConnect by setting this false, you have to call manager.open whenever you decide it's appropriate
+         */
+        var socket = io({
+            reconnection: true,
+            reconnectionDelay: 50,
+            reconnectionDelayMax: 200,
+            timeout: 1000,
+            autoConnect: true
+        });
+        socket.on("reconnect", function() {
+            //alert("RECONNECT");
+        });
 
         var QUEUE = [];
         var BUSY = false;
