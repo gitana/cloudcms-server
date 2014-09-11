@@ -49,6 +49,23 @@ var populateContext = function(req, context, model, templateFilePath)
         "email": "user@email.com"
     };
 
+    // populate request information
+    var qs = {};
+    if (req.query)
+    {
+        for (var name in req.query)
+        {
+            var value = req.query[name];
+            if (value)
+            {
+                qs[name] = value;
+            }
+        }
+    }
+    context.request = {
+        qs: qs
+    };
+
     context.gitana = req.gitana;
     context.templateFilePaths = [templateFilePath];
     context.req = req;
