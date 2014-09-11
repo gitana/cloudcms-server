@@ -355,9 +355,9 @@ var sendFile = exports.sendFile = function(res, filePath, options, callback)
         options = {};
     }
 
-    if (!options.root) {
-        options.root = "/";
-    }
+    //if (!options.root) {
+    //    options.root = "/";
+    //}
 
     var mimetype = null;
 

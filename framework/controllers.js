@@ -183,7 +183,7 @@ var handleInfo = function(req, res)
     });
 };
 
-exports.init = function(app)
+exports.init = function(app, callback)
 {
     /**
      * Registers a user.
@@ -270,6 +270,8 @@ exports.init = function(app)
         res.send("memwatch not active");
     });
     */
+
+    callback();
 };
 
 exports.onInvalidate = function(fn)

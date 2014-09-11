@@ -172,6 +172,35 @@ var after = exports.after = function(fn)
     SETTINGS.afterFunctions.push(fn);
 };
 
+/*******************************************************************************************************/
+/*******************************************************************************************************/
+/*******************************************************************************************************/
+
+var runFunctions = function(functions, args, callback) {
+
+    // skip out early if nothing to do
+    if (!functions || functions.length === 0) {
+        callback();
+        return;
+    }
+
+    async.series(functions, args, function(err) {
+
+        if (err) {
+            console.log(err);
+            throw new Error(err);
+        }
+
+        callback(err);
+    });
+};
+
+
+
+/*******************************************************************************************************/
+/*******************************************************************************************************/
+/*******************************************************************************************************/
+
 /**
  * Starts the Cloud CMS server.
  *
@@ -457,152 +486,133 @@ exports.start = function(overrides, callback)
         //app.use(app.router);
         app.use(errorHandler());
 
-        // CUSTOM ROUTES
-        for (var i = 0; i < config.routeFunctions.length; i++)
-        {
-            config.routeFunctions[i](app, config);
-        }
+        // APPLY CUSTOM ROUTES
+        runFunctions(config.routeFunctions, [app], function(err) {
 
-        // configure cloudcms app server handlers
-        main.handlers(app, true, config);
-    }
+            // configure cloudcms app server handlers
+            main.handlers(app, true, config);
 
-
-
-    ////////////////////////////////////////////////////////////////////////////
-    //
-    // CUSTOM EXPRESS APP CONFIGURE METHODS
-    //
-    ////////////////////////////////////////////////////////////////////////////
-    for (var env in config.configureFunctions)
-    {
-        var functions = config.configureFunctions[env];
-        if (functions)
-        {
-            for (var i = 0; i < functions.length; i++)
+            // APPLY CUSTOM CONFIGURE FUNCTIONS
+            var allConfigureFunctions = [];
+            for (var env in config.configureFunctions)
             {
-                functions[i](app);
-            }
-        }
-    }
-
-
-
-
-
-    ////////////////////////////////////////////////////////////////////////////
-    //
-    // INITIALIZE THE SERVER
-    //
-    ////////////////////////////////////////////////////////////////////////////
-
-    // CORE OBJECTS
-    var server = http.createServer(app);
-    server.setTimeout(30000); // 30 seconds
-    server.on("connection", function(socket) {
-        socket.setNoDelay(true);
-    });
-    var io = require("socket.io").listen(server);
-    process.IO = io;
-
-    // SET INITIAL VALUE FOR SERVER TIMESTAMP
-    process.env.CLOUDCMS_APPSERVER_TIMESTAMP = new Date().getTime();
-
-    // BEFORE SERVER START
-    async.series(config.beforeFunctions, [app], function(err) {
-
-        // START THE APPLICATION SERVER
-        server.listen(app.get('port'), function(){
-
-            // AFTER SERVER START
-            async.series(config.afterFunctions, [app], function(err) {
-
-                // show standard info
-                var url = "http://localhost:" + app.get('port') + "/";
-
-                console.log(config.name + " started");
-                console.log(" -> visit: " + url);
-                console.log("");
-
-                if (callback)
+                var functions = config.configureFunctions[env];
+                if (functions)
                 {
-                    callback(app);
+                    for (var i = 0; i < functions.length; i++)
+                    {
+                        allConfigureFunctions.push(functions[i]);
+                    }
                 }
+            }
+            runFunctions(allConfigureFunctions, [app], function(err) {
 
+                ////////////////////////////////////////////////////////////////////////////
+                //
+                // INITIALIZE THE SERVER
+                //
+                ////////////////////////////////////////////////////////////////////////////
+
+                // CORE OBJECTS
+                var server = http.createServer(app);
+                server.setTimeout(30000); // 30 seconds
+                server.on("connection", function(socket) {
+                    socket.setNoDelay(true);
+                });
+                var io = require("socket.io").listen(server);
+                process.IO = io;
+
+                // SET INITIAL VALUE FOR SERVER TIMESTAMP
+                process.env.CLOUDCMS_APPSERVER_TIMESTAMP = new Date().getTime();
+
+                // APPLY SERVER BEFORE START FUNCTIONS
+                runFunctions(config.beforeFunctions, [app], function(err) {
+
+                    // START THE APPLICATION SERVER
+                    server.listen(app.get('port'), function(){
+
+                        // INIT SOCKET.IO
+                        if (config.socketTransports && config.socketTransports.length > 0)
+                        {
+                            process.IO.set('transports', config.socketTransports);
+                        }
+                        io.sockets.on("connection", function(socket) {
+
+                            // attach _log function
+                            if (!socket._log)
+                            {
+                                socket._log = function(text)
+                                {
+                                    var host = socket.host;
+
+                                    var d = new Date();
+                                    var dateString = d.toDateString();
+                                    var timeString = d.toTimeString();
+
+                                    // gray color
+                                    var grayColor = "\x1b[90m";
+
+                                    // final color
+                                    var finalColor = "\x1b[0m";
+
+                                    if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
+                                    {
+                                        grayColor = "";
+                                        finalColor = "";
+                                    }
+
+                                    var message = '';
+                                    message += grayColor + '<socket> ';
+                                    message += grayColor + '[' + dateString + ' ' + timeString + '] ';
+                                    message += grayColor + host + ' ';
+                                    message += grayColor + text + '';
+                                    message += finalColor;
+
+                                    console.log(message);
+                                };
+                            }
+                            socket.on("connect", function() {
+                                //console.log("SOCKET.IO HEARD CONNECT");
+                            });
+                            socket.on("disconnect", function() {
+                                //console.log("SOCKET.IO HEARD DISCONNECT");
+                            });
+
+                            // APLY CUSTOM SOCKET.IO CONFIG
+                            runFunctions(config.socketFunctions, [socket], function(err) {
+
+                                // INSIGHT SERVER
+                                if (config.insight && config.insight.enabled)
+                                {
+                                    require("../insight/insight").init(socket, function() {
+                                        // nothing to do
+                                    });
+                                }
+
+                            });
+                        });
+
+                        // AFTER SERVER START
+                        runFunctions(config.afterFunctions, [app], function(err) {
+
+                            // show standard info
+                            var url = "http://localhost:" + app.get('port') + "/";
+
+                            console.log(config.name + " started");
+                            console.log(" -> visit: " + url);
+                            console.log("");
+
+                            if (callback)
+                            {
+                                callback(app);
+                            }
+                        });
+
+                    });
+                });
             });
         });
-
-    });
-
-
-    // INIT SOCKET.IO
-    //io.set('log level', 1);
-    if (config.socketTransports && config.socketTransports.length > 0)
-    {
-        process.IO.set('transports', config.socketTransports);
     }
-    /*
-    if (config.socketLogLevel) {
-        io.set('log level', config.socketLogLevel);
-    }
-    */
-    io.sockets.on("connection", function(socket) {
-
-        // attach _log function
-        if (!socket._log)
-        {
-            socket._log = function(text)
-            {
-                var host = socket.host;
-
-                var d = new Date();
-                var dateString = d.toDateString();
-                var timeString = d.toTimeString();
-
-                // gray color
-                var grayColor = "\x1b[90m";
-
-                // final color
-                var finalColor = "\x1b[0m";
-
-                if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
-                {
-                    grayColor = "";
-                    finalColor = "";
-                }
-
-                var message = '';
-                message += grayColor + '<socket> ';
-                message += grayColor + '[' + dateString + ' ' + timeString + '] ';
-                message += grayColor + host + ' ';
-                message += grayColor + text + '';
-                message += finalColor;
-
-                console.log(message);
-            };
-        }
-
-        socket.on("connect", function() {
-            //console.log("SOCKET.IO HEARD CONNECT");
-        });
-
-        socket.on("disconnect", function() {
-            //console.log("SOCKET.IO HEARD DISCONNECT");
-        });
-
-        // CUSTOM CONFIGURE SOCKET.IO
-        for (var i = 0; i < config.socketFunctions.length; i++)
-        {
-            config.socketFunctions[i](socket);
-        }
-
-        // INSIGHT SERVER
-        if (config.insight && config.insight.enabled)
-        {
-            require("../insight/insight").init(socket);
-        }
-
-    });
 };
 
 

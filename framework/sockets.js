@@ -7,7 +7,7 @@ var SocketUtil = require("../util/socket");
 
 var exports = module.exports;
 
-exports.init = function(socket)
+exports.init = function(socket, callback)
 {
     // on first connect, announce the server timestamp
     socket.emit("timestamp", {
@@ -24,6 +24,8 @@ exports.init = function(socket)
         {
             //socket._log("Successfully called bindGitana for socket");
         }
+
+        callback();
     });
 };
 

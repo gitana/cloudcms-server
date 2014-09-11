@@ -12,7 +12,7 @@ var exports = module.exports;
 
 var firstConnection = true;
 
-exports.init = function(socket)
+exports.init = function(socket, callback)
 {
     // listen for pushes from the client
     socket.on("insight-push", function(data) {
@@ -55,6 +55,8 @@ exports.init = function(socket)
             }
         }
     });
+
+    callback();
 };
 
 /**

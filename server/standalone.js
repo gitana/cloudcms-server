@@ -8,15 +8,19 @@ var exports = module.exports;
 /**
  * Default route handlers
  */
-server.routes(function(app) {
-    frameworkControllers.init(app);
+server.routes(function(app, callback) {
+    frameworkControllers.init(app, function() {
+        callback();
+    });
 });
 
 /**
  * Default socket handlers
  */
-server.sockets(function(socket) {
-    frameworkSockets.init(socket);
+server.sockets(function(socket, callback) {
+    frameworkSockets.init(socket, function() {
+        callback();
+    });
 });
 
 /**
