@@ -613,10 +613,10 @@
                                 event.preventDefault();
                                 event.stopImmediatePropagation();
 
-                                // capture the interaction
-                                captureInteraction(event, function(err) {
+                                window.setTimeout(function() {
 
-                                    window.setTimeout(function() {
+                                    // capture the interaction
+                                    captureInteraction(event, function(err) {
 
                                         // mark as flushed
                                         $(eventEl).attr("data-insight-flushed", "flushed");
@@ -627,9 +627,9 @@
                                             $(event.originalEvent.target).simulate(event.originalEvent.type);
                                         }
 
-                                    }, 250);
+                                    });
 
-                                });
+                                }, 0);
                             }
                             else
                             {
