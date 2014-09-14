@@ -668,10 +668,10 @@
                                 event.preventDefault();
                                 event.stopImmediatePropagation();
 
-                                window.setTimeout(function() {
+                                // capture the interaction
+                                captureInteraction(event, function(err) {
 
-                                    // capture the interaction
-                                    captureInteraction(event, function(err) {
+                                    window.setTimeout(function() {
 
                                         // mark as flushed
                                         $(eventEl).attr("data-insight-flushed", "flushed");
@@ -689,9 +689,12 @@
                                             }
                                         }
 
-                                    });
+                                    }, 250);
+                                    // NOTE: this 250 ms delay is needed for web hosted version where when they click on a tel: link
+                                    // something about it blocks or interrupts socket.io from completing it's communication to the
+                                    // back end server.  this additional delay allows socket.io to complete first
 
-                                }, 0);
+                                });
                             }
                             else
                             {

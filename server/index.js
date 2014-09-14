@@ -523,7 +523,8 @@ exports.start = function(overrides, callback)
                 var io = require("socket.io")(server);
                 process.IO = io;
                 //io.set('transports', ['xhr-polling']);
-                io.set('transports', ['websocket',
+                io.set('transports', [
+                    //'websocket',
                     'flashsocket',
                     'htmlfile',
                     'xhr-polling',
