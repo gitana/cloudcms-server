@@ -522,6 +522,73 @@ exports.start = function(overrides, callback)
                 //var io = require("socket.io").listen(server);
                 var io = require("socket.io")(server);
                 process.IO = io;
+                //io.set('transports', ['xhr-polling']);
+                io.set('transports', ['websocket',
+                    'flashsocket',
+                    'htmlfile',
+                    'xhr-polling',
+                    'jsonp-polling',
+                    'polling']);
+                io.use(function(socket, next) {
+
+                    console.log("Socket Init");
+
+                    // attach _log function
+                    socket._log = function(text)
+                    {
+                        var host = socket.host;
+
+                        var d = new Date();
+                        var dateString = d.toDateString();
+                        var timeString = d.toTimeString();
+
+                        // gray color
+                        var grayColor = "\x1b[90m";
+
+                        // final color
+                        var finalColor = "\x1b[0m";
+
+                        if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
+                        {
+                            grayColor = "";
+                            finalColor = "";
+                        }
+
+                        var message = '';
+                        message += grayColor + '<socket> ';
+                        message += grayColor + '[' + dateString + ' ' + timeString + '] ';
+                        message += grayColor + host + ' ';
+                        message += grayColor + text + '';
+                        message += finalColor;
+
+                        console.log(message);
+                    };
+                    socket.on("connect", function() {
+                        console.log("SOCKET.IO HEARD CONNECT");
+                    });
+                    socket.on("disconnect", function() {
+                        console.log("SOCKET.IO HEARD DISCONNECT");
+                    });
+
+                    // APPLY CUSTOM SOCKET.IO CONFIG
+                    runFunctions(config.socketFunctions, [socket], function(err) {
+
+                        // INSIGHT SERVER
+                        if (config.insight && config.insight.enabled)
+                        {
+                            console.log("Init Insight to Socket");
+
+                            require("../insight/insight").init(socket, function() {
+                                next();
+                            });
+                        }
+                        else
+                        {
+                            next();
+                        }
+                    });
+
+                });
 
                 // SET INITIAL VALUE FOR SERVER TIMESTAMP
                 process.env.CLOUDCMS_APPSERVER_TIMESTAMP = new Date().getTime();
@@ -531,73 +598,6 @@ exports.start = function(overrides, callback)
 
                     // START THE APPLICATION SERVER
                     server.listen(app.get('port'));
-
-                    // INIT SOCKET.IO
-                    /*
-                    if (config.socketTransports && config.socketTransports.length > 0)
-                    {
-                        process.IO.set('transports', config.socketTransports);
-                    }
-                    */
-                    io.on("connection", function(socket) {
-
-                        console.log("Heard socket connection");
-
-                        // attach _log function
-                        if (!socket._log)
-                        {
-                            socket._log = function(text)
-                            {
-                                var host = socket.host;
-
-                                var d = new Date();
-                                var dateString = d.toDateString();
-                                var timeString = d.toTimeString();
-
-                                // gray color
-                                var grayColor = "\x1b[90m";
-
-                                // final color
-                                var finalColor = "\x1b[0m";
-
-                                if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
-                                {
-                                    grayColor = "";
-                                    finalColor = "";
-                                }
-
-                                var message = '';
-                                message += grayColor + '<socket> ';
-                                message += grayColor + '[' + dateString + ' ' + timeString + '] ';
-                                message += grayColor + host + ' ';
-                                message += grayColor + text + '';
-                                message += finalColor;
-
-                                console.log(message);
-                            };
-                        }
-                        socket.on("connect", function() {
-                            console.log("SOCKET.IO HEARD CONNECT");
-                        });
-                        socket.on("disconnect", function() {
-                            console.log("SOCKET.IO HEARD DISCONNECT");
-                        });
-
-                        // APPLY CUSTOM SOCKET.IO CONFIG
-                        runFunctions(config.socketFunctions, [socket], function(err) {
-
-                            // INSIGHT SERVER
-                            if (config.insight && config.insight.enabled)
-                            {
-                                console.log("Init Insight to Socket");
-
-                                require("../insight/insight").init(socket, function() {
-                                    // nothing to do
-                                });
-                            }
-
-                        });
-                    });
 
                     // AFTER SERVER START
                     runFunctions(config.afterFunctions, [app], function(err) {

@@ -265,51 +265,78 @@
     // the dispatcher which uses socket.io to fire messages over to server and listen for special events
     var Dispatcher = function() {
 
-        /*
-         reconnection whether to reconnect automatically (true)
-         reconnectionDelay how long to wait before attempting a new reconnection (1000)
-         reconnectionDelayMax maximum amount of time to wait between reconnections (5000). Each attempt increases the reconnection by the amount specified by reconnectionDelay.
-         timeout connection timeout before a connect_error and connect_timeout events are emitted (20000)
-         autoConnect by setting this false, you have to call manager.open whenever you decide it's appropriate
-         */
-        /*
-        var socket = io({
-            reconnection: true,
-            reconnectionDelay: 50,
-            reconnectionDelayMax: 200,
-            timeout: 20000,
-            autoConnect: true
-        });
-        */
-        var socket = io();
-        socket.on("connect", function() {
-            console.log("socket.io - connect");
-        });
-        socket.on("connect_error", function(err) {
-            console.log("socket.io - connect_error");
-            console.log(err);
-        });
-        socket.on("connect_timeout", function() {
-            console.log("socket.io - connect_timeout");
-        });
-        socket.on("reconnect", function(n) {
-            console.log("socket.io - reconnect");
-            console.log(n);
-        });
-        socket.on("reconnect_attempt", function() {
-            console.log("socket.io - reconnect_attempt");
-        });
-        socket.on("reconnecting", function(n) {
-            console.log("socket.io - reconnecting");
-            console.log(n);
-        });
-        socket.on("reconnect_error", function(err) {
-            console.log("socket.io - reconnect_error");
-            console.log(err);
-        });
-        socket.on("reconnect_failed", function() {
-            console.log("socket.io - reconnect_failed");
-        });
+        var createSocket = function()
+        {
+            /*
+             reconnection whether to reconnect automatically (true)
+             reconnectionDelay how long to wait before attempting a new reconnection (1000)
+             reconnectionDelayMax maximum amount of time to wait between reconnections (5000). Each attempt increases the reconnection by the amount specified by reconnectionDelay.
+             timeout connection timeout before a connect_error and connect_timeout events are emitted (20000)
+             autoConnect by setting this false, you have to call manager.open whenever you decide it's appropriate
+             */
+            /*
+             var socket = io({
+             reconnection: true,
+             reconnectionDelay: 50,
+             reconnectionDelayMax: 200,
+             timeout: 20000,
+             autoConnect: true
+             });
+             */
+
+            var socket = io({
+                forceNew: true
+            });
+            socket.on("connect", function() {
+                console.log("socket.io - connect");
+            });
+            socket.on("error", function() {
+                console.log("heard socket.error");
+            });
+            socket.on("connect_error", function(err) {
+                console.log("socket.io - connect_error");
+                console.log(err);
+            });
+            socket.on("connect_timeout", function() {
+                console.log("socket.io - connect_timeout");
+            });
+            socket.on("reconnect", function(n) {
+                console.log("socket.io - reconnect");
+                console.log(n);
+            });
+            socket.on("reconnect_attempt", function() {
+                console.log("socket.io - reconnect_attempt");
+            });
+            socket.on("reconnecting", function(n) {
+                console.log("socket.io - reconnecting");
+                console.log(n);
+            });
+            socket.on("reconnect_error", function(err) {
+                console.log("socket.io - reconnect_error");
+                console.log(err);
+            });
+            socket.on("reconnect_failed", function() {
+                console.log("socket.io - reconnect_failed");
+            });
+
+            return socket;
+        };
+
+        var sendMessage = function()
+        {
+            var socket = null;
+
+            return function(event, data)
+            {
+                if (!socket)
+                {
+                    console.log("Creating first socket");
+                    socket = createSocket();
+                }
+
+                socket.emit(event, data);
+            }
+        }();
 
         var QUEUE = [];
         var BUSY = false;
@@ -342,7 +369,7 @@
                     console.log("Insight sending " + data.rows.length + " rows");
 
                     // send via socket.io
-                    socket.emit("insight-push", data);
+                    sendMessage("insight-push", data);
 
                     // strip down the queue
                     QUEUE = QUEUE.slice(queueLength);
@@ -652,7 +679,14 @@
                                         // fire event again
                                         if (event.originalEvent && event.originalEvent.target && event.originalEvent.type)
                                         {
-                                            $(event.originalEvent.target).simulate(event.originalEvent.type);
+                                            try
+                                            {
+                                                $(event.originalEvent.target).simulate(event.originalEvent.type);
+                                            }
+                                            catch (e)
+                                            {
+                                                console.log(e);
+                                            }
                                         }
 
                                     });
