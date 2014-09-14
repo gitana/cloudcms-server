@@ -272,15 +272,43 @@
          timeout connection timeout before a connect_error and connect_timeout events are emitted (20000)
          autoConnect by setting this false, you have to call manager.open whenever you decide it's appropriate
          */
+        /*
         var socket = io({
             reconnection: true,
             reconnectionDelay: 50,
             reconnectionDelayMax: 200,
-            timeout: 1000,
+            timeout: 20000,
             autoConnect: true
         });
-        socket.on("reconnect", function() {
-            //alert("RECONNECT");
+        */
+        var socket = io();
+        socket.on("connect", function() {
+            console.log("socket.io - connect");
+        });
+        socket.on("connect_error", function(err) {
+            console.log("socket.io - connect_error");
+            console.log(err);
+        });
+        socket.on("connect_timeout", function() {
+            console.log("socket.io - connect_timeout");
+        });
+        socket.on("reconnect", function(n) {
+            console.log("socket.io - reconnect");
+            console.log(n);
+        });
+        socket.on("reconnect_attempt", function() {
+            console.log("socket.io - reconnect_attempt");
+        });
+        socket.on("reconnecting", function(n) {
+            console.log("socket.io - reconnecting");
+            console.log(n);
+        });
+        socket.on("reconnect_error", function(err) {
+            console.log("socket.io - reconnect_error");
+            console.log(err);
+        });
+        socket.on("reconnect_failed", function() {
+            console.log("socket.io - reconnect_failed");
         });
 
         var QUEUE = [];

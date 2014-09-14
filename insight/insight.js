@@ -10,12 +10,12 @@ var util = require("../util/util");
  */
 var exports = module.exports;
 
-var firstConnection = true;
-
 exports.init = function(socket, callback)
 {
     // listen for pushes from the client
     socket.on("insight-push", function(data) {
+
+        console.log("Heard request for insight-push: " + data.rows.length);
 
         if (process.configuration && process.configuration.insight && process.configuration.insight.enabled)
         {
@@ -23,28 +23,9 @@ exports.init = function(socket, callback)
             {
                 handleInsightPush(socket, data, function(err) {
 
-                    if (err && firstConnection)
+                    if (err)
                     {
-                        socket._log("Socket initialization - will retry insight-push in 10 seconds");
-
-                        // give it another shot in 10 seconds
-                        window.setTimeout(function() {
-                            handleInsightPush(socket, data, function(err) {
-                                if (!err)
-                                {
-                                    socket._log("Event: insight-push, interactions: " + data.rows.length);
-                                }
-                                else
-                                {
-                                    socket._log("Error: " + JSON.stringify(err));
-                                }
-                            });
-                            firstConnection = false;
-                        }, 10000);
-                    }
-                    else if (err)
-                    {
-                        socket._log("Error: " + JSON.stringify(err));
+                        socket._log("Event: insight-push, failed: " + JSON.stringify(err));
                     }
                     else
                     {
@@ -99,7 +80,7 @@ var handleInsightPush = function(socket, data, callback)
     var ip = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address.address;
     var host = socket.handshake.headers['x-forwarded-host'] || socket.handshake.headers.host;
 
-    // tag all rows with the "applicationKey"
+    // tag all rows with the "applicationKey" + ip + host
     for (var i = 0; i < data.rows.length; i++)
     {
         data.rows[i].appKey = gitana.application().getId();
@@ -120,10 +101,14 @@ var handleInsightPush = function(socket, data, callback)
         "json": data
     };
 
+    console.log("Push URL: " + URL);
+
     util.retryGitanaRequest(socket._log, gitana, requestConfig, 2, function(err, response, body) {
 
         if (response && response.statusCode == 200 && body)
         {
+            console.log("Push Success");
+
             // success
             callback();
         }
@@ -132,6 +117,7 @@ var handleInsightPush = function(socket, data, callback)
             if (err)
             {
                 // an HTTP error
+                console.log("PUSH ERROR: " + JSON.stringify(err));
                 socket._log("Response error: " + JSON.stringify(err));
 
                 callback(err);
@@ -144,6 +130,8 @@ var handleInsightPush = function(socket, data, callback)
                 // some kind of operational error
                 socket._log("Operational error");
                 socket._log(JSON.stringify(body));
+
+                console.log("PUSH OP ERROR: " + JSON.stringify(err));
 
                 callback({
                     "message": body.error

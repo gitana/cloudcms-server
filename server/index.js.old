@@ -514,13 +514,12 @@ exports.start = function(overrides, callback)
                 ////////////////////////////////////////////////////////////////////////////
 
                 // CORE OBJECTS
-                var server = http.Server(app);
+                var server = http.createServer(app);
                 server.setTimeout(30000); // 30 seconds
                 server.on("connection", function(socket) {
                     socket.setNoDelay(true);
                 });
-                //var io = require("socket.io").listen(server);
-                var io = require("socket.io")(server);
+                var io = require("socket.io").listen(server);
                 process.IO = io;
 
                 // SET INITIAL VALUE FOR SERVER TIMESTAMP
@@ -530,91 +529,86 @@ exports.start = function(overrides, callback)
                 runFunctions(config.beforeFunctions, [app], function(err) {
 
                     // START THE APPLICATION SERVER
-                    server.listen(app.get('port'));
+                    server.listen(app.get('port'), function(){
 
-                    // INIT SOCKET.IO
-                    /*
-                    if (config.socketTransports && config.socketTransports.length > 0)
-                    {
-                        process.IO.set('transports', config.socketTransports);
-                    }
-                    */
-                    io.on("connection", function(socket) {
-
-                        console.log("Heard socket connection");
-
-                        // attach _log function
-                        if (!socket._log)
+                        // INIT SOCKET.IO
+                        if (config.socketTransports && config.socketTransports.length > 0)
                         {
-                            socket._log = function(text)
+                            process.IO.set('transports', config.socketTransports);
+                        }
+                        io.sockets.on("connection", function(socket) {
+
+                            // attach _log function
+                            if (!socket._log)
                             {
-                                var host = socket.host;
-
-                                var d = new Date();
-                                var dateString = d.toDateString();
-                                var timeString = d.toTimeString();
-
-                                // gray color
-                                var grayColor = "\x1b[90m";
-
-                                // final color
-                                var finalColor = "\x1b[0m";
-
-                                if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
+                                socket._log = function(text)
                                 {
-                                    grayColor = "";
-                                    finalColor = "";
+                                    var host = socket.host;
+
+                                    var d = new Date();
+                                    var dateString = d.toDateString();
+                                    var timeString = d.toTimeString();
+
+                                    // gray color
+                                    var grayColor = "\x1b[90m";
+
+                                    // final color
+                                    var finalColor = "\x1b[0m";
+
+                                    if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
+                                    {
+                                        grayColor = "";
+                                        finalColor = "";
+                                    }
+
+                                    var message = '';
+                                    message += grayColor + '<socket> ';
+                                    message += grayColor + '[' + dateString + ' ' + timeString + '] ';
+                                    message += grayColor + host + ' ';
+                                    message += grayColor + text + '';
+                                    message += finalColor;
+
+                                    console.log(message);
+                                };
+                            }
+                            socket.on("connect", function() {
+                                //console.log("SOCKET.IO HEARD CONNECT");
+                            });
+                            socket.on("disconnect", function() {
+                                //console.log("SOCKET.IO HEARD DISCONNECT");
+                            });
+
+                            // APLY CUSTOM SOCKET.IO CONFIG
+                            runFunctions(config.socketFunctions, [socket], function(err) {
+
+                                // INSIGHT SERVER
+                                if (config.insight && config.insight.enabled)
+                                {
+                                    require("../insight/insight").init(socket, function() {
+                                        // nothing to do
+                                    });
                                 }
 
-                                var message = '';
-                                message += grayColor + '<socket> ';
-                                message += grayColor + '[' + dateString + ' ' + timeString + '] ';
-                                message += grayColor + host + ' ';
-                                message += grayColor + text + '';
-                                message += finalColor;
-
-                                console.log(message);
-                            };
-                        }
-                        socket.on("connect", function() {
-                            console.log("SOCKET.IO HEARD CONNECT");
-                        });
-                        socket.on("disconnect", function() {
-                            console.log("SOCKET.IO HEARD DISCONNECT");
+                            });
                         });
 
-                        // APPLY CUSTOM SOCKET.IO CONFIG
-                        runFunctions(config.socketFunctions, [socket], function(err) {
+                        // AFTER SERVER START
+                        runFunctions(config.afterFunctions, [app], function(err) {
 
-                            // INSIGHT SERVER
-                            if (config.insight && config.insight.enabled)
+                            // show standard info
+                            var url = "http://localhost:" + app.get('port') + "/";
+
+                            console.log(config.name + " started");
+                            console.log(" -> visit: " + url);
+                            console.log("");
+
+                            if (callback)
                             {
-                                console.log("Init Insight to Socket");
-
-                                require("../insight/insight").init(socket, function() {
-                                    // nothing to do
-                                });
+                                callback(app);
                             }
-
                         });
+
                     });
-
-                    // AFTER SERVER START
-                    runFunctions(config.afterFunctions, [app], function(err) {
-
-                        // show standard info
-                        var url = "http://localhost:" + app.get('port') + "/";
-
-                        console.log(config.name + " started");
-                        console.log(" -> visit: " + url);
-                        console.log("");
-
-                        if (callback)
-                        {
-                            callback(app);
-                        }
-                    });
-
                 });
             });
         });
