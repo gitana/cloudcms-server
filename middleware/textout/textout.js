@@ -92,6 +92,20 @@ exports = module.exports = function(basePath)
                 fullFilePath = path.join(options.root, fullFilePath);
             }
 
+            // read the file
+            var text = fs.readFileSync(fullFilePath);
+            if (!text)
+            {
+                _sendFile.call(res, filePath, options, fn);
+                return;
+            }
+            text = text.toString();
+            var z = text.indexOf("{@query");
+            if (z === -1)
+            {
+                _sendFile.call(res, filePath, options, fn);
+                return;
+            }
             duster.execute(req, fullFilePath, function(err, out) {
 
                 if (err)
