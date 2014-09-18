@@ -619,8 +619,8 @@ exports = module.exports = function(basePath)
      *    /static/repository/{repositoryId}/branch/{branchId}/path/A/B/C/D...
      *    /preview/path/{path...}
      *    /preview/node/{nodeId}
-     *    /preview/node/{nodeId}/{filename}
-     *    /preview/repository/{repositoryId}/branch/{branchId}/node/{nodeId}
+     *    /preview/node/{nodeId}/{previewId}
+     *    /preview/repository/{repositoryId}/branch/{branchId}/node/{nodeId}/{previewId}
      *    /s/{applicationsPath}
      *
      * And the following flags are supported:
@@ -1104,8 +1104,11 @@ exports = module.exports = function(basePath)
      *    /static/principal/{principalId}
      *    /static/principal/{principalId}/{attachmentId}
      *    /static/principal/{principalId}/{attachmentId}/{filename}
+     *    /static/domain/{domainId}/principal/{principalId}/
+     *    /static/domain/{domainId}/principal/{principalId}/{attachmentId}
+     *    /static/domain/{domainId}/principal/{principalId}/{attachmentId}/{filename}
      *    /preview/principal/{principalId}
-     *    /preview/principal/{principalId}/{filename}
+     *    /preview/domain/{domainId}/principal/{principalId}
      *
      * And the following flags are supported:
      *
@@ -1154,6 +1157,32 @@ exports = module.exports = function(basePath)
                         virtualizedPrincipal = virtualizedPrincipal.substring(0,x);
                     }
                 }
+                if (offsetPath.indexOf("/static/domain/") === 0)
+                {
+                    // examples
+                    //    /static/domain/ABC/principal/DEF
+                    //    /static/domain/ABC/principal/DEF/avatar
+                    //    /static/domain/ABC/principal/DEF/avatar/avatar.jpg
+
+                    var z = offsetPath.substring(15); // ABC/principal/DEF/avatar/avatar.jpg
+
+                    // pluck off the domain id
+                    var x1 = z.indexOf("/");
+                    domainId = z.substring(0, x1);
+
+                    // advance to principal
+                    x1 = z.indexOf("/", x1+1);
+                    virtualizedPrincipal = z.substring(x1+1); // DEF/avatar/avatar.jpg
+
+                    // pluck off the principal id
+                    x1 = virtualizedPrincipal.indexOf("/");
+                    if (x1 > -1)
+                    {
+                        var z = virtualizedPrincipal;
+                        virtualizedPrincipal = z.substring(0, x1);
+                        virtualizedPrincipalExtra = z.substring(x1 + 1);
+                    }
+                }
                 if (offsetPath.indexOf("/preview/principal/") === 0)
                 {
                     previewPrincipal = offsetPath.substring(19);
@@ -1163,6 +1192,31 @@ exports = module.exports = function(basePath)
                     if (x > 0)
                     {
                         previewPrincipal = previewPrincipal.substring(0,x);
+                    }
+                }
+                if (offsetPath.indexOf("/preview/domain/") === 0)
+                {
+                    // examples
+                    //    /preview/domain/ABC/principal/DEF
+                    //    /preview/domain/ABC/principal/DEF/avatar
+                    //    /preview/domain/ABC/principal/DEF/avatar/avatar.jpg
+
+                    var z = offsetPath.substring(16); // ABC/principal/DEF/avatar/avatar.jpg
+
+                    // pluck off the domain id
+                    var x1 = z.indexOf("/");
+                    domainId = z.substring(0, x1);
+
+                    // advance to principal
+                    x1 = z.indexOf("/", x1+1);
+                    previewPrincipal = z.substring(x1+1);
+
+                    // pluck off the principal id
+                    x1 = previewPrincipal.indexOf("/");
+                    if (x1 > -1)
+                    {
+                        var z = previewPrincipal;
+                        previewPrincipal = z.substring(0, x1);
                     }
                 }
 
