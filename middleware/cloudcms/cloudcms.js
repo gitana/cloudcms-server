@@ -200,11 +200,20 @@ exports = module.exports = function(basePath)
                     return res.redirect(failureUrl);
                 }
 
-                res.status(503);
-                res.send({
-                    "ok": false,
-                    "message": info.message
-                });
+                try
+                {
+                    res.status(503);
+                    res.send({
+                        "ok": false,
+                        "message": info.message
+                    });
+                }
+                catch (e)
+                {
+                    console.log("handleLogin error");
+                    console.log(e);
+                    return;
+                }
                 return;
             }
 
