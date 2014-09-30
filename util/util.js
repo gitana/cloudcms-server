@@ -191,23 +191,33 @@ exports.gitCheckout = function(hostDirectoryPath, gitUrl, callback)
                         var copied = false;
 
                         // if the temp folder has a "public" directory...
-                        // and the "public" directory has "index.html",
+                        // and the "public" directory has "index.html" or "templates"
                         // then copy all of its children into "public"
                         var tempPublicDirectory = path.join(tempDirectoryPath, "public");
-                        if (fs.existsSync(tempPublicDirectory) && fs.existsSync(path.join(tempPublicDirectory, "index.html")))
+                        if (fs.existsSync(tempPublicDirectory))
                         {
-                            copyChildrenToDirectory(tempPublicDirectory, publicDirectoryPath);
-                            copied = true;
+                            var a1 = fs.existsSync(path.join(tempPublicDirectory, "index.html"));
+                            var a2 = fs.existsSync(path.join(tempPublicDirectory, "templates"));
+                            if (a1 || a2)
+                            {
+                                copyChildrenToDirectory(tempPublicDirectory, publicDirectoryPath);
+                                copied = true;
+                            }
                         }
 
                         // if the temp folder has a "public_build" directory...
                         // and the "public_build" directory has "index.html"
                         // then copy all of its children into "public_build"
                         var tempPublicBuildDirectory = path.join(tempDirectoryPath, "public_build");
-                        if (fs.existsSync(tempPublicBuildDirectory) && fs.existsSync(path.join(tempPublicBuildDirectory, "index.html")))
+                        if (fs.existsSync(tempPublicBuildDirectory))
                         {
-                            copyChildrenToDirectory(tempPublicBuildDirectory, publicBuildDirectoryPath);
-                            copied = true;
+                            var a1 = fs.existsSync(path.join(tempPublicBuildDirectory, "index.html"));
+                            var a2 = fs.existsSync(path.join(tempPublicBuildDirectory, "templates"));
+                            if (a1 || a2)
+                            {
+                                copyChildrenToDirectory(tempPublicBuildDirectory, publicBuildDirectoryPath);
+                                copied = true;
+                            }
                         }
 
                         // if neither "public" nor "public_build" copied, then copy root
