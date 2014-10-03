@@ -428,6 +428,9 @@ exports = module.exports = function(basePath)
 
                                 // now remove
                                 fs.unlinkSync(req.gitanaJsonPath);
+
+                                // remove from cache
+                                GITANA_DRIVER_CONFIG_CACHE.invalidate(req.virtualHost);
                             }
                         }
                     }
@@ -445,7 +448,7 @@ exports = module.exports = function(basePath)
                 else
                 {
                     // otherwise assume that it is a configuration error?
-                    err.output = "Cannot connect to Cloud CMS, contact your administrator";
+                    err.output = "There was a problem connecting to your tenant.  Please refresh your browser to try again or contact Cloud CMS for assistance.";
                 }
             }
 
