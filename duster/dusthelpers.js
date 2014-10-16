@@ -133,6 +133,11 @@ exports = module.exports = function(dust)
                     }
                 }
 
+                // strip out translations
+                query["_features.f:translation"] = {
+                    "$exists": false
+                };
+
                 var pagination = {};
                 if (!isDefined(limit)) {
                     limit = -1;
@@ -389,6 +394,343 @@ exports = module.exports = function(dust)
                     }
 
                     this.searchNodes(text, pagination).then(function() {
+
+                        var array = this.asArray();
+                        for (var a = 0; a < array.length; a++)
+                        {
+                            _MARK_INSIGHT(array[a], array[a]);
+                        }
+
+                        var resultObject = null;
+                        if (as)
+                        {
+                            resultObject = {};
+                            resultObject[as] = {
+                                "rows": array,
+                                "offset": this.offset(),
+                                "total": this.totalRows()
+                            };
+                        }
+                        else
+                        {
+                            resultObject = {
+                                "rows": array,
+                                "offset": this.offset(),
+                                "total": this.totalRows()
+                            };
+                        }
+
+                        var newContext = context.push(resultObject);
+
+                        chunk.render(bodies.block, newContext);
+                        end(chunk, context);
+                    });
+                });
+
+            });
+        });
+    };
+
+    /**
+     * ASSOCIATIONS
+     *
+     * Finds associations around a node.
+     *
+     * Syntax:
+     *
+     *    {@associations node="<nodeId>" type="<association_type>" limit="" skip="" as=""}
+     *       {+templateIdentifier/}
+     *    {/associations}
+     *
+     * @param chunk
+     * @param context
+     * @param bodies
+     * @param params
+     */
+    dust.helpers.associations = function(chunk, context, bodies, params)
+    {
+        params = params || {};
+
+        // pagination
+        var sort = dust.helpers.tap(params.sort, chunk, context);
+        var sortDirection = dust.helpers.tap(params.sortDirection, chunk, context);
+        var limit = dust.helpers.tap(params.limit, chunk, context);
+        var skip = dust.helpers.tap(params.skip, chunk, context);
+
+        // as
+        var as = dust.helpers.tap(params.as, chunk, context);
+
+        // from and type
+        var nodeId = dust.helpers.tap(params.from, chunk, context);
+        var associationType = dust.helpers.tap(params.type, chunk, context);
+        var associationDirection = dust.helpers.tap(params.direction, chunk, context);
+
+        // ensure limit and skip are numerical
+        if (isDefined(limit))
+        {
+            limit = parseInt(limit);
+        }
+        if (isDefined(skip))
+        {
+            limit = parseInt(skip);
+        }
+
+        return map(chunk, function(chunk) {
+            setTimeout(function() {
+
+                var gitana = context.get("gitana");
+
+                var errHandler = function(err) {
+                    console.log("ERROR: " + err);
+                    end(chunk, context);
+                };
+
+                Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").readNode(nodeId).then(function() {
+
+                    var pagination = {};
+                    if (!isDefined(limit)) {
+                        limit = -1;
+                    }
+                    pagination.limit = limit;
+                    if (sort)
+                    {
+                        if (typeof(sortDirection) !== "undefined")
+                        {
+                            sortDirection = parseInt(sortDirection, 10);
+                        }
+                        else
+                        {
+                            sortDirection = 1;
+                        }
+
+                        pagination.sort = {};
+                        pagination.sort[sort] = sortDirection;
+                    }
+                    if (skip)
+                    {
+                        pagination.skip = skip;
+                    }
+
+                    var config = {};
+                    if (associationType)
+                    {
+                        config.type = associationType;
+                    }
+                    if (associationDirection)
+                    {
+                        config.direction = associationDirection;
+                    }
+
+                    var node = this;
+
+                    this.associations(config, pagination).then(function() {
+
+                        var array = this.asArray();
+                        for (var a = 0; a < array.length; a++)
+                        {
+                            _MARK_INSIGHT(array[a], array[a]);
+                        }
+
+                        var resultObject = null;
+                        if (as)
+                        {
+                            resultObject = {};
+                            resultObject[as] = {
+                                "rows": array,
+                                "offset": this.offset(),
+                                "total": this.totalRows()
+                            };
+                        }
+                        else
+                        {
+                            resultObject = {
+                                "rows": array,
+                                "offset": this.offset(),
+                                "total": this.totalRows()
+                            };
+                        }
+
+                        var cf = function()
+                        {
+                            //console.log("R: " + JSON.stringify(resultObject, null, "  "));
+                            var newContext = context.push(resultObject);
+
+                            chunk.render(bodies.block, newContext);
+                            end(chunk, context);
+                        };
+
+                        if (array.length == 0)
+                        {
+                            cf();
+                            return;
+                        }
+
+                        // load target node data for each association
+                        var otherNodeIdsMap = {};
+                        var otherNodeIds = [];
+                        var otherNodeIdToAssociations = {};
+                        for (var z = 0; z < array.length; z++)
+                        {
+                            var otherNodeId = null;
+                            if (array[z].source == node._doc) {
+                                otherNodeId = array[z].target;
+                            } else {
+                                otherNodeId = array[z].source;
+                            }
+
+                            if (!otherNodeIdsMap[otherNodeId])
+                            {
+                                otherNodeIdsMap[otherNodeId] = true;
+                                otherNodeIds.push(otherNodeId);
+                            }
+
+                            if (!otherNodeIdToAssociations[otherNodeId])
+                            {
+                                otherNodeIdToAssociations[otherNodeId] = [];
+                            }
+
+                            otherNodeIdToAssociations[otherNodeId].push(array[z]);
+                        }
+                        Chain(node.getBranch()).queryNodes({
+                            "_doc": {
+                                "$in": otherNodeIds
+                            }
+                        }).each(function() {
+                            var associations_array = otherNodeIdToAssociations[this._doc];
+                            for (var z = 0; z < associations_array.length; z++)
+                            {
+                                associations_array[z].other = this;
+                            }
+                        }).then(function() {
+                            cf();
+                        });
+                    });
+                });
+
+            });
+        });
+    };
+
+    /**
+     * RELATIVES
+     *
+     * Finds relatives around a node.
+     *
+     * Syntax:
+     *
+     *    {@relatives node="<nodeId>" type="<association_type>" limit="" skip="" as=""}
+     *       {+templateIdentifier/}
+     *    {/relatives}
+     *
+     * @param chunk
+     * @param context
+     * @param bodies
+     * @param params
+     */
+    dust.helpers.relatives = function(chunk, context, bodies, params)
+    {
+        params = params || {};
+
+        // pagination
+        var sort = dust.helpers.tap(params.sort, chunk, context);
+        var sortDirection = dust.helpers.tap(params.sortDirection, chunk, context);
+        var limit = dust.helpers.tap(params.limit, chunk, context);
+        var skip = dust.helpers.tap(params.skip, chunk, context);
+
+        // as
+        var as = dust.helpers.tap(params.as, chunk, context);
+
+        // from and type
+        var fromNodeId = dust.helpers.tap(params.from, chunk, context);
+        var associationType = dust.helpers.tap(params.associationType, chunk, context);
+        var associationDirection = dust.helpers.tap(params.direction, chunk, context);
+
+        var type = dust.helpers.tap(params.type, chunk, context);
+
+        // single field constraints
+        var field = dust.helpers.tap(params.field, chunk, context);
+        var fieldRegex = dust.helpers.tap(params.fieldRegex, chunk, context);
+        var fieldValue = dust.helpers.tap(params.fieldValue, chunk, context);
+
+        // ensure limit and skip are numerical
+        if (isDefined(limit))
+        {
+            limit = parseInt(limit);
+        }
+        if (isDefined(skip))
+        {
+            limit = parseInt(skip);
+        }
+
+        return map(chunk, function(chunk) {
+            setTimeout(function() {
+
+                var gitana = context.get("gitana");
+
+                var errHandler = function(err) {
+                    console.log("ERROR: " + err);
+                    end(chunk, context);
+                };
+
+                Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").readNode(fromNodeId).then(function() {
+
+                    // first query for relatives
+                    var query = {};
+                    if (isDefined(type))
+                    {
+                        query._type = type;
+                    }
+                    if (isDefined(field))
+                    {
+                        if (isDefined(fieldRegex))
+                        {
+                            query[field] = {
+                                $regex: fieldRegex,
+                                $options: "i"
+                            };
+                        }
+                        else if (isDefined(fieldValue))
+                        {
+                            query[field] = fieldValue;
+                        }
+                    }
+
+                    // pagination
+                    var pagination = {};
+                    if (!isDefined(limit)) {
+                        limit = -1;
+                    }
+                    pagination.limit = limit;
+                    if (sort)
+                    {
+                        if (typeof(sortDirection) !== "undefined")
+                        {
+                            sortDirection = parseInt(sortDirection, 10);
+                        }
+                        else
+                        {
+                            sortDirection = 1;
+                        }
+
+                        pagination.sort = {};
+                        pagination.sort[sort] = sortDirection;
+                    }
+                    if (skip)
+                    {
+                        pagination.skip = skip;
+                    }
+
+                    var config = {};
+                    if (associationType)
+                    {
+                        config.type = associationType;
+                    }
+                    if (associationDirection)
+                    {
+                        config.direction = associationDirection;
+                    }
+
+                    this.queryRelatives(query, config, pagination).then(function() {
 
                         var array = this.asArray();
                         for (var a = 0; a < array.length; a++)

@@ -633,6 +633,7 @@ exports = module.exports = function(basePath)
      *    /preview/node/{nodeId}
      *    /preview/node/{nodeId}/{previewId}
      *    /preview/repository/{repositoryId}/branch/{branchId}/node/{nodeId}/{previewId}
+     *    /preview/repository/{repositoryId}/branch/{branchId}/path/A/B/C/D/{previewId}
      *    /s/{applicationsPath}
      *
      * And the following flags are supported:
