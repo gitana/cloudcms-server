@@ -168,12 +168,21 @@ exports = module.exports = function(dust)
 
                     var handleResults = function()
                     {
+                        var array = this.asArray();
+                        if (array.length > 0)
+                        {
+                            for (var i = 0; i < array.length; i++)
+                            {
+                                array[i]._statistics = array[i].__stats();
+                            }
+                        }
+
                         if (keepOne)
                         {
                             var newContext = null;
                             if (this.totalRows() > 0)
                             {
-                                var result = this.asArray()[0];
+                                var result = array[0];
 
                                 var resultObject = null;
                                 if (as)
@@ -202,7 +211,6 @@ exports = module.exports = function(dust)
                         }
                         else
                         {
-                            var array = this.asArray();
                             for (var a = 0; a < array.length; a++)
                             {
                                 _MARK_INSIGHT(array[a], array[a]);
@@ -298,7 +306,7 @@ exports = module.exports = function(dust)
      *
      *    {@queryOne sort="title" scope="page" type="custom:type" limit="" skip="" as=""}
      *       {+templateIdentifier/}
-     *    {/query}
+     *    {/queryOne}
      *
      * @param chunk
      * @param context

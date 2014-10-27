@@ -194,11 +194,11 @@ exports = module.exports = function(basePath)
 
                 //console.log("WCM page time: " + (t2-t1));
 
-                //console.log("Writing pages to WCM cache");
-                //for (var uri in pages)
-                //{
-                //    console.log(" -> " + uri);
-                //}
+                console.log("Writing pages to WCM cache");
+                for (var uri in pages)
+                {
+                    console.log(" -> " + uri);
+                }
 
                 req.cache.write("wcmPages", pages);
                 req.cache.write("wcmPagesTimestamp", new Date().getTime());
