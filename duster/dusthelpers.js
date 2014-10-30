@@ -468,8 +468,8 @@ exports = module.exports = function(dust)
         // as
         var as = dust.helpers.tap(params.as, chunk, context);
 
-        // from and type
-        var nodeId = dust.helpers.tap(params.from, chunk, context);
+        // node
+        var nodeId = dust.helpers.tap(params.node, chunk, context);
         var associationType = dust.helpers.tap(params.type, chunk, context);
         var associationDirection = dust.helpers.tap(params.direction, chunk, context);
 
@@ -649,7 +649,7 @@ exports = module.exports = function(dust)
         var as = dust.helpers.tap(params.as, chunk, context);
 
         // from and type
-        var fromNodeId = dust.helpers.tap(params.from, chunk, context);
+        var fromNodeId = dust.helpers.tap(params.node, chunk, context);
         var associationType = dust.helpers.tap(params.associationType, chunk, context);
         var associationDirection = dust.helpers.tap(params.direction, chunk, context);
 
