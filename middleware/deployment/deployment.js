@@ -416,6 +416,30 @@ exports = module.exports = function(basePath)
         }
     };
 
+    var doCleanup = function(req, host, callback)
+    {
+        if (!storage.isDeployed(host))
+        {
+            // not deployed, skip out
+            callback();
+
+            return;
+        }
+
+        // remove host directory
+        req.log("Removing host directory: " + host);
+        storage.removeHostDirectory(host, function(err) {
+
+            // CACHE: INVALIDATE
+            DESCRIPTOR_CACHE.invalidate(host);
+            GITANA_DRIVER_CONFIG_CACHE.invalidate(host);
+
+            req.log("Cleaned up virtual hosting for host: " + host);
+
+            callback(err);
+        });
+    };
+
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
@@ -586,6 +610,31 @@ exports = module.exports = function(basePath)
                 else if (req.url.indexOf("/_stop") == 0)
                 {
                     doStop(req, req.body, function(err) {
+
+                        if (err) {
+                            res.send({
+                                "ok": false,
+                                "message": err.message,
+                                "err": err
+                            });
+                            res.end();
+                            return;
+                        }
+
+                        // respond with ok
+                        res.send({
+                            "ok": true
+                        });
+                        res.end();
+                    });
+
+                    handled = true;
+                }
+                else if (req.url.indexOf("/_cleanup") == 0)
+                {
+                    var host = req.param("host");
+
+                    doCleanup(req, host, function(err) {
 
                         if (err) {
                             res.send({
