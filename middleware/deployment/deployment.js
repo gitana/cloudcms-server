@@ -418,6 +418,15 @@ exports = module.exports = function(basePath)
 
     var doCleanup = function(req, host, callback)
     {
+        if (!host)
+        {
+            callback({
+                "message": "Missing or empty host"
+            });
+
+            return;
+        }
+
         if (!storage.isDeployed(host))
         {
             // not deployed, skip out

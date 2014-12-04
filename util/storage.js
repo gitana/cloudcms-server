@@ -85,6 +85,15 @@ exports = module.exports = function(basePath)
 
     r.removeHostDirectory = function(host, callback)
     {
+        if (!host)
+        {
+            callback({
+                "message": "Missing or empty host"
+            });
+
+            return;
+        }
+
         var hostDirectoryPath = this.hostDirectoryPath(host);
 
         util.rmdir(hostDirectoryPath);
