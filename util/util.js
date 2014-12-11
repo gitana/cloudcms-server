@@ -144,11 +144,27 @@ var gitPull = function(directoryPath, gitUrl, callback)
  *
  * @type {*}
  */
-exports.gitCheckout = function(hostDirectoryPath, gitUrl, callback)
+exports.gitCheckout = function(hostDirectoryPath, gitUrl, relativePath, callback)
 {
+    // this gets a little confusing, so here is what we have
+    //
+    //      /temp-1234                                                      (tempRootDirectoryPath)
+    //          .git
+    //          /website                                                    (tempWorkingDirectoryPath)
+    //              /public                                                 (tempWorkingPublicDirectory)
+    //              /public_build                                           (tempWorkingPublicBuildDirectory)
+    //              /config                                                 (tempWorkingConfigDirectory)
+    //              /gitana.json                                            (tempWorkingGitanaJsonFilePath)
+    //      /hosts
+    //          /domain.cloudcms.net                                        (hostDirectoryPath)
+    //              /public                                                 (hostPublicDirectoryPath)
+    //              /public_build                                           (hostPublicBuildDirectoryPath)
+    //              /config                                                 (hostConfigDirectoryPath)
+
+
     // create a temp directory
-    var tempDirectoryPath = path.join(hostDirectoryPath, "temp-" + new Date().getTime());
-    mkdirs(tempDirectoryPath, function(err) {
+    var tempRootDirectoryPath = path.join(hostDirectoryPath, "temp-" + new Date().getTime());
+    mkdirs(tempRootDirectoryPath, function(err) {
 
         if (err) {
             callback(err, host);
@@ -156,32 +172,32 @@ exports.gitCheckout = function(hostDirectoryPath, gitUrl, callback)
         }
 
         // check out into the temp directory
-        gitInit(tempDirectoryPath, function(err) {
+        gitInit(tempRootDirectoryPath, function(err) {
 
             if (err) {
                 callback(err);
                 return;
             }
 
-            gitPull(tempDirectoryPath, gitUrl, function(err) {
+            gitPull(tempRootDirectoryPath, gitUrl, function(err) {
 
                 if (err) {
                     callback(err);
                     return;
                 }
 
-                // make sure there is a "public" directory
-                var publicDirectoryPath = path.join(hostDirectoryPath, "public");
-                mkdirs(publicDirectoryPath, function(err) {
+                // make sure there is a "public" directory (in HOST directory)
+                var hostPublicDirectoryPath = path.join(hostDirectoryPath, "public");
+                mkdirs(hostPublicDirectoryPath, function(err) {
 
                     if (err) {
                         callback(err);
                         return;
                     }
 
-                    // make sure there is a "public_build" directory
-                    var publicBuildDirectoryPath = path.join(hostDirectoryPath, "public_build");
-                    mkdirs(publicBuildDirectoryPath, function(err) {
+                    // make sure there is a "public_build" directory (in HOST directory)
+                    var hostPublicBuildDirectoryPath = path.join(hostDirectoryPath, "public_build");
+                    mkdirs(hostPublicBuildDirectoryPath, function(err) {
 
                         if (err) {
                             callback(err);
@@ -190,17 +206,23 @@ exports.gitCheckout = function(hostDirectoryPath, gitUrl, callback)
 
                         var copied = false;
 
+                        var tempWorkingDirectoryPath = tempRootDirectoryPath;
+                        if (relativePath && relativePath != "/")
+                        {
+                            tempWorkingDirectoryPath = path.join(tempRootDirectoryPath, relativePath);
+                        }
+
                         // if the temp folder has a "public" directory...
                         // and the "public" directory has "index.html" or "templates"
                         // then copy all of its children into "public"
-                        var tempPublicDirectory = path.join(tempDirectoryPath, "public");
-                        if (fs.existsSync(tempPublicDirectory))
+                        var tempWorkingPublicDirectory = path.join(tempWorkingDirectoryPath, "public");
+                        if (fs.existsSync(tempWorkingPublicDirectory))
                         {
-                            var a1 = fs.existsSync(path.join(tempPublicDirectory, "index.html"));
-                            var a2 = fs.existsSync(path.join(tempPublicDirectory, "templates"));
+                            var a1 = fs.existsSync(path.join(tempWorkingPublicDirectory, "index.html"));
+                            var a2 = fs.existsSync(path.join(tempWorkingPublicDirectory, "templates"));
                             if (a1 || a2)
                             {
-                                copyChildrenToDirectory(tempPublicDirectory, publicDirectoryPath);
+                                copyChildrenToDirectory(tempWorkingPublicDirectory, hostPublicDirectoryPath);
                                 copied = true;
                             }
                         }
@@ -208,60 +230,58 @@ exports.gitCheckout = function(hostDirectoryPath, gitUrl, callback)
                         // if the temp folder has a "public_build" directory...
                         // and the "public_build" directory has "index.html"
                         // then copy all of its children into "public_build"
-                        var tempPublicBuildDirectory = path.join(tempDirectoryPath, "public_build");
-                        if (fs.existsSync(tempPublicBuildDirectory))
+                        var tempWorkingPublicBuildDirectory = path.join(tempWorkingDirectoryPath, "public_build");
+                        if (fs.existsSync(tempWorkingPublicBuildDirectory))
                         {
-                            var a1 = fs.existsSync(path.join(tempPublicBuildDirectory, "index.html"));
-                            var a2 = fs.existsSync(path.join(tempPublicBuildDirectory, "templates"));
+                            var a1 = fs.existsSync(path.join(tempWorkingPublicBuildDirectory, "index.html"));
+                            var a2 = fs.existsSync(path.join(tempWorkingPublicBuildDirectory, "templates"));
                             if (a1 || a2)
                             {
-                                copyChildrenToDirectory(tempPublicBuildDirectory, publicBuildDirectoryPath);
+                                copyChildrenToDirectory(tempWorkingPublicBuildDirectory, hostPublicBuildDirectoryPath);
                                 copied = true;
                             }
                         }
 
-                        // if neither "public" nor "public_build" copied, then copy root
+                        // if neither "public" nor "public_build" copied, then copy entire working directory
                         if (!copied)
                         {
-                            copyChildrenToDirectory(tempDirectoryPath, publicDirectoryPath);
+                            copyChildrenToDirectory(tempWorkingDirectoryPath, hostPublicDirectoryPath);
                         }
 
 
                         // CONFIG
-                        var configDirectoryPath = path.join(hostDirectoryPath, "config");
-                        mkdirs(configDirectoryPath, function(err) {
+                        var hostConfigDirectoryPath = path.join(hostDirectoryPath, "config");
+                        mkdirs(hostConfigDirectoryPath, function(err) {
 
                             if (err) {
                                 callback(err);
                                 return;
                             }
 
-                            var tempConfigDirectory = path.join(tempDirectoryPath, "config");
-                            if (fs.existsSync(tempConfigDirectory))
+                            var tempWorkingConfigDirectory = path.join(tempWorkingDirectoryPath, "config");
+                            if (fs.existsSync(tempWorkingConfigDirectory))
                             {
-                                copyChildrenToDirectory(tempConfigDirectory, configDirectoryPath);
+                                copyChildrenToDirectory(tempWorkingConfigDirectory, hostConfigDirectoryPath);
                             }
 
 
                             // copy GITANA.JSON
-                            var tempGitanaJsonFilePath = path.join(tempDirectoryPath, "gitana.json");
-                            if (fs.existsSync(tempGitanaJsonFilePath))
+                            var tempWorkingGitanaJsonFilePath = path.join(tempWorkingDirectoryPath, "gitana.json");
+                            if (fs.existsSync(tempWorkingGitanaJsonFilePath))
                             {
-                                copyFile(tempGitanaJsonFilePath, path.join(hostDirectoryPath, "gitana.json"));
+                                copyFile(tempWorkingGitanaJsonFilePath, path.join(hostDirectoryPath, "gitana.json"));
                             }
 
                             // now remove temp directory
-                            rmdir(tempDirectoryPath);
+                            rmdir(tempRootDirectoryPath);
 
                             callback(err);
 
                         });
                     });
                 });
-
             });
         });
-
     });
 };
 

@@ -198,9 +198,14 @@ exports = module.exports = function(basePath)
                         // do the checkout
                         var sourceType = descriptor.source.type;
                         var sourceUrl = descriptor.source.uri;
+                        var sourcePath = descriptor.source.path;
+                        if (!sourcePath)
+                        {
+                            sourcePath = "/";
+                        }
                         if ("github" === sourceType)
                         {
-                            util.gitCheckout(hostDirectoryPath, sourceUrl, function(err) {
+                            util.gitCheckout(hostDirectoryPath, sourceUrl, sourcePath, function(err) {
 
                                 if (err)
                                 {

@@ -93,6 +93,9 @@ exports = module.exports = function(dust)
         var fieldRegex = dust.helpers.tap(params.fieldRegex, chunk, context);
         var fieldValue = dust.helpers.tap(params.fieldValue, chunk, context);
 
+        // geolocation (near)
+        var near = dust.helpers.tap(params.near, chunk, context);
+
         // ensure limit and skip are numerical
         if (isDefined(limit))
         {
@@ -131,6 +134,22 @@ exports = module.exports = function(dust)
                     {
                         query[field] = fieldValue;
                     }
+                }
+
+                if (near)
+                {
+                    var nearArray = near.split(",");
+                    nearArray[0] = parseFloat(nearArray[0]);
+                    nearArray[1] = parseFloat(nearArray[1]);
+
+                    query["loc"] = {
+                        "$near" : {
+                            "$geometry": {
+                                "type": "Point",
+                                coordinates: nearArray
+                            }
+                        }
+                    };
                 }
 
                 // strip out translations
@@ -1386,6 +1405,62 @@ exports = module.exports = function(dust)
                 chunk.write(html);
 
                 end(chunk, context);
+            });
+        });
+    };
+
+    /**
+     * Displays a value and allows for optional in-context editing.
+     *
+     * Syntax:
+     *
+     *    {@value node="_doc" property="propertyName"}
+     *       {propertyValue}
+     *    {/value}
+     *    {@debug/}
+     *
+     * @param chunk
+     * @param context
+     * @param bodies
+     * @param params
+     */
+    dust.helpers.value = function(chunk, context, bodies, params)
+    {
+        params = params || {};
+
+        var nodeId = dust.helpers.tap(params.node, chunk, context);
+        var propertyId = dust.helpers.tap(params.property, chunk, context);
+
+        return map(chunk, function(chunk) {
+            setTimeout(function() {
+
+                var gitana = context.get("gitana");
+
+                var errHandler = function(err) {
+
+                    console.log("ERROR: " + err);
+                    end(chunk, context);
+                };
+
+                Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").then(function() {
+
+                    var repositoryId = this.getRepositoryId();
+                    var branchId = this.getId();
+
+                    var wrapperStart = "<div class='cloudcms-value' data-repository-id='" + repositoryId + "' data-branch-id='" + branchId + "' data-node-id='" + nodeId + "'";
+                    if (propertyId) {
+                        wrapperStart += " data-property-id='" + propertyId + "'";
+                    }
+                    wrapperStart += ">";
+                    var wrapperEnd = "</div>";
+
+                    chunk.write(wrapperStart);
+                    chunk.render(bodies.block, context);
+                    chunk.write(wrapperEnd);
+
+                    end(chunk, context);
+
+                });
             });
         });
     };
