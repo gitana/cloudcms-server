@@ -3,6 +3,7 @@ var fs = require('fs');
 var http = require('http');
 var crypto = require('crypto');
 var mkdirp = require('mkdirp');
+var async = require("async");
 
 /**
  * Populates Cloud CMS server helper methods into a dust instance.
@@ -14,6 +15,38 @@ exports = module.exports = function(dust)
     var isDefined = function(thing)
     {
         return (typeof(thing) != "undefined");
+    };
+
+    var resolveVariables = function(variables, context, callback)
+    {
+        if (!variables) {
+            callback();
+            return;
+        }
+
+        if (variables.length === 0)
+        {
+            callback(null, []);
+            return;
+        }
+
+        async.map(variables, function(variable, callback) {
+
+            dust.renderSource("" + variable, context, function (err, value) {
+
+                if (err) {
+                    callback(err);
+                    return;
+                }
+
+                value = value.trim();
+
+                callback(null, value);
+            });
+
+        }, function(err, results) {
+            callback(err, results);
+        });
     };
 
     /**
@@ -58,6 +91,21 @@ exports = module.exports = function(dust)
         result.insightNode = node.getRepositoryId() + "/" + node.getBranchId() + "/" + node.getId();
     };
 
+    var replaceAll = function(text, find, replace)
+    {
+        var i = -1;
+        do
+        {
+            i = text.indexOf(find);
+            if (i > -1)
+            {
+                text = text.substring(0, i) + replace + text.substring(i + find.length);
+            }
+        } while (i > -1);
+
+        return text;
+    };
+
     /**
      * Handles behavior for @query and @queryOne.
      *
@@ -95,6 +143,9 @@ exports = module.exports = function(dust)
 
         // geolocation (near)
         var near = dust.helpers.tap(params.near, chunk, context);
+
+        // locale
+        var locale = dust.helpers.tap(params.locale, chunk, context);
 
         // ensure limit and skip are numerical
         if (isDefined(limit))
@@ -179,6 +230,11 @@ exports = module.exports = function(dust)
                 if (isDefined(skip))
                 {
                     pagination.skip = skip;
+                }
+
+                if (locale)
+                {
+                    gitana.getDriver().setLocale(locale);
                 }
 
                 Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").then(function() {
@@ -1417,7 +1473,6 @@ exports = module.exports = function(dust)
      *    {@value node="_doc" property="propertyName"}
      *       {propertyValue}
      *    {/value}
-     *    {@debug/}
      *
      * @param chunk
      * @param context
@@ -1461,6 +1516,128 @@ exports = module.exports = function(dust)
                     end(chunk, context);
 
                 });
+            });
+        });
+    };
+
+    /**
+     * Builds a URL.
+     *
+     * Syntax:
+     *
+     *    {@uri [uri="uri"] [other token values]}
+     *    {/uri}
+     *
+     * @param chunk
+     * @param context
+     * @param bodies
+     * @param params
+     */
+    dust.helpers.uri = function(chunk, context, bodies, params)
+    {
+        // push tokens into context
+        var tokens = context.get("request").tokens;
+        context = context.push(tokens);
+
+        // push params into context
+        var paramsObject = {};
+        for (var name in params)
+        {
+            if (name !== "uri")
+            {
+                paramsObject[name] = dust.helpers.tap(params[name], chunk, context);
+            }
+        }
+        context = context.push(paramsObject);
+
+        // use uri from params or fallback to request uri
+        var uri = dust.helpers.tap(params.uri, chunk, context);
+        if (!uri)
+        {
+            uri = context.get("request").matchingPath;
+        }
+
+        return map(chunk, function(chunk) {
+            setTimeout(function() {
+
+                // ensure uri is resolved
+                resolveVariables([uri], context, function(err, results) {
+
+                    var uri = results[0];
+
+                    chunk.write(uri);
+
+                    end(chunk, context);
+
+                });
+
+            });
+        });
+    };
+
+    /**
+     * Produces an anchor link.
+     *
+     * Syntax:
+     *
+     *    {@link [uri="uri"] [other token values]}
+     *      Click me to go to the next page!
+     *    {/link}
+     *
+     * @param chunk
+     * @param context
+     * @param bodies
+     * @param params
+     */
+    dust.helpers.link = function(chunk, context, bodies, params)
+    {
+        var classParam = dust.helpers.tap(params.class, chunk, context);
+
+        // push tokens into context
+        var tokens = context.get("request").tokens;
+        context = context.push(tokens);
+
+        // push params into context
+        var paramsObject = {};
+        for (var name in params)
+        {
+            if (name !== "uri")
+            {
+                paramsObject[name] = dust.helpers.tap(params[name], chunk, context);
+            }
+        }
+        context = context.push(paramsObject);
+
+        // use uri from params or fallback to request uri
+        var uri = dust.helpers.tap(params.uri, chunk, context);
+        if (!uri)
+        {
+            uri = context.get("request").matchingPath;
+        }
+
+        return map(chunk, function(chunk) {
+            setTimeout(function() {
+
+                // ensure uri is resolved
+                resolveVariables([uri], context, function(err, results) {
+
+                    var uri = results[0];
+
+                    chunk.write("<a href='" + uri + "'");
+
+                    if (classParam)
+                    {
+                        chunk.write(" class='" + classParam + "'");
+                    }
+
+                    chunk.write(">");
+                    chunk.render(bodies.block, context);
+                    chunk.write("</a>");
+
+                    end(chunk, context);
+
+                });
+
             });
         });
     };

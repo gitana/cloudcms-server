@@ -206,6 +206,7 @@ exports.gitCheckout = function(hostDirectoryPath, gitUrl, relativePath, callback
 
                         var copied = false;
 
+                        console.log("RELATIVE PATH: " + relativePath);
                         var tempWorkingDirectoryPath = tempRootDirectoryPath;
                         if (relativePath && relativePath != "/")
                         {

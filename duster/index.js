@@ -62,9 +62,12 @@ var populateContext = function(req, context, model, templateFilePath)
             }
         }
     }
-    context.request = {
-        qs: qs
-    };
+    if (!context.request) {
+        context.request = {};
+    }
+    context.request.uri = req.originalUrl;
+    context.request.path = req.path;
+    context.request.qs = qs;
 
     context.gitana = req.gitana;
     context.templateFilePaths = [templateFilePath];
