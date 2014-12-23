@@ -107,6 +107,10 @@ exports = module.exports = function()
     var flow = require("./middleware/flow/flow")(basePath);
     var authentication = require("./middleware/authentication")(basePath);
 
+    // services
+    var notificationsService = require("./services/notifications/notifications")(basePath);
+
+
     // assume app-server base path if none provided
     if (!process.env.CLOUDCMS_APPSERVER_BASE_PATH) {
         process.env.CLOUDCMS_APPSERVER_BASE_PATH = process.cwd();
@@ -166,6 +170,13 @@ exports = module.exports = function()
 
     // object that we hand back
     var r = {};
+
+    r.startServices = function(callback)
+    {
+        notificationsService.start(function(err) {
+            callback(err);
+        });
+    };
 
     r.common = function(app, configuration)
     {

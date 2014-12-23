@@ -1665,11 +1665,15 @@ exports = module.exports = function(basePath)
                 cacheControl = "public, max-age=" + MAXAGE_THIRTY_MINUTES;
             }
         }
+        else
+        {
+            res.header('Pragma', 'no-cache');
+        }
 
         res.header('Cache-Control', cacheControl);
 
         // test
-        res.header("Expires", "Mon, 7 Apr 2014, 16:00:00 GMT");
+        //res.header("Expires", "Mon, 7 Apr 2014, 16:00:00 GMT");
     };
 
     return r;

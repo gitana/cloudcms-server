@@ -104,6 +104,7 @@ exports = module.exports = function(config)
                             }
                             else if (extension)
                             {
+                                // set cache based on file extension
                                 var ext = path.extname(filename);
                                 if (ext)
                                 {

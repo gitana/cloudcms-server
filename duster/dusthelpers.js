@@ -1533,6 +1533,7 @@ exports = module.exports = function(dust)
      * @param bodies
      * @param params
      */
+    /*
     dust.helpers.uri = function(chunk, context, bodies, params)
     {
         // push tokens into context
@@ -1574,6 +1575,7 @@ exports = module.exports = function(dust)
             });
         });
     };
+    */
 
     /**
      * Produces an anchor link.
@@ -1638,6 +1640,100 @@ exports = module.exports = function(dust)
 
                 });
 
+            });
+        });
+    };
+
+    dust.helpers.nodeAttachmentValue = function(chunk, context, bodies, params)
+    {
+        params = params || {};
+
+        var nodeId = dust.helpers.tap(params.node, chunk, context);
+        var attachmentId = dust.helpers.tap(params.attachment, chunk, context);
+        if (!attachmentId)
+        {
+            attachmentId = "default";
+        }
+
+        return map(chunk, function(chunk) {
+            setTimeout(function() {
+
+                var gitana = context.get("gitana");
+
+                var errHandler = function(err) {
+
+                    console.log("ERROR: " + err);
+                    end(chunk, context);
+                };
+
+                Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").readNode(nodeId).attachment(attachmentId).download(function(text) {
+
+                    chunk.write(text);
+
+                    end(chunk, context);
+
+                });
+            });
+        });
+    };
+
+    dust.helpers.processTemplate = function(chunk, context, bodies, params)
+    {
+        params = params || {};
+
+        var nodeId = dust.helpers.tap(params.node, chunk, context);
+        var attachmentId = dust.helpers.tap(params.attachment, chunk, context);
+        if (!attachmentId)
+        {
+            attachmentId = "default";
+        }
+        var propertyId = dust.helpers.tap(params.property, chunk, context);
+        var locale = dust.helpers.tap(params.locale, chunk, context);
+
+        return map(chunk, function(chunk) {
+            setTimeout(function() {
+
+                var gitana = context.get("gitana");
+
+                var errHandler = function(err) {
+
+                    console.log("ERROR: " + err);
+                    end(chunk, context);
+                };
+
+                if (locale)
+                {
+                    gitana.getDriver().setLocale(locale);
+                }
+
+                if (propertyId)
+                {
+                    Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").readNode(nodeId).then(function() {
+
+                        console.log("GOT: " + JSON.stringify(this));
+
+                        resolveVariables([this[propertyId]], context, function (err, resolutions) {
+
+                            chunk.write(resolutions[0]);
+
+                            end(chunk, context);
+
+                        });
+                    });
+                }
+                else
+                {
+                    Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").readNode(nodeId).attachment(attachmentId).download(function (text) {
+
+                        resolveVariables([text], context, function (err, resolutions) {
+
+                            chunk.write(resolutions[0]);
+
+                            end(chunk, context);
+
+                        });
+                    });
+                }
             });
         });
     };

@@ -56,7 +56,8 @@ exports = module.exports = function(basePath)
                 uri = "/gitana.js";
             }
 
-            //res.header('Cache-Control', "public, max-age=2592000");
+            res.header('Pragma', 'no-cache');
+            res.header("Cache-Control", "no-cache");
 
             util.sendFile(res, uri, {
                 "root": path.join(__dirname, dirPath)
