@@ -206,10 +206,11 @@ exports = module.exports = function() {
             _setHeader.call(this, key, value);
         };
 
-        console.log("originalUrl: " + req.originalUrl);
-        console.log("path: " + req.path);
-        console.log("method: " + req.method);
+        //console.log("originalUrl: " + req.originalUrl);
+        //console.log("path: " + req.path);
+        //console.log("method: " + req.method);
 
+        /*
         var re = new RegExp("^/repositories");
         if (re.test(req.path))
         {
@@ -225,6 +226,11 @@ exports = module.exports = function() {
             res.header('Pragma', 'no-cache');
             res.header("Expires", "Mon, 7 Apr 2012, 16:00:00 GMT"); // already expired
         }
+        */
+
+        res.header('Cache-Control', 'no-store');
+        res.header('Pragma', 'no-cache');
+        res.header("Expires", "Mon, 7 Apr 2012, 16:00:00 GMT"); // already expired
 
         proxyServer.web(req, res);
     });
