@@ -203,9 +203,9 @@ exports = module.exports = function(basePath)
                         {
                             sourcePath = "/";
                         }
-                        if ("github" === sourceType)
+                        if ("github" === sourceType || "bitbucket" == sourceType)
                         {
-                            util.gitCheckout(hostDirectoryPath, sourceUrl, sourcePath, function(err) {
+                            util.gitCheckout(hostDirectoryPath, sourceType, sourceUrl, sourcePath, function(err) {
 
                                 if (err)
                                 {

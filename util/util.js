@@ -115,8 +115,9 @@ var gitInit = function(directoryPath, callback)
     });
 };
 
-var gitPull = function(directoryPath, gitUrl, callback)
+var gitPull = function(directoryPath, gitUrl, sourceType, callback)
 {
+    /*
     if (gitUrl.indexOf("https://") === 0)
     {
         var username = process.env.CLOUDCMS_NET_GITHUB_USERNAME;
@@ -125,6 +126,36 @@ var gitPull = function(directoryPath, gitUrl, callback)
         password = escape(password).replace("@", "%40");
 
         var token = username + ":" + password;
+
+        gitUrl = gitUrl.substring(0, 8) + token + "@" + gitUrl.substring(8);
+    }
+    */
+
+    var username = null;
+    var password = null;
+    if (sourceType == "github")
+    {
+        username = process.env.CLOUDCMS_NET_GITHUB_USERNAME;
+        password = process.env.CLOUDCMS_NET_GITHUB_PASSWORD;
+    }
+    else if (sourceType == "bitbucket")
+    {
+        username = process.env.CLOUDCMS_NET_BITBUCKET_USERNAME;
+        password = process.env.CLOUDCMS_NET_BITBUCKET_PASSWORD;
+    }
+
+    if (password)
+    {
+        password = escape(password).replace("@", "%40");
+    }
+
+    if (username)
+    {
+        var token = username;
+        if (password)
+        {
+            token += ":" + password;
+        }
 
         gitUrl = gitUrl.substring(0, 8) + token + "@" + gitUrl.substring(8);
     }
@@ -144,7 +175,7 @@ var gitPull = function(directoryPath, gitUrl, callback)
  *
  * @type {*}
  */
-exports.gitCheckout = function(hostDirectoryPath, gitUrl, relativePath, callback)
+exports.gitCheckout = function(hostDirectoryPath, sourceType, gitUrl, relativePath, callback)
 {
     // this gets a little confusing, so here is what we have
     //
@@ -179,7 +210,7 @@ exports.gitCheckout = function(hostDirectoryPath, gitUrl, relativePath, callback
                 return;
             }
 
-            gitPull(tempRootDirectoryPath, gitUrl, function(err) {
+            gitPull(tempRootDirectoryPath, gitUrl, sourceType, function(err) {
 
                 if (err) {
                     callback(err);
