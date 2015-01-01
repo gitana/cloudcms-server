@@ -100,7 +100,7 @@ exports.invalidateCacheForApp = function(applicationId)
     }
 };
 
-exports.execute = function(req, filePath, model, callback)
+exports.execute = function(req, store, filePath, model, callback)
 {
     if (typeof(model) === "function")
     {
@@ -108,71 +108,77 @@ exports.execute = function(req, filePath, model, callback)
         model = {};
     }
 
-    ensureInit();
+    ensureInit(store);
 
-    if (!fs.existsSync(filePath))
-    {
-        callback({
-            "message": "Cannot find WCM file path: " + filePath
-        });
-        return;
-    }
+    store.existsFile(filePath, function(exists) {
 
-    var dust = getDust(req.applicationId, true);
-
-    var templatePath = filePath.split(path.sep).join("/");
-
-    // load the contents of the file
-    // make sure this is text
-    var compiled = false;
-    if (!dust.cache[templatePath])
-    {
-        var html = "" + fs.readFileSync(filePath);
-
-        try
-        {
-            // compile
-            var compiledTemplate = dust.compile(html, templatePath);
-            dust.loadSource(compiledTemplate);
-
-            compiled = true;
+        if (!exists) {
+            callback({
+                "message": "Dust cannot find file path: " + filePath
+            });
+            return;
         }
-        catch (e)
+
+        var dust = getDust(req.applicationId, true);
+
+        var templatePath = filePath.split(path.sep).join("/");
+
+        var processTemplate = function()
         {
-            // compilation failed
-            console.log("Compilation failed for: " + filePath);
-            console.log(e);
+            // build context
+            var context = {};
+            populateContext(req, context, model, filePath);
+
+            // execute template
+            dust.render(templatePath, context, function(err, out) {
+
+                if (err)
+                {
+                    console.log("An error was caught while rendering dust template: " + filePath + ", error: " + err);
+                }
+
+                callback(err, out);
+            });
+        };
+
+        // load the contents of the file
+        // make sure this is text
+        if (!dust.cache[templatePath])
+        {
+            store.readFile(templatePath, function(err, data) {
+
+                if (err) {
+                    callback(err);
+                    return;
+                }
+
+                var html = "" + data;
+
+                try
+                {
+                    // compile
+                    var compiledTemplate = dust.compile(html, templatePath);
+                    dust.loadSource(compiledTemplate);
+
+                    processTemplate();
+                }
+                catch (e)
+                {
+                    // compilation failed
+                    console.log("Compilation failed for: " + filePath);
+                    console.log(e);
+
+                    callback({
+                        "message": "Dust compilation failed for: " + filePath
+                    });
+                }
+            });
         }
-    }
-    else
-    {
-        compiled = true;
-    }
-
-    // render compiled file
-    if (compiled)
-    {
-        // build context
-        var context = {};
-        populateContext(req, context, model, filePath);
-
-        // execute template
-        dust.render(templatePath, context, function(err, out) {
-
-            if (err)
-            {
-                console.log("An error was caught while rendering dust template: " + filePath + ", error: " + err);
-            }
-
-            callback(err, out);
-        });
-    }
-    else
-    {
-        callback({
-            "mesage": "Unable to compile template for file path: " + filePath
-        });
-    }
+        else
+        {
+            processTemplate();
+        }
+    });
 };
 
 
@@ -181,7 +187,7 @@ exports.execute = function(req, filePath, model, callback)
  * This ensures that templates are being watched properly.
  */
 var _init = false;
-var ensureInit = function()
+var ensureInit = function(store)
 {
     if (_init)
     {
@@ -190,47 +196,32 @@ var ensureInit = function()
 
     _init = true;
 
-    if (process.env.CLOUDCMS_APPSERVER_MODE == "development")
+    if (process.env.CLOUDCMS_APPSERVER_MODE === "development")
     {
-        var watch = require("watch");
-        if (process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH)
-        {
-            var watchPath = path.resolve(process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH);
-            fs.exists(watchPath, function(exists) {
+        // watch everything in web store
+        store.watchDirectory("/", function (f, curr, prev) {
 
-                if (exists)
+            console.log("Template changes detected - invalidating dust cache");
+            var applicationIds = [];
+            for (var applicationId in dustInstances)
+            {
+                //console.log("Consider: " + applicationId);
+                var dust = dustInstances[applicationId];
+                for (var k in dust.cache)
                 {
-                    console.log("Watching directory: " + process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH);
-
-                    watch.watchTree(watchPath, {
-                        "ignoreDotFiles": true
-                    }, function (f, curr, prev) {
-
-                        console.log("Template changes detected - invalidating dust cache");
-                        var applicationIds = [];
-                        for (var applicationId in dustInstances)
-                        {
-                            //console.log("Consider: " + applicationId);
-                            var dust = dustInstances[applicationId];
-                            for (var k in dust.cache)
-                            {
-                                //console.log("Removing app: " + applicationId + ", template: " + k);
-                                delete dust.cache[k];
-                            }
-                            applicationIds.push(applicationId);
-                        }
-
-                        for (var i = 0; i < applicationIds.length; i++)
-                        {
-                            delete dustInstances[applicationIds[i]];
-                        }
-
-                        dustInstances = [];
-
-                    });
+                    //console.log("Removing app: " + applicationId + ", template: " + k);
+                    delete dust.cache[k];
                 }
+                applicationIds.push(applicationId);
+            }
 
-            });
-        }
+            for (var i = 0; i < applicationIds.length; i++)
+            {
+                delete dustInstances[applicationIds[i]];
+            }
+
+            dustInstances = [];
+
+        });
     }
 };

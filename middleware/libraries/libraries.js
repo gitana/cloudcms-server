@@ -9,11 +9,11 @@ var util = require("../../util/util");
  *
  * @type {Function}
  */
-exports = module.exports = function(basePath)
+exports = module.exports = function()
 {
     var GITANA_JS_PATH = "../../node_modules/gitana/lib";
 
-    if (!fs.existsSync(path.join(__dirname, GITANA_JS_PATH, "gitana.js")))
+    if (!fs.existsSync(path.join(__dirname, GITANA_JS_PATH, "gitana.js"))) // OK
     {
         GITANA_JS_PATH = path.join("..", "..", GITANA_JS_PATH);
     }
@@ -78,7 +78,7 @@ exports = module.exports = function(basePath)
     };
 
     return r;
-};
+}();
 
 
 

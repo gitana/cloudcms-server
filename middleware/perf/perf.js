@@ -11,8 +11,10 @@ var mime = require("mime");
  *
  * @type {Function}
  */
-exports = module.exports = function(config)
+exports = module.exports = function()
 {
+    var config = process.configuration;
+
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
     // RESULTING OBJECT
@@ -159,7 +161,7 @@ exports = module.exports = function(config)
     };
 
     return r;
-};
+}();
 
 
 

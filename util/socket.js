@@ -1,9 +1,10 @@
 var path = require('path');
 var fs = require('fs');
 var util = require("./util");
-var uuid = require("node-uuid");
 var hosts = require("./hosts");
 var Gitana = require('gitana');
+
+var stores = require("../middleware/stores/stores");
 
 exports = module.exports;
 
@@ -25,46 +26,44 @@ exports.bindGitana = function(socket, callback)
         return;
     }
 
-    // store host
+    // retain host on the socket instance
     socket.host = host;
 
-    var virtual = require("../middleware/virtual/virtual")(process.env.CLOUDCMS_HOSTS_PATH);
-    var cloudcms = require("../middleware/cloudcms/cloudcms")(process.env.CLOUDCMS_HOSTS_PATH);
+    // find the stores for this host
+    socket.stores = stores.stores(host);
+    socket.rootStore = socket.stores.root;
+    socket.webStore = socket.stores.web;
+    socket.configStore = socket.stores.config;
+    socket.contentStore = socket.stores.content;
 
-    if (fs.existsSync(process.env.CLOUDCMS_GITANA_JSON_PATH))
-    {
-        var dataStr = fs.readFileSync(process.env.CLOUDCMS_GITANA_JSON_PATH);
-        if (dataStr)
+    var driverConfig = require("../middleware/driver-config/driver-config");
+    var virtualConfig = require("../middleware/virtual-config/virtual-config");
+    var cloudcms = require("../middleware/cloudcms/cloudcms");
+
+    driverConfig.resolveConfig(socket, function(err) {
+
+        if (process.configuration.virtualDriver && process.configuration.virtualDriver.enabled)
         {
-            try
-            {
-                var json = JSON.parse(dataStr.toString());
+            virtualConfig.acquireGitanaJson(host, socket.rootStore, socket.log, function(err) {
 
-                socket.gitanaJsonPath = process.env.CLOUDCMS_GITANA_JSON_PATH;
-                socket.gitanaConfig = json;
-            }
-            catch (e)
-            {
-            }
+                cloudcms.doConnect(socket, socket.gitanaConfig, function(err) {
+
+                    if (err)
+                    {
+                        callback(err);
+                        return;
+                    }
+
+                    socket.gitana = this;
+
+                    callback();
+                });
+
+            });
         }
-    }
-
-    if (process.configuration.virtualDriver && process.configuration.virtualDriver.enabled)
-    {
-        virtual.acquireGitanaJson(socket.host, socket._log, function(err, gitanaJsonPath, gitanaJson) {
-
-            // skip out if not a valid host
-            if (!gitanaJsonPath)
-            {
-                callback();
-                return;
-            }
-
-            socket.virtualHost = host;
-            socket.gitanaJsonPath = gitanaJsonPath;
-            socket.gitanaConfig = gitanaJson;
-
-            cloudcms.doConnect(socket, gitanaJson, function(err) {
+        else if (socket.gitanaConfig)
+        {
+            cloudcms.doConnect(socket, socket.gitanaConfig, function(err) {
 
                 if (err)
                 {
@@ -76,24 +75,8 @@ exports.bindGitana = function(socket, callback)
 
                 callback();
             });
-        });
-    }
-    else if (socket.gitanaConfig)
-    {
-        var cloudcms = require("../middleware/cloudcms/cloudcms")(process.env.CLOUDCMS_HOSTS_PATH);
 
-        cloudcms.doConnect(socket, socket.gitanaConfig, function(err) {
-
-            if (err)
-            {
-                callback(err);
-                return;
-            }
-
-            socket.gitana = this;
-
-            callback();
-        });
-    }
+        }
+    });
 };
 

@@ -10,7 +10,7 @@ var path = require("path");
  *
  * @type {*}
  */
-exports = module.exports = function(basePath)
+exports = module.exports = function()
 {
     var map = {};
 
@@ -162,4 +162,4 @@ exports = module.exports = function(basePath)
     };
 
     return r;
-};
+}();

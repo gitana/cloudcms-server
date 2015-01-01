@@ -1,78 +1,37 @@
 var path = require('path');
-var fs = require('fs');
 var util = require("../../util/util");
 
-exports = module.exports = function(basePath)
+exports = module.exports = function()
 {
-    var storage = require("../../util/storage")(basePath);
-
     var CACHED_ADAPTERS = {};
 
-    var ensureConfigDirectoryPath = function(host, callback)
+    var bindConfigAdapter = function(configStore, callback)
     {
-        // if we have a host, then hand back the virtual host "config" path
-        // otherwise, hand back the /config directory of locally mounted
-
-        var configDirectoryPath = null;
-        if (host) {
-            configDirectoryPath = path.join(storage.hostDirectoryPath(host), "config");
-        }
-        else if (process.env.CLOUDCMS_CONFIG_BASE_PATH)
-        {
-            configDirectoryPath = process.env.CLOUDCMS_CONFIG_BASE_PATH;
-        }
-//        else
-//        {
-//            configDirectoryPath = path.join(process.cwd(), "config");
-//        }
-
-        fs.exists(configDirectoryPath, function(exists) {
-
-            if (!exists)
-            {
-                util.mkdirs(configDirectoryPath, function() {
-                    callback(null, configDirectoryPath);
-                });
-            }
-            else
-            {
-                callback(null, configDirectoryPath);
-            }
-        });
-    };
-
-    var bindConfigAdapter = function(host, callback)
-    {
-        var adapter = CACHED_ADAPTERS[host];
+        var adapter = CACHED_ADAPTERS[configStore.id];
         if (adapter)
         {
             callback(null, adapter);
         }
         else
         {
-            ensureConfigDirectoryPath(host, function(err, configDirectoryPath) {
+            require("./adapter")(configStore).init(function(err, adapter) {
 
-                if (err) {
-                    callback({
-                        "message": "Unable to acquire or create config directory path: " + configDirectoryPath
-                    });
+                if (err)
+                {
+                    callback(err);
                     return;
                 }
 
-                require("./adapter").init(configDirectoryPath, function(adapter) {
+                CACHED_ADAPTERS[configStore.id] = adapter;
 
-                    CACHED_ADAPTERS[host] = adapter;
-
-                    callback(null, adapter);
-                });
-
+                callback(null, adapter);
             });
         }
     };
 
-    var handleConfigRequest = function(host, callback)
+    var handleConfigRequest = function(configStore, callback)
     {
-        bindConfigAdapter(host, function(err, adapter) {
+        bindConfigAdapter(configStore, function(err, adapter) {
 
             if (err) {
                 callback({
@@ -200,23 +159,17 @@ exports = module.exports = function(basePath)
      */
     r.handler = function()
     {
-        return function(req, res, next)
-        {
+        return util.createHandler("config", function(req, res, next, configuration, stores) {
+
+            var configStore = stores.config;
+
             var handled = false;
 
             if (req.method.toLowerCase() == "get") {
 
                 if (req.url.indexOf("/_config") == 0)
                 {
-                    // we only use a virtual files host if we have virtual files deployed
-                    // otherwise, we leave null and let config service serve local files
-                    var virtualFilesHost = null;
-                    if (req.virtualFiles)
-                    {
-                        virtualFilesHost = req.virtualHost;
-                    }
-
-                    handleConfigRequest(virtualFilesHost, function(err, configArray) {
+                    handleConfigRequest(configStore, function(err, configArray) {
 
                         if (err) {
                             res.send({
@@ -240,8 +193,8 @@ exports = module.exports = function(basePath)
             {
                 next();
             }
-        }
+        });
     };
 
     return r;
-};
+}();

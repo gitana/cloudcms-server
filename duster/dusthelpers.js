@@ -2,7 +2,6 @@ var path = require('path');
 var fs = require('fs');
 var http = require('http');
 var crypto = require('crypto');
-var mkdirp = require('mkdirp');
 var async = require("async");
 
 /**
@@ -89,21 +88,6 @@ exports = module.exports = function(dust)
     var _MARK_INSIGHT = function(node, result)
     {
         result.insightNode = node.getRepositoryId() + "/" + node.getBranchId() + "/" + node.getId();
-    };
-
-    var replaceAll = function(text, find, replace)
-    {
-        var i = -1;
-        do
-        {
-            i = text.indexOf(find);
-            if (i > -1)
-            {
-                text = text.substring(0, i) + replace + text.substring(i + find.length);
-            }
-        } while (i > -1);
-
-        return text;
     };
 
     /**
@@ -1070,40 +1054,20 @@ exports = module.exports = function(dust)
         return map(chunk, function(chunk) {
             setTimeout(function() {
 
-                //console.log("");
-                //console.log("Target Path: " + targetPath);
-
-                var matchingFilePath = null;
+                var webStore = context.get("req").stores.web;
 
                 // the stack of executing template file paths
                 var currentTemplateFilePaths = context.get("templateFilePaths").reverse();
-                //console.log("Current Template File Paths: " + currentTemplateFilePaths);
 
-                if (targetPath.indexOf("/") === 0)
+                var resolveMatchingFilePath = function(callback)
                 {
-                    currentTemplateFilePaths = currentTemplateFilePaths.reverse();
-
-                    // absolute path, always relative to the first element in the template file paths list
-                    var filePath = path.resolve(currentTemplateFilePaths[0], "..", "." + targetPath);
-
-                    // if the file path does not end with ".html", we append
-                    if (filePath.indexOf(".html") == -1)
+                    // absolute path
+                    if (targetPath.indexOf("/") === 0)
                     {
-                        filePath += ".html";
-                    }
+                        currentTemplateFilePaths = currentTemplateFilePaths.reverse();
 
-                    if (fs.existsSync(filePath))
-                    {
-                        matchingFilePath = filePath;
-                    }
-                }
-                else
-                {
-                    // relative path, walk the template file paths list backwards
-                    for (var a = 0; a < currentTemplateFilePaths.length; a++)
-                    {
-                        // target template path
-                        var filePath = path.resolve(currentTemplateFilePaths[a], "..", targetPath);
+                        // absolute path, always relative to the first element in the template file paths list
+                        var filePath = path.resolve(currentTemplateFilePaths[0], "..", "." + targetPath);
 
                         // if the file path does not end with ".html", we append
                         if (filePath.indexOf(".html") == -1)
@@ -1111,108 +1075,138 @@ exports = module.exports = function(dust)
                             filePath += ".html";
                         }
 
-                        //console.log("Candidate file path: " + filePath);
+                        webStore.existsFile(filePath, function(exists) {
+                            if (exists) {
+                                callback(null, filePath);
+                            } else {
+                                callback();
+                            }
+                        });
+                    }
+                    else
+                    {
+                        var fns = [];
 
-                        if (fs.existsSync(filePath))
+                        // relative path, walk the template file paths list backwards
+                        for (var a = 0; a < currentTemplateFilePaths.length; a++)
                         {
-                            matchingFilePath = filePath;
-                            break;
+                            var fn = function(currentTemplateFilePath) {
+                                return function(done) {
+
+                                    // target template path
+                                    var filePath = path.resolve(currentTemplateFilePath, "..", targetPath);
+
+                                    // if the file path does not end with ".html", we append
+                                    if (filePath.indexOf(".html") == -1)
+                                    {
+                                        filePath += ".html";
+                                    }
+
+                                    webStore.existsFile(filePath, function(exists) {
+
+                                        if (exists) {
+                                            done(filePath);
+                                        } else {
+                                            done();
+                                        }
+                                    });
+                                }
+                            };
+                            fns.push(fn);
                         }
+
+                        async.series(fns, function(filePaths) {
+                            for (var i = 0; i < filePaths.length; i++) {
+                                if (filePaths[i]) {
+                                    callback(null, filePaths[i]);
+                                    break;
+                                }
+                            }
+                        })
+
                     }
-                }
+                };
 
-                // if no match...
-                if (!matchingFilePath)
-                {
-                    console.log("Unable to find included file for path: " + targetPath);
-                    end(chunk, context);
-                    return;
-                }
+                resolveMatchingFilePath(function(matchingFilePath) {
 
-                var filePath = matchingFilePath;
-
-                var templatePath = filePath.split(path.sep).join("/");
-                //console.log("Template Path: " + templatePath);
-
-                // load the contents of the file
-                // make sure this is text
-                var compiled = false;
-                if (!dust.cache[templatePath])
-                {
-                    var html = "" + fs.readFileSync(filePath);
-
-                    try
-                    {
-                        // compile
-                        var compiledTemplate = dust.compile(html, templatePath);
-                        dust.loadSource(compiledTemplate);
-
-                        compiled = true;
-                    }
-                    catch (e)
-                    {
-                        // compilation failed
-                        console.log("Compilation failed for: " + filePath);
-                        console.log(e);
-                    }
-                }
-                else
-                {
-                    compiled = true;
-                }
-
-                // now run the template
-                if (compiled)
-                {
-                    var includeContextObject = {};
-                    for (var k in params) {
-                        var value = dust.helpers.tap(params[k], chunk, context);
-                        if (value)
-                        {
-                            includeContextObject[k] = value;
-                        }
-                    }
-                    // push down new file path
-                    var templateFilePaths = context.get("templateFilePaths");
-                    var newTemplateFilePaths = [];
-                    for (var r = 0; r < templateFilePaths.length; r++)
-                    {
-                        newTemplateFilePaths.push(templateFilePaths[r]);
-                    }
-                    newTemplateFilePaths.push(filePath);
-                    includeContextObject["templateFilePaths"] = newTemplateFilePaths;
-                    var subContext = context.push(includeContextObject);
-
-                    //chunk.render(bodies.block, newContext);
-                    //chunk.partial(templatePath, subContext, {});
-                    //dust.render(templatePath, subContext, function(err, out) {
-
-                    //var x = chunk.partial.call(chunk, templatePath, subContext, {});
-
-                    //console.log("a2: " + x);
-                    //chunk.write(out);
-                    //chunk.write("ABC");
-                    //chunk.end("");
-
-                    //chunk.render.call(chunk, bodies.block, subContext);
-
-                    //chunk.render(dust.cache[templatePath], subContext);
-                    //chunk.end("");
-
-                    //});
-
-                    dust.render(templatePath, subContext, function(err, out) {
-
-                        chunk.write(out);
-
+                    // if no match...
+                    if (!matchingFilePath) {
+                        console.log("Unable to find included file for path: " + targetPath);
                         end(chunk, context);
-                    });
-                }
-                else
-                {
-                    end(chunk, context);
-                }
+                        return;
+                    }
 
+                    var filePath = matchingFilePath;
+
+                    var templatePath = filePath.split(path.sep).join("/");
+
+                    // load the contents of the file
+                    // make sure this is text
+                    var compileTemplate = function(templatePath, callback) {
+
+                        if (!dust.cache[templatePath])
+                        {
+                            webStore.readFile(filePath, function(err, data) {
+
+                                var html = "" + data;
+
+                                try
+                                {
+                                    // compile
+                                    var compiledTemplate = dust.compile(html, templatePath);
+                                    dust.loadSource(compiledTemplate);
+
+                                    callback();
+                                }
+                                catch (e)
+                                {
+                                    // compilation failed
+                                    console.log("Compilation failed for: " + filePath);
+                                    console.log(e);
+
+                                    callback(e);
+                                }
+                            });
+                        }
+                        else
+                        {
+                            callback();
+                        }
+                    };
+
+                    compileTemplate(templatePath, function(err) {
+
+                        if (err) {
+                            console.log("Failed to compile template: " + err.message);
+                            console.log(err);
+                            end(chunk, context);
+                        }
+
+                        var includeContextObject = {};
+                        for (var k in params) {
+                            var value = dust.helpers.tap(params[k], chunk, context);
+                            if (value) {
+                                includeContextObject[k] = value;
+                            }
+                        }
+                        // push down new file path
+                        var templateFilePaths = context.get("templateFilePaths");
+                        var newTemplateFilePaths = [];
+                        for (var r = 0; r < templateFilePaths.length; r++) {
+                            newTemplateFilePaths.push(templateFilePaths[r]);
+                        }
+                        newTemplateFilePaths.push(filePath);
+                        includeContextObject["templateFilePaths"] = newTemplateFilePaths;
+                        var subContext = context.push(includeContextObject);
+
+                        dust.render(templatePath, subContext, function (err, out) {
+
+                            chunk.write(out);
+
+                            end(chunk, context);
+                        });
+                    });
+                });
             });
         });
     };
@@ -1391,41 +1385,43 @@ exports = module.exports = function(dust)
         return map(chunk, function(chunk) {
             setTimeout(function() {
 
+                var webStore = context.get("req").stores.web;
+
                 var newUri = uri;
 
                 var req = context.get("req");
                 if (req)
                 {
-                    var filename = path.join(process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH, uri);
+                    var filename = uri;
 
                     // create md5 hash
                     var md5sum = crypto.createHash('md5');
 
                     // read file and update hash
-                    var s = fs.ReadStream(filename);
-                    s.on('data', function(d) {
-                        md5sum.update(d);
-                    });
-                    s.on('err', function(err) {
-                        // something went wrong, couldn't read the file?
-                        chunk.write(uri);
-                        end(chunk, context);
-                    });
-                    s.on('end', function() {
-                        var hash = md5sum.digest('hex');
+                    webStore.readStream(filename, function(err, s) {
 
-                        var i = uri.lastIndexOf(".");
-                        if (i == -1)
-                        {
-                            newUri = uri + "." + hash;
-                        }
-                        else
-                        {
-                            newUri = uri.substring(0, i) + "-" + hash + uri.substring(i);
-                        }
+                        s.on('data', function (d) {
+                            md5sum.update(d);
+                        });
+                        s.on('err', function (err) {
+                            // something went wrong, couldn't read the file?
+                            chunk.write(uri);
+                            end(chunk, context);
+                        });
+                        s.on('end', function () {
+                            var hash = md5sum.digest('hex');
 
-                        chunk.write(newUri);
-                        end(chunk, context);
+                            var i = uri.lastIndexOf(".");
+                            if (i == -1) {
+                                newUri = uri + "." + hash;
+                            }
+                            else {
+                                newUri = uri.substring(0, i) + "-" + hash + uri.substring(i);
+                            }
+
+                            chunk.write(newUri);
+                            end(chunk, context);
+                        });
                     });
                 }
                 else

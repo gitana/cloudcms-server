@@ -11,7 +11,7 @@ var util = require("../../util/util");
  *
  * @type {Function}
  */
-exports = module.exports = function(basePath)
+exports = module.exports = function()
 {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
@@ -28,40 +28,29 @@ exports = module.exports = function(basePath)
      *
      * @returns {Function}
      */
-    r.welcomeInterceptor = function(configuration)
+    r.welcomeInterceptor = function()
     {
-        var isWelcomeEnabled = function()
-        {
-            return (typeof(configuration.welcome) != "undefined");
-        };
+        return util.createInterceptor("welcome", function(req, res, next, configuration) {
 
-        var getWelcome = function()
-        {
-            return configuration.welcome;
-        };
+            if (configuration.file)
+            {
+                var url = req.originalUrl;
 
-        return function(req, res, next)
-        {
-            if (!isWelcomeEnabled())
+                var y = url.lastIndexOf("/");
+                if (y === url.length - 1)
+                {
+                    req.url = path.join(req.originalUrl, configuration.file);
+                }
+
+                next();
+            }
+            else
             {
                 next();
-                return;
             }
-
-            var url = req.originalUrl;
-
-            var y = url.lastIndexOf("/");
-            if (y == url.length - 1)
-            {
-                var newUrl = path.join(req.originalUrl, getWelcome());
-
-                req.url = newUrl;
-            }
-
-            next();
-        };
+        });
     };
 
     return r;
-};
+}();
 

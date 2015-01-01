@@ -1,9 +1,6 @@
 var path = require('path');
-var fs = require('fs');
 var http = require('http');
 var util = require("../../util/util");
-var localeUtil = require("../../util/locale");
-var mkdirp = require('mkdirp');
 
 var Gitana = require("gitana");
 
@@ -12,7 +9,7 @@ var LocalStrategy = require('passport-local').Strategy;
 
 var mime = require("mime");
 
-var GITANA_DRIVER_CONFIG_CACHE = require("../../cache/driverconfigs");
+var cloudcmsUtil = require("../../util/cloudcms");
 
 /**
  * Cloud CMS middleware.
@@ -153,27 +150,8 @@ passport.deserializeUser(function(id, done) {
 //
 ////////////////////////////////////////////////////////////////////////////
 
-exports = module.exports = function(basePath)
+exports = module.exports = function()
 {
-    var storage = require("../../util/storage")(basePath);
-    var cloudcmsUtil = require("../../util/cloudcms")(basePath);
-
-    var resolveGitanaJson = function(req, callback)
-    {
-        var json = req.gitanaConfig;
-        if (json)
-        {
-            // we force the cache key to the application id
-            json.key = json.application;
-            if (!json.key)
-            {
-                json.key = "default";
-            }
-        }
-
-        callback(null, json);
-    };
-
     var handleLogin = function(req, res, next)
     {
         var successUrl = req.param("successUrl");
@@ -263,129 +241,6 @@ exports = module.exports = function(basePath)
         });
     };
 
-    var autoRefreshRunner = function(configuration)
-    {
-        var diLog = function(text)
-        {
-            var shouldLog = configuration && configuration.autoRefresh && configuration.autoRefresh.log;
-            shouldLog = true;
-            if (shouldLog)
-            {
-                console.log(text);
-            }
-        };
-
-        // AUTO REFRESH PROCESS
-        // set up a background process that refreshes the appuser access token every 30 minutes
-        setInterval(function() {
-
-            diLog("Gitana Driver Health Check thread running...");
-
-            // gather all of the configs that we'll refresh (keyed by host -> gitana config)
-            var driverConfigs = {};
-            if (configuration.virtualDriver && configuration.virtualDriver.enabled)
-            {
-                driverConfigs["virtual"] = configuration.virtualDriver;
-            }
-
-            // also refresh any of our cached driver config state
-            var keys = GITANA_DRIVER_CONFIG_CACHE.keys();
-            for (var t = 0; t < keys.length; t++)
-            {
-                var c = GITANA_DRIVER_CONFIG_CACHE.read(keys[t]);
-                if (c)
-                {
-                    driverConfigs[keys[t]] = c.config;
-                }
-            }
-
-            var hosts = [];
-            for (var host in driverConfigs)
-            {
-                hosts.push(host);
-            }
-
-            console.log("Processing hosts: " + JSON.stringify(hosts));
-
-            var f = function(i)
-            {
-                if (i == hosts.length)
-                {
-                    // we're done
-                    diLog("Gitana Driver Health Check thread finished");
-                    return;
-                }
-
-                var host = hosts[i];
-                var gitanaConfig = driverConfigs[host];
-
-                if (gitanaConfig && typeof(gitanaConfig) == "object")
-                {
-                    console.log("WORKING ON HOST: " + host);
-                    console.log("WORKING ON CONFIG: " + JSON.stringify(gitanaConfig, null, "  "));
-
-                    Gitana.connect(gitanaConfig, function(err) {
-
-                        diLog(" -> [" + host + "] running health check");
-
-                        var g = this;
-
-                        if (err)
-                        {
-                            diLog(" -> [" + host + "] Caught error while running auto-refresh");
-                            diLog(" -> [" + host + "] " + err);
-                            diLog(" -> [" + host + "] " + JSON.stringify(err));
-
-                            diLog(" -> [" + host + "] Removing key: " + gitanaConfig.key);
-                            Gitana.disconnect(gitanaConfig.key);
-
-                            // remove from cache
-                            GITANA_DRIVER_CONFIG_CACHE.invalidate(host);
-
-                            f(i+1);
-                            return;
-                        }
-                        else
-                        {
-                            diLog(" -> [" + host + "] refresh for host: " + host);
-
-                            g.getDriver().refreshAuthentication(function(err) {
-
-                                if (err) {
-                                    diLog(" -> [" + host + "] Refresh Authentication caught error: " + JSON.stringify(err));
-
-                                    diLog(" -> [" + host + "] Auto disconnecting key: " + gitanaConfig.key);
-                                    Gitana.disconnect(gitanaConfig.key);
-
-                                    // remove from cache
-                                    GITANA_DRIVER_CONFIG_CACHE.invalidate(host);
-
-                                } else {
-                                    diLog(" -> [" + host + "] Successfully refreshed authentication for appuser");
-                                    diLog(" -> [" + host + "] grant time: " + new Date(g.getDriver().http.grantTime()));
-                                    diLog(" -> [" + host + "] access token: " + g.getDriver().http.accessToken());
-                                }
-
-                                f(i+1);
-                            });
-                        }
-                    });
-                }
-                else
-                {
-                    // otherwise, skip
-                    console.log("SKIPPING SINCE NO CONFIGURATION FOUND");
-
-                    f(i+1);
-                }
-
-            };
-
-            f(0);
-
-        }, (30*60*1000)); // thirty minutes
-    };
-
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
@@ -394,134 +249,6 @@ exports = module.exports = function(basePath)
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     var r = {};
-
-    var doConnect = r.doConnect = function(req, gitanaConfig, callback)
-    {
-        var configuration = process.configuration;
-
-        // either connect anew or re-use an existing connection to Cloud CMS for this application
-        Gitana.connect(gitanaConfig, function(err) {
-
-            if (err)
-            {
-                //
-                // if the "gitana.json" came from a virtual driver acquire, then it might have changed and we
-                // may need to reload it
-                //
-                // to allow that, we delete the file from disk here
-                //
-                // if we have virtual driver mode at the app server level...
-                if (configuration.virtualDriver && configuration.virtualDriver.enabled)
-                {
-                    if (req.virtualHost)
-                    {
-                        // if the gitana config was virtually loaded, we remove it from disk
-                        if (req.gitanaConfig && req.gitanaConfig._virtual)
-                        {
-                            if (fs.existsSync(req.gitanaJsonPath))
-                            {
-                                var backupGitanaJsonPath = req.gitanaJsonPath + ".backup-" + new Date().getTime();
-
-                                // first make a BACKUP of the original gitana.json file
-                                console.log("Backing up: " + req.gitanaJsonPath + " to: " + backupGitanaJsonPath);
-                                util.copyFile(req.gitanaJsonPath, backupGitanaJsonPath);
-
-                                // now remove
-                                fs.unlinkSync(req.gitanaJsonPath);
-
-                                // remove from cache
-                                GITANA_DRIVER_CONFIG_CACHE.invalidate(req.virtualHost);
-                            }
-                        }
-                    }
-                }
-
-                // either
-                //   a) we're not supposed to be able to connect because guest was attempted and is not allowed
-                //   b) non-guest and something went wrong
-
-                if (!gitanaConfig.username || gitanaConfig.username == "guest")
-                {
-                    // guest mode
-                    err.output = "Unable to connect to Cloud CMS as guest user";
-                }
-                else
-                {
-                    // otherwise assume that it is a configuration error?
-                    err.output = "There was a problem connecting to your tenant.  Please refresh your browser to try again or contact Cloud CMS for assistance.";
-                }
-            }
-
-            callback.call(this, err);
-        });
-    };
-
-    /**
-     * Ensures that a Cloud CMS driver is active and bound to the request.
-     *
-     * @return {Function}
-     */
-    r.driverInterceptor = function(configuration)
-    {
-        // the auto refresh runner ensures that the virtual driver gitana is always refreshed
-        autoRefreshRunner(configuration);
-
-        return function(req, res, next)
-        {
-            resolveGitanaJson(req, function(err, gitanaConfig) {
-
-                if (err) {
-                    req.log("Error loading gitana config: " + JSON.stringify(err));
-                    next();
-                    return;
-                }
-
-                if (!gitanaConfig)
-                {
-                    req.log("Could not find gitana.json file");
-                    next();
-                    return;
-                }
-
-                if (!gitanaConfig.key)
-                {
-                    gitanaConfig.key = gitanaConfig.application;
-                }
-
-                // either connect anew or re-use an existing connection to Cloud CMS for this application
-                doConnect(req, gitanaConfig, function(err) {
-
-                    if (err)
-                    {
-                        var configString = "null";
-                        if (gitanaConfig) {
-                            configString = JSON.stringify(gitanaConfig);
-                        }
-
-                        console.log("Cannot connect to Cloud CMS for config: " + configString + ", message: " + JSON.stringify(err));
-
-                        // send back error
-                        res.status(err.status);
-                        res.send(err.output);
-                        res.end();
-                        return;
-                    }
-
-                    req.gitana = this;
-
-                    if (gitanaConfig)
-                    {
-                        req.applicationId = gitanaConfig.application;
-                        req.principalId = this.getDriver().getAuthInfo().getPrincipalId();
-                        req.gitanaConfig = gitanaConfig;
-                    }
-
-                    next();
-                });
-
-            });
-        }
-    };
 
     /**
      * Determines which gitana repository to use in future operations.
@@ -535,29 +262,24 @@ exports = module.exports = function(basePath)
             if (req.gitana && req.gitana.datastore)
             {
                 var repository = req.gitana.datastore("content");
-                if (repository) {
+                if (repository)
+                {
                     req.repositoryId = repository.getId();
-                }
-            }
 
-            next();
-        }
-    };
+                    // helper function
+                    req.repository = function(callback)
+                    {
+                        if (req._repository)
+                        {
+                            callback(null, req._repository);
+                            return;
+                        }
 
-    /**
-     * Determines which gitana domain to use in future operations.
-     *
-     * @return {Function}
-     */
-    r.domainInterceptor = function()
-    {
-        return function(req, res, next)
-        {
-            if (req.gitana && req.gitana.datastore)
-            {
-                var domain = req.gitana.datastore("principals");
-                if (domain) {
-                    req.domainId = domain.getId();
+                        req.gitana.datastore("content").then(function() {
+                            req._repository = this;
+                            callback(null, this);
+                        });
+                    };
                 }
             }
 
@@ -588,6 +310,80 @@ exports = module.exports = function(basePath)
                 }
 
                 req.branchId = branchId;
+
+                // helper function
+                req.branch = function(callback)
+                {
+                    if (req._branch)
+                    {
+                        callback(null, req._branch);
+                        return;
+                    }
+
+                    req.repository(function(err, repository) {
+                        Chain(repository).readBranch(req.branchId).then(function() {
+                            req._branch = this;
+                            callback(null, req._branch);
+                        });
+                    });
+                };
+            }
+
+            next();
+        }
+    };
+
+    /**
+     * Determines which gitana domain to use in future operations.
+     *
+     * @return {Function}
+     */
+    r.domainInterceptor = function()
+    {
+        return function(req, res, next)
+        {
+            if (req.gitana && req.gitana.datastore)
+            {
+                var domain = req.gitana.datastore("principals");
+                if (domain)
+                {
+                    req.domainId = domain.getId();
+                }
+
+                /*
+                // helper function
+                req.domain = function(callback)
+                {
+                    callback(null, domain);
+                };
+                */
+            }
+
+            next();
+        }
+    };
+
+    /**
+     * Determines which gitana domain to use in future operations.
+     *
+     * @return {Function}
+     */
+    r.applicationInterceptor = function()
+    {
+        return function(req, res, next)
+        {
+            if (req.gitana && req.gitana.datastore)
+            {
+                var application = req.gitana.application();
+                if (application)
+                {
+                    req.applicationId = application.getId();
+                }
+
+                // helper function
+                req.application = function(callback) {
+                    callback(null, application);
+                };
             }
 
             next();
@@ -655,12 +451,13 @@ exports = module.exports = function(basePath)
      */
     r.virtualNodeHandler = function()
     {
-        return function(req, res, next)
-        {
-            var host = req.virtualHost;
+        return util.createHandler("virtualHost", function(req, res, next, configuration, stores) {
+
+            var contentStore = stores.content;
+
             var repositoryId = req.repositoryId;
-            var branchId = cloudcmsUtil.determineBranchId(req);
-            var locale = localeUtil.determineLocale(req);
+            var branchId = req.branchId;
+            var locale = req.locale;
 
             var previewId = null;
 
@@ -785,29 +582,29 @@ exports = module.exports = function(basePath)
                     }
                 }
                 /*
-                if (offsetPath.indexOf("/s/") === 0)
-                {
-                    var fullPath = path.join("Applications", req.gitana.application().getId(), offsetPath.substring(3));
-                    if (req.param("preview"))
-                    {
-                        previewPath = fullPath;
-                    }
-                    else if (req.param("size") || req.param("mimetype"))
-                    {
-                        if (req.param("size")) {
-                            previewId = "preview_" + req.param("size");
-                        }
-                        else if (req.param("mimetype")) {
-                            previewId = "preview_" + req.param("mimetype");
-                        }
-                        previewPath = fullPath;
-                    }
-                    else
-                    {
-                        virtualizedPath = fullPath;
-                    }
-                }
-                */
+                 if (offsetPath.indexOf("/s/") === 0)
+                 {
+                 var fullPath = path.join("Applications", req.gitana.application().getId(), offsetPath.substring(3));
+                 if (req.param("preview"))
+                 {
+                 previewPath = fullPath;
+                 }
+                 else if (req.param("size") || req.param("mimetype"))
+                 {
+                 if (req.param("size")) {
+                 previewId = "preview_" + req.param("size");
+                 }
+                 else if (req.param("mimetype")) {
+                 previewId = "preview_" + req.param("mimetype");
+                 }
+                 previewPath = fullPath;
+                 }
+                 else
+                 {
+                 virtualizedPath = fullPath;
+                 }
+                 }
+                 */
 
                 // TODO: handle certain mimetypes
                 // TODO: images, css, html, js?
@@ -902,19 +699,22 @@ exports = module.exports = function(basePath)
                         useContentDispositionResponse = true;
                     }
 
-                    cloudcmsUtil.download(host, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, function(err, filePath, cacheInfo) {
+                    console.log("aaaa.1");
+                    cloudcmsUtil.download(contentStore, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, function(err, filePath, cacheInfo) {
 
+                        console.log("aaaa.2");
                         // if the file was found on disk or was downloaded, then stream it back
-                        if (!err && filePath)
+                        if (!err && filePath && cacheInfo)
                         {
                             var filename = resolveFilename(filePath, cacheInfo, requestedFilename);
 
                             if (useContentDispositionResponse)
                             {
-                                res.download(filePath, filename, function(err) {
+                                contentStore.downloadFile(res, filePath, filename, function(err) {
 
                                     // something went wrong while streaming the content back...
-                                    if (err) {
+                                    if (err)
+                                    {
                                         res.status(503);
                                         res.send(err);
                                         res.end();
@@ -927,7 +727,7 @@ exports = module.exports = function(basePath)
                                 applyResponseContentType(res, cacheInfo, filename);
                                 applyDefaultContentTypeCaching(res, cacheInfo);
 
-                                util.sendFile(res, filePath, function(err) {
+                                contentStore.sendFile(res, filePath, function(err) {
 
                                     if (err)
                                     {
@@ -960,20 +760,20 @@ exports = module.exports = function(basePath)
                 else if (previewPath || previewNode)
                 {
                     /*
-                        Params are:
+                     Params are:
 
-                            "name"
-                            "mimetype"
-                            "size"
-                            "force"
+                     "name"
+                     "mimetype"
+                     "size"
+                     "force"
 
-                        Preview path is:
-                            /preview/path/{...path}?name={name}...rest of options
+                     Preview path is:
+                     /preview/path/{...path}?name={name}...rest of options
 
-                        Preview node is:
-                            /preview/node/{nodeId}?name={name}... rest of options
-                            /preview/node/GUID/tommy.jpg?name={name}... rest of options
-                    */
+                     Preview node is:
+                     /preview/node/{nodeId}?name={name}... rest of options
+                     /preview/node/GUID/tommy.jpg?name={name}... rest of options
+                     */
 
                     // node and path to offset against
                     var nodePath = null;
@@ -1030,7 +830,7 @@ exports = module.exports = function(basePath)
                         useContentDispositionResponse = true;
                     }
 
-                    cloudcmsUtil.preview(host, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, function(err, filePath, cacheInfo) {
+                    cloudcmsUtil.preview(contentStore, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, function(err, filePath, cacheInfo) {
 
                         if (err)
                         {
@@ -1038,13 +838,13 @@ exports = module.exports = function(basePath)
                         }
 
                         // if the file was found on disk or was downloaded, then stream it back
-                        if (!err && filePath)
+                        if (!err && filePath && cacheInfo)
                         {
                             var filename = resolveFilename(filePath, cacheInfo, requestedFilename);
 
                             if (useContentDispositionResponse)
                             {
-                                res.download(filePath, filename, function(err) {
+                                contentStore.downloadFile(res, filePath, filename, function(err) {
 
                                     // something went wrong while streaming the content back...
                                     if (err) {
@@ -1060,7 +860,7 @@ exports = module.exports = function(basePath)
                                 applyResponseContentType(res, cacheInfo, filename);
                                 applyDefaultContentTypeCaching(res, cacheInfo);
 
-                                util.sendFile(res, filePath, function(err) {
+                                contentStore.sendFile(res, filePath, function(err) {
 
                                     if (err)
                                     {
@@ -1101,7 +901,7 @@ exports = module.exports = function(basePath)
                 // if gitana not being used, then allow other handlers to handle the request
                 next();
             }
-        };
+        });
     };
 
     /**
@@ -1142,11 +942,12 @@ exports = module.exports = function(basePath)
      */
     r.virtualPrincipalHandler = function()
     {
-        return function(req, res, next)
-        {
-            var host = req.virtualHost;
+        return util.createHandler("virtual", function(req, res, next, configuration, stores) {
+
+            var contentStore = stores.content;
+
             var domainId = req.domainId;
-            var locale = localeUtil.determineLocale(req);
+            var locale = req.locale;
 
             var previewId = null;
 
@@ -1308,16 +1109,16 @@ exports = module.exports = function(basePath)
                         useContentDispositionResponse = true;
                     }
 
-                    cloudcmsUtil.downloadAttachable(host, gitana, "domain", domainId, "principal", principalId, attachmentId, locale, forceReload, function(err, filePath, cacheInfo) {
+                    cloudcmsUtil.downloadAttachable(contentStore, gitana, "domain", domainId, "principal", principalId, attachmentId, locale, forceReload, function(err, filePath, cacheInfo) {
 
                         // if the file was found on disk or was downloaded, then stream it back
-                        if (!err && filePath)
+                        if (!err && filePath && cacheInfo)
                         {
                             var filename = resolveFilename(filePath, cacheInfo, requestedFilename);
 
                             if (useContentDispositionResponse)
                             {
-                                res.download(filePath, filename, function(err) {
+                                contentStore.downloadFile(res, filePath, filename, function(err) {
 
                                     // something went wrong while streaming the content back...
                                     if (err) {
@@ -1333,7 +1134,7 @@ exports = module.exports = function(basePath)
                                 applyResponseContentType(res, cacheInfo, filename);
                                 applyDefaultContentTypeCaching(res, cacheInfo);
 
-                                util.sendFile(res, filePath, function(err) {
+                                contentStore.sendFile(res, filePath, function(err) {
 
                                     if (err)
                                     {
@@ -1366,17 +1167,17 @@ exports = module.exports = function(basePath)
                 else if (previewPrincipal)
                 {
                     /*
-                        Params are:
+                     Params are:
 
-                            "name"
-                            "mimetype"
-                            "size"
-                            "force"
+                     "name"
+                     "mimetype"
+                     "size"
+                     "force"
 
-                        Preview principal is:
-                            /preview/principal/{principalId}?name={name}... rest of options
-                            /preview/principal/GUID/tommy.jpg?name={name}... rest of options
-                    */
+                     Preview principal is:
+                     /preview/principal/{principalId}?name={name}... rest of options
+                     /preview/principal/GUID/tommy.jpg?name={name}... rest of options
+                     */
 
                     // principal
                     var principalId = previewPrincipal;
@@ -1425,7 +1226,7 @@ exports = module.exports = function(basePath)
                         useContentDispositionResponse = true;
                     }
 
-                    cloudcmsUtil.previewAttachable(host, gitana, "domain", domainId, "principal", principalId, attachmentId, locale, previewId, size, mimetype, forceReload, function(err, filePath, cacheInfo) {
+                    cloudcmsUtil.previewAttachable(contentStore, gitana, "domain", domainId, "principal", principalId, attachmentId, locale, previewId, size, mimetype, forceReload, function(err, filePath, cacheInfo) {
 
                         if (err)
                         {
@@ -1433,13 +1234,13 @@ exports = module.exports = function(basePath)
                         }
 
                         // if the file was found on disk or was downloaded, then stream it back
-                        if (!err && filePath)
+                        if (!err && filePath && cacheInfo)
                         {
                             var filename = resolveFilename(filePath, cacheInfo, requestedFilename);
 
                             if (useContentDispositionResponse)
                             {
-                                res.download(filePath, filename, function(err) {
+                                contentStore.downloadFile(res, filePath, filename, function(err) {
 
                                     // something went wrong while streaming the content back...
                                     if (err) {
@@ -1455,7 +1256,7 @@ exports = module.exports = function(basePath)
                                 applyResponseContentType(res, cacheInfo, filename);
                                 applyDefaultContentTypeCaching(res, cacheInfo);
 
-                                util.sendFile(res, filePath, function(err) {
+                                contentStore.sendFile(res, filePath, function(err) {
 
                                     if (err)
                                     {
@@ -1496,7 +1297,7 @@ exports = module.exports = function(basePath)
                 // if gitana not being used, then allow other handlers to handle the request
                 next();
             }
-        };
+        });
     };
 
     /**
@@ -1677,5 +1478,5 @@ exports = module.exports = function(basePath)
     };
 
     return r;
-};
+}();
 

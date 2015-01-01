@@ -54,7 +54,9 @@
 
       "async": "*",
 
-      "aws-sdk": "*"
+      "aws-sdk": "*",
+
+      "canoe": "*"
   },
   "devDependencies": {},
   "optionalDependencies": {},

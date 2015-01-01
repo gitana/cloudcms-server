@@ -9,10 +9,8 @@ var http = require('http');
  *
  * @type {Function}
  */
-exports = module.exports = function(basePath)
+exports = module.exports = function()
 {
-    var storage = require("../../util/storage")(basePath);
-
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
     // RESULTING OBJECT
@@ -36,7 +34,7 @@ exports = module.exports = function(basePath)
     };
 
     return r;
-};
+}();
 
 
 

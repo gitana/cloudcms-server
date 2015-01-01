@@ -216,61 +216,6 @@ exports.init = function(app, callback)
         handleFormPost(req, res, listKey);
     });
 
-
-    /**
-     * TEST CONTROLLER
-     */
-    /*
-    app.get("/_test1", function(req, res) {
-
-        // kill the access token
-        req.gitana.getDriver().http.accessToken("blah");
-        res.send("done");
-    });
-    app.get("/_test2", function(req, res) {
-
-        var virtualDriverConfig = process.configuration.virtualDriver;
-        if (virtualDriverConfig)
-        {
-            Gitana.connect(virtualDriverConfig, function(err) {
-
-                var gitanaJsonPath = req.gitanaJsonPath;
-
-                if (fs.existsSync(gitanaJsonPath))
-                {
-                    fs.unlinkSync(gitanaJsonPath);
-                }
-
-                this.getDriver().http.accessToken("blah");
-
-                res.send("done");
-
-            });
-        }
-        else
-        {
-            res.send("no virtual driver config");
-        }
-    });
-    */
-
-    /*
-    // TEMP
-    app.get("/_gc", function(req, res) {
-
-        if (app.memwatch)
-        {
-            console.log("[memwatch] calling gc()");
-            app.memwatch.gc();
-
-            res.send("memwatch.gc() called");
-            return;
-        }
-
-        res.send("memwatch not active");
-    });
-    */
-
     callback();
 };
 

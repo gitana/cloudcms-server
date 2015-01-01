@@ -24,8 +24,6 @@ var handleInvalidations = function(items, callback) {
 
 var runnerFn = function(provider)
 {
-    console.log("Receive");
-
     provider.process(function(err, items) {
 
         if (err)
@@ -58,15 +56,16 @@ var runnerFn = function(provider)
 };
 
 
-module.exports = function(basePath)
+module.exports = function()
 {
     var r = {};
+
     r.start = function(callback) {
 
         var config = process.configuration;
-        if (config && config.services && config.services["notifications"])
+        if (config && config["notifications"])
         {
-            var notifications = config.services["notifications"];
+            var notifications = config["notifications"];
 
             if (notifications.enabled)
             {
@@ -99,4 +98,4 @@ module.exports = function(basePath)
     };
 
     return r;
-};
+}();

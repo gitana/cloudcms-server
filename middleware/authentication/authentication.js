@@ -2,12 +2,14 @@ var path = require('path');
 var fs = require('fs');
 var http = require('http');
 
-var passport = require('passport');
+var util = require('../../util/util');
 
+var Gitana = require("gitana");
+
+var passport = require('passport');
 passport.serializeUser(function(user, done) {
     done(null, user);
 });
-
 passport.deserializeUser(function(user, done) {
     done(null, user);
 });
@@ -17,15 +19,15 @@ passport.deserializeUser(function(user, done) {
  *
  * @type {*}
  */
-exports = module.exports = function(basePath)
+exports = module.exports = function()
 {
     var LIBS = {};
 
-    var addLibrary = function(configuration, providerId)
+    var addLibrary = function(providerConfiguration, providerId)
     {
-        if (configuration.auth[providerId] && configuration.auth[providerId].enabled)
+        if (providerConfiguration.providers[providerId] && providerConfiguration.providers[providerId].enabled)
         {
-            LIBS[providerId] = require("./lib/" + providerId)(passport, configuration.auth[providerId]);
+            LIBS[providerId] = require("./lib/" + providerId)(passport, providerConfiguration.providers[providerId]);
         }
     };
 
@@ -47,48 +49,23 @@ exports = module.exports = function(basePath)
         app.use(passport.initialize());
         app.use(passport.session());
 
-        // return the middleware function
-        return function(req, res, next)
-        {
-            if (!req.gitana || !req.gitana.application)
-            {
-                next();
-                return;
-            }
+        return util.createHandler("auth", function(req, res, next, configuration) {
 
             var handled = false;
 
-            // CONFIGURATION
-            var configuration = {
-                "auth": {}
-            };
-            if (process.configuration.auth) {
-                for (var providerId in process.configuration.auth)
-                {
-                    configuration.auth[providerId] = process.configuration.auth[providerId];
-                }
+            if (!configuration.providers)
+            {
+                configuration.providers = {};
             }
-            var app = req.gitana.application();
-            if (app && app.runtime && app.runtime.auth) {
-                for (var providerId in app.runtime.auth)
-                {
-                    configuration.auth[providerId] = app.runtime.auth[providerId];
-                }
-            }
-
-            // LIBRARIES
-            //addLibrary(configuration, "facebook");
-            //addLibrary(configuration, "twitter");
-            //addLibrary(configuration, "linkedin");
 
             // add in any libraries
-            for (var providerId in configuration.auth)
+            for (var providerId in configuration.providers)
             {
                 addLibrary(configuration, providerId);
             }
 
             // HANDLE
-            if (req.method.toLowerCase() == "get")
+            if (req.method.toLowerCase() === "get")
             {
                 var i = req.url.indexOf("/auth/");
                 if (i > -1)
@@ -110,31 +87,25 @@ exports = module.exports = function(basePath)
 
                             var config = configuration.auth[providerId];
 
-                            var cb = function(providerId, config)
-                            {
-                                return function(err, user, info)
-                                {
-                                    if (err)
-                                    {
+                            var cb = function (providerId, config) {
+                                return function (err, user, info) {
+                                    if (err) {
                                         return next(err);
                                     }
 
-                                    if (!user)
-                                    {
+                                    if (!user) {
                                         return res.redirect(config.failureRedirect);
                                     }
 
                                     req.session.user = user;
 
-                                    req.logIn(user, function(err) {
+                                    req.logIn(user, function (err) {
 
-                                        if (err)
-                                        {
+                                        if (err) {
                                             return next(err);
                                         }
 
-                                        if (config.passTicket || config.passTokens)
-                                        {
+                                        if (config.passTicket || config.passTokens) {
                                             var domain = req.gitana.datastore("principals");
 
                                             // connect and get ticket
@@ -145,10 +116,9 @@ exports = module.exports = function(basePath)
                                                 "password": info.tokenSecret,
                                                 "baseURL": req.gitanaConfig.baseURL
                                             };
-                                            Gitana.connect(x, function(err) {
+                                            Gitana.connect(x, function (err) {
 
-                                                if (err)
-                                                {
+                                                if (err) {
                                                     return res.redirect(config.failureRedirect);
                                                 }
 
@@ -172,8 +142,7 @@ exports = module.exports = function(basePath)
 
                                             });
                                         }
-                                        else
-                                        {
+                                        else {
                                             return res.redirect(config.successRedirect);
                                         }
                                     });
@@ -197,10 +166,10 @@ exports = module.exports = function(basePath)
             {
                 next();
             }
-        }
+        });
     };
 
     return r;
 
-};
+}();
 

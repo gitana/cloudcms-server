@@ -6,16 +6,12 @@ var util = require("../../util/util");
 /**
  * Local middleware.
  *
- * Serves files back from local disk.  Pays attention to the virtual host (if available) to virtualize the location
- * on disk from which files are served.
+ * Serves files back from disk and from the root store.
  *
  * @type {Function}
  */
-exports = module.exports = function(basePath)
+exports = module.exports = function()
 {
-    var storage = require("../../util/storage")(basePath);
-
-
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
     // RESULTING OBJECT
@@ -25,23 +21,23 @@ exports = module.exports = function(basePath)
     var r = {};
 
     /**
-     * Supports virtual hosts for locally deployed/published assets.
+     * Supports retrieval of assets from the web store.
+     *
      * Files are served from:
      *
-     *   /hosts
+     *   <storeRoot>
      *     /<host>
      *       /public
      *
      * @return {Function}
      */
-    r.virtualHandler = function()
+    r.webStoreHandler = function()
     {
-        return function(req, res, next)
-        {
+        return util.createHandler("local", function(req, res, next, configuration, stores) {
+
             if (req.virtualFiles)
             {
-                var host = req.virtualHost;
-                //var locale = localeUtil.determineLocale(req);
+                var webStore = stores.web;
 
                 // check whether there is a file matching this uri
                 var uri = req.path;
@@ -49,35 +45,16 @@ exports = module.exports = function(basePath)
                     uri = "/index.html";
                 }
 
-                var hostDirectoryPath = storage.hostDirectoryPath(host);
-
-                var localDirectoryPath = path.join(hostDirectoryPath, "public");
-                if (fs.existsSync(path.join(hostDirectoryPath, "public_build")))
-                {
-                    // does public_build have content?
-                    var filenames = fs.readdirSync(path.join(hostDirectoryPath, "public_build"));
-                    if (filenames && filenames.length > 0)
-                    {
-                        localDirectoryPath = path.join(hostDirectoryPath, "public_build");
-                    }
-                }
-
-                fs.exists(path.join(localDirectoryPath, uri), function(exists) {
+                webStore.existsFile(uri, function(exists) {
 
                     if (exists)
                     {
-                        util.sendFile(res, uri, {
-                            "root": localDirectoryPath
-                        }, function(err) {
+                        webStore.sendFile(res, uri, function (err) {
 
                             if (err)
                             {
                                 console.log("ERR6: " + err);
                                 console.log("ERR6: " + JSON.stringify(err));
-
-                                // some kind of IO issue streaming back
-                                try { res.status(503).send(err); } catch (e) { }
-                                res.end();
                             }
 
                         });
@@ -89,11 +66,10 @@ exports = module.exports = function(basePath)
                     }
                 });
             }
-            else
-            {
+            else {
                 next();
             }
-        };
+        });
     };
 
     /**
@@ -104,53 +80,46 @@ exports = module.exports = function(basePath)
      */
     r.defaultHandler = function()
     {
-        return function(req, res, next)
-        {
+        return util.createHandler("local", function(req, res, next, configuration, stores) {
+
+            var webStore = stores.web;
+
             // check whether there is a file matching this uri
-            var uri = req.path;
-            if ("/" === uri) {
-                uri = "/index.html";
+            var filePath = req.path;
+            if ("/" === filePath) {
+                filePath = "/index.html";
             }
 
-            var rootPath =  process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH;
-            if (rootPath)
-            {
-                var resourceFilePath = path.join(rootPath, uri);
-                fs.exists(resourceFilePath, function(exists) {
+            webStore.existsFile(filePath, function (exists) {
 
-                    if (exists)
-                    {
-                        util.sendFile(res, uri, {
-                            "root": rootPath
-                        }, function(err) {
+                if (exists)
+                {
+                    webStore.sendFile(res, filePath, function (err) {
 
-                            if (err)
-                            {
-                                console.log("ERR7: " + err);
-                                console.log("ERR7: " + JSON.stringify(err));
+                        if (err) {
+                            console.log("ERR7: " + err);
+                            console.log("ERR7: " + JSON.stringify(err));
 
-                                // some kind of IO issue streaming back
-                                try { res.status(503).send(err); } catch (e) { }
-                                res.end();
+                            // some kind of IO issue streaming back
+                            try {
+                                res.status(503).send(err);
+                            } catch (e) {
                             }
+                            res.end();
+                        }
 
-                        });
-                    }
-                    else
-                    {
-                        next();
-                    }
-                });
-            }
-            else
-            {
-                next();
-            }
-        };
+                    });
+                }
+                else
+                {
+                    next();
+                }
+            });
+        });
     };
 
     return r;
-};
+}();
 
 
 

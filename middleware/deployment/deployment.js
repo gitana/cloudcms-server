@@ -17,10 +17,8 @@ var GITANA_DRIVER_CONFIG_CACHE = require("../../cache/driverconfigs");
  *
  * @type {Function}
  */
-exports = module.exports = function(basePath)
+exports = module.exports = function()
 {
-    var storage = require("../../util/storage")(basePath);
-
     var parseHost = function(descriptor, callback)
     {
         if (!descriptor.host)
@@ -49,16 +47,13 @@ exports = module.exports = function(basePath)
         callback(null, host);
     };
 
-    var doHandleWriteGitanaConfiguration = function(descriptor, hostDirectoryPath, callback)
+    var doHandleWriteGitanaConfiguration = function(descriptor, rootStore, callback)
     {
         if (!descriptor.deployment.clientKey)
         {
             callback();
             return;
         }
-
-        // write the gitana.json config file to
-        //    /hosts/<host>/gitana/gitana.json
 
         var baseURL = "https://api.cloudcms.com";
         if (descriptor.deployment.test) {
@@ -85,17 +80,32 @@ exports = module.exports = function(basePath)
             json.password = descriptor.deployment.password;
         }
 
+        var writeIt = function() {
+
+            rootStore.writeFile("gitana.json", JSON.stringify(json, null, "  "), function(err) {
+                callback(err);
+            });
+        };
+
         // if there is an existing gitana.json, delete it
-        var gitanaJsonPath = path.join(hostDirectoryPath, "gitana.json");
-        if (fs.existsSync(gitanaJsonPath))
-        {
-            fs.unlinkSync(gitanaJsonPath);
-        }
+        rootStore.existsFile("gitana.json", function(exists) {
+            if (exists)
+            {
+                rootStore.deleteFile("gitana.json", function(err) {
 
-        fs.writeFileSync(gitanaJsonPath, JSON.stringify(json, null, "  "));
+                    if (err) {
+                        callback(err);
+                        return;
+                    }
 
-        callback();
-
+                    writeIt();
+                });
+            }
+            else
+            {
+                writeIt();
+            }
+        });
     };
 
     /**
@@ -154,35 +164,40 @@ exports = module.exports = function(basePath)
                 return;
             }
 
-            if (storage.isDeployed(host))
-            {
-                callback({
-                    "message": "The application for host: " + host + " is already deployed"
-                });
-            }
-            else
-            {
-                req.log("Deploying application: " + descriptor.application.id + " to host: " + host);
+            // construct a "root" store for this host
+            var storeService = require("../../middleware/stores/stores");
+            storeService.produce(host, function(err, stores) {
 
-                storage.ensureHostDirectory(host, function(err, hostDirectoryPath) {
+                if (err) {
+                    callback(err);
+                    return;
+                }
 
-                    if (err) {
-                        callback(err, host);
+                var rootStore = stores.root;
+                rootStore.allocated(function(allocated) {
+
+                    console.log("allocated: " + allocated);
+                    if (allocated)
+                    {
+                        callback({
+                            "message": "The application for host: " + host + " is already deployed"
+                        });
                         return;
                     }
 
+                    req.log("Deploying application: " + descriptor.application.id + " to host: " + host);
+
                     // write the descriptor.json file
-                    fs.writeFile(path.join(hostDirectoryPath, "descriptor.json"), JSON.stringify(descriptor, null, "  "), function(err){
+                    rootStore.writeFile("descriptor.json", JSON.stringify(descriptor, null, "  "), function (err) {
 
                         if (err) {
                             callback(err, host);
                             return;
                         }
 
-                        var completionHandler = function()
-                        {
+                        var completionHandler = function () {
                             // optionally write any require gitana config into the virtual host
-                            doHandleWriteGitanaConfiguration(descriptor, hostDirectoryPath, function(err) {
+                            doHandleWriteGitanaConfiguration(descriptor, rootStore, function (err) {
 
                                 // CACHE: INVALIDATE
                                 DESCRIPTOR_CACHE.invalidate(host);
@@ -199,16 +214,13 @@ exports = module.exports = function(basePath)
                         var sourceType = descriptor.source.type;
                         var sourceUrl = descriptor.source.uri;
                         var sourcePath = descriptor.source.path;
-                        if (!sourcePath)
-                        {
+                        if (!sourcePath) {
                             sourcePath = "/";
                         }
-                        if ("github" === sourceType || "bitbucket" == sourceType)
-                        {
-                            util.gitCheckout(hostDirectoryPath, sourceType, sourceUrl, sourcePath, function(err) {
+                        if ("github" === sourceType || "bitbucket" == sourceType) {
+                            util.gitCheckout(host, sourceType, sourceUrl, sourcePath, function (err) {
 
-                                if (err)
-                                {
+                                if (err) {
                                     callback(err, host);
                                     return;
                                 }
@@ -216,8 +228,7 @@ exports = module.exports = function(basePath)
                                 completionHandler(err);
                             });
                         }
-                        else
-                        {
+                        else {
                             callback({
                                 "message": "Unable to deploy source of type: " + sourceType
                             }, host);
@@ -225,8 +236,8 @@ exports = module.exports = function(basePath)
 
                     });
                 });
-            }
-        })
+            });
+        });
     };
 
     var doUndeploy = function(req, descriptor, callback)
@@ -238,42 +249,53 @@ exports = module.exports = function(basePath)
                 return;
             }
 
-            if (!storage.isDeployed(host))
-            {
-                callback({
-                    "message": "The application is not currently deployed."
-                });
-            }
-            else
-            {
-                req.log("Undeploying application: " + descriptor.application.id + " from host: " + host);
+            // construct a "root" store for this host
+            var storeService = require("../../middleware/stores/stores");
+            storeService.produce(host, function(err, stores) {
 
-                // invalidate any cache state for this application
-                req.log("Invalidating application cache for application: " + descriptor.application.id);
-                process.cache.invalidateCacheForApp(descriptor.application.id);
-
-                // invalidate "duster" cache for this application
-                req.log("Invalidating duster cache for application: " + descriptor.application.id);
-                duster.invalidateCacheForApp(descriptor.application.id);
-
-                // invalidate gitana driver for this application
-                req.log("Invalidating gitana cache for application: " + descriptor.application.id);
-                Gitana.disconnect(descriptor.application.id);
-
-                // remove host directory
-                req.log("Removing host directory: " + host);
-                storage.removeHostDirectory(host, function(err) {
-
-                    // CACHE: INVALIDATE
-                    DESCRIPTOR_CACHE.invalidate(host);
-                    GITANA_DRIVER_CONFIG_CACHE.invalidate(host);
-
-                    req.log("Completed undeployment of application: " + descriptor.application.id + " from host: " + host);
-
+                if (err) {
                     callback(err);
-                });
-            }
+                    return;
+                }
 
+                var rootStore = stores.root;
+                rootStore.allocated(function (allocated) {
+
+                    if (!allocated) {
+                        callback({
+                            "message": "The application is not currently deployed."
+                        });
+                        return;
+                    }
+
+                    req.log("Undeploying application: " + descriptor.application.id + " from host: " + host);
+
+                    // invalidate any cache state for this application
+                    req.log("Invalidating application cache for application: " + descriptor.application.id);
+                    process.cache.invalidateCacheForApp(descriptor.application.id);
+
+                    // invalidate "duster" cache for this application
+                    req.log("Invalidating duster cache for application: " + descriptor.application.id);
+                    duster.invalidateCacheForApp(descriptor.application.id);
+
+                    // invalidate gitana driver for this application
+                    req.log("Invalidating gitana cache for application: " + descriptor.application.id);
+                    Gitana.disconnect(descriptor.application.id);
+
+                    // remove host directory
+                    req.log("Removing host directory: " + host);
+                    rootStore.cleanup(function(err) {
+
+                        // CACHE: INVALIDATE
+                        DESCRIPTOR_CACHE.invalidate(host);
+                        GITANA_DRIVER_CONFIG_CACHE.invalidate(host);
+
+                        req.log("Completed undeployment of application: " + descriptor.application.id + " from host: " + host);
+
+                        callback(err);
+                    });
+                });
+            });
         });
     };
 
@@ -286,43 +308,52 @@ exports = module.exports = function(basePath)
                 return;
             }
 
-            if (!storage.isDeployed(host))
-            {
-                callback({
-                    "message": "The application cannot be started because it is not deployed."
-                });
-            }
-            else
-            {
-                var descriptorFilePath = path.join(storage.hostDirectoryPath(host), "descriptor.json");
-                fs.readFile(descriptorFilePath, function(err, data) {
+            // construct a "root" store for this host
+            var storeService = require("../../middleware/stores/stores");
+            storeService.produce(host, function(err, stores) {
 
-                    if (err) {
-                        callback(err);
-                        return;
-                    }
+                if (err) {
+                    callback(err);
+                    return;
+                }
 
-                    data = JSON.parse(data);
+                var rootStore = stores.root;
+                rootStore.allocated(function(allocated) {
 
-                    // is it already started?
-                    if (data.active)
-                    {
+                    if (!allocated) {
                         callback({
-                            "message": "The application is already started"
+                            "message": "The application cannot be started because it is not deployed."
                         });
-                        return;
                     }
+                    else {
+                        rootStore.readFile("descriptor.json", function (err, data) {
 
-                    data.active = true;
+                            if (err) {
+                                callback(err);
+                                return;
+                            }
 
-                    req.log("Starting application: " + data.application.id + " with host: " + host);
+                            data = JSON.parse(data);
 
-                    fs.writeFile(descriptorFilePath, JSON.stringify(data, null, "  "), function(err){
-                        callback(err);
-                    });
+                            // is it already started?
+                            if (data.active) {
+                                callback({
+                                    "message": "The application is already started"
+                                });
+                                return;
+                            }
+
+                            data.active = true;
+
+                            req.log("Starting application: " + data.application.id + " with host: " + host);
+
+                            rootStore.writeFile("descriptor.json", JSON.stringify(data, null, "  "), function (err) {
+                                callback(err);
+                            });
+                        });
+                    }
                 });
-            }
-
+            });
         });
     };
 
@@ -335,41 +366,55 @@ exports = module.exports = function(basePath)
                 return;
             }
 
-            if (!storage.isDeployed(host))
-            {
-                callback({
-                    "message": "The application cannot be stopped because it is not deployed."
-                });
-            }
-            else
-            {
-                var descriptorFilePath = path.join(storage.hostDirectoryPath(host), "descriptor.json");
-                fs.readFile(descriptorFilePath, function(err, data) {
+            // construct a "root" store for this host
+            var storeService = require("../../middleware/stores/stores");
+            storeService.produce(host, function(err, stores) {
 
-                    data = JSON.parse(data);
+                if (err) {
+                    callback(err);
+                    return;
+                }
 
-                    // is it already stopped?
-                    if (!data.active)
-                    {
+                var rootStore = stores.root;
+                rootStore.allocated(function(allocated) {
+
+                    if (!allocated) {
                         callback({
-                            "message": "The application is already stopped"
+                            "message": "The application cannot be stopped because it is not deployed."
                         });
-                        return;
                     }
+                    else {
+                        rootStore.readFile("descriptor.json", function (err, data) {
 
-                    delete data.active;
+                            if (err) {
+                                callback(err);
+                                return;
+                            }
 
-                    req.log("Stopping application: " + data.application.id + " with host: " + host);
+                            data = JSON.parse(data);
 
-                    fs.writeFile(descriptorFilePath, JSON.stringify(data, null, "  "), function(err){
+                            // is it already stopped?
+                            if (!data.active) {
+                                callback({
+                                    "message": "The application is already stopped"
+                                });
+                                return;
+                            }
 
-                        req.log("Completed stop of application: " + data.application.id + " with host: " + host);
+                            delete data.active;
 
-                        callback(err);
-                    });
+                            req.log("Stopping application: " + data.application.id + " with host: " + host);
+
+                            rootStore.writeFile("descriptor.json", JSON.stringify(data, null, "  "), function (err) {
+
+                                req.log("Completed stop of application: " + data.application.id + " with host: " + host);
+
+                                callback(err);
+                            });
+                        });
+                    }
                 });
-            }
-
+            });
         });
     };
 
@@ -379,46 +424,55 @@ exports = module.exports = function(basePath)
             "isDeployed": false
         };
 
-        if (storage.isDeployed(host))
-        {
-            r.isDeployed = storage.isDeployed(host);
+        // construct a "root" store for this host
+        var storeService = require("../../middleware/stores/stores");
+        storeService.produce(host, function(err, stores) {
 
-            var descriptorFilePath = path.join(storage.hostDirectoryPath(host), "descriptor.json");
-            fs.readFile(descriptorFilePath, function(err, data) {
+            if (err) {
+                callback(err);
+                return;
+            }
 
-                if (err)
-                {
-                    callback(err);
-                    return;
+            var rootStore = stores.root;
+            rootStore.allocated(function (allocated) {
+
+                if (allocated) {
+                    r.isDeployed = allocated;
+
+                    rootStore.readFile("descriptor.json", function (err, data) {
+
+                        if (err) {
+                            callback(err);
+                            return;
+                        }
+
+                        r.descriptor = JSON.parse(data);
+                        r.descriptor.host = host;
+
+                        // urls
+                        parseHost(r.descriptor, function (err, host) {
+
+                            if (err) {
+                                callback(err);
+                                return;
+                            }
+
+                            var hostPort = host;
+                            if (r.descriptor.deployment.test) {
+                                hostPort += ":" + process.env.PORT;
+                            }
+
+                            r.urls = ["http://" + hostPort, "https://" + hostPort];
+
+                            callback(null, r);
+                        })
+                    });
                 }
-
-                r.descriptor = JSON.parse(data);
-                r.descriptor.host = host;
-
-                // urls
-                parseHost(r.descriptor, function(err, host) {
-
-                    if (err)
-                    {
-                        callback(err);
-                        return;
-                    }
-
-                    var hostPort = host;
-                    if (r.descriptor.deployment.test) {
-                        hostPort += ":" + process.env.PORT;
-                    }
-
-                    r.urls = ["http://" + hostPort, "https://" + hostPort];
-
+                else {
                     callback(null, r);
-                })
+                }
             });
-        }
-        else
-        {
-            callback(null, r);
-        }
+        });
     };
 
     var doCleanup = function(req, host, callback)
@@ -432,25 +486,38 @@ exports = module.exports = function(basePath)
             return;
         }
 
-        if (!storage.isDeployed(host))
-        {
-            // not deployed, skip out
-            callback();
+        // construct a "root" store for this host
+        var storeService = require("../../middleware/stores/stores");
+        storeService.produce(host, function(err, stores) {
 
-            return;
-        }
+            if (err) {
+                callback(err);
+                return;
+            }
 
-        // remove host directory
-        req.log("Removing host directory: " + host);
-        storage.removeHostDirectory(host, function(err) {
+            var rootStore = stores.root;
+            rootStore.allocated(function (allocated) {
 
-            // CACHE: INVALIDATE
-            DESCRIPTOR_CACHE.invalidate(host);
-            GITANA_DRIVER_CONFIG_CACHE.invalidate(host);
+                if (!allocated) {
+                    // not deployed, skip out
+                    callback();
 
-            req.log("Cleaned up virtual hosting for host: " + host);
+                    return;
+                }
 
-            callback(err);
+                // remove host directory
+                req.log("Removing host directory: " + host);
+                rootStore.cleanup(function (err) {
+
+                    // CACHE: INVALIDATE
+                    DESCRIPTOR_CACHE.invalidate(host);
+                    GITANA_DRIVER_CONFIG_CACHE.invalidate(host);
+
+                    req.log("Cleaned up virtual hosting for host: " + host);
+
+                    callback(err);
+                });
+            });
         });
     };
 
@@ -715,5 +782,5 @@ exports = module.exports = function(basePath)
     };
 
     return r;
-};
+}();
 

@@ -15,8 +15,8 @@ var ForeverAgent = require('forever-agent');
 /**
  * Proxy middleware.
  */
-exports = module.exports = function() {
-
+exports = module.exports = function()
+{
     ////////////////////////////////////////////////////////////////////////////
     //
     // HTTP/HTTPS Proxy Server to Cloud CMS
@@ -124,10 +124,8 @@ exports = module.exports = function() {
 
         var updateSetCookieHost = function(value)
         {
-            var newDomain = req.hostname;
-            if (req.virtualHost) {
-                newDomain = req.virtualHost;
-            }
+            var newDomain = req.domainHost;
+
             // TODO: why was this needed?  CNAME wip
             /*
              if (req.headers["x-forwarded-host"]) {
@@ -138,7 +136,7 @@ exports = module.exports = function() {
             /*
 
              / NOTE
-             // req.host = cloudcms-oneteam-env-58pc8mdwgg.elasticbeanstalk.com
+             // req.hostname = cloudcms-oneteam-env-58pc8mdwgg.elasticbeanstalk.com
              // req.virtualHost = tre624b7.cloudcms.net
              // req.headers["x-forwarded-host"] = terramaradmin.solocal.mobi, tre624b7.cloud$
              // req.headers["referer"] = http://terramaradmin.solocal.mobi/
@@ -236,18 +234,58 @@ exports = module.exports = function() {
     });
     var proxyHandler = proxyHandlerServer.listeners('request')[0];
 
-    return function(req, res, next)
-    {
-        if (req.url.indexOf("/proxy") === 0)
-        {
-            req.url = req.url.substring(6); // to strip off /proxy
+    var r = {};
 
-            proxyHandler(req, res);
-        }
-        else
+    r.proxy = function() {
+        return function(req, res, next)
         {
-            next();
-        }
+            if (req.url.indexOf("/proxy") === 0)
+            {
+                req.url = req.url.substring(6); // to strip off /proxy
+
+                proxyHandler(req, res);
+            }
+            else
+            {
+                next();
+            }
+        };
     };
-};
+
+    return r;
+}();
+
+/*
+ // if gitana.json is in root path, we override GITANA_PROXY_HOST, GITANA_PROXY_PORT, GITANA_PROXY_SCHEME
+ if (fs.existsSync(process.env.CLOUDCMS_GITANA_JSON_PATH))
+ {
+ var text = fs.readFileSync(process.env.CLOUDCMS_GITANA_JSON_PATH);
+ var json = JSON.parse(text);
+ if (json.baseURL)
+ {
+ var urlObject = url.parse(json.baseURL);
+ process.env.GITANA_PROXY_HOST = urlObject.hostname;
+ process.env.GITANA_PROXY_PORT = urlObject.port;
+ process.env.GITANA_PROXY_SCHEME = urlObject.protocol;
+ if (process.env.GITANA_PROXY_SCHEME && process.env.GITANA_PROXY_SCHEME.indexOf(":") > -1)
+ {
+ process.env.GITANA_PROXY_SCHEME = process.env.GITANA_PROXY_SCHEME.substring(0, process.env.GITANA_PROXY_SCHEME.length - 1);
+ }
+ if (!process.env.GITANA_PROXY_PORT || process.env.GITANA_PROXY_PORT == "null")
+ {
+ if (process.env.GITANA_PROXY_SCHEME == "http")
+ {
+ process.env.GITANA_PROXY_PORT = 80;
+ }
+ else if (process.env.GITANA_PROXY_SCHEME == "https")
+ {
+ process.env.GITANA_PROXY_PORT = 443;
+ }
+ }
+ console.log("Local gitana.json file found - setting proxy: " + json.baseURL);
+
+ process.gitanaLocal = true;
+ }
+ }
+ */
 

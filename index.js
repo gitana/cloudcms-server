@@ -1,10 +1,9 @@
 var path = require('path');
 var fs = require('fs');
-var mkdirp = require('mkdirp');
 var temp = require('temp');
 var url = require('url');
 
-var os = require('os');
+var util = require("./util/util");
 
 var GITANA_DRIVER_CONFIG_CACHE = require("./cache/driverconfigs");
 
@@ -50,108 +49,38 @@ exports = module.exports = function()
     if (!process.env.GITANA_PROXY_SCHEME) {
         process.env.GITANA_PROXY_SCHEME = "https";
     }
-    if (!process.env.CLOUDCMS_HOSTS_PATH)
-    {
-        process.env.CLOUDCMS_HOSTS_PATH = path.join(os.tmpdir(), "/hosts");
-    }
-
-    // make sure that the /hosts directory exists if it does not
-    if (!fs.existsSync(process.env.CLOUDCMS_HOSTS_PATH))
-    {
-        console.log("Creating hosts path: " + process.env.CLOUDCMS_HOSTS_PATH);
-    }
-
-    mkdirp(process.env.CLOUDCMS_HOSTS_PATH, function() {
-        handleMountHostsDirectory();
-    });
-
-    var handleMountHostsDirectory = function()
-    {
-        // if the hosts path doesn't exist, switch to temp path
-        if (!fs.existsSync(process.env.CLOUDCMS_HOSTS_PATH))
-        {
-            throw new Error("Cloud CMS hosts path does not exist: " + process.env.CLOUDCMS_HOSTS_PATH);
-        }
-
-        // test to make sure that the hosts directory can be written to
-        var testFilePath = path.join(process.env.CLOUDCMS_HOSTS_PATH, "test-" + new Date().getTime() + ".tmp");
-        try
-        {
-            fs.writeFileSync(testFilePath, "test");
-            fs.unlinkSync(testFilePath);
-        }
-        catch (e)
-        {
-            throw new Error("The hosts path: " + process.env.CLOUDCMS_HOSTS_PATH + " is not writable");
-        }
-
-        console.log("Mounting hosts path: " + process.env.CLOUDCMS_HOSTS_PATH);
-    };
-
-    // this is the root path where hosts, their public files and content caches are stored
-    var basePath = process.env.CLOUDCMS_HOSTS_PATH;
 
     // middleware
-    var virtual = require("./middleware/virtual/virtual")(basePath);
-    var deployment = require("./middleware/deployment/deployment")(basePath);
-    var authorization = require("./middleware/authorization/authorization")(basePath);
-    var cloudcms = require("./middleware/cloudcms/cloudcms")(basePath);
-    var wcm = require("./middleware/wcm/wcm")(basePath);
-    var textout = require("./middleware/textout/textout")(basePath);
-    var local = require("./middleware/local/local")(basePath);
-    var final = require("./middleware/final/final")(basePath);
-    var libraries = require("./middleware/libraries/libraries")(basePath);
-    var cache = require("./middleware/cache/cache")(basePath);
-    var welcome = require("./middleware/welcome/welcome")(basePath);
-    var config = require("./middleware/config")(basePath);
-    var flow = require("./middleware/flow/flow")(basePath);
-    var authentication = require("./middleware/authentication")(basePath);
+    var authentication = require("./middleware/authentication/authentication");
+    var authorization = require("./middleware/authorization/authorization");
+    var cache = require("./middleware/cache/cache");
+    var cloudcms = require("./middleware/cloudcms/cloudcms");
+    var config = require("./middleware/config/config");
+    var deployment = require("./middleware/deployment/deployment");
+    var driver = require("./middleware/driver/driver");
+    var driverConfig = require("./middleware/driver-config/driver-config");
+    var final = require("./middleware/final/final");
+    var flow = require("./middleware/flow/flow");
+    //var hashlessRouting = require("./middleware/hashless-routing/hashless-routing");
+    var host = require("./middleware/host/host");
+    var libraries = require("./middleware/libraries/libraries");
+    var local = require("./middleware/local/local");
+    var locale = require("./middleware/locale/locale");
+    var perf = require("./middleware/perf/perf");
+    var proxy = require("./middleware/proxy/proxy");
+    var serverTags = require("./middleware/server-tags/server-tags");
+    var storeService = require("./middleware/stores/stores");
+    var virtualConfig = require("./middleware/virtual-config/virtual-config");
+    var virtualFiles = require("./middleware/virtual-files/virtual-files");
+    var wcm = require("./middleware/wcm/wcm");
+    var welcome = require("./middleware/welcome/welcome");
 
     // services
-    var notificationsService = require("./services/notifications/notifications")(basePath);
-
+    var notifications = require("./notifications/notifications");
 
     // assume app-server base path if none provided
     if (!process.env.CLOUDCMS_APPSERVER_BASE_PATH) {
         process.env.CLOUDCMS_APPSERVER_BASE_PATH = process.cwd();
-    }
-
-    if (!process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH) {
-        process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH = path.join(process.env.CLOUDCMS_APPSERVER_BASE_PATH, "public");
-    }
-
-    // other paths we can pre-establish
-    process.env.CLOUDCMS_GITANA_JSON_PATH = path.join(process.env.CLOUDCMS_APPSERVER_BASE_PATH, "gitana.json");
-    process.env.CLOUDCMS_CONFIG_BASE_PATH = path.join(process.env.CLOUDCMS_APPSERVER_BASE_PATH, "config");
-
-    // if gitana.json is in root path, we override GITANA_PROXY_HOST, GITANA_PROXY_PORT, GITANA_PROXY_SCHEME
-    if (fs.existsSync(process.env.CLOUDCMS_GITANA_JSON_PATH))
-    {
-        var text = fs.readFileSync(process.env.CLOUDCMS_GITANA_JSON_PATH);
-        var json = JSON.parse(text);
-        if (json.baseURL)
-        {
-            var urlObject = url.parse(json.baseURL);
-            process.env.GITANA_PROXY_HOST = urlObject.hostname;
-            process.env.GITANA_PROXY_PORT = urlObject.port;
-            process.env.GITANA_PROXY_SCHEME = urlObject.protocol;
-            if (process.env.GITANA_PROXY_SCHEME && process.env.GITANA_PROXY_SCHEME.indexOf(":") > -1)
-            {
-                process.env.GITANA_PROXY_SCHEME = process.env.GITANA_PROXY_SCHEME.substring(0, process.env.GITANA_PROXY_SCHEME.length - 1);
-            }
-            if (!process.env.GITANA_PROXY_PORT || process.env.GITANA_PROXY_PORT == "null")
-            {
-                if (process.env.GITANA_PROXY_SCHEME == "http")
-                {
-                    process.env.GITANA_PROXY_PORT = 80;
-                }
-                else if (process.env.GITANA_PROXY_SCHEME == "https")
-                {
-                    process.env.GITANA_PROXY_PORT = 443;
-                }
-            }
-            console.log("Local gitana.json file found - setting proxy: " + json.baseURL);
-        }
     }
 
     // cache
@@ -167,131 +96,145 @@ exports = module.exports = function()
         process.env.CLOUDCMS_APPSERVER_PACKAGE_VERSION = packageJson.version;
     }
 
-
     // object that we hand back
     var r = {};
 
-    r.startServices = function(callback)
+    r.init = function(callback)
     {
-        notificationsService.start(function(err) {
-            callback(err);
-        });
+        // initialize stores
+        storeService.init(function(err) {
+
+            if (err) {
+                callback(err);
+                return;
+            }
+
+            // start services
+            notifications.start(function(err) {
+                callback(err);
+            });
+        })
     };
 
-    r.common = function(app, configuration)
+    r.common = function(app)
     {
-        if (!configuration) {
-            configuration = {};
-        }
+        // app config interceptor
+        applyApplicationConfiguration(app);
 
         // bind cache
         app.cache = process.cache;
 
+        // sets locale onto the request
+        app.use(locale.localeInterceptor());
+
+        // sets host onto the request
+        app.use(host.hostInterceptor());
+
+        // bind stores into the request
+        app.use(storeService.storesInterceptor());
+
+        // finds gitana.json and writes it to the store for dynamic virtual hosts
+        app.use(virtualConfig.interceptor());
+
+        // populates gitana.json onto the request as req.gitanaConfig
+        app.use(driverConfig.interceptor());
+
+        // binds "req.gitana" into the request for the loaded "req.gitanaConfig"
+        app.use(driver.driverInterceptor());
+
+        // puts req.descriptor into the request and req.virtualFiles = true
+        app.use(virtualFiles.interceptor());
+    };
+
+    r.proxy = function(app)
+    {
+        app.use(proxy.proxy());
+    };
+
+    r.perf = function(app)
+    {
+        app.use(perf.cacheHeaderInterceptor());
+    };
+
+    var applyApplicationConfiguration = r.applyApplicationConfiguration = function(app)
+    {
+        // binds req.config describing the proper app config to use for the request's current application
         app.use(function(req, res, next) {
 
-            var completionFunction = function(err, gitanaJsonPath, gitanaConfig)
+            var finish = function(configuration)
             {
-                if (err)
+                req.configuration = function(name, callback)
                 {
-                    req.log(err.message);
-                    next();
-                    return;
-                }
+                    if (typeof(name) === "function")
+                    {
+                        callback(null, configuration);
+                        return;
+                    }
 
-                if (gitanaJsonPath && gitanaConfig)
+                    if (!name)
+                    {
+                        callback(null, configuration);
+                    }
+                    else
+                    {
+                        var c = configuration[name];
+                        if (!c) {
+                            c = {};
+                        }
+
+                        callback(null, c);
+                    }
+                };
+
+                req.isEnabled = function(name)
                 {
-                    // overwrite path to gitana.json file
-                    req.gitanaJsonPath = gitanaJsonPath;
-                    req.gitanaConfig = gitanaConfig;
-                }
+                    return (configuration && configuration[name] && configuration[name].enabled);
+                };
 
                 next();
             };
 
-            var cachedValue = GITANA_DRIVER_CONFIG_CACHE.read("local");
-            if (cachedValue)
-            {
-                if (cachedValue == "null")
-                {
-                    // null means there verifiably isn't anything on disk (null used as sentinel marker)
-                    completionFunction();
-                }
-                else
-                {
-                    // we have something in cache
-                    completionFunction(null, cachedValue.path, cachedValue.config);
-                }
-            }
-            else
-            {
-                // try to load from disk
-                fs.exists(process.env.CLOUDCMS_GITANA_JSON_PATH, function(exists) {
+            var configuration = JSON.parse(JSON.stringify(process.configuration));
 
-                    if (exists)
+            if (req.application)
+            {
+                req.application(function(err, application) {
+
+                    if (application)
                     {
-                        fs.readFile(process.env.CLOUDCMS_GITANA_JSON_PATH, function(err, data) {
+                        var applicationConfiguration = application.runtime;
+                        if (!applicationConfiguration) {
+                            applicationConfiguration = {};
+                        }
 
-                            if (err)
-                            {
-                                completionFunction(err);
-                                return;
-                            }
+                        // merge configs
+                        util.merge(applicationConfiguration, configuration);
 
-                            var gitanaConfig = null;
-                            try
-                            {
-                                gitanaConfig = JSON.parse(data.toString());
-                            }
-                            catch (e)
-                            {
-                                console.log("Error reading json file in local driver check: " + process.env.CLOUDCMS_GITANA_JSON_PATH);
-                                completionFunction();
-                                return;
-                            }
-
-                            GITANA_DRIVER_CONFIG_CACHE.write("local", {
-                                "path": process.env.CLOUDCMS_GITANA_JSON_PATH,
-                                "config": gitanaConfig
-                            });
-
-                            completionFunction(null, process.env.CLOUDCMS_GITANA_JSON_PATH, gitanaConfig);
-                        });
+                        finish();
                     }
                     else
                     {
-                        // mark with sentinel
-                        GITANA_DRIVER_CONFIG_CACHE.write("local", "null");
-
-                        completionFunction();
+                        finish();
                     }
+
                 });
+            }
+            else
+            {
+                finish(configuration);
             }
         });
     };
 
-    r.welcome = function(app, configuration)
+    r.welcome = function(app)
     {
         // support for "welcome" files (i.e. index.html)
-        app.use(welcome.welcomeInterceptor(configuration));
+        app.use(welcome.welcomeInterceptor());
     };
 
-    r.virtual = function(app, configuration)
+    r.interceptors = function(app, includeCloudCMS)
     {
-        // binds virtual interceptors
-        virtual.interceptors(app, configuration);
-    };
-
-    r.driver = function(app, configuration)
-    {
-        // binds "req.gitana" into the request for the loaded "req.gitanaConfig"
-        app.use(cloudcms.driverInterceptor(configuration));
-    };
-
-    r.interceptors = function(app, includeCloudCMS, configuration)
-    {
-        if (!configuration) {
-            configuration = {};
-        }
+        var configuration = app.configuration;
 
         if (includeCloudCMS)
         {
@@ -308,20 +251,22 @@ exports = module.exports = function()
             // auto-select which gitana domain to use
             app.use(cloudcms.domainInterceptor());
 
+            // auto-select the application
+            app.use(cloudcms.applicationInterceptor());
+
             // enables ICE menu
             // app.use(cloudcms.iceInterceptor());
         }
 
-        // textout (tag processing, injection of scripts, etc, kind of a catch all at the moment)
-        app.use(textout.interceptor(configuration));
+        // authorization interceptor
+        app.use(authorization.authorizationInterceptor());
+
+        // tag processing, injection of scripts, etc, kind of a catch all at the moment
+        app.use(serverTags.interceptor(configuration));
     };
 
-    r.handlers = function(app, includeCloudCMS, configuration)
+    r.handlers = function(app, includeCloudCMS)
     {
-        if (!configuration) {
-            configuration = {};
-        }
-
         // handles deploy/undeploy commands
         app.use(deployment.handler());
 
@@ -347,10 +292,10 @@ exports = module.exports = function()
         }
 
         // handles calls to web flow controllers
-        app.use(flow.handlers(configuration));
+        app.use(flow.handlers());
 
         // handles virtualized local content retrieval from disk
-        app.use(local.virtualHandler());
+        app.use(local.webStoreHandler());
 
         // handles default content retrieval from disk
         app.use(local.defaultHandler());
@@ -358,7 +303,7 @@ exports = module.exports = function()
         if (includeCloudCMS)
         {
             // handles retrieval of content from wcm
-            app.use(wcm.wcmHandler(configuration));
+            app.use(wcm.wcmHandler());
         }
 
         // handles 404

@@ -3,16 +3,65 @@ var path = require('path');
 var mkdirp = require('mkdirp');
 var request = require("request");
 var mime = require("mime");
+var uuid = require("node-uuid");
+var os = require("os");
+var async = require("async");
+var temp = require('temp');
 
 var VALID_IP_ADDRESS_REGEX_STRING = "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$";
 
 exports = module.exports;
 
+var shouldIgnore = function(filePath)
+{
+    var ignore = false;
+
+    var filename = path.basename(filePath);
+
+    if ("gitana.json" === filename)
+    {
+        ignore = true;
+    }
+
+    if (".git" === filename)
+    {
+        ignore = true;
+    }
+
+    if (".DS_STORE" === filename)
+    {
+        ignore = true;
+    }
+
+    return ignore;
+};
+
+var assertSafeToDelete = function(directoryPath)
+{
+    var b = true;
+
+    if (!directoryPath || directoryPath.length < 4 || directoryPath === "/" || directoryPath === "//") {
+        b = false;
+        throw new Error("Cannot delete null or root directory");
+    }
+
+    if (directoryPath == __dirname) {
+        b = false;
+        throw new Error("Unallowed to delete directory: " + directoryPath);
+    }
+
+    if (directoryPath.indexOf(__dirname) > -1) {
+        b = false;
+        throw new Error("Unallowed to delete directory: " + directoryPath);
+    }
+
+    return b;
+};
+
 var rmdirRecursiveSync = function(directoryPath)
 {
-    if (!directoryPath || directoryPath.length < 4 || directoryPath == "/") {
-        throw new Error("Cannot delete null or root directory");
-        return;
+    if (!assertSafeToDelete(directoryPath)) {
+        return false;
     }
 
     if (!fs.existsSync(directoryPath))
@@ -169,15 +218,13 @@ var gitPull = function(directoryPath, gitUrl, sourceType, callback)
 };
 
 /**
- * This does a git init followed by a pull.
- *
- * It's intended to be run in a fresh directory only.
+ * Checks out the source code for an application to be deployed and copies it into the root store for a given host.
  *
  * @type {*}
  */
-exports.gitCheckout = function(hostDirectoryPath, sourceType, gitUrl, relativePath, callback)
+exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, callback)
 {
-    // this gets a little confusing, so here is what we have
+    // this gets a little confusing, so here is what we have:
     //
     //      /temp-1234                                                      (tempRootDirectoryPath)
     //          .git
@@ -186,140 +233,188 @@ exports.gitCheckout = function(hostDirectoryPath, sourceType, gitUrl, relativePa
     //              /public_build                                           (tempWorkingPublicBuildDirectory)
     //              /config                                                 (tempWorkingConfigDirectory)
     //              /gitana.json                                            (tempWorkingGitanaJsonFilePath)
+    //
+    //      <rootStore>
+    //          /web
+    //          /config
+    //          /content
+
+
     //      /hosts
     //          /domain.cloudcms.net                                        (hostDirectoryPath)
     //              /public                                                 (hostPublicDirectoryPath)
     //              /public_build                                           (hostPublicBuildDirectoryPath)
     //              /config                                                 (hostConfigDirectoryPath)
 
+    var storeService = require("../middleware/stores/stores");
 
-    // create a temp directory
-    var tempRootDirectoryPath = path.join(hostDirectoryPath, "temp-" + new Date().getTime());
-    mkdirs(tempRootDirectoryPath, function(err) {
+    // create a "root" store for the host
+    storeService.produce(host, function(err, stores) {
 
         if (err) {
             callback(err, host);
             return;
         }
 
-        // check out into the temp directory
-        gitInit(tempRootDirectoryPath, function(err) {
+        var rootStore = stores.root;
+
+        // create tempRootDirectoryPath
+        createTempDirectory(function (err, tempRootDirectoryPath) {
 
             if (err) {
-                callback(err);
+                callback(err, host);
                 return;
             }
 
-            gitPull(tempRootDirectoryPath, gitUrl, sourceType, function(err) {
+            // initialize git in temp root directory
+            gitInit(tempRootDirectoryPath, function (err) {
 
                 if (err) {
                     callback(err);
                     return;
                 }
 
-                // make sure there is a "public" directory (in HOST directory)
-                var hostPublicDirectoryPath = path.join(hostDirectoryPath, "public");
-                mkdirs(hostPublicDirectoryPath, function(err) {
+                // perform a git pull of the repository
+                gitPull(tempRootDirectoryPath, gitUrl, sourceType, function (err) {
 
                     if (err) {
                         callback(err);
                         return;
                     }
 
-                    // make sure there is a "public_build" directory (in HOST directory)
-                    var hostPublicBuildDirectoryPath = path.join(hostDirectoryPath, "public_build");
-                    mkdirs(hostPublicBuildDirectoryPath, function(err) {
+                    // if there isn't a "public" and there isn't a "public_build" directory,
+                    // then move files into public
+                    var publicExists = fs.existsSync(path.join(tempRootDirectoryPath, "public"));
+                    var publicBuildExists = fs.existsSync(path.join(tempRootDirectoryPath, "public_build"));
+                    if (!publicExists && !publicBuildExists)
+                    {
+                        fs.mkdirSync(path.join(tempRootDirectoryPath, "public"));
 
-                        if (err) {
-                            callback(err);
-                            return;
-                        }
-
-                        var copied = false;
-
-                        console.log("RELATIVE PATH: " + relativePath);
-                        var tempWorkingDirectoryPath = tempRootDirectoryPath;
-                        if (relativePath && relativePath != "/")
+                        var filenames = fs.readdirSync(tempRootDirectoryPath);
+                        if (filenames && filenames.length > 0)
                         {
-                            tempWorkingDirectoryPath = path.join(tempRootDirectoryPath, relativePath);
-                        }
-
-                        // if the temp folder has a "public" directory...
-                        // and the "public" directory has "index.html" or "templates"
-                        // then copy all of its children into "public"
-                        var tempWorkingPublicDirectory = path.join(tempWorkingDirectoryPath, "public");
-                        if (fs.existsSync(tempWorkingPublicDirectory))
-                        {
-                            var a1 = fs.existsSync(path.join(tempWorkingPublicDirectory, "index.html"));
-                            var a2 = fs.existsSync(path.join(tempWorkingPublicDirectory, "templates"));
-                            if (a1 || a2)
+                            for (var i = 0; i < filenames.length; i++)
                             {
-                                copyChildrenToDirectory(tempWorkingPublicDirectory, hostPublicDirectoryPath);
-                                copied = true;
+                                if (!shouldIgnore(path.join(tempRootDirectoryPath, filenames[i])))
+                                {
+                                    if ("config" === filenames[i])
+                                    {
+                                        // skip this
+                                    }
+                                    else if ("gitana.json" === filenames[i])
+                                    {
+                                        // skip
+                                    }
+                                    else if ("descriptor.json" === filenames[i])
+                                    {
+                                        // skip
+                                    }
+                                    else if ("public" === filenames[i])
+                                    {
+                                        // skip
+                                    }
+                                    else if ("public_build" === filenames[i])
+                                    {
+                                        // skip
+                                    }
+                                    else
+                                    {
+                                        fs.renameSync(path.join(tempRootDirectoryPath, filenames[i]), path.join(tempRootDirectoryPath, "public", filenames[i]));
+                                    }
+                                }
                             }
                         }
+                    }
 
-                        // if the temp folder has a "public_build" directory...
-                        // and the "public_build" directory has "index.html"
-                        // then copy all of its children into "public_build"
-                        var tempWorkingPublicBuildDirectory = path.join(tempWorkingDirectoryPath, "public_build");
-                        if (fs.existsSync(tempWorkingPublicBuildDirectory))
-                        {
-                            var a1 = fs.existsSync(path.join(tempWorkingPublicBuildDirectory, "index.html"));
-                            var a2 = fs.existsSync(path.join(tempWorkingPublicBuildDirectory, "templates"));
-                            if (a1 || a2)
-                            {
-                                copyChildrenToDirectory(tempWorkingPublicBuildDirectory, hostPublicBuildDirectoryPath);
-                                copied = true;
-                            }
-                        }
+                    // copy everything from temp dir into the store
+                    copyToStore(tempRootDirectoryPath, rootStore, function(err) {
 
-                        // if neither "public" nor "public_build" copied, then copy entire working directory
-                        if (!copied)
-                        {
-                            copyChildrenToDirectory(tempWorkingDirectoryPath, hostPublicDirectoryPath);
-                        }
+                        // now remove temp directory
+                        rmdir(tempRootDirectoryPath);
 
+                        callback(err);
 
-                        // CONFIG
-                        var hostConfigDirectoryPath = path.join(hostDirectoryPath, "config");
-                        mkdirs(hostConfigDirectoryPath, function(err) {
-
-                            if (err) {
-                                callback(err);
-                                return;
-                            }
-
-                            var tempWorkingConfigDirectory = path.join(tempWorkingDirectoryPath, "config");
-                            if (fs.existsSync(tempWorkingConfigDirectory))
-                            {
-                                copyChildrenToDirectory(tempWorkingConfigDirectory, hostConfigDirectoryPath);
-                            }
-
-
-                            // copy GITANA.JSON
-                            var tempWorkingGitanaJsonFilePath = path.join(tempWorkingDirectoryPath, "gitana.json");
-                            if (fs.existsSync(tempWorkingGitanaJsonFilePath))
-                            {
-                                copyFile(tempWorkingGitanaJsonFilePath, path.join(hostDirectoryPath, "gitana.json"));
-                            }
-
-                            // now remove temp directory
-                            rmdir(tempRootDirectoryPath);
-
-                            callback(err);
-
-                        });
                     });
+
                 });
             });
         });
     });
 };
 
-var rmdir = exports.rmdir = function(directory)
+var copyToStore = exports.copyToStore = function(sourceDirectory, targetStore, callback)
 {
-    rmdirRecursiveSync(directory);
+    var f = function(filepath, fns) {
+
+        var sourceFilePath = path.join(sourceDirectory, filepath);
+        if (!shouldIgnore(sourceFilePath))
+        {
+            var sourceStats = fs.lstatSync(sourceFilePath);
+            if (sourceStats) {
+                if (sourceStats.isDirectory()) {
+
+                    // STORE: CREATE_DIRECTORY
+                    fns.push(function (filepath, targetStore) {
+                        return function (done) {
+                            targetStore.createDirectory(filepath, function (err) {
+                                done(err);
+                            });
+                        }
+                    }(filepath, targetStore));
+
+                    // list files
+                    var filenames = fs.readdirSync(sourceFilePath);
+                    if (filenames && filenames.length > 0) {
+                        for (var i = 0; i < filenames.length; i++) {
+                            f(path.join(filepath, filenames[i]), fns);
+                        }
+                    }
+                }
+                else if (sourceStats.isFile()) {
+
+                    // STORE: CREATE_FILE
+                    fns.push(function (sourceFilePath, filepath, targetStore) {
+                        return function (done) {
+                            fs.readFile(sourceFilePath, function (err, data) {
+
+                                if (err) {
+                                    done(err);
+                                    return;
+                                }
+
+                                targetStore.writeFile(filepath, data, function (err) {
+                                    done(err);
+                                });
+                            });
+                        };
+                    }(sourceFilePath, filepath, targetStore));
+                }
+            }
+        }
+    };
+
+    var copyFunctions = [];
+
+    var filenames = fs.readdirSync(sourceDirectory);
+    for (var i = 0; i < filenames.length; i++)
+    {
+        f(filenames[i], copyFunctions);
+    }
+
+    // run all the copy functions
+    async.series(copyFunctions, function (errors) {
+        callback();
+    });
+
+};
+
+var rmdir = exports.rmdir = function(directoryPath)
+{
+    if (!assertSafeToDelete(directoryPath)) {
+        return false;
+    }
+
+    rmdirRecursiveSync(directoryPath);
 };
 
 var mkdirs = exports.mkdirs = function(directoryPath, callback)
@@ -335,6 +430,7 @@ var copyFile = exports.copyFile = function(srcFile, destFile)
     fs.writeFileSync(destFile, contents);
 };
 
+/*
 var copyChildrenToDirectory = function(sourceDirectoryPath, targetDirectoryPath)
 {
     var filenames = fs.readdirSync(sourceDirectoryPath);
@@ -367,41 +463,9 @@ var copyChildrenToDirectory = function(sourceDirectoryPath, targetDirectoryPath)
         }
     }
 };
+*/
 
-/**
- * Determines the public path.
- *
- * If the request is for a virtual host, the path is resolved to the virtual host files path.
- *
- * @param req
- * @returns {*}
- */
-exports.publicPath = function(req, storage)
-{
-    var publicPath = process.env.CLOUDCMS_APPSERVER_PUBLIC_PATH;
-    if (req.virtualHost)
-    {
-        var virtualHostDirectoryPath = storage.hostDirectoryPath(req.virtualHost);
-
-        publicPath = path.join(virtualHostDirectoryPath, "public");
-        if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
-        {
-            var publicBuildPath = path.join(virtualHostDirectoryPath, "public_build");
-            if (fs.existsSync(publicBuildPath))
-            {
-                var filenames = fs.readdirSync(publicBuildPath);
-                if (filenames && filenames.length > 0)
-                {
-                    publicPath = publicBuildPath;
-                }
-            }
-        }
-    }
-
-    return publicPath;
-};
-
-exports.trim = function(text)
+var trim = exports.trim = function(text)
 {
     return text.replace(/^\s+|\s+$/g,'');
 };
@@ -512,7 +576,7 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
         request(config, function(err, response, body) {
 
             // ok case (just callback)
-            if (response && response.statusCode == 200)
+            if (response && response.statusCode === 200)
             {
                 cb(err, response, body);
                 return;
@@ -540,6 +604,7 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
                     console.log("ERR.88 " + JSON.stringify(e));
                 }
             }
+
             if (isInvalidToken)
             {
                 // we go through the retry handler
@@ -565,4 +630,125 @@ var isIPAddress = exports.isIPAddress = function(text)
 {
     var rx = new RegExp(VALID_IP_ADDRESS_REGEX_STRING);
     return rx.test(text);
+};
+
+var merge = exports.merge = function(source, target)
+{
+    for (var k in source)
+    {
+        if (typeof(source[k]) !== "undefined") {
+            if (source[k].push) {
+                if (!target[k]) {
+                    target[k] = [];
+                }
+
+                // merge array
+                for (var x = 0; x < source[k].length; x++) {
+                    target[k].push(source[k][x]);
+                }
+            }
+            else if ((typeof source[k]) === "object") {
+                if (!target[k]) {
+                    target[k] = {};
+                }
+
+                // merge keys/values
+                merge(source[k], target[k]);
+            }
+            else {
+                // overwrite a scalar
+                target[k] = source[k];
+            }
+        }
+    }
+};
+
+var createHandler = exports.createHandler = function(name, fn)
+{
+    return function(req, res, next) {
+
+        req.configuration(name, function(err, handleConfiguration) {
+
+            if (err) {
+                next(err);
+                return;
+            }
+
+            if (!handleConfiguration.enabled)
+            {
+                next();
+                return;
+            }
+
+            fn(req, res, next, handleConfiguration, req.stores, req.cache);
+
+        });
+    };
+};
+
+var createInterceptor = exports.createInterceptor = function(name, fn)
+{
+    return function(req, res, next) {
+
+        req.configuration(name, function(err, handleConfiguration) {
+
+            if (err) {
+                next(err);
+                return;
+            }
+
+            if (!handleConfiguration.enabled)
+            {
+                next();
+                return;
+            }
+
+            fn(req, res, next, handleConfiguration, req.stores, req.cache);
+        });
+    };
+};
+
+var replaceAll = exports.replaceAll = function(text, find, replace)
+{
+    var i = -1;
+    do
+    {
+        i = text.indexOf(find);
+        if (i > -1)
+        {
+            text = text.substring(0, i) + replace + text.substring(i + find.length);
+        }
+    } while (i > -1);
+
+    return text;
+};
+
+var createTempDirectory = exports.createTempDirectory = function(callback)
+{
+    var tempDirectory = path.join(os.tmpdir(), "/tmp-" + uuid.v4());
+
+    mkdirs(tempDirectory, function(err) {
+        callback(err, tempDirectory);
+    });
+};
+
+var generateTempFilePath = exports.generateTempFilePath = function(basedOnFilePath)
+{
+    var tempFilePath = null;
+
+    var ext = null;
+    if (basedOnFilePath) {
+        ext = path.extname(basedOnFilePath);
+    }
+
+    if (ext)
+    {
+        tempFilePath = temp.path({suffix: ext})
+    }
+    else
+    {
+        tempFilePath = temp.path();
+    }
+
+    return tempFilePath;
 };

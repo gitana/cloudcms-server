@@ -2,34 +2,19 @@ var path = require('path');
 var fs = require('fs');
 var http = require('http');
 
-var mkdirp = require('mkdirp');
+var util = require("../../util/util");
 
 var duster = require("../../duster");
 
 
 /**
- * TextOut Middleware.
+ * Server Tags Middleware.
  *
  * Performs variable and token substitution on some text files that find themselves being served.
  * This includes any HTML file and the gitana.js driver.
  */
-exports = module.exports = function(basePath)
+exports = module.exports = function()
 {
-    var areServerTagsEnabled = function(configuration)
-    {
-        var enabled = false;
-
-        if (configuration && configuration.serverTags)
-        {
-            if (typeof(configuration.serverTags.enabled) != "undefined")
-            {
-                enabled = configuration.serverTags.enabled;
-            }
-        }
-
-        return enabled;
-    };
-
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
     // RESULTING OBJECT
@@ -38,22 +23,21 @@ exports = module.exports = function(basePath)
 
     var r = {};
 
-    r.interceptor = function(configuration)
+    r.interceptor = function()
     {
-        return function(req, res, next)
-        {
+        return util.createInterceptor("serverTags", function(req, res, next, configuration, stores) {
+
+            var webStore = stores.web;
+
             var doParse = false;
-            if (areServerTagsEnabled(configuration))
+            if (req.path.indexOf(".html") !== -1)
             {
-                if (req.path.indexOf(".html") !== -1)
-                {
-                    doParse = true;
-                }
+                doParse = true;
             }
 
             if (doParse)
             {
-                wrapWithDustParser(req, res);
+                wrapWithDustParser(webStore, req, res);
                 next();
                 return;
             }
@@ -76,10 +60,10 @@ exports = module.exports = function(basePath)
 
             // otherwise, we don't bother
             next();
-        }
+        });
     };
 
-    var wrapWithDustParser = function(req, res)
+    var wrapWithDustParser = function(webStore, req, res)
     {
         var _sendFile = res.sendFile;
         var _send = res.send;
@@ -93,30 +77,33 @@ exports = module.exports = function(basePath)
             }
 
             // read the file
-            var text = fs.readFileSync(fullFilePath);
-            if (!text)
-            {
-                _sendFile.call(res, filePath, options, fn);
-                return;
-            }
-            text = text.toString();
-            var z = text.indexOf("{@query");
-            if (z === -1)
-            {
-                _sendFile.call(res, filePath, options, fn);
-                return;
-            }
-            duster.execute(req, fullFilePath, function(err, out) {
+            webStore.readFile(fullFilePath, function(err, text) {
 
-                if (err)
+                if (!text)
                 {
-                    // use the original method
                     _sendFile.call(res, filePath, options, fn);
+                    return;
                 }
-                else
+                text = text.toString();
+                var z = text.indexOf("{@query");
+                if (z === -1)
                 {
-                    _send.call(res, 200, out);
+                    _sendFile.call(res, filePath, options, fn);
+                    return;
                 }
+                duster.execute(req, fullFilePath, function(err, out) {
+
+                    if (err)
+                    {
+                        // use the original method
+                        _sendFile.call(res, filePath, options, fn);
+                    }
+                    else
+                    {
+                        _send.call(res, 200, out);
+                    }
+                });
+
             });
         };
     };
@@ -136,13 +123,13 @@ exports = module.exports = function(basePath)
             {
                 // check "cloudcms-server" node modules
                 filePath = path.join(__dirname, "..", "..", "node_modules", "gitana", "lib", filename);
-                if (!fs.existsSync(filePath))
+                if (!fs.existsSync(filePath)) // OK
                 {
                     // check another level up
                     filePath = path.join(__dirname, "..", "..", "..", "..", "node_modules", "gitana", "lib", filename);
                 }
 
-                fs.readFile(filePath, function(err, text) {
+                fs.readFile(filePath, function(err, text) { // OK
 
                     if (err)
                     {
@@ -200,5 +187,5 @@ exports = module.exports = function(basePath)
     };
 
     return r;
-};
+}();
 

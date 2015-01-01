@@ -2,34 +2,19 @@ var path = require('path');
 var util = require("../../util");
 
 /**
+ * TODO: this is not yet ready for prime-time
+ *
  * Support for hashless URL routing.
  *
  * @type {Function}
  */
-exports = module.exports = function(basePath)
+exports = module.exports = function()
 {
-    var storage = require("../../util/storage")(basePath);
-
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
     // RESULTING OBJECT
     //
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    var isHashlessRoutingEnabled = function(configuration)
-    {
-        var enabled = false;
-
-        if (configuration && configuration.hashlessRouting)
-        {
-            if (typeof(configuration.hashlessRouting.enabled) != "undefined")
-            {
-                enabled = configuration.hashlessRouting.enabled;
-            }
-        }
-
-        return enabled;
-    };
 
     var r = {};
 
@@ -38,37 +23,24 @@ exports = module.exports = function(basePath)
 
      * @return {Function}
      */
-    r.hashlessRoutingHandler = function(configuration)
+    r.hashlessRoutingHandler = function()
     {
-        return function(req, res, next)
-        {
-            if (isHashlessRoutingEnabled(configuration))
-            {
-                var publicPath = util.publicPath(req, storage);
+        return util.createHandler("hashless-routing", function(req, res, next, configuration, stores) {
 
-                util.sendFile(res, path.join(publicPath, "index.html"), function(err) {
+            var webStore = stores.web;
 
-                    if (err)
-                    {
-                        console.log("ERR12: " + err);
-                        console.log("ERR12: " + JSON.stringify(err));
+            webStore.sendFile(res, "index.html", function (err) {
 
-                        // some kind of IO issue streaming back
-                        try { res.status(503).send(err); } catch (e) { }
-                        res.end();
-                    }
-
-                });
-            }
-            else
-            {
-                next();
-            }
-        };
+                if (err) {
+                    console.log("ERR12: " + err);
+                    console.log("ERR12: " + JSON.stringify(err));
+                }
+            });
+        });
     };
 
     return r;
-};
+}();
 
 
 
