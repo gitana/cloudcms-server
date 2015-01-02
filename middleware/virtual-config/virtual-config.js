@@ -20,6 +20,11 @@ exports = module.exports = function()
 
         if (configuration.virtualDriver && configuration.virtualDriver.enabled)
         {
+            if (process.env.CLOUDCMS_VIRTUAL_DRIVER_BASE_URL)
+            {
+                configuration.virtualDriver.baseURL = process.env.CLOUDCMS_VIRTUAL_DRIVER_BASE_URL;
+            }
+
             // either connect anew or re-use an existing connection to Cloud CMS for this application
             Gitana.connect(configuration.virtualDriver, function(err) {
 
@@ -46,14 +51,12 @@ exports = module.exports = function()
 
         if (configuration.virtualDriver && configuration.virtualDriver.enabled)
         {
-            console.log("z.1");
             connectAsVirtualDriver(function(err, gitana) {
-                console.log("z.2");
 
                 if (err)
                 {
-                    console.log("Unable to find virtual driver gitana instance for host: " + host);
-                    console.log(JSON.stringify(err, null, "   "));
+                    //console.log("Unable to find virtual driver gitana instance for host: " + host);
+                    //console.log(JSON.stringify(err, null, "   "));
                     callback(err);
                     return;
                 }
@@ -78,9 +81,14 @@ exports = module.exports = function()
                     "qs": qs
                 };
 
+                console.log("URL:" + URL);
+                console.log("QS: " + JSON.stringify(qs));
+
                 util.retryGitanaRequest(logMethod, gitana, requestConfig, 2, function(err, response, body) {
 
-                    if (response && response.statusCode == 200 && body)
+                    console.log("BODY: " + body);
+
+                    if (response && response.statusCode === 200 && body)
                     {
                         var config = JSON.parse(body).config;
                         if (!config)
@@ -230,7 +238,9 @@ exports = module.exports = function()
 
             var completionFunction = function (err, gitanaConfig) {
                 if (err) {
-                    req.log(err.message);
+                    if (err.message) {
+                        req.log(err.message);
+                    }
                     next();
                     return;
                 }

@@ -112,12 +112,6 @@ exports = module.exports = function(engineId, engineType, engineConfig)
         });
     };
 
-    // NOT IMPLEMENTED IN S3
-    var createDirectory = r.createDirectory = function(directoryPath, callback)
-    {
-        callback();
-    };
-
     var removeFile = r.removeFile = function(filePath, callback)
     {
         var key = _toKey(filePath);
@@ -195,89 +189,59 @@ exports = module.exports = function(engineId, engineType, engineConfig)
         });
     };
 
-    var sendFile = r.sendFile = function(res, filePath, callback)
+    var sendFile = r.sendFile = function(res, filePath, cacheInfo, callback)
     {
-        var key = _toKey(filePath);
+        console.log("FPP: " + filePath);
+        readStream(filePath, function(err, stream) {
 
-        var tempFilePath = util.generateTempFilePath(filePath);
-
-        var stream = fs.createWriteStream(tempFilePath);
-        s3.getObject({
-            Bucket: engineConfig.bucket,
-            Key: key
-        }).on('httpData', function(chunk) {
-            stream.write(chunk);
-        }).on('complete', function() {
-            stream.end();
-
-            var mimetype = null;
-
-            var filename = path.basename(filePath);
-            if (filename) {
-                var ext = path.extname(filename);
-                if (ext) {
-                    mimetype = mime.lookup(ext);
-                }
-            }
-
-            if (mimetype) {
-                res.setHeader("Content-Type", mimetype);
-            }
-
-            var options = {};
-
-            res.sendFile(tempFilePath, options, function (err) {
-
-                // some kind of IO issue streaming back
-                try {
-                    res.status(503).send(err);
-                } catch (e) {
-                }
+            if (err)
+            {
+                try { res.status(503).send(err); } catch (e) { }
                 res.end();
+                return;
+            }
 
+            res.status(200);
+            util.sendFile(res, stream, function(err) {
                 callback(err);
             });
-
-        }).on("error", function(err) {
-            res.status(503).end();
-            callback();
-        }).send();
+        });
     };
 
-    var downloadFile = r.downloadFile = function(res, filePath, filename, callback)
+    var downloadFile = r.downloadFile = function(res, filePath, filename, cacheInfo, callback)
     {
-        var key = _toKey(filePath);
+        readStream(filePath, function(err, stream) {
 
-        var tempFilePath = util.generateTempFilePath(filePath);
-
-        var stream = fs.createWriteStream(tempFilePath);
-        s3.getObject({
-            Bucket: engineConfig.bucket,
-            Key: key
-        }).on('httpData', function(chunk) {
-            stream.write(chunk);
-        }).on('complete', function() {
-            stream.end();
+            if (err)
+            {
+                try { res.status(503).send(err); } catch (e) { }
+                res.end();
+                return;
+            }
 
             var filename = path.basename(filePath);
 
-            res.download(tempFilePath, filename, function(err) {
+            var contentDisposition = 'attachment';
+            if (filename) {
+                // if filename contains non-ascii characters, add a utf-8 version ala RFC 5987
+                contentDisposition = /[^\040-\176]/.test(filename)
+                    ? 'attachment; filename="' + encodeURI(filename) + '"; filename*=UTF-8\'\'' + encodeURI(filename)
+                    : 'attachment; filename="' + filename + '"';
+            }
+
+            // set Content-Disposition when file is sent
+            res.setHeader("Content-Disposition", contentDisposition);
+
+            res.status(200);
+            util.sendFile(res, stream, function(err) {
                 callback(err);
             });
-
-        }).on("error", function(err) {
-            res.status(503).end();
-            callback();
-        }).send();
+        });
     };
 
     r.writeFile = function(filePath, data, callback)
     {
         var key = _toKey(filePath);
-
-        console.log("BUCKET: " + engineConfig.bucket);
-        console.log("FILEPATH: " + filePath);
-        console.log("DATA: " + data);
 
         var params = {
             "Bucket": engineConfig.bucket,
@@ -299,6 +263,13 @@ exports = module.exports = function(engineId, engineType, engineConfig)
             Key: key
         };
         s3.getObject(params, function(err, data) {
+
+            if (err)
+            {
+                callback(err);
+                return;
+            }
+
             callback(err, data.Body);
         });
     };
@@ -308,7 +279,7 @@ exports = module.exports = function(engineId, engineType, engineConfig)
     {
     };
 
-    r.renameFile = function(originalFilePath, newFilePath, callback)
+    r.moveFile = function(originalFilePath, newFilePath, callback)
     {
         var originalKey = _toKey(originalFilePath);
         var newKey = _toKey(newFilePath);
@@ -334,9 +305,11 @@ exports = module.exports = function(engineId, engineType, engineConfig)
         });
     };
 
-    r.readStream = function(filePath, callback)
+    var readStream = r.readStream = function(filePath, callback)
     {
         var key = _toKey(filePath);
+
+        console.log("THEPRE: " + key);
 
         var canoe = new Canoe(s3);
         canoe.createPrefixedReadStream({
@@ -347,7 +320,7 @@ exports = module.exports = function(engineId, engineType, engineConfig)
         });
     };
 
-    r.writeStream = function(filePath, callback)
+    var writeStream = r.writeStream = function(filePath, callback)
     {
         var key = _toKey(filePath);
 

@@ -699,10 +699,8 @@ exports = module.exports = function()
                         useContentDispositionResponse = true;
                     }
 
-                    console.log("aaaa.1");
                     cloudcmsUtil.download(contentStore, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, function(err, filePath, cacheInfo) {
 
-                        console.log("aaaa.2");
                         // if the file was found on disk or was downloaded, then stream it back
                         if (!err && filePath && cacheInfo)
                         {
@@ -724,21 +722,14 @@ exports = module.exports = function()
                             }
                             else
                             {
-                                applyResponseContentType(res, cacheInfo, filename);
-                                applyDefaultContentTypeCaching(res, cacheInfo);
+                                util.applyDefaultContentTypeCaching(res, cacheInfo);
 
-                                contentStore.sendFile(res, filePath, function(err) {
+                                contentStore.sendFile(res, filePath, cacheInfo, function(err) {
 
                                     if (err)
                                     {
-                                        console.log("ERR1: " + err);
-                                        console.log("ERR1: " + JSON.stringify(err));
-
-                                        // some kind of IO issue streaming back
-                                        try { res.status(503).send(err); } catch (e) { }
-                                        res.end();
+                                        util.handleSendFileError(req, res, filePath, cacheInfo, req.log, err);
                                     }
-
                                 });
                             }
                         }
@@ -857,19 +848,13 @@ exports = module.exports = function()
                             }
                             else
                             {
-                                applyResponseContentType(res, cacheInfo, filename);
-                                applyDefaultContentTypeCaching(res, cacheInfo);
+                                util.applyDefaultContentTypeCaching(res, cacheInfo);
 
-                                contentStore.sendFile(res, filePath, function(err) {
+                                contentStore.sendFile(res, filePath, cacheInfo, function(err) {
 
                                     if (err)
                                     {
-                                        console.log("ERR2: " + err);
-                                        console.log("ERR2: " + JSON.stringify(err));
-
-                                        // some kind of IO issue streaming back
-                                        try { res.status(503).send(err); } catch (e) { }
-                                        res.end();
+                                        util.handleSendFileError(req, res, filePath, cacheInfo, req.log, err);
                                     }
 
                                 });
@@ -1131,19 +1116,13 @@ exports = module.exports = function()
                             }
                             else
                             {
-                                applyResponseContentType(res, cacheInfo, filename);
-                                applyDefaultContentTypeCaching(res, cacheInfo);
+                                util.applyDefaultContentTypeCaching(res, cacheInfo);
 
-                                contentStore.sendFile(res, filePath, function(err) {
+                                contentStore.sendFile(res, filePath, cacheInfo, function(err) {
 
                                     if (err)
                                     {
-                                        console.log("ERR3: " + err);
-                                        console.log("ERR3: " + JSON.stringify(err));
-
-                                        // some kind of IO issue streaming back
-                                        try { res.status(503).send(err); } catch (e) { }
-                                        res.end();
+                                        util.handleSendFileError(req, res, filePath, cacheInfo, req.log, err);
                                     }
 
                                 });
@@ -1253,19 +1232,13 @@ exports = module.exports = function()
                             }
                             else
                             {
-                                applyResponseContentType(res, cacheInfo, filename);
-                                applyDefaultContentTypeCaching(res, cacheInfo);
+                                util.applyDefaultContentTypeCaching(res, cacheInfo);
 
-                                contentStore.sendFile(res, filePath, function(err) {
+                                contentStore.sendFile(res, filePath, cacheInfo, function(err) {
 
                                     if (err)
                                     {
-                                        console.log("ERR4: " + err);
-                                        console.log("ERR4: " + JSON.stringify(err));
-
-                                        // some kind of IO issue streaming back
-                                        try { res.status(503).send(err); } catch (e) { }
-                                        res.end();
+                                        util.handleSendFileError(req, res, filePath, cacheInfo, req.log, err);
                                     }
 
                                 });
@@ -1392,89 +1365,6 @@ exports = module.exports = function()
         }
 
         return filename;
-    };
-
-    var applyResponseContentType = function(response, cacheInfo, filename)
-    {
-        var contentType = null;
-
-        // do the response headers have anything to tell us
-        if (cacheInfo)
-        {
-            // is there an explicit content type?
-            contentType = cacheInfo.mimetype;
-        }
-
-        // if still nothing, what can we guess from the filename mime?
-        if (!contentType && filename)
-        {
-            var ext = path.extname(filename);
-            if (ext)
-            {
-                contentType = mime.lookup(ext);
-            }
-        }
-
-        // TODO: should we look for ";charset=" and strip out?
-
-        if (contentType)
-        {
-            response.setHeader("Content-Type", contentType);
-        }
-
-        return contentType;
-    };
-
-    //var MAXAGE_ONE_YEAR = 31536000;
-    //var MAXAGE_ONE_HOUR = 3600;
-    //var MAXAGE_ONE_WEEK = 604800;
-    var MAXAGE_THIRTY_MINUTES = 1800;
-
-    var applyDefaultContentTypeCaching = function(res, cacheInfo)
-    {
-        if (!cacheInfo || !res)
-        {
-            return;
-        }
-
-        var mimetype = cacheInfo.mimetype;
-        if (!mimetype)
-        {
-            return;
-        }
-
-        // assume no caching
-        var cacheControl = "no-cache";
-
-        // if we're in production mode, we apply caching
-        if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
-        {
-            var isCSS = ("text/css" == mimetype);
-            var isImage = (mimetype.indexOf("image/") > -1);
-            var isJS = ("text/javascript" == mimetype) || ("application/javascript" == mimetype);
-            var isHTML = ("text/html" == mimetype);
-
-            // html
-            if (isHTML)
-            {
-                cacheControl = "public, max-age=" + MAXAGE_THIRTY_MINUTES;
-            }
-
-            // css, images and js get 1 year
-            if (isCSS || isImage || isJS)
-            {
-                cacheControl = "public, max-age=" + MAXAGE_THIRTY_MINUTES;
-            }
-        }
-        else
-        {
-            res.header('Pragma', 'no-cache');
-        }
-
-        res.header('Cache-Control', cacheControl);
-
-        // test
-        //res.header("Expires", "Mon, 7 Apr 2014, 16:00:00 GMT");
     };
 
     return r;

@@ -96,16 +96,9 @@ exports = module.exports = function()
                 {
                     webStore.sendFile(res, filePath, function (err) {
 
-                        if (err) {
-                            console.log("ERR7: " + err);
-                            console.log("ERR7: " + JSON.stringify(err));
-
-                            // some kind of IO issue streaming back
-                            try {
-                                res.status(503).send(err);
-                            } catch (e) {
-                            }
-                            res.end();
+                        if (err)
+                        {
+                            util.handleSendFileError(req, res, filePath, null, req.log, err);
                         }
 
                     });

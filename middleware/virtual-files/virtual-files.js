@@ -21,6 +21,7 @@ exports = module.exports = function()
         return util.createInterceptor("virtualHost", function (req, res, next, configuration, stores) {
 
             var completionFunction = function (err, descriptor) {
+
                 if (err) {
                     // something went wrong
                     next();
@@ -42,7 +43,8 @@ exports = module.exports = function()
                 if (!descriptor.active) {
                     // we're inactive, virtual host not running
                     // send back a 404
-                    res.send(404);
+                    res.status(404);
+                    res.end();
                     return;
                 }
 

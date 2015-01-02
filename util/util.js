@@ -110,25 +110,25 @@ var rmdirRecursiveSync = function(directoryPath)
     fs.rmdirSync(directoryPath);
 };
 
-var executeCommands = function(commands, callback)
+var executeCommands = function(commands, logMethod, callback)
 {
     var terminal = require('child_process').spawn('bash');
 
-    console.log("COMMANDS: " + JSON.stringify(commands));
+    logMethod("Running commands: " + JSON.stringify(commands));
 
     var text = "";
 
     terminal.stdout.on('data', function (data) {
-        console.log('stdout: ' + data);
+        logMethod(" > " + data);
         text = text + data;
     });
 
     terminal.on('exit', function (code) {
 
         var err = null;
-        if (code != 0)
+        if (code !== 0)
         {
-            console.log('child process exited with code ' + code + ' for commands: ' + commands);
+            logMethod('child process exited with code ' + code + ' for commands: ' + commands);
 
             err = {
                 "commands": commands,
@@ -141,7 +141,7 @@ var executeCommands = function(commands, callback)
     });
 
     setTimeout(function() {
-        console.log('Sending stdin to terminal');
+        //console.log('Sending stdin to terminal');
 
         for (var i = 0; i < commands.length; i++)
         {
@@ -154,17 +154,17 @@ var executeCommands = function(commands, callback)
     }, 1000);
 };
 
-var gitInit = function(directoryPath, callback)
+var gitInit = function(directoryPath, logMethod, callback)
 {
     var commands = [];
     commands.push("cd " + directoryPath);
     commands.push("git init");
-    executeCommands(commands, function(err) {
+    executeCommands(commands, logMethod, function(err) {
         callback(err);
     });
 };
 
-var gitPull = function(directoryPath, gitUrl, sourceType, callback)
+var gitPull = function(directoryPath, gitUrl, sourceType, logMethod, callback)
 {
     /*
     if (gitUrl.indexOf("https://") === 0)
@@ -212,7 +212,7 @@ var gitPull = function(directoryPath, gitUrl, sourceType, callback)
     var commands = [];
     commands.push("cd " + directoryPath);
     commands.push("git pull " + gitUrl);
-    executeCommands(commands, function(err) {
+    executeCommands(commands, logMethod, function(err) {
         callback(err);
     });
 };
@@ -222,7 +222,7 @@ var gitPull = function(directoryPath, gitUrl, sourceType, callback)
  *
  * @type {*}
  */
-exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, callback)
+exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, logMethod, callback)
 {
     // this gets a little confusing, so here is what we have:
     //
@@ -267,7 +267,7 @@ exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, callback)
             }
 
             // initialize git in temp root directory
-            gitInit(tempRootDirectoryPath, function (err) {
+            gitInit(tempRootDirectoryPath, logMethod, function (err) {
 
                 if (err) {
                     callback(err);
@@ -275,7 +275,7 @@ exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, callback)
                 }
 
                 // perform a git pull of the repository
-                gitPull(tempRootDirectoryPath, gitUrl, sourceType, function (err) {
+                gitPull(tempRootDirectoryPath, gitUrl, sourceType, logMethod, function (err) {
 
                     if (err) {
                         callback(err);
@@ -353,15 +353,6 @@ var copyToStore = exports.copyToStore = function(sourceDirectory, targetStore, c
             if (sourceStats) {
                 if (sourceStats.isDirectory()) {
 
-                    // STORE: CREATE_DIRECTORY
-                    fns.push(function (filepath, targetStore) {
-                        return function (done) {
-                            targetStore.createDirectory(filepath, function (err) {
-                                done(err);
-                            });
-                        }
-                    }(filepath, targetStore));
-
                     // list files
                     var filenames = fs.readdirSync(sourceFilePath);
                     if (filenames && filenames.length > 0) {
@@ -369,6 +360,7 @@ var copyToStore = exports.copyToStore = function(sourceDirectory, targetStore, c
                             f(path.join(filepath, filenames[i]), fns);
                         }
                     }
+
                 }
                 else if (sourceStats.isFile()) {
 
@@ -468,47 +460,6 @@ var copyChildrenToDirectory = function(sourceDirectoryPath, targetDirectoryPath)
 var trim = exports.trim = function(text)
 {
     return text.replace(/^\s+|\s+$/g,'');
-};
-
-var sendFile = exports.sendFile = function(res, filePath, options, callback)
-{
-    if (typeof(options) == "function") {
-        callback = options;
-        options = {};
-    }
-
-    if (!options) {
-        options = {};
-    }
-
-    //if (!options.root) {
-    //    options.root = "/";
-    //}
-
-    var mimetype = null;
-
-    var filename = path.basename(filePath);
-    if (filename)
-    {
-        var ext = path.extname(filename);
-        if (ext)
-        {
-            mimetype = mime.lookup(ext);
-        }
-    }
-
-    if (mimetype)
-    {
-        res.setHeader("Content-Type", mimetype);
-    }
-
-    //console.log("SEND FILE:");
-    //console.log(" -> filePath: " + filePath);
-    //console.log(" -> root: " + (options ? options.root : ""));
-
-    res.sendFile(filePath, options, function(err) {
-        callback(err);
-    });
 };
 
 var showHeaders = exports.showHeaders = function(req)
@@ -751,4 +702,158 @@ var generateTempFilePath = exports.generateTempFilePath = function(basedOnFilePa
     }
 
     return tempFilePath;
+};
+
+var sendFile = exports.sendFile = function(res, stream, callback)
+{
+    res.on('finish', function() {
+
+        if (callback) {
+            callback();
+        }
+
+    });
+    res.on("error", function(err) {
+
+        if (callback) {
+            callback(err);
+        }
+
+    });
+    stream.pipe(res);
+};
+
+var applyResponseContentType = exports.applyResponseContentType = function(response, cacheInfo, filePath)
+{
+    var contentType = null;
+
+    var filename = path.basename(filePath);
+
+    // do the response headers have anything to tell us
+    if (cacheInfo)
+    {
+        // is there an explicit content type?
+        contentType = cacheInfo.mimetype;
+    }
+    else if (filename)
+    {
+        var ext = path.extname(filename);
+        if (ext) {
+            contentType = mime.lookup(ext);
+        }
+    }
+
+    if (contentType) {
+        response.setHeader("Content-Type", contentType);
+    }
+
+    // if still nothing, what can we guess from the filename mime?
+    if (!contentType && filename)
+    {
+        var ext = path.extname(filename);
+        if (ext)
+        {
+            contentType = mime.lookup(ext);
+        }
+    }
+
+    // TODO: should we look for ";charset=" and strip out?
+
+    if (contentType)
+    {
+        try {
+            response.setHeader("Content-Type", contentType);
+        }
+        catch (e) { }
+    }
+
+    return contentType;
+};
+
+//var MAXAGE_ONE_YEAR = 31536000;
+//var MAXAGE_ONE_HOUR = 3600;
+//var MAXAGE_ONE_WEEK = 604800;
+var MAXAGE_THIRTY_MINUTES = 1800;
+
+var applyDefaultContentTypeCaching = exports.applyDefaultContentTypeCaching = function(response, cacheInfo)
+{
+    if (!cacheInfo || !response)
+    {
+        return;
+    }
+
+    var mimetype = cacheInfo.mimetype;
+    if (!mimetype)
+    {
+        return;
+    }
+
+    // assume no caching
+    var cacheControl = "no-cache";
+
+    // if we're in production mode, we apply caching
+    if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
+    {
+        var isCSS = ("text/css" == mimetype);
+        var isImage = (mimetype.indexOf("image/") > -1);
+        var isJS = ("text/javascript" == mimetype) || ("application/javascript" == mimetype);
+        var isHTML = ("text/html" == mimetype);
+
+        // html
+        if (isHTML)
+        {
+            cacheControl = "public, max-age=" + MAXAGE_THIRTY_MINUTES;
+        }
+
+        // css, images and js get 1 year
+        if (isCSS || isImage || isJS)
+        {
+            cacheControl = "public, max-age=" + MAXAGE_THIRTY_MINUTES;
+        }
+    }
+    else
+    {
+        response.setHeader('Pragma', 'no-cache');
+    }
+
+    response.setHeader('Cache-Control', cacheControl);
+
+    // test
+    //res.header("Expires", "Mon, 7 Apr 2014, 16:00:00 GMT");
+};
+
+var handleSendFileError = exports.handleSendFileError = function(req, res, filePath, cacheInfo, logMethod, err)
+{
+    if (err)
+    {
+        if (err.doesNotExist)
+        {
+            var fallback = req.param("fallback");
+            if (!fallback) {
+                try { res.status(404); } catch (e) { }
+                res.end();
+            }
+            else
+            {
+                res.redirect(fallback);
+            }
+        }
+        else if (err.zeroSize)
+        {
+            try { res.status(200); } catch (e) { }
+            res.end();
+        }
+        else if (err.readFailed)
+        {
+            logMethod(JSON.stringify(err));
+            try { res.status(503); } catch (e) { }
+            res.end();
+        }
+        else if (err.sendFailed)
+        {
+            logMethod(JSON.stringify(err));
+            try { res.status(503); } catch (e) { }
+            res.end();
+        }
+    }
 };

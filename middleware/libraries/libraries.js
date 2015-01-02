@@ -59,7 +59,7 @@ exports = module.exports = function()
             res.header('Pragma', 'no-cache');
             res.header("Cache-Control", "no-cache");
 
-            util.sendFile(res, uri, {
+            res.sendFile(uri, {
                 "root": path.join(__dirname, dirPath)
             }, function(err) {
 

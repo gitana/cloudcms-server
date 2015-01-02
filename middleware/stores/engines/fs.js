@@ -18,30 +18,7 @@ exports = module.exports = function(engineId, engineType, engineConfig)
 {
     var r = {};
 
-    var init = r.init = function(callback)
-    {
-        callback();
-    };
-
-    var allocated = r.allocated = function(basePath, callback)
-    {
-        existsFile(basePath, function(exists) {
-            callback(exists)
-        });
-    };
-
-    var existsFile = r.existsFile = function(filePath, callback) {
-        fs.exists(filePath, function(exists) {
-            callback(exists);
-        });
-    };
-
-    var existsDirectory = r.existsDirectory = function(directoryPath, callback)
-    {
-        return existsFile(directoryPath, callback);
-    };
-
-    var createDirectory = r.createDirectory = function(directoryPath, callback)
+    var _createDirectory = function(directoryPath, callback)
     {
         mkdirp(directoryPath, function(err) {
 
@@ -65,6 +42,29 @@ exports = module.exports = function(engineId, engineType, engineConfig)
         });
     };
 
+    var init = r.init = function(callback)
+    {
+        callback();
+    };
+
+    var allocated = r.allocated = function(basePath, callback)
+    {
+        existsFile(basePath, function(exists) {
+            callback(exists)
+        });
+    };
+
+    var existsFile = r.existsFile = function(filePath, callback) {
+        fs.exists(filePath, function(exists) {
+            callback(exists);
+        });
+    };
+
+    var existsDirectory = r.existsDirectory = function(directoryPath, callback)
+    {
+        return existsFile(directoryPath, callback);
+    };
+
     var removeFile = r.removeFile = function(filePath, callback)
     {
         if (!filePath || filePath === "/")
@@ -85,9 +85,6 @@ exports = module.exports = function(engineId, engineType, engineConfig)
             console.log("ILLEGAL PATH");
             return;
         }
-
-
-        console.log("Remove directory; " + directoryPath);
 
         // synchronous remove
         util.rmdir(directoryPath);
@@ -110,68 +107,71 @@ exports = module.exports = function(engineId, engineType, engineConfig)
         });
     };
 
-    var sendFile = r.sendFile = function(res, filePath, callback)
+    var sendFile = r.sendFile = function(res, filePath, cacheInfo, callback)
     {
         existsFile(filePath, function(exists) {
 
             if (!exists)
             {
-                res.status(404).end();
-                callback();
+                callback({
+                    "doesNotExist": true
+                });
                 return;
             }
             else
             {
-                // read the file
-                readFile(filePath, function (err, data) {
+                fileStats(filePath, function(err, stats) {
 
-                    if (err)
-                    {
-                        res.status(503).end();
-                        callback();
-                        return;
-                    }
-
-                    if (data.length === 0) {
-                        res.end();
-                        callback();
-                        return;
-                    }
-
-                    var mimetype = null;
-
-                    var filename = path.basename(filePath);
-                    if (filename) {
-                        var ext = path.extname(filename);
-                        if (ext) {
-                            mimetype = mime.lookup(ext);
-                        }
-                    }
-
-                    if (mimetype) {
-                        res.setHeader("Content-Type", mimetype);
-                    }
-
-                    var options = {};
-
-                    res.sendFile(filePath, options, function (err) {
-
-                        // some kind of IO issue streaming back
-                        try {
-                            res.status(503).send(err);
-                        } catch (e) {
-                        }
-                        res.end();
-
+                    if (err) {
+                        err.doesNotExist = true;
                         callback(err);
-                    });
+                        return;
+                    }
 
+                    if (!stats) {
+                        err.doesNotExist = true;
+                        callback(err);
+                        return;
+                    }
+
+                    if (stats.size === 0) {
+                        var err = {
+                            "message": "Stats was size zero for file: " + filePath,
+                            "zeroSize": true
+                        };
+                        callback(err);
+                        return;
+                    }
+
+                    // read the file
+                    readFile(filePath, function (err, data) {
+
+                        if (err) {
+                            err.readFailed = true;
+                            callback(err);
+                            return;
+                        }
+
+                        util.applyResponseContentType(res, cacheInfo, filePath);
+
+                        var options = {};
+
+                        res.sendFile(filePath, options, function (err) {
+
+                            if (err) {
+                                err.sendFailed = true;
+                                callback(err);
+                                return;
+                            }
+                        });
+
+                    });
                 });
             }
         });
     };
 
-    r.downloadFile = function(res, filePath, filename, callback)
+    r.downloadFile = function(res, filePath, filename, cacheInfo, callback)
     {
         res.download(filePath, filename, function(err) {
             callback(err);
@@ -190,7 +190,7 @@ exports = module.exports = function(engineId, engineType, engineConfig)
         var basedir = path.dirname(filePath);
         if (basedir)
         {
-            createDirectory(basedir, function(err) {
+            _createDirectory(basedir, function(err) {
 
                 if (err) {
                     callback(err);
@@ -208,8 +208,36 @@ exports = module.exports = function(engineId, engineType, engineConfig)
 
     var readFile = r.readFile = function(filePath, callback)
     {
-        fs.readFile(filePath, function(err, data) {
-            callback(err, data);
+        fileStats(filePath, function(err, stats) {
+
+            if (err) {
+                // not found
+                callback({
+                    "message": "File not found: " + filePath
+                });
+                return;
+            }
+
+            if (!stats)
+            {
+                callback({
+                    "message": "File does not have stats"
+                });
+                return;
+            }
+
+            if (stats.size === 0)
+            {
+                callback({
+                    "message": "File was size 0"
+                });
+                return;
+            }
+
+            fs.readFile(filePath, function(err, data) {
+                callback(err, data);
+            });
+
         });
     };
 
@@ -220,7 +248,7 @@ exports = module.exports = function(engineId, engineType, engineConfig)
         });
     };
 
-    r.renameFile = function(originalFilePath, newFilePath, callback)
+    r.moveFile = function(originalFilePath, newFilePath, callback)
     {
         fs.rename(originalFilePath, newFilePath, function(err) {
             callback(err);
@@ -236,14 +264,36 @@ exports = module.exports = function(engineId, engineType, engineConfig)
 
     r.writeStream = function(filePath, callback)
     {
-        var s = fs.createWriteStream(filePath);
+        var finish = function()
+        {
+            var s = fs.createWriteStream(filePath);
 
-        callback(null, s);
+            callback(null, s);
+        };
+
+        var basedir = path.dirname(filePath);
+        if (basedir)
+        {
+            _createDirectory(basedir, function(err) {
+
+                if (err) {
+                    callback(err);
+                    return;
+                }
+
+                finish();
+            });
+        }
+        else
+        {
+            finish();
+        }
     };
 
-    r.fileStats = function(filePath, callback)
+    var fileStats = r.fileStats = function(filePath, callback)
     {
         fs.exists(filePath, function(exists) {
+
             if (!exists) {
                 callback({
                     "message": "File does not exist for path: " + filePath
@@ -262,7 +312,7 @@ exports = module.exports = function(engineId, engineType, engineConfig)
             });
 
         })
-    }
+    };
 
     return r;
 };

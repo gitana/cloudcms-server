@@ -176,7 +176,6 @@ exports = module.exports = function()
                 var rootStore = stores.root;
                 rootStore.allocated(function(allocated) {
 
-                    console.log("allocated: " + allocated);
                     if (allocated)
                     {
                         callback({
@@ -218,7 +217,7 @@ exports = module.exports = function()
                             sourcePath = "/";
                         }
                         if ("github" === sourceType || "bitbucket" == sourceType) {
-                            util.gitCheckout(host, sourceType, sourceUrl, sourcePath, function (err) {
+                            util.gitCheckout(host, sourceType, sourceUrl, sourcePath, req.log, function (err) {
 
                                 if (err) {
                                     callback(err, host);
@@ -303,6 +302,7 @@ exports = module.exports = function()
     {
         parseHost(descriptor, function(err, host) {
 
+            console.log("H1: " + host);
             if (err) {
                 callback(err);
                 return;
@@ -320,6 +320,7 @@ exports = module.exports = function()
                 var rootStore = stores.root;
                 rootStore.allocated(function(allocated) {
 
+                    console.log("H2: " + allocated);
                     if (!allocated) {
                         callback({
                             "message": "The application cannot be started because it is not deployed."
@@ -327,6 +328,9 @@ exports = module.exports = function()
                     }
                     else {
                         rootStore.readFile("descriptor.json", function (err, data) {
+
+                            console.log("H3: " + err);
+                            console.log("H4: " + data);
 
                             if (err) {
                                 callback(err);
@@ -347,7 +351,9 @@ exports = module.exports = function()
 
                             req.log("Starting application: " + data.application.id + " with host: " + host);
 
+                            console.log("H5");
                             rootStore.writeFile("descriptor.json", JSON.stringify(data, null, "  "), function (err) {
+                                console.log("H6: "+ err);
                                 callback(err);
                             });
                         });

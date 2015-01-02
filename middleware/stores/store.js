@@ -12,7 +12,7 @@ var stores = require("./stores");
  */
 exports = module.exports = function(engine, engineType, engineId, engineConfiguration, host, offsetPath)
 {
-    var DEBUG_LOG = true;
+    var DEBUG_LOG = false;
     var debugLog = function(text) {
         if (DEBUG_LOG) {
             console.log(text);
@@ -92,15 +92,6 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
         });
     };
 
-    r.createDirectory = function(directoryPath, callback)
-    {
-        debugLog("Start store.createDirectory");
-        engine.createDirectory(_enginePath(directoryPath), function(err) {
-            debugLog("Finish store.createDirectory");
-            callback(err);
-        });
-    };
-
     r.removeFile = r.deleteFile = function(filePath, callback)
     {
         debugLog("Start store.deleteFile");
@@ -128,19 +119,33 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
         });
     };
 
-    r.sendFile = function(res, filePath, callback)
+    r.sendFile = function(res, filePath, cacheInfo, callback)
     {
+        if (typeof(cacheInfo) === "function")
+        {
+            callback = cacheInfo;
+            cacheInfo = null;
+        }
+
         debugLog("Start store.sendFile");
-        engine.sendFile(res, _enginePath(filePath), function(err) {
+        engine.sendFile(res, _enginePath(filePath), cacheInfo, function(err) {
             debugLog("Finish store.sendFile");
-            callback(err);
+            if (callback) {
+                callback(err);
+            }
         });
     };
 
-    r.downloadFile = function(res, filePath, filename, callback)
+    r.downloadFile = function(res, filePath, filename, cacheInfo, callback)
     {
+        if (typeof(cacheInfo) === "function")
+        {
+            callback = cacheInfo;
+            cacheInfo = null;
+        }
+
         debugLog("Start store.downloadFile");
-        engine.downloadFile(res, _enginePath(filePath), filename, function(err) {
+        engine.downloadFile(res, _enginePath(filePath), filename, cacheInfo, function(err) {
             debugLog("Finish store.downloadFile");
             callback(err);
         });
@@ -173,11 +178,11 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
         });
     };
 
-    r.renameFile = function(originalFilePath, newFilePath, callback)
+    r.moveFile = function(originalFilePath, newFilePath, callback)
     {
-        debugLog("Start store.renameFile");
-        engine.renameFile(_enginePath(originalFilePath), _enginePath(newFilePath), function(err) {
-            debugLog("Finish store.renameFile");
+        debugLog("Start store.moveFile");
+        engine.moveFile(_enginePath(originalFilePath), _enginePath(newFilePath), function(err) {
+            debugLog("Finish store.moveFile");
             callback(err);
         });
     };
