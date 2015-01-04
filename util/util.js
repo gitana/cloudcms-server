@@ -721,6 +721,7 @@ var sendFile = exports.sendFile = function(res, stream, callback)
 
     });
     stream.pipe(res);
+    //res.end();
 };
 
 var applyResponseContentType = exports.applyResponseContentType = function(response, cacheInfo, filePath)

@@ -541,20 +541,29 @@ exports = module.exports = function()
             };
 
             // if force reload, delete from disk if exist
-            if (forceReload) {
+            if (forceReload)
+            {
                 contentStore.existsFile(filePath, function (exists) {
 
-                    if (exists) {
+                    if (exists)
+                    {
                         contentStore.removeFile(filePath, function (err) {
-                            doWork();
+
+                            var cacheFilePath = toCacheFilePath(filePath);
+
+                            contentStore.removeFile(cacheFilePath, function (err) {
+                                doWork();
+                            });
                         });
                     }
-                    else {
+                    else
+                    {
                         doWork();
                     }
-                })
+                });
             }
-            else {
+            else
+            {
                 doWork();
             }
         });

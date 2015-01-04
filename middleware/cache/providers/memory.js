@@ -29,10 +29,7 @@ exports = module.exports = function(cacheConfig)
             expirationTimeMap[key] = new Date().getTime() + (seconds * 1000);
         }
 
-        if (callback)
-        {
-            callback();
-        }
+        callback();
     };
 
     r.read = function(key, callback)
@@ -51,10 +48,7 @@ exports = module.exports = function(cacheConfig)
             }
         }
 
-        if (callback)
-        {
-            callback(null, value);
-        }
+        callback(null, value);
     };
 
     r.remove = function(key, callback)
@@ -62,10 +56,7 @@ exports = module.exports = function(cacheConfig)
         delete valueMap[key];
         delete expirationTimeMap[key];
 
-        if (callback)
-        {
-            callback();
-        }
+        callback();
     };
 
     r.keys = function(prefix, callback)
@@ -80,10 +71,7 @@ exports = module.exports = function(cacheConfig)
             }
         }
 
-        if (callback)
-        {
-            callback(null, keys);
-        }
+        callback(null, keys);
     };
 
     return r;

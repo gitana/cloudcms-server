@@ -198,6 +198,8 @@ exports = module.exports = function(engineConfig)
                 return;
             }
 
+            util.applyResponseContentType(res, cacheInfo, filePath);
+
             res.status(200);
             util.sendFile(res, stream, function(err) {
                 callback(err);
@@ -215,6 +217,8 @@ exports = module.exports = function(engineConfig)
                 res.end();
                 return;
             }
+
+            util.applyResponseContentType(res, cacheInfo, filePath);
 
             var filename = path.basename(filePath);
 
@@ -267,7 +271,22 @@ exports = module.exports = function(engineConfig)
                 return;
             }
 
-            callback(err, data.Body);
+            var body = data.Body;
+            if (!body)
+            {
+                callback({
+                    "message": "Null or missing body"
+                });
+            }
+            else if ((typeof(body.length) != "undefined") && body.length === 0)
+            {
+                callback({
+                    "message": "File was size 0"
+                });
+                return;
+            }
+
+            callback(null, body);
         });
     };
 

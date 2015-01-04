@@ -169,6 +169,9 @@ var SETTINGS = {
             "region": ""
         }
     },
+    "broadcast": {
+        "enabled": true
+    },
     "local": {
         "enabled": true
     },
@@ -180,8 +183,7 @@ var SETTINGS = {
         "enabled": true
     },
     "cache": {
-        "enabled": true,
-        "type": "memory"
+        "enabled": true
     }
 };
 
@@ -468,7 +470,7 @@ exports.start = function (overrides, callback) {
 
         // set up CORS allowances
         // this lets CORS requests float through the proxy
-        app.use(main.ensureCORSCrossDomain());
+        app.use(main.ensureCORS());
 
         // common interceptors and config
         main.common(app);

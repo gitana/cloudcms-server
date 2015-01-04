@@ -29,7 +29,7 @@ exports = module.exports = function(cacheConfig)
 
         var redisOptions = {};
 
-        redis.debug_mode = true;
+        //redis.debug_mode = true;
 
         client = redis.createClient(redisPort, redisEndpoint, redisOptions);
 
@@ -40,36 +40,40 @@ exports = module.exports = function(cacheConfig)
     {
         if (seconds <= -1)
         {
-            client.set(key, value, function(err, res) {
-                callback(err, res);
+            client.set([key, value], function(err, reply) {
+                console.log("[redis] write -> reply = " + reply);
+                callback(err, reply);
             });
         }
         else
         {
-            client.set(key, value, "EX", seconds, function(err, res) {
-                callback(err, res);
+            client.set([key, value, "EX", seconds], function(err, reply) {
+                console.log("[redis] write.ex -> reply = " + reply);
+                callback(err, reply);
             });
         }
     };
 
     r.read = function(key, callback)
     {
-        client.get(key, function(err, value) {
-            callback(err, value);
+        client.get([key], function(err, reply) {
+            console.log("[redis] read -> reply = " + reply);
+            callback(err, reply);
         });
     };
 
     r.remove = function(key, callback)
     {
-        client.del(key, null, function(err) {
+        client.del([key], function(err) {
             callback(err);
         });
     };
 
     r.keys = function(prefix, callback)
     {
-        client.keys(prefix, function(err) {
-            callback(err);
+        client.keys([prefix], function(err, reply) {
+            console.log("[redis] keys -> reply = " + reply);
+            callback(err, reply);
         });
     };
 

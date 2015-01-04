@@ -77,6 +77,7 @@ exports = module.exports = function()
 
     // services
     var notifications = require("./notifications/notifications");
+    var broadcast = require("./broadcast/broadcast");
 
     // assume app-server base path if none provided
     if (!process.env.CLOUDCMS_APPSERVER_BASE_PATH) {
@@ -84,7 +85,7 @@ exports = module.exports = function()
     }
 
     // cache
-    process.cache = cache;
+    //process.cache = cache;
 
     // read the package.json file and determine the build timestamp
     var packageJsonPath = path.resolve(__dirname, "package.json");
@@ -101,7 +102,11 @@ exports = module.exports = function()
 
     r.init = function(callback)
     {
+        process.cache = cache;
+        process.broadcast = broadcast;
+
         var fns = [
+            broadcast.start,
             storeService.init,
             notifications.start,
             cache.init
@@ -354,7 +359,7 @@ exports = module.exports = function()
      *
      * @returns {Function}
      */
-    r.ensureCORSCrossDomain = function()
+    r.ensureCORS = function()
     {
         return function(req, res, next) {
 

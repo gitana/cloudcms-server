@@ -695,7 +695,7 @@ exports = module.exports = function()
                     // whether to set content disposition on response
                     var useContentDispositionResponse = false;
                     var a = req.param("a");
-                    if (a == "true") {
+                    if (a === "true") {
                         useContentDispositionResponse = true;
                     }
 

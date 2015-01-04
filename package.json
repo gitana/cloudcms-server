@@ -57,7 +57,9 @@
 
       "canoe": "*",
 
-      "redis": "*"
+      "redis": "*",
+      "connect-redis": "*",
+      "node-redis-pubsub-fork": "*"
   },
   "devDependencies": {},
   "optionalDependencies": {},

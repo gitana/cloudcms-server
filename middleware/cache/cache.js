@@ -44,6 +44,8 @@ exports = module.exports = function()
             process.configuration.cache.config = {};
         }
 
+        process.env.CLOUDCMS_CACHE_TYPE = process.configuration.cache.type;
+
         var cacheConfig = process.configuration.cache.config;
 
         provider = require("./providers/" + process.configuration.cache.type)(cacheConfig);
@@ -61,7 +63,10 @@ exports = module.exports = function()
         }
 
         provider.write(key, value, seconds, function(err, res) {
-            callback(err, res);
+            if (callback)
+            {
+                callback(err, res);
+            }
         });
     };
 
@@ -75,7 +80,10 @@ exports = module.exports = function()
     var remove = r.remove = function(key, callback)
     {
         provider.remove(key, null, function(err) {
-            callback(err);
+            if (callback)
+            {
+                callback(err);
+            }
         });
     };
 
@@ -92,24 +100,32 @@ exports = module.exports = function()
 
             var fns = [];
             for (var i = 0; i < badKeys.length; i++) {
-                var fn = function(callback) {
+                var fn = function(done) {
                     remove(badKeys[i], function() {
-                        callback();
+                        done();
                     });
                 };
                 fns.push(fn);
             }
             async.parallel(fns, function() {
-                callback();
+                if (callback)
+                {
+                    callback();
+                }
             })
         });
     };
 
-    var invalidateCacheForApp = r.invalidateCacheForApp = function(applicationId)
+    var invalidateCacheForApp = r.invalidateCacheForApp = function(applicationId, callback)
     {
         var prefix = __key(applicationId);
 
-        return invalidate(prefix);
+        return invalidate(prefix, function(err) {
+            if (callback)
+            {
+                callback(err);
+            }
+        });
     };
 
     var __cacheBuilder = function(cache, applicationId, principalId)

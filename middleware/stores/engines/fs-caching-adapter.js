@@ -5,16 +5,68 @@ var fs = require("fs");
 
 var util = require("../../../util/util");
 
+var cluster = require("cluster");
+
 /**
- * A wrapper around a store that provides a new store with local disk caching of remote assets.
+ * A caching wrapper around a store that provides local disk caching of assets to boost performance for serving assets
+ * via a web server.  In a typical configuration, this is hooked up to Amazon S3 to provide cluster-wide caching of
+ * resources.
+ *
+ * A 5 minute TTL is provided for any cached assets.
+ *
+ * This also optionally hooks into the process.broadcast service to notify other nodes in the cluster of cache
+ * invalidation.
  *
  * @return {Function}
  */
 exports = module.exports = function(remoteStore)
 {
+    var INVALIDATION_TOPIC = "fs-caching-adapter-path-invalidation";
+
     var TIMEOUT_MS = 5 * 60 * 1000;
 
     var tempDirectory = null;
+
+    var notify = function(message, callback)
+    {
+        if (process.broadcast)
+        {
+            //console.log("[" + cluster.worker.id + "] Notifying: " + JSON.stringify(message));
+            process.broadcast.publish(INVALIDATION_TOPIC, message);
+
+            // TODO: is it possible to wait for broadcast to complete?
+            if (callback) {
+                callback();
+            }
+        }
+        else
+        {
+            if (callback) {
+                callback();
+            }
+        }
+    };
+
+    var bindSubscriptions = function()
+    {
+        if (process.broadcast)
+        {
+            process.broadcast.subscribe(INVALIDATION_TOPIC, function(message) {
+
+                //console.log("[" + cluster.worker.id + "] Heard: " + JSON.stringify(message));
+
+                var command = message.command;
+                if ("invalidatePath" === command)
+                {
+                    __internal_removeCachedObject(message.path);
+                }
+            });
+        }
+        else
+        {
+            callback();
+        }
+    };
 
     var toCacheFilePath = function(filePath)
     {
@@ -36,13 +88,9 @@ exports = module.exports = function(remoteStore)
 
             if (err) {
                 err.sendFailed = true;
-                callback(err);
-                return;
             }
-            else
-            {
-                callback();
-            }
+
+            callback(err);
         });
     };
 
@@ -110,6 +158,15 @@ exports = module.exports = function(remoteStore)
                 return;
             }
 
+            if (!data || data.length === 0) {
+
+                // cache file is invalid somehow
+                __removeCachedObject(filePath, function() {
+                    callback(state);
+                });
+                return;
+            }
+
             var cacheFileJson = JSON.parse("" + data);
 
             state.cached = true;
@@ -129,7 +186,7 @@ exports = module.exports = function(remoteStore)
 
                     state.faulted = false;
                 }
-                else 
+                else
                 {
                     state.exists = cacheFileJson.exists;
                 }
@@ -172,11 +229,19 @@ exports = module.exports = function(remoteStore)
 
                     if (err)
                     {
-                        __removeCachedObjectAsset(filePath);
+                        __removeCachedObjectAsset(filePath, function() {
+                            if (callback)
+                            {
+                                callback(err);
+                            }
+                        });
                     }
-
-                    if (callback) {
-                        callback(err);
+                    else
+                    {
+                        if (callback)
+                        {
+                            callback(err);
+                        }
                     }
                 });
             }
@@ -224,16 +289,34 @@ exports = module.exports = function(remoteStore)
         {
             finish();
         }
-
     };
 
     var __removeCachedObject = function(filePath, callback)
+    {
+        __internal_removeCachedObject(filePath, function(err) {
+
+            // broad cast
+            notify({
+                "command": "invalidatePath",
+                "path": filePath
+            });
+
+            if (callback)
+            {
+                callback(err);
+            }
+
+        });
+    };
+
+    var __internal_removeCachedObject = function(filePath, callback)
     {
         var cacheFilePath = toCacheFilePath(filePath);
         var cacheAssetPath = toCacheAssetPath(filePath);
 
         fs.unlink(cacheFilePath, function (err) {
             fs.unlink(cacheAssetPath, function (err) {
+
                 if (callback) {
                     callback();
                 }
@@ -272,6 +355,9 @@ exports = module.exports = function(remoteStore)
     {
         util.createTempDirectory(function(err, _tempDirectory) {
             tempDirectory = _tempDirectory;
+
+            bindSubscriptions();
+
             callback();
         });
     };
@@ -326,10 +412,9 @@ exports = module.exports = function(remoteStore)
         remoteStore.removeFile(filePath, function(err) {
 
             // remove from cache
-            __removeCachedObject(filePath);
-
-            callback(err);
-
+            __removeCachedObject(filePath, function() {
+                callback(err);
+            });
         });
     };
 
@@ -338,9 +423,9 @@ exports = module.exports = function(remoteStore)
         remoteStore.removeDirectory(directoryPath, function(err) {
 
             // remove from cache
-            __removeCachedObject(directoryPath);
-
-            callback(err);
+            __removeCachedObject(directoryPath, function() {
+                callback(err);
+            });
         });
     };
 
@@ -366,8 +451,9 @@ exports = module.exports = function(remoteStore)
 
                 var writer = fs.createWriteStream(cacheAssetPath);
                 writer.on("close", function() {
-                    __putCachedObject(filePath, true);
-                    _sendFile(res, cacheAssetPath, cacheInfo, callback);
+                    __putCachedObject(filePath, true, null, function() {
+                        _sendFile(res, cacheAssetPath, cacheInfo, callback);
+                    });
                 });
                 reader.pipe(writer);
             });
@@ -390,8 +476,9 @@ exports = module.exports = function(remoteStore)
             remoteStore.readStream(filePath, function(err, reader) {
                 var writer = fs.createWriteStream(cacheAssetPath);
                 writer.on("close", function() {
-                    __putCachedObject(filePath, true);
-                    _downloadFile(res, cacheAssetPath, filename, cacheInfo, callback);
+                    __putCachedObject(filePath, true, null, function() {
+                        _downloadFile(res, cacheAssetPath, filename, cacheInfo, callback);
+                    });
                 });
                 reader.pipe(writer);
             });
@@ -404,13 +491,15 @@ exports = module.exports = function(remoteStore)
 
             // update cache
             if (err) {
-                __removeCachedObject(filePath);
-            }
-            else {
-                __putCachedObject(filePath, true, data);
+                __removeCachedObject(filePath, function() {
+                    callback(err);
+                });
+                return;
             }
 
-            callback(err);
+            __putCachedObject(filePath, true, data, function() {
+                callback(err);
+            });
         });
     };
 
@@ -422,7 +511,10 @@ exports = module.exports = function(remoteStore)
 
                 // update cache
                 if (!err) {
-                    __putCachedObject(filePath, true, data);
+                    __putCachedObject(filePath, true, data, function() {
+                        callback(err, data);
+                    });
+                    return;
                 }
 
                 callback(err, data)
@@ -455,9 +547,9 @@ exports = module.exports = function(remoteStore)
             }
 
             // update cache
-            __moveCachedObject(originalFilePath, newFilePath);
-
-            callback(err);
+            __moveCachedObject(originalFilePath, newFilePath, function() {
+                callback(err);
+            });
         });
     };
 
