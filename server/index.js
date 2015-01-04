@@ -4,7 +4,6 @@ var https = require('https');
 var path = require('path');
 var fs = require('fs');
 var clone = require('clone');
-var xtend = require('xtend');
 var bytes = require('bytes');
 
 var async = require('../util/async');
@@ -24,18 +23,18 @@ var app = express();
 // cloudcms app server support
 var main = require("../index");
 
+
+
 // set up modes
 process.env.CLOUDCMS_APPSERVER_MODE = "development";
 
-if (process.env.NODE_ENV == "production")
-{
+if (process.env.NODE_ENV == "production") {
     process.env.CLOUDCMS_APPSERVER_MODE = "production";
 }
 
 // set up domain hosting
 // if not otherwise specified, we assume hosting at *.cloudcms.net
-if (!process.env.CLOUDCMS_DOMAIN)
-{
+if (!process.env.CLOUDCMS_DOMAIN) {
     process.env.CLOUDCMS_DOMAIN = "cloudcms.net";
 }
 
@@ -73,6 +72,15 @@ var SETTINGS = {
                 "bucket": "",
                 "basePath": "/hosts/{host}"
             }
+        },
+        "hosts_s3fs": {
+            "type": "s3fs",
+            "config": {
+                "accessKey": "",
+                "secretKey": "",
+                "bucket": "",
+                "basePath": "/hosts/{host}"
+            }
         }
     },
     "storeConfigurations": {
@@ -95,16 +103,22 @@ var SETTINGS = {
             "content": "hosts_fs"
         },
         "net-production": {
-            "root": "hosts_s3",
-            "config": "hosts_s3",
-            "web": "hosts_s3",
-            "content": "hosts_s3"
+            "root": "hosts_s3fs",
+            "config": "hosts_s3fs",
+            "web": "hosts_s3fs",
+            "content": "hosts_s3fs"
         },
         "net-development-s3": {
             "root": "hosts_s3",
             "config": "hosts_s3",
             "web": "hosts_s3",
             "content": "hosts_s3"
+        },
+        "net-development-s3fs": {
+            "root": "hosts_s3fs",
+            "config": "hosts_s3fs",
+            "web": "hosts_s3fs",
+            "content": "hosts_s3fs"
         }
     },
     "virtualHost": {
@@ -121,6 +135,9 @@ var SETTINGS = {
     },
     "perf": {
         "enabled": false // true
+    },
+    "driverConfig": {
+        "enabled": true
     },
     "virtualDriver": {
         "enabled": false
@@ -161,6 +178,10 @@ var SETTINGS = {
     },
     "config": {
         "enabled": true
+    },
+    "cache": {
+        "enabled": true,
+        "type": "memory"
     }
 };
 
@@ -178,8 +199,7 @@ var exports = module.exports;
  * @param key
  * @param value
  */
-exports.set = function(key, value)
-{
+exports.set = function (key, value) {
     SETTINGS[key] = value;
 };
 
@@ -189,8 +209,7 @@ exports.set = function(key, value)
  * @param key
  * @return {*}
  */
-exports.get = function(key)
-{
+exports.get = function (key) {
     return SETTINGS[key];
 };
 
@@ -200,8 +219,7 @@ exports.get = function(key)
  * @param env
  * @param fn
  */
-exports.configure = function(env, fn)
-{
+exports.configure = function (env, fn) {
     if (!SETTINGS.configureFunctions[env]) {
         SETTINGS.configureFunctions[env] = [];
     }
@@ -214,8 +232,7 @@ exports.configure = function(env, fn)
  *
  * @param fn
  */
-exports.sockets = function(fn)
-{
+exports.sockets = function (fn) {
     SETTINGS.socketFunctions.push(fn);
 };
 
@@ -224,8 +241,7 @@ exports.sockets = function(fn)
  *
  * @param fn
  */
-exports.routes = function(fn)
-{
+exports.routes = function (fn) {
     SETTINGS.routeFunctions.push(fn);
 };
 
@@ -234,8 +250,7 @@ exports.routes = function(fn)
  *
  * @param fn
  */
-var before = exports.before = function(fn)
-{
+var before = exports.before = function (fn) {
     SETTINGS.beforeFunctions.push(fn);
 };
 
@@ -244,8 +259,7 @@ var before = exports.before = function(fn)
  *
  * @param fn
  */
-var after = exports.after = function(fn)
-{
+var after = exports.after = function (fn) {
     SETTINGS.afterFunctions.push(fn);
 };
 
@@ -253,7 +267,7 @@ var after = exports.after = function(fn)
 /*******************************************************************************************************/
 /*******************************************************************************************************/
 
-var runFunctions = function(functions, args, callback) {
+var runFunctions = function (functions, args, callback) {
 
     // skip out early if nothing to do
     if (!functions || functions.length === 0) {
@@ -261,7 +275,7 @@ var runFunctions = function(functions, args, callback) {
         return;
     }
 
-    async.series(functions, args, function(err) {
+    async.series(functions, args, function (err) {
 
         if (err) {
             console.log(err);
@@ -271,7 +285,6 @@ var runFunctions = function(functions, args, callback) {
         callback(err);
     });
 };
-
 
 
 /*******************************************************************************************************/
@@ -284,10 +297,8 @@ var runFunctions = function(functions, args, callback) {
  * @param overrides optional config overrides
  * @param callback optional callback function
  */
-exports.start = function(overrides, callback)
-{
-    if (typeof(overrides) === "function")
-    {
+exports.start = function (overrides, callback) {
+    if (typeof(overrides) === "function") {
         callback = overrides;
         overrides = null;
     }
@@ -302,41 +313,36 @@ exports.start = function(overrides, callback)
     process.configuration = config;
 
     // some config overrides can come in through process.configuration
-    if (process.configuration)
-    {
-        if (process.configuration.virtualHost && process.configuration.virtualHost.domain)
-        {
-            if (!process.env.CLOUDCMS_DOMAIN)
-            {
+    if (process.configuration) {
+        if (process.configuration.virtualHost && process.configuration.virtualHost.domain) {
+            if (!process.env.CLOUDCMS_DOMAIN) {
                 process.env.CLOUDCMS_DOMAIN = process.configuration.virtualHost.domain;
             }
         }
     }
-    if (process.env.CLOUDCMS_DOMAIN)
-    {
+    if (process.env.CLOUDCMS_DOMAIN) {
         process.env.CLOUDCMS_DOMAIN = process.env.CLOUDCMS_DOMAIN.toLowerCase();
-        console.log("Configured for domain: " + process.env.CLOUDCMS_DOMAIN);
     }
 
     /*
-    // memwatch
-    if (config.memwatch)
-    {
-        var memwatch = require('memwatch');
-        memwatch.on('leak', function(info) {
-            console.log("[memwatch] ---> POTENTIAL MEMORY LEAK DETECTED <---");
-            console.log(JSON.stringify(info, null, "  "));
-        });
-        memwatch.on('stats', function(stats) {
-            console.log("[memwatch] Garbage collection ran, new base = " + stats["estimated_base"]);
-        });
-        app.memwatch = memwatch;
-        console.log("[memwatch] Started");
-    }
-    */
+     // memwatch
+     if (config.memwatch)
+     {
+     var memwatch = require('memwatch');
+     memwatch.on('leak', function(info) {
+     console.log("[memwatch] ---> POTENTIAL MEMORY LEAK DETECTED <---");
+     console.log(JSON.stringify(info, null, "  "));
+     });
+     memwatch.on('stats', function(stats) {
+     console.log("[memwatch] Garbage collection ran, new base = " + stats["estimated_base"]);
+     });
+     app.memwatch = memwatch;
+     console.log("[memwatch] Started");
+     }
+     */
 
     // global service starts
-    main.init(function(err) {
+    main.init(function (err) {
 
         //console.log("");
         //console.log("Starting " + config.name);
@@ -508,18 +514,15 @@ exports.start = function(overrides, callback)
         app.set('port', process.env.PORT || 2999);
         app.set('views', process.env.CLOUDCMS_APPSERVER_BASE_PATH + "/views");
 
-        if (config.viewEngine == "dust")
-        {
+        if (config.viewEngine == "dust") {
             app.set('view engine', 'html');
             var cons = require('consolidate');
             app.engine('html', cons.dust);
         }
-        else if (config.viewEngine == "jade")
-        {
+        else if (config.viewEngine == "jade") {
             app.set('view engine', 'jade');
         }
-        else if (config.viewEngine == "handlebars" || config.viewEngine == "hbs")
-        {
+        else if (config.viewEngine == "handlebars" || config.viewEngine == "hbs") {
             app.set('view engine', 'html');
             var hbs = require('hbs');
             app.engine('html', hbs.__express);
@@ -651,14 +654,13 @@ exports.start = function(overrides, callback)
                     runFunctions(config.afterFunctions, [app], function (err) {
 
                         // show standard info
-                        var url = "http://localhost:" + app.get('port') + "/";
+                        //var url = "http://localhost:" + app.get('port') + "/";
 
-                        console.log(config.name + " started");
-                        console.log(" -> visit: " + url);
-                        console.log("");
+                        //console.log(config.name + " started");
+                        //console.log(" -> visit: " + url);
+                        //console.log("");
 
-                        if (callback)
-                        {
+                        if (callback) {
                             callback(app);
                         }
                     });
@@ -670,7 +672,6 @@ exports.start = function(overrides, callback)
 };
 
 
-
 ////////////////////////////////////////////////////////////////////////////
 //
 // DEFAULT HANDLERS
@@ -678,12 +679,11 @@ exports.start = function(overrides, callback)
 ////////////////////////////////////////////////////////////////////////////
 
 // default before function
-before(function(app, callback) {
+before(function (app, callback) {
     callback();
 });
 
 // default after function
-after(function(app, callback) {
+after(function (app, callback) {
     callback();
 });
-

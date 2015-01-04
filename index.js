@@ -3,9 +3,9 @@ var fs = require('fs');
 var temp = require('temp');
 var url = require('url');
 
-var util = require("./util/util");
+var async = require("async");
 
-var GITANA_DRIVER_CONFIG_CACHE = require("./cache/driverconfigs");
+var util = require("./util/util");
 
 /**
  * Supports the following directory structure:
@@ -101,19 +101,14 @@ exports = module.exports = function()
 
     r.init = function(callback)
     {
-        // initialize stores
-        storeService.init(function(err) {
-
-            if (err) {
-                callback(err);
-                return;
-            }
-
-            // start services
-            notifications.start(function(err) {
-                callback(err);
-            });
-        })
+        var fns = [
+            storeService.init,
+            notifications.start,
+            cache.init
+        ];
+        async.series(fns, function(err) {
+            callback(err);
+        });
     };
 
     r.common = function(app)

@@ -1,5 +1,4 @@
 var path = require('path');
-var fs = require('fs');
 var http = require('http');
 
 var AWS = require('aws-sdk');
@@ -13,10 +12,10 @@ var Canoe = require("canoe");
  *
  * @return {Function}
  */
-exports = module.exports = function(engineId, engineType, engineConfig)
+exports = module.exports = function(engineConfig)
 {
     var s3 = null;
-    var tempDirectory = null;
+    var canoe = null;
 
     var _toKey = function(filePath)
     {
@@ -52,9 +51,7 @@ exports = module.exports = function(engineId, engineType, engineConfig)
             "secretAccessKey": engineConfig.secretKey
         });
 
-        util.createTempDirectory(function(err, _tempDirectory) {
-            tempDirectory = _tempDirectory;
-        });
+        canoe = new Canoe(s3);
 
         callback();
     };
@@ -75,6 +72,7 @@ exports = module.exports = function(engineId, engineType, engineConfig)
             Key: key
         };
         s3.headObject(params, function(err, data) {
+
             if (err) {
                 callback(false);
                 return;
@@ -191,7 +189,6 @@ exports = module.exports = function(engineId, engineType, engineConfig)
 
     var sendFile = r.sendFile = function(res, filePath, cacheInfo, callback)
     {
-        console.log("FPP: " + filePath);
         readStream(filePath, function(err, stream) {
 
             if (err)
@@ -309,9 +306,6 @@ exports = module.exports = function(engineId, engineType, engineConfig)
     {
         var key = _toKey(filePath);
 
-        console.log("THEPRE: " + key);
-
-        var canoe = new Canoe(s3);
         canoe.createPrefixedReadStream({
             Bucket: engineConfig.bucket,
             Prefix: key
@@ -324,7 +318,6 @@ exports = module.exports = function(engineId, engineType, engineConfig)
     {
         var key = _toKey(filePath);
 
-        var canoe = new Canoe(s3);
         canoe.createWriteStream({
             Bucket: engineConfig.bucket,
             Key: key

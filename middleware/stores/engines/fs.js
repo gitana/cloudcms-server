@@ -2,9 +2,6 @@ var path = require('path');
 var fs = require('fs');
 var http = require('http');
 
-var mime = require("mime");
-var mkdirp = require("mkdirp");
-
 var util = require("../../../util/util");
 
 var watch = require("watch");
@@ -14,33 +11,9 @@ var watch = require("watch");
  *
  * @return {Function}
  */
-exports = module.exports = function(engineId, engineType, engineConfig)
+exports = module.exports = function(engineConfig)
 {
     var r = {};
-
-    var _createDirectory = function(directoryPath, callback)
-    {
-        mkdirp(directoryPath, function(err) {
-
-            if (err) {
-                callback(err);
-                return;
-            }
-
-            // safety check to ensure exists
-            existsFile(directoryPath, function(exists) {
-
-                if (!exists) {
-                    callback({
-                        "message": "Could not create directory path: " + directoryPath
-                    });
-                    return;
-                }
-
-                callback(null, directoryPath);
-            });
-        });
-    };
 
     var init = r.init = function(callback)
     {
@@ -49,7 +22,7 @@ exports = module.exports = function(engineId, engineType, engineConfig)
 
     var allocated = r.allocated = function(basePath, callback)
     {
-        existsFile(basePath, function(exists) {
+        existsDirectory(basePath, function(exists) {
             callback(exists)
         });
     };
@@ -190,7 +163,7 @@ exports = module.exports = function(engineId, engineType, engineConfig)
         var basedir = path.dirname(filePath);
         if (basedir)
         {
-            _createDirectory(basedir, function(err) {
+            util.createDirectory(basedir, function(err) {
 
                 if (err) {
                     callback(err);
@@ -274,7 +247,7 @@ exports = module.exports = function(engineId, engineType, engineConfig)
         var basedir = path.dirname(filePath);
         if (basedir)
         {
-            _createDirectory(basedir, function(err) {
+            util.createDirectory(basedir, function(err) {
 
                 if (err) {
                     callback(err);

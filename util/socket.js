@@ -5,6 +5,9 @@ var hosts = require("./hosts");
 var Gitana = require('gitana');
 
 var stores = require("../middleware/stores/stores");
+var driver = require("../middleware/driver/driver");
+var driverConfig = require("../middleware/driver-config/driver-config");
+var virtualConfig = require("../middleware/virtual-config/virtual-config");
 
 exports = module.exports;
 
@@ -30,26 +33,37 @@ exports.bindGitana = function(socket, callback)
     socket.host = host;
 
     // find the stores for this host
-    socket.stores = stores.stores(host);
-    socket.rootStore = socket.stores.root;
-    socket.webStore = socket.stores.web;
-    socket.configStore = socket.stores.config;
-    socket.contentStore = socket.stores.content;
+    stores.produce(host, function(err, stores) {
 
-    var driverConfig = require("../middleware/driver-config/driver-config");
-    var virtualConfig = require("../middleware/virtual-config/virtual-config");
-    var cloudcms = require("../middleware/cloudcms/cloudcms");
+        socket.stores = stores;
 
-    driverConfig.resolveConfig(socket, function(err) {
+        var rootStore = stores.root;
 
-        if (process.configuration.virtualDriver && process.configuration.virtualDriver.enabled)
-        {
-            virtualConfig.acquireGitanaJson(host, socket.rootStore, socket.log, function(err) {
+        driverConfig.resolveConfig(socket, rootStore, function(err) {
 
-                cloudcms.doConnect(socket, socket.gitanaConfig, function(err) {
+            if (process.configuration.virtualDriver && process.configuration.virtualDriver.enabled)
+            {
+                virtualConfig.acquireGitanaJson(host, rootStore, socket.log, function(err) {
 
-                    if (err)
-                    {
+                    driver.doConnect(socket, socket.gitanaConfig, function(err) {
+
+                        if (err) {
+                            callback(err);
+                            return;
+                        }
+
+                        socket.gitana = this;
+
+                        callback();
+                    });
+
+                });
+            }
+            else if (socket.gitanaConfig)
+            {
+                driver.doConnect(socket, socket.gitanaConfig, function(err) {
+
+                    if (err) {
                         callback(err);
                         return;
                     }
@@ -58,25 +72,9 @@ exports.bindGitana = function(socket, callback)
 
                     callback();
                 });
+            }
 
-            });
-        }
-        else if (socket.gitanaConfig)
-        {
-            cloudcms.doConnect(socket, socket.gitanaConfig, function(err) {
-
-                if (err)
-                {
-                    callback(err);
-                    return;
-                }
-
-                socket.gitana = this;
-
-                callback();
-            });
-
-        }
+        });
     });
 };
 

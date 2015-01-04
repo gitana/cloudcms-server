@@ -857,3 +857,16 @@ var handleSendFileError = exports.handleSendFileError = function(req, res, fileP
         }
     }
 };
+
+var createDirectory = exports.createDirectory = function(directoryPath, callback)
+{
+    mkdirp(directoryPath, function(err) {
+
+        if (err) {
+            callback(err);
+            return;
+        }
+
+        callback(null, directoryPath);
+    });
+};

@@ -206,161 +206,110 @@ exports = module.exports = function()
     };
 
     // assume thirty seconds (for development mode)
-    var WCM_CACHE_TIMEOUT = 60 * 1000 * 0.5; // 30 seconds
+    var WCM_CACHE_TIMEOUT_SECONDS = 30;
     if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
     {
         // for production, set to 24 hours
-        WCM_CACHE_TIMEOUT = 60 * 1000 * 60 * 24;
+        WCM_CACHE_TIMEOUT_SECONDS = 60 * 60 * 24;
     }
 
     var preloadPages = function(req, callback)
     {
         var gitana = req.gitana;
 
-        var cacheValid = false;
-
-        var pages = req.cache.read("wcmPages");
-        var pagesTimestamp = req.cache.read("wcmPagesTimestamp");
-        var now = new Date().getTime();
-
-        // do a quick page count check
-        var pageCount = 0;
-        if (pages)
-        {
-            for (var k in pages) {
-                pageCount++;
-            }
-        }
-
-        //console.log("WCM cached page count: " + pageCount + " with timestamp: " + pagesTimestamp);
-        //console.log("Now is: " + now + " with difference: " + (now - pagesTimestamp));
-
-        if (pagesTimestamp && pagesTimestamp > 0)
-        {
-            if (now - pagesTimestamp > WCM_CACHE_TIMEOUT)
-            {
-                //console.log("WCM cache invalid -> exceeded 30 seconds");
-                cacheValid = false;
-            }
-            else
-            {
-                //console.log("WCM cache valid");
-                cacheValid = true;
+        var ensureInvalidate = function(callback) {
+            // allow for forced invalidation via req param
+            if (req.param("invalidate")) {
+                req.cache.remove("wcmPages", function() {
+                    callback();
+                });
+                return;
             }
 
-            if (pageCount == 0)
-            {
-                // force invalid
-                //console.log("WCM page count == 0, forcing invalid");
-                cacheValid = false;
-            }
-        }
-
-        // allow for forced invalidation via req param
-        if (req.param("invalidate"))
-        {
-            //console.log("Forcing cache invalidation via request param");
-            cacheValid = false;
-        }
-
-        if (cacheValid)
-        {
-            //console.log("WCM responds from cache");
-            callback(null, pages);
-            return;
-        }
-
-        console.log("WCM populate cache, cache timeout: " + WCM_CACHE_TIMEOUT);
-        pages = {};
-
-        // cache is not valid, let's populate it
-        req.cache.clear("wcmPages");
-        req.cache.clear("wcmPagesTimestamp");
-
-        var errorHandler = function(err)
-        {
-            req.log("WCM populate cache err: " + JSON.stringify(err));
-            //console.log("WCM populate cache err: " + err);
-            //console.log("WCM populate cache err2: " + JSON.stringify(err));
-            //console.log("WCM populate cache err3: " + err.message);
-
-            callback(err);
+            callback();
         };
 
-        // load all wcm pages from the server
-        var repository = gitana.datastore("content");
-        if (!repository)
-        {
-            req.log("Cannot find 'content' datastore for gitana instance");
+        ensureInvalidate(function() {
 
-            callback({
-                "message": "Cannot find 'content' datastore for gitana instance"
-            });
+            req.cache.read("wcmPages", function (err, pages) {
 
-            return;
-        }
-
-        //var t1 = new Date().getTime();
-        Chain(repository).trap(errorHandler).readBranch("master").then(function() {
-
-            var branch = this;
-
-            this.queryNodes({
-                "_type": "wcm:page"
-            }, {
-                "limit": -1
-            }).each(function() {
-
-                // THIS = wcm:page
-                var page = this;
-
-                // if page has a template
-                if (page.template)
-                {
-                    if (page.uris)
-                    {
-                        // merge into our pages collection
-                        for (var i = 0; i < page.uris.length; i++)
-                        {
-                            // console.log("Mapping page: " + page.uris[i] + " to " + JSON.stringify(page));
-                            pages[page.uris[i]] = page;
-                        }
-                    }
-
-                    // is the template a GUID or a path to the template file?
-                    if (page.template.indexOf("/") > -1)
-                    {
-                        page.templatePath = page.template;
-                    }
-                    else
-                    {
-                        // load the template
-                        this.subchain(branch).readNode(page.template).then(function() {
-
-                            // THIS = wcm:template
-                            var template = this;
-                            page.templatePath = template.path;
-                        });
-                    }
+                if (pages) {
+                    callback(null, pages);
+                    return;
                 }
+
+                // build out pages
+                pages = {};
+
+                var errorHandler = function (err) {
+                    req.log("WCM populate cache err: " + JSON.stringify(err));
+
+                    callback(err);
+                };
+
+                // load all wcm pages from the server
+                var repository = gitana.datastore("content");
+                if (!repository) {
+                    req.log("Cannot find 'content' datastore for gitana instance");
+
+                    callback({
+                        "message": "Cannot find 'content' datastore for gitana instance"
+                    });
+
+                    return;
+                }
+
+                Chain(repository).trap(errorHandler).readBranch("master").then(function () {
+
+                    var branch = this;
+
+                    this.queryNodes({
+                        "_type": "wcm:page"
+                    }, {
+                        "limit": -1
+                    }).each(function () {
+
+                        // THIS = wcm:page
+                        var page = this;
+
+                        // if page has a template
+                        if (page.template) {
+                            if (page.uris) {
+                                // merge into our pages collection
+                                for (var i = 0; i < page.uris.length; i++) {
+                                    // console.log("Mapping page: " + page.uris[i] + " to " + JSON.stringify(page));
+                                    pages[page.uris[i]] = page;
+                                }
+                            }
+
+                            // is the template a GUID or a path to the template file?
+                            if (page.template.indexOf("/") > -1) {
+                                page.templatePath = page.template;
+                            }
+                            else {
+                                // load the template
+                                this.subchain(branch).readNode(page.template).then(function () {
+
+                                    // THIS = wcm:template
+                                    var template = this;
+                                    page.templatePath = template.path;
+                                });
+                            }
+                        }
+                    });
+
+                }).then(function () {
+
+                    console.log("Writing pages to WCM cache");
+                    for (var uri in pages) {
+                        console.log(" -> " + uri);
+                    }
+
+                    req.cache.write("wcmPages", pages, WCM_CACHE_TIMEOUT_SECONDS);
+
+                    callback(null, pages);
+                });
             });
-
-        }).then(function() {
-
-            //var t2 = new Date().getTime();
-
-            //console.log("WCM page time: " + (t2-t1));
-
-            console.log("Writing pages to WCM cache");
-            for (var uri in pages)
-            {
-                console.log(" -> " + uri);
-            }
-
-            req.cache.write("wcmPages", pages);
-            req.cache.write("wcmPagesTimestamp", new Date().getTime());
-
-            callback(null, pages);
         });
     };
 
@@ -382,13 +331,15 @@ exports = module.exports = function()
      */
     r.wcmHandler = function()
     {
-        return util.createHandler("wcm", function(req, res, next, configuation, store, cache) {
+        return util.createHandler("wcm", function(req, res, next, configuation, stores) {
 
             if (!req.gitana)
             {
                 next();
                 return;
             }
+
+            var webStore = stores.web;
 
             preloadPages(req, function(err, pages) {
 
@@ -432,11 +383,11 @@ exports = module.exports = function()
                                 "matchingPath": matchingPath
                             }
                         };
+
                         // page keys to copy
                         for (var k in page)
                         {
                             if (k == "templatePath") {
-
                             } else if (k == "_doc") {
                             } else if (k.indexOf("_") === 0) {
                             } else {
@@ -444,26 +395,16 @@ exports = module.exports = function()
                             }
                         }
 
-                        store.publicPath(req, function(err, publicPath) {
+                        // dust it
+                        duster.execute(req, webStore, page.templatePath, model, function (err, out) {
 
                             if (err) {
-                                next(err);
-                                return;
+                                res.send(500, err);
+                            }
+                            else {
+                                res.status(200).send.call(res, out);
                             }
 
-                            var filePath = path.join(publicPath, page.templatePath);
-
-                            // dust it
-                            duster.execute(req, filePath, model, function (err, out) {
-
-                                if (err) {
-                                    res.send(500, err);
-                                }
-                                else {
-                                    res.status(200).send.call(res, out);
-                                }
-
-                            });
                         });
                     }
                     else

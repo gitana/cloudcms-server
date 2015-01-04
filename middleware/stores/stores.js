@@ -52,7 +52,7 @@ exports = module.exports = function()
                 engineConfig = {};
             }
 
-            ENGINES[engineId] = require("./engines/" + engineType)(engineId, engineType, engineConfig);
+            ENGINES[engineId] = require("./engines/" + engineType)(engineConfig);
         }
 
         // init all engines
@@ -81,16 +81,19 @@ exports = module.exports = function()
                 }
             }
 
+            /*
             // on init, produce "{host}" for diagnosis
             produce("<host>", function(err, stores) {
 
                 for (var k in stores)
                 {
-                    console.log("Store [" + k + "]: " + stores[k].id);
+                    util.log("Store [" + k + "]: " + stores[k].id);
                 }
 
                 callback(err);
             });
+            */
+            callback(err);
         });
 
     };
@@ -108,7 +111,7 @@ exports = module.exports = function()
 
             var webStore = stores["web"] = buildStore("web", host);
 
-            webStore.existsFile("public", function(exists) {
+            webStore.existsDirectory("public", function(exists) {
 
                 if (exists)
                 {

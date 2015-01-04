@@ -1,4 +1,5 @@
 var path = require("path");
+var async = require("async");
 
 /**
  * Cache middleware.
@@ -12,82 +13,96 @@ var path = require("path");
  */
 exports = module.exports = function()
 {
-    var map = {};
-
-    var _key = function(req)
-    {
-        var applicationId = req.applicationId;
-        var principalId = req.principalId;
-
-        return __key(applicationId, principalId);
-    };
+    var provider = null;
 
     var __key = function(applicationId, principalId)
     {
-        var cacheKey = "cacheKey_" + applicationId;
+        var prefix = applicationId;
         if (principalId) {
-            cacheKey += "_" + principalId;
+            prefix = path.join(prefix, principalId);
         }
 
-        return cacheKey;
+        return prefix;
     };
 
     var r = {};
 
-    var read = r.read = function(cacheKey, key)
+    var init = r.init = function(callback)
     {
-        var obj = null;
-
-        if (map[cacheKey] && map[cacheKey][key])
+        if (!process.env.CLOUDCMS_CACHE_TYPE)
         {
-            obj = map[cacheKey][key]
+            process.env.CLOUDCMS_CACHE_TYPE = "memory";
         }
 
-        return obj;
+        if (!process.configuration.cache.type)
+        {
+            process.configuration.cache.type = process.env.CLOUDCMS_CACHE_TYPE;
+        }
+
+        if (!process.configuration.cache.config)
+        {
+            process.configuration.cache.config = {};
+        }
+
+        var cacheConfig = process.configuration.cache.config;
+
+        provider = require("./providers/" + process.configuration.cache.type)(cacheConfig);
+        provider.init(function(err) {
+            callback(err);
+        });
     };
 
-    var clear = r.clear = function(cacheKey, key)
+    var write = r.write = function(key, value, seconds, callback)
     {
-        if (key)
+        if (typeof(seconds) == "function")
         {
-            if (map[cacheKey] && map[cacheKey][key])
-            {
-                delete map[cacheKey][key];
+            callback = seconds;
+            seconds = -1;
+        }
+
+        provider.write(key, value, seconds, function(err, res) {
+            callback(err, res);
+        });
+    };
+
+    var read = r.read = function(key, callback)
+    {
+        provider.read(key, function(err, value) {
+            callback(err, value);
+        });
+    };
+
+    var remove = r.remove = function(key, callback)
+    {
+        provider.remove(key, null, function(err) {
+            callback(err);
+        });
+    };
+
+    var keys = r.keys = function(prefix, callback)
+    {
+        provider.keys(prefix, function(err, keys) {
+            callback(err, keys);
+        });
+    };
+
+    var invalidate = r.invalidate = function(prefix, callback)
+    {
+        keys(prefix, function(err, badKeys) {
+
+            var fns = [];
+            for (var i = 0; i < badKeys.length; i++) {
+                var fn = function(callback) {
+                    remove(badKeys[i], function() {
+                        callback();
+                    });
+                };
+                fns.push(fn);
             }
-        }
-        else
-        {
-            if (map[cacheKey])
-            {
-                delete map[cacheKey];
-            }
-        }
-    };
-
-    var write = r.write = function(cacheKey, key, value)
-    {
-        if (!map[cacheKey])
-        {
-            map[cacheKey] = {};
-        }
-
-        map[cacheKey][key] = value;
-
-        return value;
-    };
-
-    var each = r.each = function(cacheKey, callback)
-    {
-        if (!map[cacheKey])
-        {
-            map[cacheKey] = {};
-        }
-
-        for (var key in map[cacheKey])
-        {
-            var value = map[cacheKey][key];
-            callback(key, value);
-        }
+            async.parallel(fns, function() {
+                callback();
+            })
+        });
     };
 
     var invalidateCacheForApp = r.invalidateCacheForApp = function(applicationId)
@@ -97,50 +112,11 @@ exports = module.exports = function()
         return invalidate(prefix);
     };
 
-    var invalidate = r.invalidate = function(prefix)
+    var __cacheBuilder = function(cache, applicationId, principalId)
     {
-        var badKeys = [];
-        for (var k in map)
-        {
-            if (prefix)
-            {
-                if (k.indexOf(prefix) === 0)
-                {
-                    badKeys.push(k);
-                }
-            }
-            else
-            {
-                badKeys.push(k);
-            }
-        }
+        var prefix = __key(applicationId, principalId);
 
-        for (var i = 0; i < badKeys.length; i++)
-        {
-            delete map[badKeys[i]];
-        }
-    };
-
-    var cacheBuilder = r.cacheBuilder = function(applicationId, principalId)
-    {
-        var cacheKey = __key(applicationId, principalId);
-
-        var x = {};
-
-        x.read = function(key) {
-            return read(cacheKey, key);
-        };
-        x.write = function(key, value) {
-            return write(cacheKey, key, value);
-        };
-        x.clear = function() {
-            return clear(cacheKey);
-        };
-        x.invalidate = function() {
-            return invalidate(__key(applicationId));
-        };
-
-        return x;
+        return require("./wrapper")(cache, prefix, provider);
     };
 
     /**
@@ -150,11 +126,20 @@ exports = module.exports = function()
      */
     r.cacheInterceptor = function()
     {
+        var self = this;
+
         return function(req, res, next)
         {
+            /*
             if (req.applicationId && req.principalId)
             {
-                req.cache = cacheBuilder(req.applicationId, req.principalId);
+                req.cache = __cacheBuilder(req.applicationId, req.principalId);
+            }
+            */
+
+            if (req.applicationId)
+            {
+                req.cache = __cacheBuilder(self, req.applicationId);
             }
 
             next();

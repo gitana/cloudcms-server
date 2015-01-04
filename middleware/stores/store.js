@@ -13,9 +13,25 @@ var stores = require("./stores");
 exports = module.exports = function(engine, engineType, engineId, engineConfiguration, host, offsetPath)
 {
     var DEBUG_LOG = false;
+    /*
     var debugLog = function(text) {
         if (DEBUG_LOG) {
             console.log(text);
+        }
+    };
+    */
+    var t1 = null;
+    var t2 = null;
+    var debugStart = function(text) {
+        if (DEBUG_LOG) {
+            console.log(text);
+            t1 = new Date().getTime();
+        }
+    };
+    var debugFinish = function(text) {
+        if (DEBUG_LOG) {
+            t2 = new Date().getTime();
+            console.log(text + ": " + (t2-t1) + " ms");
         }
     };
 
@@ -56,18 +72,18 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
 
     r.allocated = function(callback)
     {
-        debugLog("Start store.allocated");
+        debugStart("Start store.allocated");
         engine.allocated(_enginePath("/"), function(allocated) {
-            debugLog("Finish store.allocated");
+            debugFinish("Finish store.allocated");
            callback(allocated);
         });
     };
 
     r.cleanup = function(callback)
     {
-        debugLog("Start store.cleanup");
+        debugStart("Start store.cleanup");
         engine.removeDirectory(_enginePath("/"), function(err) {
-            debugLog("Finish store.cleanup");
+            debugFinish("Finish store.cleanup");
             callback(err);
         });
     };
@@ -76,45 +92,45 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
 
     r.existsFile = function(filePath, callback)
     {
-        debugLog("Start store.existsFile");
+        debugStart("Start store.existsFile");
         engine.existsFile(_enginePath(filePath), function(exists) {
-            debugLog("Finish store.existsFile");
+            debugFinish("Finish store.existsFile");
             callback(exists);
         });
     };
 
     r.existsDirectory = function(directoryPath, callback)
     {
-        debugLog("Start store.existsDirectory");
+        debugStart("Start store.existsDirectory");
         engine.existsDirectory(_enginePath(directoryPath), function(exists) {
-            debugLog("Finish store.existsDirectory");
+            debugFinish("Finish store.existsDirectory");
             callback(exists);
         });
     };
 
     r.removeFile = r.deleteFile = function(filePath, callback)
     {
-        debugLog("Start store.deleteFile");
+        debugStart("Start store.deleteFile");
         engine.removeFile(_enginePath(filePath), function(err) {
-            debugLog("Finish store.deleteFile");
+            debugFinish("Finish store.deleteFile");
             callback(err);
         });
     };
 
     r.removeDirectory = r.deleteDirectory = function(directoryPath, callback)
     {
-        debugLog("Start store.deleteDirectory");
+        debugStart("Start store.deleteDirectory");
         engine.removeDirectory(_enginePath(directoryPath), function(err) {
-            debugLog("Finish store.deleteDirectory");
+            debugFinish("Finish store.deleteDirectory");
             callback(err);
         });
     };
 
     r.listFiles = function(directoryPath, callback)
     {
-        debugLog("Start store.listFiles");
+        debugStart("Start store.listFiles");
         engine.listFiles(_enginePath(directoryPath), function(err, filenames) {
-            debugLog("Finish store.listFiles");
+            debugFinish("Finish store.listFiles");
             callback(err, filenames);
         });
     };
@@ -127,9 +143,9 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
             cacheInfo = null;
         }
 
-        debugLog("Start store.sendFile");
+        debugStart("Start store.sendFile");
         engine.sendFile(res, _enginePath(filePath), cacheInfo, function(err) {
-            debugLog("Finish store.sendFile");
+            debugFinish("Finish store.sendFile");
             if (callback) {
                 callback(err);
             }
@@ -144,72 +160,72 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
             cacheInfo = null;
         }
 
-        debugLog("Start store.downloadFile");
+        debugStart("Start store.downloadFile");
         engine.downloadFile(res, _enginePath(filePath), filename, cacheInfo, function(err) {
-            debugLog("Finish store.downloadFile");
+            debugFinish("Finish store.downloadFile");
             callback(err);
         });
     };
 
     r.writeFile = function(filePath, data, callback)
     {
-        debugLog("Start store.writeFile");
+        debugStart("Start store.writeFile");
         engine.writeFile(_enginePath(filePath), data, function(err) {
-            debugLog("Finish store.writeFile");
+            debugFinish("Finish store.writeFile");
             callback(err);
         });
     };
 
     r.readFile = function(path, callback)
     {
-        debugLog("Start store.readFile");
+        debugStart("Start store.readFile");
         engine.readFile(_enginePath(path), function(err, data) {
-            debugLog("Finish store.readFile");
+            debugFinish("Finish store.readFile");
             callback(err, data);
         });
     };
 
     r.watchDirectory = function(directoryPath, onChange)
     {
-        debugLog("Start store.watchDirectory");
+        debugStart("Start store.watchDirectory");
         engine.watchDirectory(_enginePath(directoryPath), function(f, curr, prev) {
-            debugLog("Finish store.watchDirectory");
+            debugFinish("Finish store.watchDirectory");
             onChange(f, curr, prev);
         });
     };
 
     r.moveFile = function(originalFilePath, newFilePath, callback)
     {
-        debugLog("Start store.moveFile");
+        debugStart("Start store.moveFile");
         engine.moveFile(_enginePath(originalFilePath), _enginePath(newFilePath), function(err) {
-            debugLog("Finish store.moveFile");
+            debugFinish("Finish store.moveFile");
             callback(err);
         });
     };
 
     r.readStream = function(filePath, callback)
     {
-        debugLog("Start store.readStream");
+        debugStart("Start store.readStream");
         engine.readStream(_enginePath(filePath), function(err, stream) {
-            debugLog("Finish store.readStream");
+            debugFinish("Finish store.readStream");
             callback(err, stream);
         });
     };
 
     r.writeStream = function(filePath, callback)
     {
-        debugLog("Start store.writeStream");
+        debugStart("Start store.writeStream");
         engine.writeStream(_enginePath(filePath), function(err, stream) {
-            debugLog("Finish store.writeStream");
+            debugFinish("Finish store.writeStream");
             callback(err, stream);
         });
     };
 
     r.fileStats = function(filePath, callback)
     {
-        debugLog("Start store.fileStats");
+        debugStart("Start store.fileStats");
         engine.fileStats(_enginePath(filePath), function(err, stats) {
-            debugLog("Finish store.fileStats");
+            debugFinish("Finish store.fileStats");
             callback(err, stats);
         });
     };

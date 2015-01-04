@@ -23,7 +23,7 @@
       "cookie-parser": "*",
       "express-session": "*",
       "serve-favicon": "*",
-      "connect-multiparty": "*",      
+      "connect-multiparty": "*",
 
       "http-proxy": "*",
       "request": "*",
@@ -36,7 +36,6 @@
       "passport-local": "*",
       "socket.io": "1.1.0",
       "clone": "*",
-      "xtend": "*",
       "dustjs-linkedin": "*",
       "dustjs-helpers": "1.1.2",
       "consolidate": "*",
@@ -56,7 +55,9 @@
 
       "aws-sdk": "*",
 
-      "canoe": "*"
+      "canoe": "*",
+
+      "redis": "*"
   },
   "devDependencies": {},
   "optionalDependencies": {},
