@@ -54,7 +54,7 @@ exports = module.exports = function(broadcastConfig)
 
     r.unsubscribe = function(topic, fn, callback)
     {
-        // NOT IMPLEMENTED
+        callback();
     };
 
     return r;

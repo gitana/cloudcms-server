@@ -37,7 +37,7 @@ exports = module.exports = function()
                 holder.gitanaLocal = true;
             }
 
-            callback(null, holder.gitanaConfig);
+            callback();
         };
 
         var cachedValue = GITANA_DRIVER_CONFIG_CACHE.read("local");
@@ -102,9 +102,16 @@ exports = module.exports = function()
     {
         return util.createInterceptor("driverConfig", function(req, res, next, configuration, stores) {
 
+            // if we already found req.gitanaConfig in the virtual driver, skip this step
+            if (req.gitanaConfig)
+            {
+                next();
+                return;
+            }
+
             var rootStore = stores.root;
 
-            resolveConfig(req, rootStore, function(err, gitanaConfig) {
+            resolveConfig(req, rootStore, function(err) {
 
                 if (err)
                 {

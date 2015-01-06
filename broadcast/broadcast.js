@@ -8,6 +8,12 @@ module.exports = function()
 
         var self = this;
 
+        if (!process.env.CLOUDCMS_BROADCAST_TYPE)
+        {
+            process.env.CLOUDCMS_BROADCAST_TYPE = "noop";
+        }
+
+
         var config = process.configuration;
         if (!config["broadcast"] || !config["broadcast"].type)
         {
@@ -31,10 +37,9 @@ module.exports = function()
                 process.env.CLOUDCMS_BROADCAST_TYPE = type;
 
                 provider = require("./providers/" + type)(configuration);
-                provider.start(function(err) {
+                provider.start(function (err) {
 
-                    if (err)
-                    {
+                    if (err) {
                         callback(err);
                         return;
                     }

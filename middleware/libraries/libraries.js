@@ -47,13 +47,24 @@ exports = module.exports = function()
 
             uri = uri.substring(5);
 
+            var doGitanaInject = false;
             var dirPath = "../../web";
 
-            if (uri == "/gitana/gitana.js" || uri == "/gitana.js")
+            if (uri == "/gitana/gitana.js" || uri == "/gitana.js" || uri == "/gitana/gitana.min.js")
             {
                 // we serve this right from node_modules
                 dirPath = GITANA_JS_PATH;
                 uri = "/gitana.js";
+
+                if (req.gitanaConfig)
+                {
+                    doGitanaInject = true;
+                }
+            }
+
+            if (doGitanaInject)
+            {
+                wrapWithGitanaInjection(req, res);
             }
 
             res.header('Pragma', 'no-cache');
@@ -76,6 +87,85 @@ exports = module.exports = function()
             });
         };
     };
+
+    var wrapWithGitanaInjection = function(req, res, next)
+    {
+        var _sendFile = res.sendFile;
+        var _send = res.send;
+
+        res.sendFile = function(filePath, options, fn)
+        {
+            var filename = path.basename(filePath);
+
+            // process file and insert CLIENT_KEY into the served gitana driver
+            var json = req.gitanaConfig;
+            if (json.clientKey)
+            {
+                // check "cloudcms-server" node modules
+                filePath = path.join(__dirname, "..", "..", "node_modules", "gitana", "lib", filename);
+                if (!fs.existsSync(filePath)) // OK
+                {
+                    // check another level up
+                    filePath = path.join(__dirname, "..", "..", "..", "..", "node_modules", "gitana", "lib", filename);
+                }
+
+                fs.readFile(filePath, function(err, text) { // OK
+
+                    if (err)
+                    {
+                        fn(err);
+                        return;
+                    }
+
+                    text = "" + text;
+
+                    var ick = "Gitana.__INSERT_MARKER = null;";
+
+                    var i1 = text.indexOf(ick);
+                    if (i1 > -1)
+                    {
+                        var i2 = i1 + ick.length;
+
+                        var config = {
+                            "clientKey": json.clientKey
+                        };
+                        // NO, this does not get handed back
+                        // FOR NOW, hand back because the Apache proxy doesn't auto-insert and we're still
+                        // using it for /console
+                        //if (json.clientSecret) {
+                        //    config.clientSecret = json.clientSecret;
+                        //}
+                        if (json.application) {
+                            config.application = json.application;
+                        }
+
+                        // append in the default config settings
+                        var itext = "";
+                        itext += "/** INSERTED BY CLOUDCMS-NET SERVER **/";
+                        itext += "Gitana.autoConfigUri = false;";
+                        itext += "Gitana.loadDefaultConfig = function() {";
+                        itext += "   return " + JSON.stringify(config, null, "   ") + ";";;
+                        itext += "};";
+                        itext += "/** END INSERTED BY CLOUDCMS-NET SERVER **/";
+
+                        text = text.substring(0, i1) + itext + text.substring(i2);
+                    }
+
+                    res.status(200);
+                    _send.call(res, text);
+
+                    fn();
+                });
+            }
+            else
+            {
+                fn({
+                    "message": "Missing json clientKey in gitana config"
+                });
+            }
+        };
+    };
+
 
     return r;
 }();

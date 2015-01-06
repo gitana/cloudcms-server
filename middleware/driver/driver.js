@@ -283,13 +283,8 @@ exports = module.exports = function()
                     }
 
                     req.gitana = this;
-
-                    if (gitanaConfig)
-                    {
-                        req.applicationId = gitanaConfig.application;
-                        req.principalId = this.getDriver().getAuthInfo().getPrincipalId();
-                        req.gitanaConfig = gitanaConfig;
-                    }
+                    req.applicationId = gitanaConfig.application;
+                    req.principalId = this.getDriver().getAuthInfo().getPrincipalId();
 
                     next();
                 });

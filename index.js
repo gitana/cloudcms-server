@@ -133,10 +133,11 @@ exports = module.exports = function()
         // bind stores into the request
         app.use(storeService.storesInterceptor());
 
-        // finds gitana.json and writes it to the store for dynamic virtual hosts
+        // if virtual hosting is enabled, loads "gitana.json" from cloud cms and places it into rootStore
+        // for convenience, also populates req.gitanaConfig
         app.use(virtualConfig.interceptor());
 
-        // populates gitana.json onto the request as req.gitanaConfig
+        // general method for finding "gitana.json" in root store and populating req.gitanaConfig
         app.use(driverConfig.interceptor());
 
         // binds "req.gitana" into the request for the loaded "req.gitanaConfig"
