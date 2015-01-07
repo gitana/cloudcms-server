@@ -193,7 +193,7 @@ exports = module.exports = function()
         var _setHeader = res.setHeader;
         res.setHeader = function(key, value)
         {
-            if (key.toLowerCase() == "set-cookie")
+            if (key.toLowerCase() === "set-cookie")
             {
                 for (var x in value)
                 {
@@ -201,7 +201,10 @@ exports = module.exports = function()
                 }
             }
 
-            _setHeader.call(this, key, value);
+            var existing = this.getHeader(key);
+            if (!existing) {
+                _setHeader.call(this, key, value);
+            }
         };
 
         //console.log("originalUrl: " + req.originalUrl);

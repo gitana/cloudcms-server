@@ -147,14 +147,19 @@ exports = module.exports = function()
         app.use(virtualFiles.interceptor());
     };
 
+    r.perf1 = function(app)
+    {
+        app.use(perf.pathPerformanceInterceptor());
+    };
+
     r.proxy = function(app)
     {
         app.use(proxy.proxy());
     };
 
-    r.perf = function(app)
+    r.perf2 = function(app)
     {
-        app.use(perf.cacheHeaderInterceptor());
+        app.use(perf.mimeTypePerformanceInterceptor());
     };
 
     var applyApplicationConfiguration = r.applyApplicationConfiguration = function(app)

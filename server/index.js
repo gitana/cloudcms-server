@@ -134,7 +134,7 @@ var SETTINGS = {
         "enabled": false // true
     },
     "perf": {
-        "enabled": false // true
+        "enabled": true // true
     },
     "driverConfig": {
         "enabled": true
@@ -475,11 +475,14 @@ exports.start = function (overrides, callback) {
         // common interceptors and config
         main.common(app);
 
+        // PATH BASED PERFORMANCE CACHING
+        main.perf1(app);
+
         // proxy - anything that goes to /proxy is handled here early and nothing processes afterwards
         main.proxy(app);
 
-        // RUNTIME PERFORMANCE FRONT END
-        main.perf(app);
+        // MIMETYPE BASED PERFORMANCE CACHING
+        main.perf2(app);
 
         // standard body parsing + a special cloud cms body parser that makes a last ditch effort for anything
         // that might be JSON (regardless of content type)
