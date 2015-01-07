@@ -257,38 +257,3 @@ exports = module.exports = function()
 
     return r;
 }();
-
-/*
- // if gitana.json is in root path, we override GITANA_PROXY_HOST, GITANA_PROXY_PORT, GITANA_PROXY_SCHEME
- if (fs.existsSync(process.env.CLOUDCMS_GITANA_JSON_PATH))
- {
- var text = fs.readFileSync(process.env.CLOUDCMS_GITANA_JSON_PATH);
- var json = JSON.parse(text);
- if (json.baseURL)
- {
- var urlObject = url.parse(json.baseURL);
- process.env.GITANA_PROXY_HOST = urlObject.hostname;
- process.env.GITANA_PROXY_PORT = urlObject.port;
- process.env.GITANA_PROXY_SCHEME = urlObject.protocol;
- if (process.env.GITANA_PROXY_SCHEME && process.env.GITANA_PROXY_SCHEME.indexOf(":") > -1)
- {
- process.env.GITANA_PROXY_SCHEME = process.env.GITANA_PROXY_SCHEME.substring(0, process.env.GITANA_PROXY_SCHEME.length - 1);
- }
- if (!process.env.GITANA_PROXY_PORT || process.env.GITANA_PROXY_PORT == "null")
- {
- if (process.env.GITANA_PROXY_SCHEME == "http")
- {
- process.env.GITANA_PROXY_PORT = 80;
- }
- else if (process.env.GITANA_PROXY_SCHEME == "https")
- {
- process.env.GITANA_PROXY_PORT = 443;
- }
- }
- console.log("Local gitana.json file found - setting proxy: " + json.baseURL);
-
- process.gitanaLocal = true;
- }
- }
- */
-

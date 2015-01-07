@@ -2,7 +2,6 @@ var path = require('path');
 var fs = require('fs');
 var http = require('http');
 var util = require("../../util/util");
-var mkdirp = require('mkdirp');
 var duster = require("../../duster");
 
 /**

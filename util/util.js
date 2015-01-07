@@ -166,20 +166,6 @@ var gitInit = function(directoryPath, logMethod, callback)
 
 var gitPull = function(directoryPath, gitUrl, sourceType, logMethod, callback)
 {
-    /*
-    if (gitUrl.indexOf("https://") === 0)
-    {
-        var username = process.env.CLOUDCMS_NET_GITHUB_USERNAME;
-        var password = process.env.CLOUDCMS_NET_GITHUB_PASSWORD;
-
-        password = escape(password).replace("@", "%40");
-
-        var token = username + ":" + password;
-
-        gitUrl = gitUrl.substring(0, 8) + token + "@" + gitUrl.substring(8);
-    }
-    */
-
     var username = null;
     var password = null;
     if (sourceType == "github")

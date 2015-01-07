@@ -4,8 +4,6 @@ var util = require("../../util/util");
 
 var Gitana = require("gitana");
 
-var mime = require("mime");
-
 var GITANA_DRIVER_CONFIG_CACHE = require("../../cache/driverconfigs");
 
 
@@ -170,61 +168,60 @@ exports = module.exports = function()
 
     var doConnect = r.doConnect = function(req, gitanaConfig, callback)
     {
-        var configuration = process.configuration;
-
         // either connect anew or re-use an existing connection to Cloud CMS for this application
         Gitana.connect(gitanaConfig, function(err) {
 
             if (err)
             {
-                /*
+                var completionFn = function() {
+
+                    // either
+                    //   a) we're not supposed to be able to connect because guest was attempted and is not allowed
+                    //   b) non-guest and something went wrong
+
+                    if (!gitanaConfig.username || gitanaConfig.username == "guest")
+                    {
+                        // guest mode
+                        err.output = "Unable to connect to Cloud CMS as guest user";
+                    }
+                    else
+                    {
+                        // otherwise assume that it is a configuration error?
+                        err.output = "There was a problem connecting to your tenant.  Please refresh your browser to try again or contact Cloud CMS for assistance.";
+                    }
+
+                    callback.call(this, err);
+                };
+
                 //
                 // if the "gitana.json" came from a virtual driver acquire, then it might have changed and we
-                // may need to reload it
-                //
-                // to allow that, we delete the file from disk here
-                //
-                // if we have virtual driver mode at the app server level...
-                if (configuration.virtualDriver && configuration.virtualDriver.enabled)
+                // may need to reload it.  we therefore delete it here (if _virtual = true)
+                if (gitanaConfig._virtual)
                 {
-                    if (req.virtualHost)
-                    {
-                        // if the gitana config was virtually loaded, we remove it from disk
-                        if (req.gitanaConfig && req.gitanaConfig._virtual)
-                        {
-                            if (fs.existsSync(req.gitanaJsonPath))
-                            {
-                                var backupGitanaJsonPath = req.gitanaJsonPath + ".backup-" + new Date().getTime();
+                    var rootStore = req.stores.root;
 
-                                // first make a BACKUP of the original gitana.json file
-                                console.log("Backing up: " + req.gitanaJsonPath + " to: " + backupGitanaJsonPath);
-                                util.copyFile(req.gitanaJsonPath, backupGitanaJsonPath);
+                    var originalFilename = "gitana.json";
+                    var backupFilename = "gitana.json.backup-" + new Date().getTime();
 
-                                // now remove
-                                fs.unlinkSync(req.gitanaJsonPath);
+                    console.log("Backing up: gitana.json to: " + backupFilename);
+                    rootStore.writeFile(backupFilename, JSON.stringify(gitanaConfig, null, "  "), function(err) {
+                        console.log("a.3");
+                        rootStore.removeFile(originalFilename, function(err) {
+                            console.log("a.4");
 
-                                // remove from cache
-                                GITANA_DRIVER_CONFIG_CACHE.invalidate(req.virtualHost);
-                            }
-                        }
-                    }
+                            // remove from cache
+                            GITANA_DRIVER_CONFIG_CACHE.invalidate(req.domainHost);
+
+                            completionFn();
+                        });
+                    });
+
+                    return;
                 }
-                */
 
-                // either
-                //   a) we're not supposed to be able to connect because guest was attempted and is not allowed
-                //   b) non-guest and something went wrong
+                completionFn();
 
-                if (!gitanaConfig.username || gitanaConfig.username == "guest")
-                {
-                    // guest mode
-                    err.output = "Unable to connect to Cloud CMS as guest user";
-                }
-                else
-                {
-                    // otherwise assume that it is a configuration error?
-                    err.output = "There was a problem connecting to your tenant.  Please refresh your browser to try again or contact Cloud CMS for assistance.";
-                }
+                return;
             }
 
             callback.call(this, err);

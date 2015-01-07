@@ -143,48 +143,67 @@ exports = module.exports = function()
 
             if (!exists)
             {
-                // load the gitana.json file from Cloud CMS
-                loadConfigForVirtualHost(host, logMethod, function(err, virtualConfig) {
+                var CACHE_KEY = "vcSentinelFailed-" + host;
 
-                    if (err)
-                    {
-                        callback(err);
-                        return;
-                    }
+                // check cache to see if we already tried to load this in the past few minutes and were sorely disappointed
+                process.cache.read(CACHE_KEY, function (err, failedRecently) {
 
-                    if (!virtualConfig)
-                    {
+                    if (failedRecently) {
                         callback({
-                            "message": "No virtual config found for host"
+                            "message": "No virtual config found for host (from previous attempt)"
                         });
                         return;
                     }
 
-                    // populate gitana.json
-                    var gitanaJson = {
-                        "clientKey": virtualConfig.clientKey
-                    };
-                    if (virtualConfig.clientSecret) {
-                        gitanaJson.clientSecret = virtualConfig.clientSecret;
-                    }
-                    if (virtualConfig.username) {
-                        gitanaJson.username = virtualConfig.username;
-                    }
-                    if (virtualConfig.password) {
-                        gitanaJson.password = virtualConfig.password;
-                    }
-                    if (virtualConfig.application) {
-                        gitanaJson.application = virtualConfig.application;
-                    }
-                    var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT;
-                    gitanaJson.baseURL = URL;
+                    // load the gitana.json file from Cloud CMS
+                    loadConfigForVirtualHost(host, logMethod, function (err, virtualConfig) {
 
-                    // mark as retrieved from virtual driver
-                    gitanaJson._virtual = true;
+                        if (err)
+                        {
+                            // mark that it failed
+                            process.cache.write(CACHE_KEY, "true", 120, function() {
+                                callback(err);
+                            });
+                            return;
+                        }
 
-                    // write the gitana.json file
-                    rootStore.writeFile("gitana.json", JSON.stringify(gitanaJson, null, "   "), function(err) {
-                        callback(err, gitanaJson);
+                        if (!virtualConfig)
+                        {
+                            // mark that it failed
+                            process.cache.write(CACHE_KEY, "true", 120, function() {
+                                callback({
+                                    "message": "No virtual config found for host"
+                                });
+                            });
+                            return;
+                        }
+
+                        // populate gitana.json
+                        var gitanaJson = {
+                            "clientKey": virtualConfig.clientKey
+                        };
+                        if (virtualConfig.clientSecret) {
+                            gitanaJson.clientSecret = virtualConfig.clientSecret;
+                        }
+                        if (virtualConfig.username) {
+                            gitanaJson.username = virtualConfig.username;
+                        }
+                        if (virtualConfig.password) {
+                            gitanaJson.password = virtualConfig.password;
+                        }
+                        if (virtualConfig.application) {
+                            gitanaJson.application = virtualConfig.application;
+                        }
+                        var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT;
+                        gitanaJson.baseURL = URL;
+
+                        // mark as retrieved from virtual driver
+                        gitanaJson._virtual = true;
+
+                        // write the gitana.json file
+                        rootStore.writeFile("gitana.json", JSON.stringify(gitanaJson, null, "   "), function (err) {
+                            callback(err, gitanaJson);
+                        });
                     });
                 });
             }

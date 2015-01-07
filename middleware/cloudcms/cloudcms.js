@@ -825,7 +825,7 @@ exports = module.exports = function()
 
                         if (err)
                         {
-                            req.log("PREVIEW ERR: " + JSON.stringify(err));
+                            req.log("Error on preview node: " + err.message);
                         }
 
                         // if the file was found on disk or was downloaded, then stream it back
@@ -1209,7 +1209,7 @@ exports = module.exports = function()
 
                         if (err)
                         {
-                            req.log("PREVIEW ERR: " + JSON.stringify(err));
+                            req.log("Error on preview attachable: " + err.message);
                         }
 
                         // if the file was found on disk or was downloaded, then stream it back
