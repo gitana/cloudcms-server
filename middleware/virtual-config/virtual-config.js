@@ -81,12 +81,12 @@ exports = module.exports = function()
                     "qs": qs
                 };
 
-                console.log("URL:" + URL);
-                console.log("QS: " + JSON.stringify(qs));
+                //console.log("URL:" + URL);
+                //console.log("QS: " + JSON.stringify(qs));
 
                 util.retryGitanaRequest(logMethod, gitana, requestConfig, 2, function(err, response, body) {
 
-                    console.log("BODY: " + body);
+                    //console.log("BODY: " + body);
 
                     if (response && response.statusCode === 200 && body)
                     {
