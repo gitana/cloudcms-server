@@ -13,7 +13,7 @@ exports = module.exports = function(dust)
 {
     var isDefined = function(thing)
     {
-        return (typeof(thing) != "undefined");
+        return (typeof(thing) !== "undefined");
     };
 
     var resolveVariables = function(variables, context, callback)
@@ -1076,6 +1076,7 @@ exports = module.exports = function(dust)
                         }
 
                         webStore.existsFile(filePath, function(exists) {
+
                             if (exists) {
                                 callback(null, filePath);
                             } else {
@@ -1127,7 +1128,7 @@ exports = module.exports = function(dust)
                     }
                 };
 
-                resolveMatchingFilePath(function(matchingFilePath) {
+                resolveMatchingFilePath(function(err, matchingFilePath) {
 
                     // if no match...
                     if (!matchingFilePath) {
@@ -1706,8 +1707,6 @@ exports = module.exports = function(dust)
                 {
                     Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").readNode(nodeId).then(function() {
 
-                        console.log("GOT: " + JSON.stringify(this));
-
                         resolveVariables([this[propertyId]], context, function (err, resolutions) {
 
                             chunk.write(resolutions[0]);
@@ -1730,6 +1729,104 @@ exports = module.exports = function(dust)
                         });
                     });
                 }
+            });
+        });
+    };
+
+    dust.helpers.nytEvents = function(chunk, context, bodies, params)
+    {
+        params = params || {};
+
+        var latitude = dust.helpers.tap(params.latitude, chunk, context);
+        var longitude = dust.helpers.tap(params.longitude, chunk, context);
+        var radius = dust.helpers.tap(params.radius, chunk, context);
+        if (!radius)
+        {
+            radius = 1000;
+        }
+        var text = dust.helpers.tap(params.text, chunk, context);
+        var limit = dust.helpers.tap(params.limit, chunk, context);
+        if (isDefined(limit))
+        {
+            limit = parseInt(limit);
+        }
+        var filter = dust.helpers.tap(params.filter, chunk, context)
+
+        var filters = null;
+        if (filter)
+        {
+            filter = filter.toLowerCase();
+        }
+        if (filter === "broadway")
+        {
+            filters = 'category:"Broadway"';
+        }
+        if (filter === "pick")
+        {
+            filters = "times_pick:true";
+        }
+
+        return map(chunk, function(chunk) {
+            setTimeout(function() {
+
+                var request = require("request");
+                var API_KEY = "3d8d573ec0ae966ea57245357cfcf57f:1:70698955";
+
+                var url = "http://api.nytimes.com/svc/events/v2/listings.json?api-key=" + API_KEY;
+                if (latitude && longitude)
+                {
+                    var latLong = latitude + "," + longitude;
+                    url += "&ll=" + latLong;
+                    url += "&radius=" + radius;
+                }
+
+                if (text)
+                {
+                    url += "&query=" + text;
+                }
+
+                if (isDefined(limit))
+                {
+                    url += "&limit=" + limit;
+                }
+
+                if (filters)
+                {
+                    url += "&filters=" + filters;
+                }
+
+                console.log("URL:" + url);
+
+                var request = require("request");
+                request(url, function (error, response, body) {
+
+                    if (error || response.statusCode !== 200)
+                    {
+                        if (error) {
+                            console.log("ERROR: " + error);
+                        }
+
+                        if (response.statusCode !== 200) {
+                            console.log("STATUS CODE: " + response.statusCode);
+                        }
+
+                        chunk.write("There was an error loading this section");
+                        end(chunk);
+
+                        return;
+                    }
+
+                    var json = JSON.parse(body);
+                    console.log("BODY: " + JSON.stringify(json, null, "  "));
+
+                    var resultObject = {
+                        "rows": json.results
+                    };
+                    var newContext = context.push(resultObject);
+
+                    chunk.render(bodies.block, newContext);
+                    end(chunk, context);
+                });
             });
         });
     };

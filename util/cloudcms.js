@@ -163,29 +163,37 @@ exports = module.exports = function()
                 return;
             }
 
-            var invalidate = function()
-            {
-                safeRemove(contentStore, filePath, function(err) {
-                    safeRemove(contentStore, cacheFilePath, function(err) {
+            var invalidate = function () {
+                safeRemove(contentStore, filePath, function (err) {
+                    safeRemove(contentStore, cacheFilePath, function (err) {
                         callback();
                     })
                 });
             };
 
-            // there is something on disk
-            // we should serve it back (if we can)
+            // safety check: does the actual physical asset exists?
+            contentStore.existsFile(filePath, function(exists) {
 
-            var cacheInfo = JSON.parse(cacheInfoString);
-            if (isCacheInfoValid(cacheInfo))
-            {
-                // all good!
-                callback(null, cacheInfo);
-            }
-            else
-            {
-                // bad cache file
-                invalidate();
-            }
+                if (!exists)
+                {
+                    // clean up
+                    invalidate();
+                    return;
+                }
+
+                // there is something on disk
+                // we should serve it back (if we can)
+
+                var cacheInfo = JSON.parse(cacheInfoString);
+                if (isCacheInfoValid(cacheInfo)) {
+                    // all good!
+                    callback(null, cacheInfo);
+                }
+                else {
+                    // bad cache file
+                    invalidate();
+                }
+            });
         });
     };
 

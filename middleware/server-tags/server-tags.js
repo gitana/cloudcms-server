@@ -27,8 +27,6 @@ exports = module.exports = function()
     {
         return util.createInterceptor("serverTags", function(req, res, next, configuration, stores) {
 
-            console.log("x.1");
-
             var webStore = stores.web;
 
             var doParse = false;

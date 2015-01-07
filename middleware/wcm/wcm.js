@@ -399,7 +399,7 @@ exports = module.exports = function()
                         duster.execute(req, webStore, page.templatePath, model, function (err, out) {
 
                             if (err) {
-                                res.send(500, err);
+                                res.status(500).send(err);
                             }
                             else {
                                 res.status(200).send.call(res, out);

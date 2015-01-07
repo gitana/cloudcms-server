@@ -14,12 +14,17 @@ exports = module.exports = function(cache, prefix, provider)
 
     var r = {};
 
-    r.write = function(key, value, callback)
+    r.write = function(key, value, seconds, callback)
     {
         var key = _toPrefixedKey(key);
 
-        provider.write(key, value, function(err, res) {
-            callback(err, res);
+        provider.write(key, value, seconds, function(err, res) {
+
+            if (callback)
+            {
+                callback(err, res);
+            }
+
         });
     };
 
@@ -37,7 +42,12 @@ exports = module.exports = function(cache, prefix, provider)
         var key = _toPrefixedKey(key);
 
         provider.remove(key, null, function(err) {
-            callback(err);
+
+            if (callback)
+            {
+                callback(err);
+            }
+
         });
     };
 
@@ -55,14 +65,24 @@ exports = module.exports = function(cache, prefix, provider)
         var prefix = _toPrefixedKey(prefix);
 
         cache.invalidate(prefix, function(err) {
-            callback(err);
+
+            if (callback)
+            {
+                callback(err);
+            }
+
         });
     };
 
     r.invalidateCacheForApp = function(applicationId, callback)
     {
         cache.invalidateCacheForApp(prefix, function(err) {
-            callback(err);
+
+            if (callback)
+            {
+                callback(err);
+            }
+
         });
     };
 
