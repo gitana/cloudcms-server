@@ -46,6 +46,7 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
         // substitutions
         basePath = util.replaceAll(basePath, "{host}", host);
         basePath = util.replaceAll(basePath, "{appBasePath}", process.env.CLOUDCMS_APPSERVER_BASE_PATH);
+        basePath = util.replaceAll(basePath, "{tmpdirPath}", process.env.CLOUDCMS_TEMPDIR_PATH);
 
         if (offsetPath) {
             basePath = path.join(basePath, offsetPath);
