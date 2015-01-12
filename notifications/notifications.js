@@ -63,33 +63,45 @@ module.exports = function()
     r.start = function(callback) {
 
         var config = process.configuration;
-        if (config && config["notifications"])
+        if (!config["notifications"])
         {
-            var notifications = config["notifications"];
+            config["notifications"] = {
+                "enabled": false,
+                "type": "",
+                "configuration": {}
+            };
+        }
 
-            if (notifications.enabled)
+        var notifications = config["notifications"];
+
+        if (process.env.CLOUDCMS_NOTIFICATIONS_ENABLED)
+        {
+            notifications.enabled = true;
+        }
+
+        if (notifications.enabled)
+        {
+            if (process.env.CLOUDCMS_NOTIFICATIONS_TYPE)
             {
-                var type = notifications.type;
-                var configuration = notifications.configuration;
-
-                var provider = require("./providers/" + type);
-                provider.start(configuration, function(err) {
-
-                    if (err)
-                    {
-                        callback(err);
-                        return;
-                    }
-
-                    runnerFn(provider);
-
-                    callback();
-                });
+                notifications.type = process.env.CLOUDCMS_NOTIFICATIONS_TYPE;
             }
-            else
-            {
+
+            var type = notifications.type;
+            var configuration = notifications.configuration;
+
+            var provider = require("./providers/" + type);
+            provider.start(configuration, function(err) {
+
+                if (err)
+                {
+                    callback(err);
+                    return;
+                }
+
+                runnerFn(provider);
+
                 callback();
-            }
+            });
         }
         else
         {

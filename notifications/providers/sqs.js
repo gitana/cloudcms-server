@@ -5,6 +5,23 @@ var holder = {};
 module.exports = {};
 module.exports.start = function(configuration, callback)
 {
+    if (process.env.CLOUDCMS_NOTIFICATIONS_SQS_QUEUE)
+    {
+        notifications.queue = process.env.CLOUDCMS_NOTIFICATIONS_SQS_QUEUE;
+    }
+    if (process.env.CLOUDCMS_NOTIFICATIONS_SQS_ACCESS_KEY)
+    {
+        notifications.accessKey = process.env.CLOUDCMS_NOTIFICATIONS_SQS_ACCESS_KEY;
+    }
+    if (process.env.CLOUDCMS_NOTIFICATIONS_SQS_SECRET_KEY)
+    {
+        notifications.secretKey = process.env.CLOUDCMS_NOTIFICATIONS_SQS_SECRET_KEY;
+    }
+    if (process.env.CLOUDCMS_NOTIFICATIONS_SQS_REGION)
+    {
+        notifications.region = process.env.CLOUDCMS_NOTIFICATIONS_SQS_REGION;
+    }
+
     var queue = configuration.queue;
     var accessKey = configuration.accessKey;
     var secretKey = configuration.secretKey;
