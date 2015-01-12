@@ -132,12 +132,15 @@ exports = module.exports = function()
         }
     };
 
+
+    var r = {};
+
     /**
      * Hands back the gitana.json file (JSON contents and file path) for a given virtual host.
      *
      * @type {Function}
      */
-    var acquireGitanaJson = exports.acquireGitanaJson = function(host, rootStore, logMethod, callback)
+    var acquireGitanaJson = r.acquireGitanaJson = function(host, rootStore, logMethod, callback)
     {
         rootStore.existsFile("gitana.json", function(exists) {
 
@@ -225,15 +228,6 @@ exports = module.exports = function()
             }
         });
     };
-
-
-
-
-
-
-
-
-    var r = {};
 
     r.interceptor = function()
     {
