@@ -76,6 +76,10 @@ exports = module.exports = function()
                 hosts.push(host);
             }
 
+            if (hosts.length === 0) {
+                return;
+            }
+
             console.log("Processing hosts: " + JSON.stringify(hosts));
 
             var f = function(i)

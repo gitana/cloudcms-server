@@ -245,6 +245,10 @@ exports = module.exports = function()
             if (req.url.indexOf("/proxy") === 0)
             {
                 req.url = req.url.substring(6); // to strip off /proxy
+                if (req.url == "")
+                {
+                    req.url = "/";
+                }
 
                 proxyHandler(req, res);
             }

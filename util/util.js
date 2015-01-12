@@ -268,20 +268,26 @@ exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, logMethod
                         return;
                     }
 
+                    var tempRootDirectoryRelativePath = tempRootDirectoryPath;
+                    if (relativePath && relativePath != "/")
+                    {
+                        tempRootDirectoryRelativePath = path.join(tempRootDirectoryRelativePath, relativePath);
+                    }
+
                     // if there isn't a "public" and there isn't a "public_build" directory,
                     // then move files into public
-                    var publicExists = fs.existsSync(path.join(tempRootDirectoryPath, "public"));
-                    var publicBuildExists = fs.existsSync(path.join(tempRootDirectoryPath, "public_build"));
+                    var publicExists = fs.existsSync(path.join(tempRootDirectoryRelativePath, "public"));
+                    var publicBuildExists = fs.existsSync(path.join(tempRootDirectoryRelativePath, "public_build"));
                     if (!publicExists && !publicBuildExists)
                     {
-                        fs.mkdirSync(path.join(tempRootDirectoryPath, "public"));
+                        fs.mkdirSync(path.join(tempRootDirectoryRelativePath, "public"));
 
-                        var filenames = fs.readdirSync(tempRootDirectoryPath);
+                        var filenames = fs.readdirSync(tempRootDirectoryRelativePath);
                         if (filenames && filenames.length > 0)
                         {
                             for (var i = 0; i < filenames.length; i++)
                             {
-                                if (!shouldIgnore(path.join(tempRootDirectoryPath, filenames[i])))
+                                if (!shouldIgnore(path.join(tempRootDirectoryRelativePath, filenames[i])))
                                 {
                                     if ("config" === filenames[i])
                                     {
@@ -305,7 +311,7 @@ exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, logMethod
                                     }
                                     else
                                     {
-                                        fs.renameSync(path.join(tempRootDirectoryPath, filenames[i]), path.join(tempRootDirectoryPath, "public", filenames[i]));
+                                        fs.renameSync(path.join(tempRootDirectoryRelativePath, filenames[i]), path.join(tempRootDirectoryRelativePath, "public", filenames[i]));
                                     }
                                 }
                             }
@@ -313,7 +319,7 @@ exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, logMethod
                     }
 
                     // copy everything from temp dir into the store
-                    copyToStore(tempRootDirectoryPath, rootStore, function(err) {
+                    copyToStore(tempRootDirectoryRelativePath, rootStore, function(err) {
 
                         // now remove temp directory
                         rmdir(tempRootDirectoryPath);
