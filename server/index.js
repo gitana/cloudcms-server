@@ -5,6 +5,7 @@ var path = require('path');
 var fs = require('fs');
 var clone = require('clone');
 var bytes = require('bytes');
+var moment = require("moment");
 
 var async = require('../util/async');
 
@@ -429,6 +430,7 @@ exports.start = function (overrides, callback) {
 
             app.use(function (req, res, next) {
                 req.originalUrl = req.url;
+                req.originalPath = req.path;
                 next();
             });
 
@@ -436,21 +438,17 @@ exports.start = function (overrides, callback) {
             app.use(function (req, res, next) {
 
                 req.log = function (text) {
+
                     var host = req.domainHost;
                     if (!host) {
                         host = req.hostname;
                     }
 
-                    var d = new Date();
-                    var dateString = d.toDateString();
-                    var timeString = d.toTimeString();
-
-                    // gray color
+                    var timestamp = moment(new Date()).format("MM/DD/YYYY HH:mm:ss Z");
                     var grayColor = "\x1b[90m";
-
-                    // final color
                     var finalColor = "\x1b[0m";
 
+                    // in production, don't use colors
                     if (process.env.CLOUDCMS_APPSERVER_MODE == "production") {
                         grayColor = "";
                         finalColor = "";
@@ -458,9 +456,8 @@ exports.start = function (overrides, callback) {
 
                     var message = '';
                     message += grayColor + '<' + req.id + '> ';
-                    message += grayColor + '[' + dateString + ' ' + timeString + '] ';
+                    message += grayColor + '[' + timestamp + '] ';
                     message += grayColor + host + ' ';
-                    //message += grayColor + '(' + req.ip + ') ';
                     message += grayColor + text + '';
                     message += finalColor;
 
@@ -472,9 +469,12 @@ exports.start = function (overrides, callback) {
                 next();
             });
 
+            // common interceptors and config
+            main.common1(app);
+
             // initial log
             app.use(function (req, res, next) {
-                req.log("Start of request: " + req.url);
+                req.log(req.method + " " + req.url);
                 next();
             });
 
@@ -483,7 +483,7 @@ exports.start = function (overrides, callback) {
             app.use(main.ensureCORS());
 
             // common interceptors and config
-            main.common(app);
+            main.common2(app);
 
             // PATH BASED PERFORMANCE CACHING
             main.perf1(app);

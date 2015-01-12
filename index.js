@@ -116,7 +116,7 @@ exports = module.exports = function()
         });
     };
 
-    r.common = function(app)
+    r.common1 = function(app)
     {
         // app config interceptor
         applyApplicationConfiguration(app);
@@ -129,7 +129,10 @@ exports = module.exports = function()
 
         // sets host onto the request
         app.use(host.hostInterceptor());
+    };
 
+    r.common2 = function(app)
+    {
         // bind stores into the request
         app.use(storeService.storesInterceptor());
 
