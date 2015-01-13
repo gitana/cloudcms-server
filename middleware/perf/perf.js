@@ -23,6 +23,7 @@ exports = module.exports = function()
     var MAXAGE_ONE_YEAR_SECONDS = 31536000;
     var MAXAGE_ONE_HOUR_SECONDS = 3600;
     var MAXAGE_ONE_WEEK_SECONDS = 604800;
+    var MAXAGE_ONE_MONTH_SECONDS = 2592000;
 
     var TEST_MODE = false;
 
@@ -54,6 +55,13 @@ exports = module.exports = function()
             // NOTE: if we're not in production mode, we don't do any of this
             if (process.env.CLOUDCMS_APPSERVER_MODE == "production" || TEST_MODE)
             {
+                // if req.params.invalidate, don't bother
+                if (util.isInvalidateTrue(req))
+                {
+                    next();
+                    return;
+                }
+
                 var paths = configuration.paths;
                 if (paths)
                 {
@@ -94,17 +102,17 @@ exports = module.exports = function()
 
                                     if (cacheControl)
                                     {
-                                        res.setHeader("Cache-Control", cacheControl);
+                                        util.setHeaderOnce(res, "Cache-Control", cacheControl);
                                     }
 
                                     if (pragma)
                                     {
-                                        res.setHeader("Pragma", pragma);
+                                        util.setHeaderOnce(res, "Pragma", pragma);
                                     }
 
                                     if (expires)
                                     {
-                                        res.setHeader("Expires", expires);
+                                        util.setHeaderOnce(res, "Expires", expires);
                                     }
                                 }
                             }
@@ -133,6 +141,13 @@ exports = module.exports = function()
             // NOTE: if we're not in production mode, we don't do any of this
             if (process.env.CLOUDCMS_APPSERVER_MODE == "production" || TEST_MODE)
             {
+                // if req.params.invalidate, don't bother
+                if (util.isInvalidateTrue(req))
+                {
+                    next();
+                    return;
+                }
+
                 var assetPath = req.path;
                 if (assetPath)
                 {
@@ -181,12 +196,13 @@ exports = module.exports = function()
 
                         // if we have a cache key, then we set headers to ALWAYS cache
                         var cacheControl = null;
+                        var pragma = null;
+                        var expires = "";
                         if (key)
                         {
-                            //res.setHeader('Cache-Control', 'public, max-age=' + (this._maxage / 1000));
-                            //res.setHeader("Cache-Control", "no-cache");
-                            //res.header('Cache-Control', 'no-cache, private, no-store, must-revalidate, max-stale=0, post-check=0, pre-check=0');
-                            cacheControl = "public, max-age=2592000"; // 30 days
+                            cacheControl = "public, max-age=" + MAXAGE_ONE_MONTH_SECONDS;
+                            pragma = "public";
+                            expires = new Date(Date.now() + (MAXAGE_ONE_MONTH_SECONDS * 1000)).toUTCString();
                         }
                         else if (extension)
                         {
@@ -206,12 +222,16 @@ exports = module.exports = function()
                                     if (isHTML)
                                     {
                                         cacheControl = "public, max-age=" + MAXAGE_ONE_HOUR_SECONDS;
+                                        pragma = "public";
+                                        expires = new Date(Date.now() + (MAXAGE_ONE_HOUR_SECONDS * 1000)).toUTCString();
                                     }
 
                                     // css, images and js get 1 year
                                     if (isCSS || isImage || isJS)
                                     {
                                         cacheControl = "public, max-age=" + MAXAGE_ONE_YEAR_SECONDS;
+                                        pragma = "public";
+                                        expires = new Date(Date.now() + (MAXAGE_ONE_YEAR_SECONDS * 1000)).toUTCString();
                                     }
                                 }
                             }
@@ -220,11 +240,16 @@ exports = module.exports = function()
                         if (!cacheControl)
                         {
                             // set to no-cache
-                            cacheControl = "no-cache";
+                            cacheControl = "max-age=0, no-cache, no-store";
+                            pragma = "no-cache";
+                            expires = "Mon, 7 Apr 2012, 16:00:00 GMT"; // some time in the past
                         }
 
-                        //res.setHeader("Cache-Control", cacheControl);
-                        try { res.header('Cache-Control', cacheControl); } catch (e) { }
+                        if (cacheControl && pragma && expires) {
+                            util.setHeaderOnce(res, "Cache-Control", cacheControl);
+                            util.setHeaderOnce(res, "Pragma", pragma);
+                            util.setHeaderOnce(res, "Expires", expires);
+                        }
 
                         // set new url
                         var newUrl = path.join(dir, originalFilename);

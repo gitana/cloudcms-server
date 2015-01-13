@@ -505,7 +505,7 @@ exports = module.exports = function()
                 filePath = path.join(contentDirectoryPath, "paths", nodePath);
             }
             if (attachmentId) {
-                filePath = path.join(contentDirectoryPath, "attachments", attachmentId);
+                filePath = path.join(filePath, "attachments", attachmentId);
             }
 
             var doWork = function () {

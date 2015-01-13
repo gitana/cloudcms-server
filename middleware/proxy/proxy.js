@@ -5,11 +5,11 @@ var https = require('https');
 
 var httpProxy = require('http-proxy');
 
-var mkdirp = require('mkdirp');
-
 var oauth2 = require("../../util/oauth2")();
 
 var ForeverAgent = require('forever-agent');
+
+var util = require("../../util/util");
 
 
 /**
@@ -207,31 +207,9 @@ exports = module.exports = function()
             }
         };
 
-        //console.log("originalUrl: " + req.originalUrl);
-        //console.log("path: " + req.path);
-        //console.log("method: " + req.method);
-
-        /*
-        var re = new RegExp("^/repositories");
-        if (re.test(req.path))
-        {
-            console.log("SET CACHE CONTROL");
-
-            res.header("Pragma", "public");
-            res.header("Cache-Control", "public, max-age=2592000");
-            res.header("Expires", "Mon, 7 Apr 2015, 16:00:00 GMT"); // future
-        }
-        else
-        {
-            res.header('Cache-Control', 'no-store');
-            res.header('Pragma', 'no-cache');
-            res.header("Expires", "Mon, 7 Apr 2012, 16:00:00 GMT"); // already expired
-        }
-        */
-
-        res.header('Cache-Control', 'no-store');
-        res.header('Pragma', 'no-cache');
-        res.header("Expires", "Mon, 7 Apr 2012, 16:00:00 GMT"); // already expired
+        util.setHeaderOnce(res, "Cache-Control", "no-store");
+        util.setHeaderOnce(res, "Pragma", "no-cache");
+        util.setHeaderOnce(res, "Expires", "Mon, 7 Apr 2012, 16:00:00 GMT"); // already expired
 
         proxyServer.web(req, res);
     });

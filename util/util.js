@@ -806,10 +806,10 @@ var applyDefaultContentTypeCaching = exports.applyDefaultContentTypeCaching = fu
     }
     else
     {
-        response.setHeader('Pragma', 'no-cache');
+        setHeaderOnce(response, 'Pragma', 'no-cache');
     }
 
-    response.setHeader('Cache-Control', cacheControl);
+    setHeaderOnce(response, 'Cache-Control', cacheControl);
 
     // test
     //res.header("Expires", "Mon, 7 Apr 2014, 16:00:00 GMT");
@@ -862,4 +862,23 @@ var createDirectory = exports.createDirectory = function(directoryPath, callback
 
         callback(null, directoryPath);
     });
+};
+
+var setHeaderOnce = exports.setHeaderOnce = function(response, name, value)
+{
+    var existing = response.getHeader(name);
+    if (typeof(existing) == "undefined")
+    {
+        setHeader(response, name, value);
+    }
+};
+
+var setHeader = exports.setHeader = function(response, name, value)
+{
+    try { response.setHeader(name, value); } catch (e) { }
+};
+
+var isInvalidateTrue = exports.isInvalidateTrue = function(request)
+{
+    return (request.param("invalidate") == "true");
 };
