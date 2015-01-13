@@ -28,8 +28,10 @@ exports = module.exports = function ()
 
     // given a flow id get the corresponding flow and call the callback
     var getFlow = function (req, id, cb) {
-        req.branch.queryOne({_type: 'web:flow', _doc: id}).then(function () {
-            cb.bind(this)(this);
+        req.branch(function(err, branch) {
+            Chain(branch).queryOne({_type: 'web:flow', _doc: id}).then(function () {
+                cb.bind(this)(this);
+            });
         });
     };
 
