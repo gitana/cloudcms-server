@@ -95,7 +95,23 @@ exports = module.exports = function()
             */
             callback(err);
         });
+    };
 
+    var listHosts = r.listHosts = function(storeId, callback)
+    {
+        produce("_test_", function(err, stores) {
+
+            var store = stores[storeId];
+
+            if (!store.supportsHosts()) {
+                callback(null, []);
+                return;
+            }
+
+            store.listHosts(function(err, hostnames) {
+                callback(null, hostnames);
+            });
+        });
     };
 
     var produce = r.produce = function(host, callback)

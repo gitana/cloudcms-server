@@ -10,7 +10,7 @@ module.exports = function()
 
         if (!process.env.CLOUDCMS_BROADCAST_TYPE)
         {
-            process.env.CLOUDCMS_BROADCAST_TYPE = "noop";
+            process.env.CLOUDCMS_BROADCAST_TYPE = "local";
         }
 
 

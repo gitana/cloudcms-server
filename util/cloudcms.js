@@ -577,6 +577,27 @@ exports = module.exports = function()
         });
     };
 
+    var invalidateNode = function(contentStore, repositoryId, branchId, nodeId, callback)
+    {
+        // base storage directory
+        var contentDirectoryPath = path.join(repositoryId, branchId, nodeId);
+
+        contentStore.existsDirectory(contentDirectoryPath, function(exists) {
+
+            if (!exists)
+            {
+                callback();
+                return;
+            }
+
+            contentStore.removeDirectory(contentDirectoryPath, function(err) {
+                console.log("Invalidated [repository: " + repositoryId + ", branch: " + branchId + ", node: " + nodeId + "]");
+                callback(err);
+            });
+
+        });
+    };
+
     /**
      * Downloads a preview image for a node.
      *
@@ -889,6 +910,13 @@ exports = module.exports = function()
         previewNode(contentStore, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, callback);
     };
 
+    r.invalidate = function(contentStore, repositoryId, branchId, nodeId, callback)
+    {
+        invalidateNode(contentStore, repositoryId, branchId, nodeId, function() {
+            callback();
+        });
+    };
+
     r.downloadAttachable = function(contentStore, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, forceReload, callback)
     {
         downloadAttachable(contentStore, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, forceReload, callback);
@@ -897,6 +925,11 @@ exports = module.exports = function()
     r.previewAttachable = function(contentStore, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, previewId, size, mimetype, forceReload, callback)
     {
         previewAttachable(contentStore, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, previewId, size, mimetype, forceReload, callback);
+    };
+
+    r.invalidateAttachable = function(contentStore, datastoreTypeId, datastoreId, objectTypeId, objectId, callback)
+    {
+        callback();
     };
 
     return r;

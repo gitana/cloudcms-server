@@ -6,11 +6,39 @@ var handleInvalidations = function(items, callback) {
     {
         for (var i = 0; i < items.length; i++)
         {
-            console.log(" " + items[i].operation + " -> " + items[i].type + ": " + items[i].id);
+            var type = items[i].type;
+
+            var ref = items[i].ref;
+            var identifier = ref.substring(ref.indexOf("://") + 3);
+            var parts = identifier.split("/");
 
             if (items[i].operation === "invalidate_object")
             {
-                // TODO: invalidate any cache dependent on object
+                if (type == "node")
+                {
+                    var nodeId = parts.reverse()[0];
+                    var branchId = parts.reverse()[1];
+                    var repositoryId = parts.reverse()[2];
+
+                    if (items[i].isMasterBranch)
+                    {
+                        branchId = "master";
+                    }
+
+                    // manually perform cloudcms invalidation
+                    var cloudcms = require("../middleware/cloudcms/cloudcms");
+                    cloudcms.invalidateNode(repositoryId, branchId, nodeId, function() {
+                        //console.log("Invalidate node completed");
+                    });
+
+                    // broadcast invalidation
+                    process.broadcast.publish("node_invalidation", {
+                        "ref": ref,
+                        "nodeId": nodeId,
+                        "branchId": branchId,
+                        "repositoryId": repositoryId
+                    });
+                }
             }
             else if (items[i].operation == "invalidate_application")
             {

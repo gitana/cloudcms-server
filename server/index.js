@@ -62,13 +62,15 @@ var SETTINGS = {
         "tmp": {
             "type": "fs",
             "config": {
-                "basePath": "{tmpdirPath}/content"
+                "basePath": "{tmpdirPath}/hosts/{host}",
+                "hostsPath": "{tmpdirPath}/hosts"
             }
         },
         "hosts_fs": {
             "type": "fs",
             "config": {
-                "basePath": "/hosts/{host}"
+                "basePath": "/hosts/{host}",
+                "hostsPath": "/hosts"
             }
         },
         "hosts_s3": {
@@ -77,7 +79,8 @@ var SETTINGS = {
                 "accessKey": "",
                 "secretKey": "",
                 "bucket": "",
-                "basePath": "/hosts/{host}"
+                "basePath": "/hosts/{host}",
+                "hostsPath": "/hosts"
             }
         },
         "hosts_s3fs": {
@@ -86,7 +89,8 @@ var SETTINGS = {
                 "accessKey": "",
                 "secretKey": "",
                 "bucket": "",
-                "basePath": "/hosts/{host}"
+                "basePath": "/hosts/{host}",
+                "hostsPath": "/hosts"
             }
         }
     },
@@ -148,6 +152,9 @@ var SETTINGS = {
     },
     "virtualDriver": {
         "enabled": false
+    },
+    "virtualContent": {
+        "enabled": true
     },
     "flow": {
         "enabled": false

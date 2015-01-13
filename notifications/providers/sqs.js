@@ -209,8 +209,8 @@ module.exports.process = function(callback)
 
         if (deletionEntries.length > 0)
         {
-            console.log("Deletions: " + deletionEntries.length);
-            console.log("Entries: " + JSON.stringify(deletionEntries));
+            //console.log("Deletions: " + deletionEntries.length);
+            //console.log("Entries: " + JSON.stringify(deletionEntries));
             var params = {
                 Entries: deletionEntries,
                 QueueUrl: holder.sqsParams.QueueUrl

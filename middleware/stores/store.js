@@ -35,6 +35,21 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
         }
     };
 
+    var hostsPath = function()
+    {
+        var hostsPath = engineConfiguration.hostsPath;
+        if (!hostsPath)
+        {
+            hostsPath = "./";
+        }
+
+        // substitutions
+        hostsPath = util.replaceAll(hostsPath, "{appBasePath}", process.env.CLOUDCMS_APPSERVER_BASE_PATH);
+        hostsPath = util.replaceAll(hostsPath, "{tmpdirPath}", process.env.CLOUDCMS_TEMPDIR_PATH);
+
+        return hostsPath;
+    };
+
     var basePath = function()
     {
         var basePath = engineConfiguration.basePath;
@@ -86,6 +101,20 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
         engine.removeDirectory(_enginePath("/"), function(err) {
             debugFinish("Finish store.cleanup");
             callback(err);
+        });
+    };
+
+    r.supportsHosts = function()
+    {
+        return engineConfiguration.hostsPath;
+    };
+
+    r.listHosts = function(callback)
+    {
+        debugStart("Start store.listHosts");
+        engine.listFiles(hostsPath(), function(err, hostnames) {
+            debugFinish("Finish store.listHosts");
+            callback(err, hostnames);
         });
     };
 

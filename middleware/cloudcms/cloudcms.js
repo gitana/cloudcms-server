@@ -1,6 +1,7 @@
 var path = require('path');
 var http = require('http');
 var util = require("../../util/util");
+var async = require("async");
 
 var Gitana = require("gitana");
 
@@ -311,6 +312,8 @@ exports = module.exports = function()
 
                 req.branchId = branchId;
 
+                // MIKE: MASTER BRANCH IS CALLED "master" on DISK WHAT TO DO YO
+
                 // helper function
                 req.branch = function(callback)
                 {
@@ -451,7 +454,7 @@ exports = module.exports = function()
      */
     r.virtualNodeHandler = function()
     {
-        return util.createHandler("virtualHost", function(req, res, next, configuration, stores) {
+        return util.createHandler("virtualContent", function(req, res, next, configuration, stores) {
 
             var contentStore = stores.content;
 
@@ -927,7 +930,7 @@ exports = module.exports = function()
      */
     r.virtualPrincipalHandler = function()
     {
-        return util.createHandler("virtual", function(req, res, next, configuration, stores) {
+        return util.createHandler("virtualContent", function(req, res, next, configuration, stores) {
 
             var contentStore = stores.content;
 
@@ -1365,6 +1368,47 @@ exports = module.exports = function()
         }
 
         return filename;
+    };
+
+    r.invalidateNode = function(repositoryId, branchId, nodeId, callback)
+    {
+        var stores = require("../stores/stores");
+        stores.listHosts("content", function(err, hostnames) {
+
+            var fns = [];
+            for (var i = 0; i < hostnames.length; i++)
+            {
+                var hostname = hostnames[i];
+
+                var fn = function(hostname, repositoryId, branchId, nodeId)
+                {
+                    return function(done)
+                    {
+                        stores.produce(hostname, function (err, stores) {
+
+                            if (err) {
+                                done(err);
+                                return;
+                            }
+
+                            cloudcmsUtil.invalidate(stores.content, repositoryId, branchId, nodeId, function () {
+                                done();
+                            });
+                        });
+
+                    }
+                }(hostname, repositoryId, branchId, nodeId);
+                fns.push(fn);
+            }
+
+            async.series(fns, function(err) {
+                if (callback)
+                {
+                    callback(err);
+                }
+            });
+
+        });
     };
 
     return r;

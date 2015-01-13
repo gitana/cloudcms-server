@@ -1,13 +1,13 @@
 var path = require("path");
 
 /**
- * No Operation (noop) provider.
+ * A local process provider.
  *
  * @type {*}
  */
 exports = module.exports = function(broadcastConfig)
 {
-    var nrp = null;
+    var subscribers = {};
 
     var r = {};
 
@@ -18,11 +18,29 @@ exports = module.exports = function(broadcastConfig)
 
     r.publish = function(topic, message, callback)
     {
+        var handlers = subscribers[topic];
+        if (handlers)
+        {
+            for (var i = 0; i < handlers.length; i++)
+            {
+                handlers[i](message);
+            }
+        }
+
         callback();
     };
 
     r.subscribe = function(topic, fn, callback)
     {
+        var handlers = subscribers[topic];
+        if (!handlers)
+        {
+            handlers = [];
+            subscribers[topic] = handlers;
+        }
+
+        handlers.push(fn);
+
         callback();
     };
 
