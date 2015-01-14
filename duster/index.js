@@ -1,35 +1,15 @@
 var path = require('path');
 var fs = require('fs');
 var http = require('http');
-var mkdirp = require('mkdirp');
+
+var dust = require("dustjs-linkedin");
+require("dustjs-helpers");
+require("./dusthelpers")(dust);
 
 /**
  * Provides a convenience interface into the Dust subsystem that Cloud CMS uses to process in-page tags.
  */
 var exports = module.exports;
-
-// dust instances keyed by application id
-var dustInstances = {};
-
-var getDust = function(applicationId, createIfNotFound)
-{
-    var dust = dustInstances[applicationId];
-    if (!dust && createIfNotFound)
-    {
-        dust = require("dustjs-linkedin");
-        require('dustjs-helpers');
-        require("./dusthelpers")(dust);
-
-        dustInstances[applicationId] = dust;
-    }
-
-    return dust;
-};
-
-var hasDust = function(applicationId)
-{
-    return (dustInstances[applicationId] ? true : false);
-};
 
 var populateContext = function(req, context, model, templateFilePath)
 {
@@ -81,22 +61,21 @@ var populateContext = function(req, context, model, templateFilePath)
 
 exports.invalidateCacheForApp = function(applicationId)
 {
-    if (hasDust(applicationId))
+    console.log("Invalidating dust cache for application: " + applicationId);
+
+    var prefix = applicationId + ":";
+
+    var badKeys = [];
+    for (var k in dust.cache)
     {
-        var dust = getDust(applicationId);
-
-        console.log("Invalidating dust cache for application: " + applicationId);
-
-        var badKeys = [];
-        for (var k in dust.cache)
-        {
+        if (k.startsWith(prefix)) {
             badKeys.push(k);
         }
-        for (var i = 0; i < badKeys.length; i++)
-        {
-            console.log("Removing dust cache key: " + badKeys[i]);
-            delete dust.cache[badKeys[i]];
-        }
+    }
+    for (var i = 0; i < badKeys.length; i++)
+    {
+        console.log("Removing dust cache key: " + badKeys[i]);
+        delete dust.cache[badKeys[i]];
     }
 };
 
@@ -119,9 +98,8 @@ exports.execute = function(req, store, filePath, model, callback)
             return;
         }
 
-        var dust = getDust(req.applicationId, true);
-
         var templatePath = filePath.split(path.sep).join("/");
+        var templateKey = req.applicationId + ":" + templatePath;
 
         var processTemplate = function()
         {
@@ -130,11 +108,11 @@ exports.execute = function(req, store, filePath, model, callback)
             populateContext(req, context, model, filePath);
 
             // execute template
-            dust.render(templatePath, context, function(err, out) {
+            dust.render(templateKey, context, function(err, out) {
 
                 if (err)
                 {
-                    console.log("An error was caught while rendering dust template: " + filePath + ", error: " + err);
+                    console.log("An error was caught while rendering dust template: " + templateKey + ", error: " + err);
                 }
 
                 callback(err, out);
@@ -143,7 +121,7 @@ exports.execute = function(req, store, filePath, model, callback)
 
         // load the contents of the file
         // make sure this is text
-        if (!dust.cache[templatePath])
+        if (!dust.cache[templateKey])
         {
             store.readFile(templatePath, function(err, data) {
 
@@ -157,7 +135,7 @@ exports.execute = function(req, store, filePath, model, callback)
                 try
                 {
                     // compile
-                    var compiledTemplate = dust.compile(html, templatePath);
+                    var compiledTemplate = dust.compile(html, templateKey);
                     dust.loadSource(compiledTemplate);
 
                     processTemplate();
@@ -202,25 +180,10 @@ var ensureInit = function(store)
         store.watchDirectory("/", function (f, curr, prev) {
 
             console.log("Template changes detected - invalidating dust cache");
-            var applicationIds = [];
-            for (var applicationId in dustInstances)
+            for (var k in dust.cache)
             {
-                //console.log("Consider: " + applicationId);
-                var dust = dustInstances[applicationId];
-                for (var k in dust.cache)
-                {
-                    //console.log("Removing app: " + applicationId + ", template: " + k);
-                    delete dust.cache[k];
-                }
-                applicationIds.push(applicationId);
+                delete dust.cache[k];
             }
-
-            for (var i = 0; i < applicationIds.length; i++)
-            {
-                delete dustInstances[applicationIds[i]];
-            }
-
-            dustInstances = [];
 
         });
     }
