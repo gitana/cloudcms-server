@@ -312,8 +312,6 @@ exports = module.exports = function()
 
                 req.branchId = branchId;
 
-                // MIKE: MASTER BRANCH IS CALLED "master" on DISK WHAT TO DO YO
-
                 // helper function
                 req.branch = function(callback)
                 {

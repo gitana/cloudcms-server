@@ -79,7 +79,7 @@ exports = module.exports = function()
 
     var remove = r.remove = function(key, callback)
     {
-        provider.remove(key, null, function(err) {
+        provider.remove(key, function(err) {
             if (callback)
             {
                 callback(err);

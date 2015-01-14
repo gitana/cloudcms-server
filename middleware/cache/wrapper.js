@@ -16,9 +16,9 @@ exports = module.exports = function(cache, prefix, provider)
 
     r.write = function(key, value, seconds, callback)
     {
-        var key = _toPrefixedKey(key);
+        var prefixedKey = _toPrefixedKey(key);
 
-        provider.write(key, value, seconds, function(err, res) {
+        provider.write(prefixedKey, value, seconds, function(err, res) {
 
             if (callback)
             {
@@ -30,18 +30,18 @@ exports = module.exports = function(cache, prefix, provider)
 
     r.read = function(key, callback)
     {
-        var key = _toPrefixedKey(key);
+        var prefixedKey = _toPrefixedKey(key);
 
-        provider.read(key, function(err, value) {
+        provider.read(prefixedKey, function(err, value) {
             callback(err, value);
         });
     };
 
     r.remove = function(key, callback)
     {
-        var key = _toPrefixedKey(key);
+        var prefixedKey = _toPrefixedKey(key);
 
-        provider.remove(key, null, function(err) {
+        provider.remove(prefixedKey, function(err) {
 
             if (callback)
             {
@@ -53,18 +53,18 @@ exports = module.exports = function(cache, prefix, provider)
 
     r.keys = function(prefix, callback)
     {
-        var prefix = _toPrefixedKey(prefix);
+        var prefixedKey = _toPrefixedKey(prefix);
 
-        provider.keys(prefix, function(err) {
+        provider.keys(prefixedKey, function(err) {
             callback(err);
         });
     };
 
     r.invalidate = function(prefix, callback)
     {
-        var prefix = _toPrefixedKey(prefix);
+        var prefixedKey = _toPrefixedKey(prefix);
 
-        cache.invalidate(prefix, function(err) {
+        cache.invalidate(prefixedKey, function(err) {
 
             if (callback)
             {

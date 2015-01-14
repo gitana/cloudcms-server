@@ -11,12 +11,191 @@ var ForeverAgent = require('forever-agent');
 
 var util = require("../../util/util");
 
-
 /**
  * Proxy middleware.
+ *
+ * Supports TTL caching based on paths for anything that comes through the proxy.
+ *
+ * Example:
+ *
+ * {
+ *    "proxy": {
+ *       "enabled": true,
+ *       "cache": [{
+ *          "path": "/repositories/.*",
+ *          "seconds": 60
+ *       }
+ *    }
+ * }
  */
 exports = module.exports = function()
 {
+    var MAXAGE_ONE_YEAR_SECONDS = 31536000;
+    var MAXAGE_ONE_HOUR_SECONDS = 3600;
+    var MAXAGE_ONE_WEEK_SECONDS = 604800;
+    var MAXAGE_ONE_MONTH_SECONDS = 2592000;
+
+    var _cacheTTL = function(req)
+    {
+        var ttl = 0;
+
+        if (process.env.CLOUDCMS_APPSERVER_MODE == "production") {
+            if (process.configuration && process.configuration.proxy) {
+                if (process.configuration.proxy.enabled) {
+                    if (process.configuration.proxy.cache) {
+                        var elements = process.configuration.proxy.cache;
+                        if (elements) {
+                            for (var i = 0; i < elements.length; i++) {
+                                if (elements[i].path) {
+                                    var regex = new RegExp(elements[i].path);
+                                    if (regex.test(req.path)) {
+                                        var seconds = elements[i].seconds;
+                                        if (seconds >= 0) {
+                                            ttl = seconds * 1000;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return ttl;
+    };
+
+    var _handleCacheRead = function(req, callback)
+    {
+        var cacheTTL = _cacheTTL(req);
+        if (cacheTTL <= 0)
+        {
+            callback();
+            return;
+        }
+
+        var contentStore = req.stores.content;
+        if (!contentStore)
+        {
+            callback(false);
+            return;
+        }
+
+        var filePath = path.join("proxy", req.path);
+
+        contentStore.existsFile(filePath, function(exists) {
+
+            if (!exists) {
+                callback();
+                return;
+            }
+
+            contentStore.fileStats(filePath, function(err, stats) {
+
+                if (err) {
+                    callback();
+                    return;
+                }
+
+                if (stats.size == 0) {
+                    callback();
+                    return;
+                }
+
+                var handleGoodStream = function()
+                {
+                    contentStore.readStream(filePath, function (err, readStream) {
+                        callback(err, readStream);
+                    });
+                };
+
+                var handleBadStream = function()
+                {
+                    contentStore.removeFile(filePath, function() {
+                        contentStore.removeFile(filePath + ".cache", function() {
+                            callback();
+                        });
+                    });
+                };
+
+                // check cacheInfo for expireTime
+                contentStore.readFile(filePath + ".cache", function(err, cacheInfoText) {
+
+                    if (err || !cacheInfoText)
+                    {
+                        handleBadStream();
+                        return;
+                    }
+
+                    var cacheInfo = JSON.parse(cacheInfoText);
+                    var expireTime = cacheInfo.expireTime;
+                    if (new Date().getTime() > expireTime)
+                    {
+                        handleBadStream();
+                    }
+                    else
+                    {
+                        handleGoodStream();
+                    }
+
+                });
+            });
+        });
+    };
+
+    var _handleWrapCacheWriter = function(req, res, callback)
+    {
+        var cacheTTL = _cacheTTL(req);
+        if (cacheTTL <= 0)
+        {
+            callback();
+            return;
+        }
+
+        var contentStore = req.stores.content;
+        if (!contentStore)
+        {
+            callback(false);
+            return;
+        }
+
+        var filePath = path.join("proxy", req.path);
+
+        contentStore.writeStream(filePath, function(err, writeStream) {
+
+            // wrap response with a piping mechanism that caches down to disk
+
+            // original methods
+            var _write = res.write;
+            var _end = res.end;
+
+            // wrap write() method
+            res.write = function(data, encoding) {
+
+                writeStream.write(data, encoding);
+
+                _write.call(res, data, encoding);
+            };
+
+            // wrap end() method
+            res.end = function(data, encoding) {
+
+                writeStream.end();
+
+                // write a cache info file as well
+                var cacheInfo = {
+                    "expireTime": new Date().getTime() + cacheTTL
+                };
+                contentStore.writeFile(filePath + ".cache", JSON.stringify(cacheInfo), function() {
+                    _end.call(res, data, encoding);
+                });
+
+            };
+
+            callback();
+        });
+    };
+
     ////////////////////////////////////////////////////////////////////////////
     //
     // HTTP/HTTPS Proxy Server to Cloud CMS
@@ -36,27 +215,12 @@ exports = module.exports = function()
         "agent": false,
         "xfwd": true
     };
+
     if (proxyScheme.toLowerCase() == "https")
     {
-        /*
-         //        proxyConfig.secure = true;
-         */
-        //https.globalAgent.options.secureProtocol = 'SSLv3_method';
-        //proxyConfig.agent = https.globalAgent;
-
         // TODO: why does https://api.cloudcms.com throw "Hostname/IP doesn't match certificate's altname"
         // temporary workaround
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
-
-        // keep-alive agent
-        /*
-        proxyConfig.agent = new https.Agent({
-            maxSockets: 500,
-            maxFreeSockets: 100,
-            keepAlive: true,
-            keepAliveMsecs: 30000
-        });
-        */
 
         proxyConfig.agent = new ForeverAgent.SSL({
             maxSockets: 500,
@@ -64,36 +228,20 @@ exports = module.exports = function()
             keepAlive: true,
             keepAliveMsecs: 1000 * 60 * 5 // five minutes
         });
-
-        //proxyConfig.agent = https.globalAgent;
-        //https.globalAgent.maxSockets = Infinity;
-
     }
-    if (proxyScheme.toLowerCase() == "http")
+    else if (proxyScheme.toLowerCase() == "http")
     {
-        /*
-        // keep-alive agent
-        proxyConfig.agent = new http.Agent({
-            maxSockets: 500,
-            maxFreeSockets: 100,
-            keepAlive: true,
-            keepAliveMsecs: 30000
-        });
-        */
-        //proxyConfig.agent = http.globalAgent;
-        //http.globalAgent.maxSockets = Infinity;
-
         proxyConfig.agent = new ForeverAgent({
             maxSockets: 500,
             maxFreeSockets: 100,
             keepAlive: true,
             keepAliveMsecs: 1000 * 60 * 5 // five minutes
         });
-
     }
-    // ten minute timeout
-    // proxyConfig.timeout = 10 * 60 * 1000;
+
     var proxyServer = new httpProxy.createProxyServer(proxyConfig);
+
+    // error handling
     proxyServer.on("error", function(err, req, res) {
         console.log(err);
         res.writeHead(500, {
@@ -102,22 +250,8 @@ exports = module.exports = function()
 
         res.end('Something went wrong while proxying the request.');
     });
-    proxyServer.on('proxyRes', function (res) {
-        //console.log('RAW Response from the target', JSON.stringify(res.headers, true, 2));
-    });
+
     var proxyHandlerServer = http.createServer(function(req, res) {
-
-        /*
-        // make sure request socket is optimized for speed
-        req.socket.setNoDelay(true);
-        req.socket.setTimeout(0);
-        req.socket.setKeepAlive(true, 0);
-
-        // make sure response socket is optimized for speed
-        res.socket.setNoDelay(true);
-        res.socket.setTimeout(0);
-        res.socket.setKeepAlive(true, 0);
-        */
 
         // used to auto-assign the client header for /oauth/token requests
         oauth2.autoProxy(req);
@@ -125,23 +259,6 @@ exports = module.exports = function()
         var updateSetCookieHost = function(value)
         {
             var newDomain = req.domainHost;
-
-            // TODO: why was this needed?  CNAME wip
-            /*
-             if (req.headers["x-forwarded-host"]) {
-             newDomain = req.headers["x-forwarded-host"];
-             }
-             */
-
-            /*
-
-             / NOTE
-             // req.hostname = cloudcms-oneteam-env-58pc8mdwgg.elasticbeanstalk.com
-             // req.virtualHost = tre624b7.cloudcms.net
-             // req.headers["x-forwarded-host"] = terramaradmin.solocal.mobi, tre624b7.cloud$
-             // req.headers["referer"] = http://terramaradmin.solocal.mobi/
-
-             */
 
             //
             // if the incoming request is coming off of a CNAME entry that is maintained elsewhere (and they're just
@@ -228,7 +345,23 @@ exports = module.exports = function()
                     req.url = "/";
                 }
 
-                proxyHandler(req, res);
+                // caching scenario
+                _handleCacheRead(req, function (err, readStream) {
+
+                    if (!err && readStream)
+                    {
+                        util.sendFile(res, readStream, function (err) {
+                            // done!
+                        });
+                        return;
+                    }
+
+                    _handleWrapCacheWriter(req, res, function(err) {
+
+                        proxyHandler(req, res);
+
+                    });
+                });
             }
             else
             {
