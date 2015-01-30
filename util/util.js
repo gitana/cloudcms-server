@@ -882,3 +882,75 @@ var isInvalidateTrue = exports.isInvalidateTrue = function(request)
 {
     return (request.param("invalidate") == "true");
 };
+
+var hashcode = exports.hashcode = function(text)
+{
+    var hash = 0, i, chr, len;
+    if (text.length == 0)
+    {
+        return hash;
+    }
+    for (i = 0, len = text.length; i < len; i++)
+    {
+        chr   = text.charCodeAt(i);
+        hash  = ((hash << 5) - hash) + chr;
+        hash |= 0; // Convert to 32bit integer
+    }
+    return hash;
+};
+
+var safeReadStream = exports.safeReadStream = function(contentStore, filePath, callback)
+{
+    contentStore.existsFile(filePath, function(exists) {
+
+        if (!exists) {
+            callback();
+            return;
+        }
+
+        contentStore.fileStats(filePath, function (err, stats) {
+
+            if (err) {
+                callback();
+                return;
+            }
+
+            if (stats.size === 0) {
+                callback();
+                return;
+            }
+
+            contentStore.readStream(filePath, function (err, readStream) {
+                callback(err, readStream);
+            });
+        });
+    });
+};
+
+var safeReadFile = exports.safeReadFile = function(contentStore, filePath, callback)
+{
+    contentStore.existsFile(filePath, function(exists) {
+
+        if (!exists) {
+            callback();
+            return;
+        }
+
+        contentStore.fileStats(filePath, function (err, stats) {
+
+            if (err) {
+                callback();
+                return;
+            }
+
+            if (stats.size === 0) {
+                callback();
+                return;
+            }
+
+            contentStore.readFile(filePath, function (err, data) {
+                callback(err, data);
+            });
+        });
+    });
+};

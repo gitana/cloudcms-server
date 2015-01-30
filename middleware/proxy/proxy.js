@@ -172,7 +172,9 @@ exports = module.exports = function()
             // wrap write() method
             res.write = function(data, encoding) {
 
-                writeStream.write(data, encoding);
+                if (writeStream) {
+                    writeStream.write(data, encoding);
+                }
 
                 _write.call(res, data, encoding);
             };
@@ -180,7 +182,9 @@ exports = module.exports = function()
             // wrap end() method
             res.end = function(data, encoding) {
 
-                writeStream.end();
+                if (writeStream) {
+                    writeStream.end();
+                }
 
                 // write a cache info file as well
                 var cacheInfo = {

@@ -317,7 +317,7 @@ exports = module.exports = function()
                 {
                     if (req._branch)
                     {
-                        callback(null, req._branch);
+                        callback(null, Chain(req._branch));
                         return;
                     }
 

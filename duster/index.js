@@ -107,6 +107,9 @@ exports.execute = function(req, store, filePath, model, callback)
             var context = {};
             populateContext(req, context, model, filePath);
 
+            // collect rendered item dependencies
+            context.dependencies = {};
+
             // execute template
             dust.render(templateKey, context, function(err, out) {
 
@@ -115,7 +118,8 @@ exports.execute = function(req, store, filePath, model, callback)
                     console.log("An error was caught while rendering dust template: " + templateKey + ", error: " + err);
                 }
 
-                callback(err, out);
+                // callback with dependencies
+                callback(err, out, context.dependencies);
             });
         };
 

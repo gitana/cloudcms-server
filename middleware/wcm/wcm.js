@@ -3,6 +3,8 @@ var fs = require('fs');
 var http = require('http');
 var util = require("../../util/util");
 var duster = require("../../duster");
+var async = require("async");
+var dependencies = require("./dependencies");
 
 /**
  * WCM middleware.
@@ -214,8 +216,6 @@ exports = module.exports = function()
 
     var preloadPages = function(req, callback)
     {
-        var gitana = req.gitana;
-
         var ensureInvalidate = function(callback) {
             // allow for forced invalidation via req param
             if (req.param("invalidate")) {
@@ -247,70 +247,207 @@ exports = module.exports = function()
                 };
 
                 // load all wcm pages from the server
-                var repository = gitana.datastore("content");
-                if (!repository) {
-                    req.log("Cannot find 'content' datastore for gitana instance");
+                req.branch(function(err, branch) {
 
-                    callback({
-                        "message": "Cannot find 'content' datastore for gitana instance"
-                    });
+                    branch.then(function () {
 
-                    return;
-                }
+                        this.queryNodes({
+                            "_type": "wcm:page"
+                        }, {
+                            "limit": -1
+                        }).each(function () {
 
-                Chain(repository).trap(errorHandler).readBranch("master").then(function () {
+                            // THIS = wcm:page
+                            var page = this;
 
-                    var branch = this;
+                            // if page has a template
+                            if (page.template)
+                            {
+                                if (page.uris)
+                                {
+                                    // merge into our pages collection
+                                    for (var i = 0; i < page.uris.length; i++)
+                                    {
+                                        // console.log("Mapping page: " + page.uris[i] + " to " + JSON.stringify(page));
+                                        pages[page.uris[i]] = page;
+                                    }
+                                }
 
-                    this.queryNodes({
-                        "_type": "wcm:page"
-                    }, {
-                        "limit": -1
-                    }).each(function () {
+                                // is the template a GUID or a path to the template file?
+                                if (page.template.indexOf("/") > -1)
+                                {
+                                    page.templatePath = page.template;
+                                }
+                                else
+                                {
+                                    // load the template
+                                    this.subchain(branch).readNode(page.template).then(function () {
 
-                        // THIS = wcm:page
-                        var page = this;
-
-                        // if page has a template
-                        if (page.template) {
-                            if (page.uris) {
-                                // merge into our pages collection
-                                for (var i = 0; i < page.uris.length; i++) {
-                                    // console.log("Mapping page: " + page.uris[i] + " to " + JSON.stringify(page));
-                                    pages[page.uris[i]] = page;
+                                        // THIS = wcm:template
+                                        var template = this;
+                                        page.templatePath = template.path;
+                                    });
                                 }
                             }
+                        })
 
-                            // is the template a GUID or a path to the template file?
-                            if (page.template.indexOf("/") > -1) {
-                                page.templatePath = page.template;
-                            }
-                            else {
-                                // load the template
-                                this.subchain(branch).readNode(page.template).then(function () {
+                    }).then(function () {
 
-                                    // THIS = wcm:template
-                                    var template = this;
-                                    page.templatePath = template.path;
-                                });
-                            }
+                        console.log("Writing pages to WCM cache");
+                        for (var uri in pages) {
+                            console.log(" -> " + uri);
                         }
+
+                        req.cache.write("wcmPages", pages, WCM_CACHE_TIMEOUT_SECONDS);
+
+                        callback(null, pages);
                     });
-
-                }).then(function () {
-
-                    console.log("Writing pages to WCM cache");
-                    for (var uri in pages) {
-                        console.log(" -> " + uri);
-                    }
-
-                    req.cache.write("wcmPages", pages, WCM_CACHE_TIMEOUT_SECONDS);
-
-                    callback(null, pages);
                 });
             });
         });
     };
+
+    var isPageCacheEnabled = function()
+    {
+        var enabled = false;
+
+        if (process.configuration.wcm && process.configuration.wcm.enabled)
+        {
+            enabled = process.configuration.wcm.cache;
+        }
+
+        return enabled;
+    };
+
+    var handleCachePageWrite = function(req, uri, dependencies, text, callback)
+    {
+        if (!isPageCacheEnabled())
+        {
+            callback();
+            return;
+        }
+
+        var contentStore = req.stores.content;
+
+        // write page cache entry
+        var pageFilePath = path.join("wcm", "repositories", req.repositoryId, "branches", req.branchId, "pages", uri, "page.html");
+        contentStore.writeFile(pageFilePath, text, function(err) {
+
+            if (err)
+            {
+                callback(err);
+                return;
+            }
+
+            if (dependencies && dependencies.length > 0)
+            {
+                dependencies.add(req, uri, dependencies, function (err) {
+                    callback(err);
+                });
+            }
+            else
+            {
+                callback();
+            }
+        });
+    };
+
+    var handleCachePageRead = function(req, uri, callback)
+    {
+        if (!isPageCacheEnabled())
+        {
+            callback();
+            return;
+        }
+
+        var contentStore = req.stores.content;
+
+        var pageFilePath = path.join("wcm", "repositories", req.repositoryId, "branches", req.branchId, "pages", uri, "page.html");
+        util.safeReadStream(contentStore, pageFilePath, function(err, data) {
+            callback(err, data);
+        });
+    };
+
+    /*
+    var handleCachePageInvalidate = function(req, uri, callback)
+    {
+        var contentStore = req.stores.content;
+
+        var pageFilePath = path.join("wcm", "repositories", req.repositoryId, "branches", req.branchId, "pages", uri, "page.html");
+        contentStore.existsFile(pageFilePath, function(exists) {
+
+            if (!exists) {
+                callback();
+                return;
+            }
+
+            // delete the page file
+            contentStore.deleteFile(pageFilePath, function (err) {
+
+                // invalidate all page dependencies
+                dependencies.remove(req, uri, function (err) {
+                    callback(err);
+                });
+            });
+        });
+    };
+
+    var handleCacheDependencyInvalidate = function(req, key, value, callback)
+    {
+        var contentStore = req.stores.content;
+
+        // read page json
+        var dependencyDirectoryPath = path.join("wcm", "applications", req.applicationId, "dependencies", key, value);
+        contentStore.listFiles(dependencyDirectoryPath, function(err, filenames) {
+
+            var fns = [];
+            for (var i = 0; i < filenames.length; i++)
+            {
+                var fn = function(req, dependencyDirectoryPath, filename) {
+                    return function(done) {
+
+                        var dependencyFilePath = path.join(dependencyDirectoryPath, filename);
+                        contentStore.existsFile(dependencyFilePath, function(exists) {
+
+                            if (!exists) {
+                                done();
+                                return;
+                            }
+
+                            contentStore.readFile(dependencyFilePath, function (err, data) {
+
+                                if (err) {
+                                    done();
+                                    return;
+                                }
+
+                                try
+                                {
+                                    var json = JSON.parse("" + data);
+                                    var uri = json.uri;
+
+                                    // remove the dependency entry
+                                    contentStore.deleteFile(dependencyFilePath, function(err) {
+
+                                        // invalidate the page
+                                        handleCachePageInvalidate(req, uri, function (err) {
+                                            done();
+                                        });
+                                    });
+                                }
+                                catch (e) {
+                                    // oh well
+                                }
+                            });
+                        });
+
+                    };
+                }(req, dependencyDirectoryPath, filenames[i]);
+                fns.push(fn);
+            }
+        });
+    };
+    */
 
 
 
@@ -361,49 +498,63 @@ exports = module.exports = function()
 
                     if (page)
                     {
-                        if (!tokens) {
-                            tokens = {};
-                        }
+                        // handle cache read
+                        handleCachePageRead(req, offsetPath, function(err, readStream) {
 
-                        if (!req.helpers) {
-                            req.helpers = {};
-                        }
-                        req.helpers.page = page;
-
-                        // build the model
-                        var model = {
-                            "page": {
-                            },
-                            "template": {
-                                "path": page.templatePath
-                            },
-                            "request": {
-                                "tokens": tokens,
-                                "matchingPath": matchingPath
-                            }
-                        };
-
-                        // page keys to copy
-                        for (var k in page)
-                        {
-                            if (k == "templatePath") {
-                            } else if (k == "_doc") {
-                            } else if (k.indexOf("_") === 0) {
-                            } else {
-                                model.page[k] = page[k];
-                            }
-                        }
-
-                        // dust it
-                        duster.execute(req, webStore, page.templatePath, model, function (err, out) {
-
-                            if (err) {
-                                res.status(500).send(err);
-                            }
-                            else {
-                                res.status(200).send.call(res, out);
+                            if (!err && readStream)
+                            {
+                                console.log("SERVING FROM CACHE: " + offsetPath);
+                                res.status(200);
+                                readStream.pipe(res);
+                                return;
                             }
 
+                            if (!tokens) {
+                                tokens = {};
+                            }
+
+                            if (!req.helpers) {
+                                req.helpers = {};
+                            }
+                            req.helpers.page = page;
+
+                            // build the model
+                            var model = {
+                                "page": {},
+                                "template": {
+                                    "path": page.templatePath
+                                },
+                                "request": {
+                                    "tokens": tokens,
+                                    "matchingPath": matchingPath
+                                }
+                            };
+
+                            // page keys to copy
+                            for (var k in page) {
+                                if (k == "templatePath") {
+                                } else if (k == "_doc") {
+                                } else if (k.indexOf("_") === 0) {
+                                } else {
+                                    model.page[k] = page[k];
+                                }
+                            }
+
+                            // dust it
+                            duster.execute(req, webStore, page.templatePath, model, function (err, text, dependencies) {
+
+                                if (err) {
+                                    res.status(500).send(err);
+                                }
+                                else {
+                                    // write to page cache
+                                    console.log("WRITING TO CACHE: " + offsetPath);
+                                    handleCachePageWrite(req, offsetPath, dependencies, text, function(err) {
+                                        res.status(200).send.call(res, text);
+                                    });
+                                }
+
+                            });
                         });
                     }
                     else
