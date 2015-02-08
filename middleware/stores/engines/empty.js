@@ -94,6 +94,11 @@ exports = module.exports = function(engineId, engineType, engineConfig)
         callback(null, null); // stats
     };
 
+    r.matchFiles = function(directoryPath, regexPattern, callback)
+    {
+        callback(null, []);
+    };
+
     return r;
 };
 

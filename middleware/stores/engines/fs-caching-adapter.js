@@ -570,6 +570,13 @@ exports = module.exports = function(remoteStore)
         });
     };
 
+    var matchFiles = r.matchFiles = function(directoryPath, regexPattern, callback)
+    {
+        remoteStore.matchFiles(directoryPath, regexPattern, function(err, filenames) {
+            callback(null, filenames);
+        });
+    };
+
     return r;
 };
 

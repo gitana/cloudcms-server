@@ -81,11 +81,6 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
 
     //////////////////////////////////////////////////
 
-    r.infoDirPath = function()
-    {
-        return _enginePath("/");
-    };
-
     r.allocated = function(callback)
     {
         debugStart("Start store.allocated");
@@ -257,6 +252,15 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
         engine.fileStats(_enginePath(filePath), function(err, stats) {
             debugFinish("Finish store.fileStats");
             callback(err, stats);
+        });
+    };
+
+    r.matchFiles = function(directoryPath, regexPattern, callback)
+    {
+        debugStart("Start store.matchFiles");
+        engine.matchFiles(_enginePath(directoryPath), regexPattern, function(err, matches) {
+            debugFinish("Finish store.matchFiles");
+            callback(err, matches);
         });
     };
 

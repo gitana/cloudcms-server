@@ -368,6 +368,39 @@ exports = module.exports = function(engineConfig)
         });
     };
 
+    r.matchFiles = function(directoryPath, regexPattern, callback)
+    {
+        var key = _toKey(directoryPath);
+
+        var params = {
+            Bucket: engineConfig.bucket,
+            Prefix: key
+        };
+
+        s3.listObjects(params, function(err, data) {
+
+            if (err) {
+                callback(err);
+                return;
+            }
+
+            var regex = new RegExp(regexPattern);
+            var filenames = [];
+
+            for (var i = 0; i < data.Contents.length; i++)
+            {
+                var filename = data.Contents[i].Key;
+
+                if (regex.test(filename))
+                {
+                    filenames.push(filename);
+                }
+            }
+
+            callback(err, filenames);
+        });
+    };
+
     return r;
 };
 

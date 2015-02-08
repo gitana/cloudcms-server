@@ -6,6 +6,8 @@ var util = require("../../../util/util");
 
 var watch = require("watch");
 
+var async = require("async");
+
 /**
  * A simple store based around the node file system.
  *
@@ -285,6 +287,54 @@ exports = module.exports = function(engineConfig)
             });
 
         })
+    };
+
+    r.matchFiles = function(directoryPath, regexPattern, callback)
+    {
+        var assembleMatches = function(candidatePath, regex, matches, finish)
+        {
+            if (regex.test(candidatePath))
+            {
+                matches.push(candidatePath);
+            }
+
+            fs.readdir(path.join(directoryPath, candidatePath), function(err, filenames) {
+
+                // if not a directory, we are done
+                if (err) {
+                    finish(null, matches);
+                    return;
+                }
+
+                // sub-functions
+                var fns = [];
+                for (var i = 0; i < filenames.length; i++)
+                {
+                    var filePath = path.join(candidatePath, filenames[i]);
+
+                    var fn = function(filePath, regex, matches) {
+                        return function(done) {
+                            assembleMatches(filePath, regex, matches, function(err) {
+                                done(err);
+                            });
+                        };
+                    }(filePath, regex, matches);
+                    fns.push(fn);
+                }
+
+                async.series(fns, function(err) {
+                    finish(err);
+                });
+            });
+        };
+
+        var regex = new RegExp(regexPattern);
+        var matches = [];
+
+        assembleMatches("/", regex, matches, function(err) {
+            callback(err, matches);
+        });
+
     };
 
     return r;

@@ -2,6 +2,9 @@ var path = require('path');
 var util = require("../../util/util");
 var async = require("async");
 
+// keyed by path
+var MODULE_CONFIG_PATHS = [];
+
 /**
  * Binds the following stores into place:
  *
@@ -114,7 +117,7 @@ exports = module.exports = function()
         });
     };
 
-    var produce = r.produce = function(host, callback)
+    var produce = r.produce = function(host, req, callback)
     {
         var stores = {};
         stores["root"] = buildStore("root", host);
@@ -132,6 +135,7 @@ exports = module.exports = function()
                 if (exists)
                 {
                     stores["web"] = buildStore("web", host, "public");
+                    stores["web"].publicDir = "public";
                 }
 
                 if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
@@ -148,6 +152,7 @@ exports = module.exports = function()
 
                                 if (filenames && filenames.length > 0) {
                                     stores["web"] = buildStore("web", host, "public_build");
+                                    stores["web"].publicDir = "public_build";
                                 }
 
                                 done();
@@ -168,20 +173,74 @@ exports = module.exports = function()
 
         var bindConfigStore = function(done)
         {
-            /*
-            rootStore.existsFile("config", function(exists) {
+            var findModuleConfigPaths = function(callback)
+            {
+                // look for any module.json files in the web store
+                // these indicate module mount points and should be considered as part of our possible config set
+                stores.web.matchFiles("/", "module.json", function(err, matchedFilePaths) {
 
-                if (exists) {
-                    stores["config"] = rootStore.mount("config");
+                    var matchedFileDirectoryPaths = [];
+
+                    // collect matching paths
+                    for (var i = 0; i < matchedFilePaths.length; i++)
+                    {
+                        var matchedFileDirectoryPath = path.dirname(matchedFilePaths[i]);
+
+                        matchedFileDirectoryPaths.push(matchedFileDirectoryPath);
+                    }
+
+                    callback(matchedFileDirectoryPaths);
+                });
+            };
+
+            var bindConfigStores = function(moduleConfigDirectoryPaths, callback)
+            {
+                // module specific stores
+                var moduleConfigStores = [];
+                for (var i = 0; i < moduleConfigDirectoryPaths.length; i++) {
+                    var moduleDirectoryPath = moduleConfigDirectoryPaths[i];
+                    if (stores.web.publicDir)
+                    {
+                        moduleDirectoryPath = path.join(stores.web.publicDir, moduleDirectoryPath);
+                    }
+
+                    var moduleConfigStore = buildStore("web", host, moduleDirectoryPath + "/config");
+                    moduleConfigStores.push(moduleConfigStore);
                 }
 
-                done();
+                // all stores to be bound in
+                var bindingStores = [];
+                bindingStores.push(stores.config);
+                for (var i = 0; i < moduleConfigStores.length; i++) {
+                    bindingStores.push(moduleConfigStores[i]);
+                }
 
-            });
-            */
+                // bind into a multi-store
+                stores["config"] = require("./multistore")(bindingStores);
 
-            stores["config"] = buildStore("config", host, "config");
-            done();
+                callback();
+            };
+
+            var moduleConfigPaths = MODULE_CONFIG_PATHS[host];
+            if (!moduleConfigPaths)
+            {
+                findModuleConfigPaths(function(moduleConfigPaths) {
+
+                    MODULE_CONFIG_PATHS[host] = moduleConfigPaths;
+
+                    bindConfigStores(moduleConfigPaths, function () {
+                        done();
+                    });
+
+                });
+            }
+            else
+            {
+                bindConfigStores(moduleConfigPaths, function() {
+                    done();
+                });
+
+            }
         };
 
         var bindContentStore = function(done)
@@ -218,7 +277,7 @@ exports = module.exports = function()
     {
         return function(req, res, next)
         {
-            produce(req.domainHost, function(err, stores) {
+            produce(req.domainHost, req, function(err, stores) {
 
                 req.stores = stores;
 

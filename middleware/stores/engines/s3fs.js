@@ -101,6 +101,12 @@ exports = module.exports = function(engineConfig)
         cachingAdapter.fileStats(filePath, callback);
     };
 
+    r.matchFiles = function(directoryPath, regexPattern, callback)
+    {
+        cachingAdapter.matchFiles(directoryPath, regexPattern, callback);
+    };
+
+
     return r;
 };
 
