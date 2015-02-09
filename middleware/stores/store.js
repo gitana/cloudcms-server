@@ -86,7 +86,7 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
         debugStart("Start store.allocated");
         engine.allocated(_enginePath("/"), function(allocated) {
             debugFinish("Finish store.allocated");
-           callback(allocated);
+            callback(allocated);
         });
     };
 

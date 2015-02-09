@@ -70,6 +70,7 @@ exports = module.exports = function()
     var proxy = require("./middleware/proxy/proxy");
     var serverTags = require("./middleware/server-tags/server-tags");
     var storeService = require("./middleware/stores/stores");
+    var templates = require("./middleware/templates/templates");
     var virtualConfig = require("./middleware/virtual-config/virtual-config");
     var virtualFiles = require("./middleware/virtual-files/virtual-files");
     var wcm = require("./middleware/wcm/wcm");
@@ -281,6 +282,9 @@ exports = module.exports = function()
 
         // handles calls to the configuration service
         app.use(config.handler());
+
+        // handles calls to the templates service
+        app.use(templates.handler());
 
         // handles thirdparty browser libraries that are included with cloudcms-server
         app.use(libraries.handler());

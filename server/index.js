@@ -99,37 +99,43 @@ var SETTINGS = {
             "root": "app",
             "config": "app",
             "web": "app",
-            "content": "tmp"
+            "content": "tmp",
+            "templates": "app"
         },
         "oneteam": {
             "root": "hosts_fs",
             "config": "app",
             "web": "app",
-            "content": "hosts_fs"
+            "content": "hosts_fs",
+            "templates": "app"
         },
         "net-development": {
             "root": "hosts_fs",
             "config": "hosts_fs",
             "web": "hosts_fs",
-            "content": "hosts_fs"
+            "content": "hosts_fs",
+            "templates": "hosts_fs"
         },
         "net-production": {
             "root": "hosts_s3fs",
             "config": "hosts_s3fs",
             "web": "hosts_s3fs",
-            "content": "hosts_s3fs"
+            "content": "hosts_s3fs",
+            "templates": "hosts_s3fs"
         },
         "net-development-s3": {
             "root": "hosts_s3",
             "config": "hosts_s3",
             "web": "hosts_s3",
-            "content": "hosts_s3"
+            "content": "hosts_s3",
+            "templates": "hosts_s3"
         },
         "net-development-s3fs": {
             "root": "hosts_s3fs",
             "config": "hosts_s3fs",
             "web": "hosts_s3fs",
-            "content": "hosts_s3fs"
+            "content": "hosts_s3fs",
+            "templates": "hosts_s3fs"
         }
     },
     "virtualHost": {
@@ -197,6 +203,9 @@ var SETTINGS = {
         "enabled": true
     },
     "cache": {
+        "enabled": true
+    },
+    "templates": {
         "enabled": true
     }
 };
