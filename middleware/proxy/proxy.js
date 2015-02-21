@@ -292,6 +292,13 @@ exports = module.exports = function()
                 }
             }
 
+            // allow forced cookie domains
+            var forcedCookieDomain = req.headers["cloudcmscookiedomain"];
+            if (forcedCookieDomain)
+            {
+                newDomain = forcedCookieDomain;
+            }
+
             // now proceed
 
             var i = value.indexOf("Domain=");
