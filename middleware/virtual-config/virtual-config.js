@@ -81,9 +81,6 @@ exports = module.exports = function()
                     "qs": qs
                 };
 
-                //console.log("URL:" + URL);
-                //console.log("QS: " + JSON.stringify(qs));
-
                 util.retryGitanaRequest(logMethod, gitana, requestConfig, 2, function(err, response, body) {
 
                     //console.log("BODY: " + body);
@@ -163,10 +160,9 @@ exports = module.exports = function()
 
                         if (err)
                         {
-                            // mark that it failed
-                            process.cache.write(CACHE_KEY, "true", 120, function() {
-                                callback(err);
-                            });
+                            // something failed, perhaps a network issue
+                            // don't store anything
+                            callback(err);
                             return;
                         }
 
