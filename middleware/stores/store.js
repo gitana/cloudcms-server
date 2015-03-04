@@ -232,6 +232,12 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
     {
         debugStart("Start store.readStream");
         engine.readStream(_enginePath(filePath), function(err, stream) {
+
+            // connect a default error handler
+            stream.on('error', function (e) {
+                console.log("readStream for: " + filePath + ", error: " + e);
+            });
+
             debugFinish("Finish store.readStream");
             callback(err, stream);
         });
@@ -241,6 +247,12 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
     {
         debugStart("Start store.writeStream");
         engine.writeStream(_enginePath(filePath), function(err, stream) {
+
+            // connect a default error handler
+            stream.on('error', function (e) {
+                console.log("writeStream for: " + filePath + ", error: " + e);
+            });
+
             debugFinish("Finish store.writeStream");
             callback(err, stream);
         });

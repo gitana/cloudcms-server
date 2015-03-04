@@ -5,6 +5,9 @@ var request = require("request");
 
 exports = module.exports = function()
 {
+    // two minutes
+    var REQUEST_CONNECTION_TIMEOUT_MS = 120000;
+
     var toCacheFilePath = function(filePath)
     {
         var filename = path.basename(filePath);
@@ -335,7 +338,8 @@ exports = module.exports = function()
                     "method": "GET",
                     "url": URL,
                     "qs": {},
-                    "headers": headers
+                    "headers": headers,
+                    "timeout": REQUEST_CONNECTION_TIMEOUT_MS
                 }).on('response', function (response) {
 
                     if (response.statusCode >= 200 && response.statusCode <= 204)

@@ -68,7 +68,7 @@ exports.invalidateCacheForApp = function(applicationId)
     var badKeys = [];
     for (var k in dust.cache)
     {
-        if (k.startsWith(prefix)) {
+        if (k.indexOf(prefix) === 0) {
             badKeys.push(k);
         }
     }
