@@ -181,10 +181,17 @@
             };
         },
         "page": function() {
+            var pathname = window.location.pathname;
+
+            // some path correction (assume / is /index.html)
+            if (pathname && pathname === "/") {
+                pathname = "/index.html";
+            }
+
             return {
-                "uri": window.location.pathname,
+                "uri": pathname,
                 "hash": window.location.hash,
-                "fullUri": window.location.pathname + window.location.hash,
+                "fullUri": pathname + window.location.hash,
                 "title": document.title
             };
         },
