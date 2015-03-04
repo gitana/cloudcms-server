@@ -65,6 +65,7 @@ var handleInsightPush = function(socket, data, callback)
             warehouseId = application.warehouseId;
         }
     }
+    /*
     if (!warehouseId)
     {
         var analytics = gitana.datastore("analytics");
@@ -72,8 +73,9 @@ var handleInsightPush = function(socket, data, callback)
             warehouseId = analytics.getId();
         }
     }
+    */
     if (!warehouseId) {
-        console.log("Insight - could not determine warehouse id");
+        console.log("Insight - the application does not have a warehouseId, skipping");
         return;
     }
 
