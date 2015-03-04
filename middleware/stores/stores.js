@@ -97,6 +97,7 @@ exports = module.exports = function()
                 callback(err);
             });
             */
+
             callback(err);
         });
     };
@@ -118,7 +119,7 @@ exports = module.exports = function()
         });
     };
 
-    var produce = r.produce = function(host, req, callback)
+    var produce = r.produce = function(host, callback)
     {
         var stores = {};
         stores["root"] = buildStore("root", host);
@@ -345,7 +346,7 @@ exports = module.exports = function()
     {
         return function(req, res, next)
         {
-            produce(req.domainHost, req, function(err, stores) {
+            produce(req.domainHost, function(err, stores) {
 
                 req.stores = stores;
 
