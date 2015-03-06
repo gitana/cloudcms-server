@@ -810,7 +810,8 @@ exports = module.exports = function()
                     }
 
                     // mimetype
-                    var mimetype = req.param("mimetype") ? req.param("mimetype") : "image/jpeg";
+                    //var mimetype = req.param("mimetype") ? req.param("mimetype") : "image/jpeg";
+                    var mimetype = req.param("mimetype") ? req.param("mimetype") : "image/png";
 
                     // force
                     var forceReload = req.param("force") ? req.param("force") : false;
