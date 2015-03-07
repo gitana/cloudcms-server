@@ -183,9 +183,22 @@
         "page": function() {
             var pathname = window.location.pathname;
 
-            // some path correction (assume / is /index.html)
-            if (pathname && pathname === "/") {
-                pathname = "/index.html";
+            var replaceAll = function(text, find, replace) {
+                return text.replace(new RegExp(find, 'g'), replace);
+            };
+
+            if (pathname)
+            {
+                // replace any " " with ""
+                pathname = replaceAll(pathname, " ", "");
+
+                // replace any "//" with "/"
+                pathname = replaceAll(pathname, "//", "/");
+
+                // some path correction (assume / is /index.html)
+                if (pathname === "/") {
+                    pathname = "/index.html";
+                }
             }
 
             return {
