@@ -606,7 +606,7 @@ exports.start = function (overrides, callback) {
                     });
                     var io = require("socket.io")(server);
                     process.IO = io;
-                    //io.set('transports', ['xhr-polling']);
+                    /*
                     io.set('transports', [
                         //'websocket',
                         'flashsocket',
@@ -614,6 +614,7 @@ exports.start = function (overrides, callback) {
                         'xhr-polling',
                         'jsonp-polling',
                         'polling']);
+                    */
                     io.use(function (socket, next) {
 
                         console.log("Socket Init");
