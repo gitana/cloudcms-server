@@ -605,6 +605,9 @@ exports.start = function (overrides, callback) {
                         socket.setNoDelay(true);
                     });
                     var io = require("socket.io")(server);
+                    var sio_local_adapter = require("../socket/adapters/local");
+                    //io.adapter( adapter({ name: "session.txt" }) );
+                    io.adapter( sio_local_adapter() );
                     process.IO = io;
                     /*
                     io.set('transports', [
