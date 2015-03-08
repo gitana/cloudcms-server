@@ -615,6 +615,10 @@ exports.start = function (overrides, callback) {
                         'jsonp-polling',
                         'polling']);
                     */
+                    io.set('transports', [
+                        'xhr-polling',
+                        'jsonp-polling',
+                        'polling']);
                     io.use(function (socket, next) {
 
                         console.log("Socket Init");
