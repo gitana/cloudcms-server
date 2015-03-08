@@ -604,7 +604,6 @@ exports.start = function (overrides, callback) {
                     server.on("connection", function (socket) {
                         socket.setNoDelay(true);
                     });
-                    //var io = require("socket.io").listen(server);
                     var io = require("socket.io")(server);
                     process.IO = io;
                     //io.set('transports', ['xhr-polling']);

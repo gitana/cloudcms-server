@@ -13,10 +13,13 @@ exports = module.exports;
 
 exports.bindGitana = function(socket, callback)
 {
+    // NO!  if sockets are reused, then we require socket.gitana to rebind each time
+    /*
     if (socket.gitana)
     {
         return;
     }
+    */
 
     // determine host of socket
     var host = hosts.determineHostForSocket(socket);
