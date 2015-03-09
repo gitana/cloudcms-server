@@ -4,7 +4,6 @@ var txtsub = require("txtsub");
 
 var path = require("path");
 var fs = require("fs");
-var os = require("os");
 
 var Adapter = require("socket.io-adapter");
 
@@ -16,7 +15,7 @@ function adapter(option)
 
     var filename = option.name;
     if (!filename) {
-        filename = path.join(os.tmpdir(), "socketio-adapter.txt");
+        filename = path.join(process.env.CLOUDCMS_TEMPDIR_PATH, "socketio-adapter.txt");
     }
     if (!fs.existsSync(filename)) {
         fs.writeFileSync(filename, "");
@@ -42,8 +41,6 @@ function adapter(option)
     inherits(Text, Adapter);
 
     Text.prototype.onmessage = function(content) {
-
-        console.log("A1");
 
         var diff = "";
 
