@@ -19,6 +19,8 @@ var cookieParser = require('cookie-parser');
 
 var util = require("../util/util");
 
+var sticky = require("sticky-session");
+
 var app = express();
 
 // cloudcms app server support
@@ -605,9 +607,8 @@ exports.start = function (overrides, callback) {
                         socket.setNoDelay(true);
                     });
                     var io = require("socket.io")(server);
-                    var sio_local_adapter = require("../socket/adapters/local");
-                    //io.adapter( adapter({ name: "session.txt" }) );
-                    io.adapter( sio_local_adapter() );
+                    //var sio_local_adapter = require("../socket/adapters/local");
+                    //io.adapter( sio_local_adapter() );
                     process.IO = io;
                     /*
                     io.set('transports', [
@@ -684,6 +685,9 @@ exports.start = function (overrides, callback) {
 
                     // APPLY SERVER BEFORE START FUNCTIONS
                     runFunctions(config.beforeFunctions, [app], function (err) {
+
+                        // set server to be sticky for socket.io support across node.js cluster processes
+                        sticky(server);
 
                         // START THE APPLICATION SERVER
                         server.listen(app.get('port'));
