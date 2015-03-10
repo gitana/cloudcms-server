@@ -206,9 +206,9 @@ exports = module.exports = function()
         callback(null, discoveredPage, discoveredTokens, discoveredPageOffsetPath);
     };
 
-    // assume thirty seconds (for development mode)
-    var WCM_CACHE_TIMEOUT_SECONDS = 30;
-    if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
+    // assume 120 seconds (for development mode)
+    var WCM_CACHE_TIMEOUT_SECONDS = 120;
+    if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
     {
         // for production, set to 24 hours
         WCM_CACHE_TIMEOUT_SECONDS = 60 * 60 * 24;
@@ -268,7 +268,6 @@ exports = module.exports = function()
                                     // merge into our pages collection
                                     for (var i = 0; i < page.uris.length; i++)
                                     {
-                                        // console.log("Mapping page: " + page.uris[i] + " to " + JSON.stringify(page));
                                         pages[page.uris[i]] = page;
                                     }
                                 }

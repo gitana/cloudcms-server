@@ -19,40 +19,26 @@ var cookieParser = require('cookie-parser');
 
 var util = require("../util/util");
 
-var sticky = require("sticky-session");
+var launchPad = require("../launchpad");
+var cluster = require("cluster");
 
 var app = express();
 
 // cloudcms app server support
 var main = require("../index");
 
-
-
-// set up modes
-process.env.CLOUDCMS_APPSERVER_MODE = "development";
-
-if (process.env.NODE_ENV == "production") {
-    process.env.CLOUDCMS_APPSERVER_MODE = "production";
-}
-
-// set up domain hosting
-// if not otherwise specified, we assume hosting at *.cloudcms.net
-if (!process.env.CLOUDCMS_DOMAIN) {
-    process.env.CLOUDCMS_DOMAIN = "cloudcms.net";
-}
-
-
 var requestCounter = 0;
-
 
 // holds configuration settings
 var SETTINGS = {
+    "setup": "single", // single, multiple, cluster
     "name": "Cloud CMS Application Server",
     "socketFunctions": [],
     "routeFunctions": [],
     "configureFunctions": {},
     "beforeFunctions": [],
     "afterFunctions": [],
+    "reportFunctions": [],
     "viewEngine": "handlebars",
     "storeEngines": {
         "app": {
@@ -212,11 +198,15 @@ var SETTINGS = {
     }
 };
 
-// default to using long polling?
-// can assist for environments using non-sticky load balancer
-// SETTINGS.socketTransports = ["xhr-polling"];
-//SETTINGS.socketTransports= ["xhr-polling", "jsonp-polling"];
-SETTINGS.socketTransports = [];
+// runs on 2999 by default
+process.env.PORT = process.env.PORT || 2999;
+
+// allows for specification of alternative transports
+SETTINGS.socketTransports = [
+    'xhr-polling',
+    'jsonp-polling',
+    'polling'
+];
 
 var exports = module.exports;
 
@@ -290,6 +280,15 @@ var after = exports.after = function (fn) {
     SETTINGS.afterFunctions.push(fn);
 };
 
+/**
+ * Registers a function to run after all server instances have started
+ *
+ * @param fn
+ */
+var report = exports.report = function (fn) {
+    SETTINGS.reportFunctions.push(fn);
+};
+
 /*******************************************************************************************************/
 /*******************************************************************************************************/
 /*******************************************************************************************************/
@@ -324,10 +323,15 @@ var runFunctions = function (functions, args, callback) {
  * @param overrides optional config overrides
  * @param callback optional callback function
  */
-exports.start = function (overrides, callback) {
+exports.start = function(overrides, callback) {
+
     if (typeof(overrides) === "function") {
         callback = overrides;
         overrides = null;
+    }
+
+    if (!callback) {
+        callback = function() {};
     }
 
     // create our master config
@@ -335,6 +339,45 @@ exports.start = function (overrides, callback) {
     if (overrides) {
         util.merge(overrides, config);
     }
+
+    // assume for launchpad
+    if (!config.setup) {
+        config.setup = "single";
+    }
+
+    launchPad({
+        "setup": config.setup,
+        "factory": function(done) {
+            startSlave(config, function(app, server) {
+                done(server);
+            });
+        },
+        "report": function() {
+            runFunctions(config.reportFunctions, [], function(err) {
+                // todo
+            });
+        },
+        "complete": function() {
+            callback();
+        }
+    });
+};
+
+var startSlave = function(config, afterStartFn)
+{
+    // set up modes
+    process.env.CLOUDCMS_APPSERVER_MODE = "development";
+
+    if (process.env.NODE_ENV == "production") {
+        process.env.CLOUDCMS_APPSERVER_MODE = "production";
+    }
+
+    // set up domain hosting
+    // if not otherwise specified, we assume hosting at *.cloudcms.net
+    if (!process.env.CLOUDCMS_DOMAIN) {
+        process.env.CLOUDCMS_DOMAIN = "cloudcms.net";
+    }
+
 
     // store config on process instance
     process.configuration = config;
@@ -350,23 +393,6 @@ exports.start = function (overrides, callback) {
     if (process.env.CLOUDCMS_DOMAIN) {
         process.env.CLOUDCMS_DOMAIN = process.env.CLOUDCMS_DOMAIN.toLowerCase();
     }
-
-    /*
-     // memwatch
-     if (config.memwatch)
-     {
-     var memwatch = require('memwatch');
-     memwatch.on('leak', function(info) {
-     console.log("[memwatch] ---> POTENTIAL MEMORY LEAK DETECTED <---");
-     console.log(JSON.stringify(info, null, "  "));
-     });
-     memwatch.on('stats', function(stats) {
-     console.log("[memwatch] Garbage collection ran, new base = " + stats["estimated_base"]);
-     });
-     app.memwatch = memwatch;
-     console.log("[memwatch] Started");
-     }
-     */
 
     // global temp directory
     util.createTempDirectory(function(err, tempDirectory) {
@@ -474,6 +500,9 @@ exports.start = function (overrides, callback) {
 
                     var message = '';
                     message += grayColor + '<' + req.id + '> ';
+                    if (cluster.worker && cluster.worker.id) {
+                        message += grayColor + '(' + cluster.worker.id + ') ';
+                    }
                     message += grayColor + '[' + timestamp + '] ';
                     message += grayColor + host + ' ';
                     message += grayColor + text + '';
@@ -544,7 +573,7 @@ exports.start = function (overrides, callback) {
             ////////////////////////////////////////////////////////////////////////////
 
             // all environments
-            app.set('port', process.env.PORT || 2999);
+            app.set('port', process.env.PORT);
             app.set('views', process.env.CLOUDCMS_APPSERVER_BASE_PATH + "/views");
 
             if (config.viewEngine == "dust") {
@@ -606,23 +635,8 @@ exports.start = function (overrides, callback) {
                     server.on("connection", function (socket) {
                         socket.setNoDelay(true);
                     });
-                    var io = require("socket.io")(server);
-                    //var sio_local_adapter = require("../socket/adapters/local");
-                    //io.adapter( sio_local_adapter() );
-                    process.IO = io;
-                    /*
-                    io.set('transports', [
-                        //'websocket',
-                        'flashsocket',
-                        'htmlfile',
-                        'xhr-polling',
-                        'jsonp-polling',
-                        'polling']);
-                    */
-                    io.set('transports', [
-                        'xhr-polling',
-                        'jsonp-polling',
-                        'polling']);
+                    var io = process.IO = require("socket.io")(server);
+                    io.set('transports', config.socketTransports);
                     io.use(function (socket, next) {
 
                         console.log("Socket Init");
@@ -686,27 +700,19 @@ exports.start = function (overrides, callback) {
                     // APPLY SERVER BEFORE START FUNCTIONS
                     runFunctions(config.beforeFunctions, [app], function (err) {
 
-                        // set server to be sticky for socket.io support across node.js cluster processes
-                        sticky(server);
-
-                        // START THE APPLICATION SERVER
-                        server.listen(app.get('port'));
+                        server._listenPort = app.get("port");
 
                         // AFTER SERVER START
                         runFunctions(config.afterFunctions, [app], function (err) {
 
-                            // show standard info
-                            //var url = "http://localhost:" + app.get('port') + "/";
-
-                            //console.log(config.name + " started");
-                            //console.log(" -> visit: " + url);
-                            //console.log("");
-
-                            if (callback) {
-                                callback(app);
+                            // if we are on a worker process, then inform the master that we completed
+                            if (process.send) {
+                                process.send("server-startup");
                             }
-                        });
 
+                            afterStartFn(app, server);
+
+                        });
                     });
                 });
             });

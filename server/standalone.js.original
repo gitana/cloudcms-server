@@ -1,0 +1,102 @@
+var cluster = require("cluster");
+if (cluster.isMaster)
+{
+    var async = require("async");
+    var cpuCount = require('os').cpus().length;
+
+    var fns = [];
+    for (var i = 0; i < cpuCount; i++)
+    {
+        var fn = function(callback) {
+            var worker = cluster.fork();
+            worker.on("listening", function() {
+                callback();
+            });
+        };
+        fns.push(fn);
+    }
+    async.parallel(fns, function() {
+        // finished
+        console.log("Successfully started " + cpuCount + " child processes");;
+    });
+    return;
+}
+
+//
+//
+//
+
+var server = require("./index");
+
+var frameworkControllers = require("../framework/controllers");
+var frameworkSockets = require("../framework/sockets");
+
+var exports = module.exports;
+
+/**
+ * Default route handlers
+ */
+server.routes(function(app, callback) {
+    frameworkControllers.init(app, function() {
+        callback();
+    });
+});
+
+/**
+ * Default socket handlers
+ */
+server.sockets(function(socket, callback) {
+    frameworkSockets.init(socket, function() {
+        callback();
+    });
+});
+
+/**
+ * Things we want to run after server start.
+ */
+server.after(function(app, callback) {
+
+    if (cluster.worker.id === 1)
+    {
+        var cpuCount = require('os').cpus().length;
+
+        // provide some debug info
+        console.log("");
+        console.log("Node Version: " + process.version);
+        console.log("Server Mode: " + process.env.CLOUDCMS_APPSERVER_MODE);
+        console.log("Server Base Path: " + process.env.CLOUDCMS_APPSERVER_BASE_PATH);
+        console.log("Gitana Scheme: " + process.env.GITANA_PROXY_SCHEME);
+        console.log("Gitana Host: " + process.env.GITANA_PROXY_HOST);
+        console.log("Gitana Port: " + process.env.GITANA_PROXY_PORT);
+        console.log("CPU Count: " + cpuCount);
+        console.log("Virtual Hosting domain: " + process.env.CLOUDCMS_DOMAIN);
+        console.log("Store Configuration: " + process.env.CLOUDCMS_STORE_CONFIGURATION);
+        console.log("Broadcast Provider: " + process.env.CLOUDCMS_BROADCAST_TYPE);
+        console.log("Cache Provider: " + process.env.CLOUDCMS_CACHE_TYPE);
+        console.log("Temp Directory: " + process.env.CLOUDCMS_TEMPDIR_PATH);
+
+        console.log("");
+    }
+
+    callback();
+});
+
+// start the server
+server.start({
+    "socketTransports": ["polling"],
+    "virtualHost": {
+        "enabled": true
+    },
+    "wcm": {
+        "enabled": true
+    },
+    "serverTags": {
+        "enabled": true
+    },
+    "autoRefresh": {
+        "log": true
+    },
+    "insight": {
+        "enabled": true
+    }
+});
