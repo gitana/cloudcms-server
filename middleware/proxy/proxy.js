@@ -39,7 +39,7 @@ exports = module.exports = function()
     {
         var ttl = 0;
 
-        if (process.env.CLOUDCMS_APPSERVER_MODE == "production") {
+        if (process.env.CLOUDCMS_APPSERVER_MODE === "production") {
             if (process.configuration && process.configuration.proxy) {
                 if (process.configuration.proxy.enabled) {
                     if (process.configuration.proxy.cache) {
