@@ -190,6 +190,15 @@ exports = module.exports = function()
                 var cacheInfo = JSON.parse(cacheInfoString);
                 if (isCacheInfoValid(cacheInfo)) {
                     // all good!
+
+                    // clean up here in case charset is part of mimetype
+                    if (cacheInfo.mimetype) {
+                        var x = cacheInfo.mimetype.indexOf(";");
+                        if (x > -1) {
+                            cacheInfo.mimetype = cacheInfo.mimetype.substring(0, x);
+                        }
+                    }
+
                     callback(null, cacheInfo);
                 }
                 else {
@@ -238,6 +247,15 @@ exports = module.exports = function()
                 if (headerName == "content-type")
                 {
                     cacheInfo.mimetype = response.headers[k];
+
+                    // clean up here in case charset is part of mimetype
+                    if (cacheInfo.mimetype) {
+                        var x = cacheInfo.mimetype.indexOf(";");
+                        if (x > -1) {
+                            cacheInfo.mimetype = cacheInfo.mimetype.substring(0, x);
+                        }
+                    }
+
                 }
 
                 // filename
@@ -642,8 +660,12 @@ exports = module.exports = function()
                 readFromDisk(contentStore, filePath, function (err, cacheInfo) {
 
                     if (!err && cacheInfo) {
-                        callback(null, filePath, cacheInfo);
-                        return;
+
+                        // if no mimetype or mimetype matches, then hand back
+                        if (!mimetype || (cacheInfo.mimetype === mimetype)) {
+                            callback(null, filePath, cacheInfo);
+                            return;
+                        }
                     }
 
                     // either there was an error (in which case things were cleaned up)

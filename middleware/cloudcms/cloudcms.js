@@ -545,6 +545,13 @@ exports = module.exports = function()
                     if (x > 0)
                     {
                         previewNode = previewNode.substring(0,x);
+
+                        // if preview node has "/" in it, then it is "<nodeId>/<filename>"
+                        x1 = previewNode.indexOf("/");
+                        if (x1 > -1) {
+                            previewId = previewNode.substring(x1 + 1);
+                            previewNode = previewNode.substring(0, x1);
+                        }
                     }
                 }
                 if (offsetPath.indexOf("/preview/repository/") === 0)
@@ -573,39 +580,22 @@ exports = module.exports = function()
                     // pluck off the thing
                     x1 = z.indexOf("/");
                     var thing = z.substring(0, x1); // "node" or "path"
-                    if (thing == "node")
+                    if (thing === "node")
                     {
                         previewNode = z.substring(x1+1);
+
+                        // if preview node has "/" in it, then it is "<nodeId>/<filename>"
+                        x1 = previewNode.indexOf("/");
+                        if (x1 > -1) {
+                            previewId = previewNode.substring(x1 + 1);
+                            previewNode = previewNode.substring(0, x1);
+                        }
                     }
                     else if (thing == "path")
                     {
                         previewPath = z.substring(x1+1);
                     }
                 }
-                /*
-                 if (offsetPath.indexOf("/s/") === 0)
-                 {
-                 var fullPath = path.join("Applications", req.gitana.application().getId(), offsetPath.substring(3));
-                 if (req.param("preview"))
-                 {
-                 previewPath = fullPath;
-                 }
-                 else if (req.param("size") || req.param("mimetype"))
-                 {
-                 if (req.param("size")) {
-                 previewId = "preview_" + req.param("size");
-                 }
-                 else if (req.param("mimetype")) {
-                 previewId = "preview_" + req.param("mimetype");
-                 }
-                 previewPath = fullPath;
-                 }
-                 else
-                 {
-                 virtualizedPath = fullPath;
-                 }
-                 }
-                 */
 
                 // TODO: handle certain mimetypes
                 // TODO: images, css, html, js?
@@ -783,6 +773,9 @@ exports = module.exports = function()
                         previewId = req.param("name");
                     }
 
+                    // mimetype (allow null or undefined)
+                    var mimetype = req.param("mimetype");
+
                     // determine attachment id
                     var attachmentId = "default";
                     if (req.param("attachment"))
@@ -798,9 +791,18 @@ exports = module.exports = function()
                         var p = previewId.indexOf(".");
                         if (p > -1)
                         {
+                            var extension = previewId.substring(p + 1);
+                            if (extension)
+                            {
+                                // see if we can determine the requested mimetype from the file extension of the previewId
+                                mimetype = mime.lookup(extension);
+                            }
                             previewId = previewId.substring(0, p);
                         }
                     }
+
+                    // note: mimetype can be null or undefined at this point
+                    // server side will sort this out for us
 
                     // size
                     var size = req.param("size") ? req.param("size") : -1;
@@ -808,10 +810,6 @@ exports = module.exports = function()
                     {
                         size = parseInt(size, 10);
                     }
-
-                    // mimetype
-                    //var mimetype = req.param("mimetype") ? req.param("mimetype") : "image/jpeg";
-                    var mimetype = req.param("mimetype") ? req.param("mimetype") : "image/png";
 
                     // force
                     var forceReload = req.param("force") ? req.param("force") : false;
@@ -1194,8 +1192,8 @@ exports = module.exports = function()
                         size = parseInt(size, 10);
                     }
 
-                    // mimetype
-                    var mimetype = req.param("mimetype") ? req.param("mimetype") : "image/jpeg";
+                    // mimetype (allow null or undefined)
+                    var mimetype = req.param("mimetype");
 
                     // force
                     var forceReload = req.param("force") ? req.param("force") : false;
