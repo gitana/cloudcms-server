@@ -485,6 +485,7 @@ exports = module.exports = function(remoteStore)
         });
     };
 
+    /*
     r.writeFile = function(filePath, data, callback)
     {
         remoteStore.writeFile(filePath, data, function(err) {
@@ -501,6 +502,35 @@ exports = module.exports = function(remoteStore)
                 callback(err);
             });
         });
+    };
+    */
+
+    r.writeFile = function(filePath, data, callback)
+    {
+        __putCachedObject(filePath, true, data, function(err) {
+
+            if (err)
+            {
+                callback(err);
+                return;
+            }
+
+            // on a separate timeout, write to remote store
+            setTimeout(function() {
+
+                remoteStore.writeFile(filePath, data, function(err) {
+
+                    if (err) {
+                        console.log(err);
+                    }
+
+                });
+
+            }, 1);
+
+            callback();
+        });
+
     };
 
     var readFile = r.readFile = function(filePath, callback)
