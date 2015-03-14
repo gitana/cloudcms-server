@@ -7,7 +7,6 @@ var Gitana = require('gitana');
 var stores = require("../middleware/stores/stores");
 var driver = require("../middleware/driver/driver");
 var driverConfig = require("../middleware/driver-config/driver-config");
-var virtualConfig = require("../middleware/virtual-config/virtual-config");
 
 exports = module.exports;
 
