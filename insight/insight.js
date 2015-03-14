@@ -104,6 +104,10 @@ var handleInsightPush = function(socket, data, callback)
     };
 
     console.log("Push URL: " + URL);
+    console.log("Host: " + socket.host);
+    if (socket.application && socket.application()) {
+        console.log("Application: " + socket.application().title);
+    }
 
     util.retryGitanaRequest(socket._log, gitana, requestConfig, 2, function(err, response, body) {
 

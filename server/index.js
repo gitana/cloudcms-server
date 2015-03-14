@@ -639,7 +639,7 @@ var startSlave = function(config, afterStartFn)
                     io.set('transports', config.socketTransports);
                     io.use(function (socket, next) {
 
-                        console.log("Socket Init");
+                        console.log("New socket being initialized");
 
                         // attach _log function
                         socket._log = function (text) {
@@ -670,10 +670,17 @@ var startSlave = function(config, afterStartFn)
                             console.log(message);
                         };
                         socket.on("connect", function () {
-                            console.log("SOCKET.IO HEARD CONNECT");
+                            console.log("Socket connect()");
                         });
                         socket.on("disconnect", function () {
-                            console.log("SOCKET.IO HEARD DISCONNECT");
+                            var message = "Socket disconnected";
+                            if (socket && socket.host) {
+                                message += ", host=" + socket.host;
+                            }
+                            if (socket && socket.gitana && socket.gitana.application && socket.gitana.application()) {
+                                message += ", application=" + socket.gitana.application().title;
+                            }
+                            console.log(message);
                         });
 
                         // APPLY CUSTOM SOCKET.IO CONFIG
