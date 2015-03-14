@@ -655,7 +655,7 @@ var startSlave = function(config, afterStartFn)
                             // final color
                             var finalColor = "\x1b[0m";
 
-                            if (process.env.CLOUDCMS_APPSERVER_MODE == "production") {
+                            if (process.env.CLOUDCMS_APPSERVER_MODE === "production") {
                                 grayColor = "";
                                 finalColor = "";
                             }

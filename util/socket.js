@@ -44,38 +44,22 @@ exports.bindGitana = function(socket, callback)
 
         driverConfig.resolveConfig(socket, rootStore, function(err) {
 
-            if (process.configuration.virtualDriver && process.configuration.virtualDriver.enabled)
-            {
-                virtualConfig.acquireGitanaJson(host, rootStore, socket.log, function(err) {
-
-                    driver.doConnect(socket, socket.gitanaConfig, function(err) {
-
-                        if (err) {
-                            callback(err);
-                            return;
-                        }
-
-                        socket.gitana = this;
-
-                        callback();
-                    });
-
-                });
+            if (err) {
+                callback(err);
+                return;
             }
-            else if (socket.gitanaConfig)
-            {
-                driver.doConnect(socket, socket.gitanaConfig, function(err) {
 
-                    if (err) {
-                        callback(err);
-                        return;
-                    }
+            driver.doConnect(socket, socket.gitanaConfig, function(err) {
 
-                    socket.gitana = this;
+                if (err) {
+                    callback(err);
+                    return;
+                }
 
-                    callback();
-                });
-            }
+                socket.gitana = this;
+
+                callback();
+            });
 
         });
     });

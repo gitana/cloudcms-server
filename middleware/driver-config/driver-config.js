@@ -10,7 +10,7 @@ var GITANA_DRIVER_CONFIG_CACHE = require("../../cache/driverconfigs");
 
 
 /**
- * Retrieves virtual driver configuration for hosts from Cloud CMS.
+ * Retrieves local driver configuration for hosts from Cloud CMS.
  *
  * @type {Function}
  */
@@ -20,6 +20,14 @@ exports = module.exports = function()
 
     var resolveConfig = r.resolveConfig = function(holder, rootStore, callback)
     {
+        if (!holder.host)
+        {
+            callback({
+                "message": "Missing host"
+            });
+            return;
+        }
+
         var completionFunction = function(err, gitanaConfig)
         {
             if (err)
@@ -40,7 +48,7 @@ exports = module.exports = function()
             callback();
         };
 
-        var cachedValue = GITANA_DRIVER_CONFIG_CACHE.read("local");
+        var cachedValue = GITANA_DRIVER_CONFIG_CACHE.read(holder.host);
         if (cachedValue)
         {
             if (cachedValue == "null")
@@ -80,7 +88,7 @@ exports = module.exports = function()
                             return;
                         }
 
-                        GITANA_DRIVER_CONFIG_CACHE.write("local", {
+                        GITANA_DRIVER_CONFIG_CACHE.write(holder.host, {
                             "config": gitanaConfig
                         });
 
@@ -90,7 +98,7 @@ exports = module.exports = function()
                 else
                 {
                     // mark with sentinel
-                    GITANA_DRIVER_CONFIG_CACHE.write("local", "null");
+                    GITANA_DRIVER_CONFIG_CACHE.write(holder.host, "null");
 
                     completionFunction();
                 }
