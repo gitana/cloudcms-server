@@ -39,7 +39,8 @@ exports = module.exports = function()
                 var y = url.lastIndexOf("/");
                 if (y === url.length - 1)
                 {
-                    req.url = req.originalUrl + configuration.file;
+                    req.url = path.join(req.originalUrl, configuration.file);
+                    //req.url = req.originalUrl + configuration.file;
                 }
 
                 next();
