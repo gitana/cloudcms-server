@@ -220,24 +220,30 @@ exports = module.exports = function()
         "xfwd": true
     };
 
-    if (proxyScheme.toLowerCase() == "https")
+    if (proxyScheme.toLowerCase() === "https")
     {
         // TODO: why does https://api.cloudcms.com throw "Hostname/IP doesn't match certificate's altname"
         // temporary workaround
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
+        //process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
         proxyConfig.agent = new ForeverAgent.SSL({
             maxSockets: 500,
             maxFreeSockets: 100,
+            //checkServerIdentity: function (host, cert) {
+            //    return host;
+            //},
             keepAlive: true,
             keepAliveMsecs: 1000 * 60 * 5 // five minutes
         });
     }
-    else if (proxyScheme.toLowerCase() == "http")
+    else if (proxyScheme.toLowerCase() === "http")
     {
         proxyConfig.agent = new ForeverAgent({
             maxSockets: 500,
             maxFreeSockets: 100,
+            //checkServerIdentity: function (host, cert) {
+            //    return host;
+            //},
             keepAlive: true,
             keepAliveMsecs: 1000 * 60 * 5 // five minutes
         });

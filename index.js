@@ -50,6 +50,11 @@ exports = module.exports = function()
         process.env.GITANA_PROXY_SCHEME = "https";
     }
 
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
+    // root ssl ca's
+    require('ssl-root-cas').inject();
+
     // middleware
     var authentication = require("./middleware/authentication/authentication");
     var authorization = require("./middleware/authorization/authorization");
