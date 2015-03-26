@@ -21,18 +21,9 @@ exports.init = function(socket, callback)
         {
             if (data && data.rows)
             {
-                handleInsightPush(socket, data, function(err) {
+                socket._log("Scheduling insight data rows: " + data.rows.length);
 
-                    if (err)
-                    {
-                        socket._log("Event: insight-push, failed: " + JSON.stringify(err));
-                    }
-                    else
-                    {
-                        socket._log("Event: insight-push, interactions: " + data.rows.length);
-                    }
-
-                });
+                scheduleData(socket, data);
             }
         }
     });
@@ -40,19 +31,20 @@ exports.init = function(socket, callback)
     callback();
 };
 
+// pending data arrays keyed by warehouseId
+var PENDING_DATA = {};
+
 /**
- * Data comes in:
+ * Data comes in and we schedule it for send to the Cloud CMS server.
  *
  * @param data
  */
-var handleInsightPush = function(socket, data, callback)
+var scheduleData = function(socket, data)
 {
     var gitana = socket.gitana;
     if (!gitana)
     {
-        callback({
-            "code": "no_gitana"
-        });
+        socket._log("Insight - the socket does not have a gitana instance attached to it, host: " + socket.host + ", skipping...");
         return;
     }
 
@@ -65,17 +57,9 @@ var handleInsightPush = function(socket, data, callback)
             warehouseId = application.warehouseId;
         }
     }
-    /*
-    if (!warehouseId)
-    {
-        var analytics = gitana.datastore("analytics");
-        if (analytics) {
-            warehouseId = analytics.getId();
-        }
-    }
-    */
+
     if (!warehouseId) {
-        console.log("Insight - the application does not have a warehouseId, skipping");
+        console.log("Insight - the application does not have a warehouseId, skipping...");
         return;
     }
 
@@ -95,6 +79,60 @@ var handleInsightPush = function(socket, data, callback)
         data.rows[i].source.host = host;
     }
 
+    // apply into PENDING_DATA
+    if (!PENDING_DATA[warehouseId])
+    {
+        PENDING_DATA[warehouseId] = {
+            "rows": []
+        };
+    }
+
+    for (var i = 0; i < data.rows.length; i++)
+    {
+        PENDING_DATA[warehouseId].rows.push(data.rows[i]);
+    }
+
+    PENDING_DATA[warehouseId].gitana = gitana;
+    PENDING_DATA[warehouseId].log = socket._log;
+};
+
+var doSend = function(callback)
+{
+    // first find a warehouseId that has some rows
+    var warehouseId = null;
+
+    for (var k in PENDING_DATA)
+    {
+        if (PENDING_DATA[k] && PENDING_DATA[k].rows && PENDING_DATA[k].rows.length > 0)
+        {
+            warehouseId = k;
+            break;
+        }
+    }
+
+    if (!warehouseId)
+    {
+        // nothing to send
+        callback();
+        return;
+    }
+
+    var gitana = PENDING_DATA[warehouseId].gitana;
+    var log = PENDING_DATA[warehouseId].log;
+
+    // the data that we will send
+    var data = {
+        "rows": []
+    };
+
+    // move any PENDING_DATA for this warehouse into data.rows
+    // this cuts down the PENDING_DATA array to size 0
+    // and increases the size of data.rows
+    while (PENDING_DATA[warehouseId].rows.length > 0) {
+        data.rows.push(PENDING_DATA[warehouseId].rows.splice(0, 1)[0]);
+    }
+
+    // url over to cloud cms
     var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT + "/warehouses/" + warehouseId + "/interactions/_create";
     var requestConfig = {
         "url": URL,
@@ -103,49 +141,53 @@ var handleInsightPush = function(socket, data, callback)
         "json": data
     };
 
-    console.log("Push URL: " + URL);
-    console.log("Host: " + socket.host);
-    if (socket.application && socket.application()) {
-        console.log("Application: " + socket.application().title);
-    }
+    console.log("Insight sync for warehouse: " + warehouseId + ", pushing rows: " + data.rows.length);
+    console.log(" -> url: " + URL);
+    console.log(" -> data: " + JSON.stringify(data));
 
-    util.retryGitanaRequest(socket._log, gitana, requestConfig, 2, function(err, response, body) {
+    // make a single attempt to send the data over
+    // if it fails, we add it back to the queue
+    util.retryGitanaRequest(log, gitana, requestConfig, 1, function(err, response, body) {
 
-        if (response && response.statusCode == 200 && body)
+        if (response && response.statusCode === 200 && body)
         {
-            console.log("Push Success");
-
-            // success
-            callback();
+            console.log("Insight sync for warehouse: " + warehouseId + " succeeded");
         }
         else
         {
-            if (err)
+            if (err || (body && body.error))
             {
-                // an HTTP error
-                console.log("PUSH ERROR: " + JSON.stringify(err));
-                socket._log("Response error: " + JSON.stringify(err));
+                console.log("Insight sync for warehouse: " + warehouseId + " failed");
 
-                callback(err);
+                if (err) {
+                    console.log(" -> err: " + JSON.stringify(err));
+                }
 
-                return;
-            }
+                /*
+                // copy data.rows back into queue
+                for (var z = 0; z < data.rows.length; z++)
+                {
+                    PENDING_DATA[warehouseId].rows.push(data.rows[z]);
+                }
+                */
 
-            if (body && body.error)
-            {
-                // some kind of operational error
-                socket._log("Operational error");
-                socket._log(JSON.stringify(body));
-
-                console.log("PUSH OP ERROR: " + JSON.stringify(err));
-
-                callback({
-                    "message": body.error
-                });
-
-                return;
+                if (body && body.error)
+                {
+                    console.log(" -> body: " + JSON.stringify(body));
+                }
             }
         }
+
+        callback();
     });
 };
+
+var f = function() {
+    setTimeout(function () {
+        doSend(function() {
+            f();
+        });
+    }, 250);
+};
+f();
 

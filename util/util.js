@@ -498,7 +498,7 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
         if (currentAttempts === maxAttempts)
         {
             cb({
-                "message": "Maximum number of connection attempts exceeded(" + maxAttempts + ")",
+                "message": "Maximum number of connection attempts exceeded (" + maxAttempts + ")",
                 "err": previousError
             });
 
@@ -552,7 +552,7 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
             {
                 // we go through the retry handler
                 _retryHandler(gitana, config, currentAttempts, maxAttempts, {
-                    "message": "Unable to load asset from remote store",
+                    "message": "Unable to communicate from remote store: " + JSON.stringify(config, null, "  "),
                     "code": response.statusCode,
                     "body": body,
                     "err": err
