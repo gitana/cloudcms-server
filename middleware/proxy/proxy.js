@@ -7,7 +7,9 @@ var httpProxy = require('http-proxy');
 
 var oauth2 = require("../../util/oauth2")();
 
-var ForeverAgent = require('forever-agent');
+//var ForeverAgent = require('forever-agent');
+
+var ForeverAgent = require('../../temp/forever-agent');
 
 var util = require("../../util/util");
 
