@@ -719,7 +719,7 @@ exports = module.exports = function()
                 }
                 else if (req.url.indexOf("/_cleanup") == 0)
                 {
-                    var host = req.param("host");
+                    var host = req.query["host"];
 
                     doCleanup(req, host, function(err) {
 
@@ -747,7 +747,7 @@ exports = module.exports = function()
 
                 if (req.url.indexOf("/_info") == 0)
                 {
-                    var host = req.param("host");
+                    var host = req.query["host"];
 
                     doInfo(req, host, function(err, infoObject) {
 

@@ -821,7 +821,7 @@ var handleSendFileError = exports.handleSendFileError = function(req, res, fileP
     {
         if (err.doesNotExist)
         {
-            var fallback = req.param("fallback");
+            var fallback = req.query["fallback"];
             if (!fallback) {
                 try { res.status(404); } catch (e) { }
                 res.end();
@@ -880,7 +880,7 @@ var setHeader = exports.setHeader = function(response, name, value)
 
 var isInvalidateTrue = exports.isInvalidateTrue = function(request)
 {
-    return (request.param("invalidate") == "true");
+    return (request.query["invalidate"] == "true");
 };
 
 var hashcode = exports.hashcode = function(text)

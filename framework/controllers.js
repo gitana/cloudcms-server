@@ -258,8 +258,8 @@ var handleFormPost = function(req, res, listKey)
     }
 
 
-    var successUrl = req.param("successUrl");
-    var failureUrl = req.param("failureUrl");
+    var successUrl = req.query["successUrl"];
+    var failureUrl = req.query["failureUrl"];
 
     // use the app user
     var gitana = req.gitana;

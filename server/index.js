@@ -16,6 +16,7 @@ var errorHandler = require("errorhandler");
 var multipart = require("connect-multiparty");
 var session = require('express-session');
 var cookieParser = require('cookie-parser');
+var params = require('express-params');
 
 var util = require("../util/util");
 
@@ -23,6 +24,7 @@ var launchPad = require("../launchpad");
 var cluster = require("cluster");
 
 var app = express();
+params.extend(app);
 
 // cloudcms app server support
 var main = require("../index");

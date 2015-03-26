@@ -218,7 +218,7 @@ exports = module.exports = function()
     {
         var ensureInvalidate = function(callback) {
             // allow for forced invalidation via req param
-            if (req.param("invalidate")) {
+            if (req.query["invalidate"]) {
                 req.cache.remove("wcmPages", function() {
                     callback();
                 });

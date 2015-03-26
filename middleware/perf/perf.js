@@ -55,7 +55,7 @@ exports = module.exports = function()
             // NOTE: if we're not in production mode, we don't do any of this
             if (process.env.CLOUDCMS_APPSERVER_MODE == "production" || TEST_MODE)
             {
-                // if req.params.invalidate, don't bother
+                // if req.query.invalidate, don't bother
                 if (util.isInvalidateTrue(req))
                 {
                     next();
@@ -141,7 +141,7 @@ exports = module.exports = function()
             // NOTE: if we're not in production mode, we don't do any of this
             if (process.env.CLOUDCMS_APPSERVER_MODE == "production" || TEST_MODE)
             {
-                // if req.params.invalidate, don't bother
+                // if req.query.invalidate, don't bother
                 if (util.isInvalidateTrue(req))
                 {
                     next();

@@ -155,8 +155,8 @@ exports = module.exports = function()
 {
     var handleLogin = function(req, res, next)
     {
-        var successUrl = req.param("successUrl");
-        var failureUrl = req.param("failureUrl");
+        var successUrl = req.query["successUrl"];
+        var failureUrl = req.query["failureUrl"];
 
         var options = {
             session: false
@@ -221,11 +221,11 @@ exports = module.exports = function()
 
     var handleLogout = function(req, res, next)
     {
-        var redirectUri = req.param("redirectUri");
+        var redirectUri = req.query["redirectUri"];
 
         req.logout();
 
-        var ticket = req.param("ticket");
+        var ticket = req.query["ticket"];
         if (ticket)
         {
             Gitana.disconnect(ticket);
@@ -430,6 +430,7 @@ exports = module.exports = function()
      *    /preview/node/{nodeId}
      *    /preview/node/{nodeId}/{previewId}
      *    /preview/repository/{repositoryId}/branch/{branchId}/node/{nodeId}/{previewId}
+     *    /preview/repository/{repositoryId}/branch/{branchId}/node/{nodeId}?name={previewId}
      *    /preview/repository/{repositoryId}/branch/{branchId}/path/A/B/C/D/{previewId}
      *    /s/{applicationsPath}
      *
@@ -662,15 +663,15 @@ exports = module.exports = function()
 
                     // pass in the ?metadata=true parameter to get back the JSON for any Gitana object
                     // otherwise, the "default" attachment is gotten
-                    if (req.param("metadata"))
+                    if (req.query["metadata"])
                     {
                         attachmentId = null;
                     }
 
                     // or override the attachmentId
-                    if (req.param("attachment"))
+                    if (req.query["attachment"])
                     {
-                        attachmentId = req.param("attachment");
+                        attachmentId = req.query["attachment"];
                     }
 
                     // check whether there is a file matching this uri
@@ -679,13 +680,13 @@ exports = module.exports = function()
                     }
 
                     // the cache can be invalidated with either the "force" or "invalidate" request parameters
-                    var forceCommand = req.param("force") ? req.param("force") : false;
-                    var invalidateCommand = req.param("invalidate") ? req.param("invalidate") : false;
+                    var forceCommand = req.query["force"] ? req.query["force"] : false;
+                    var invalidateCommand = req.query["invalidate"] ? req.query["invalidate"] : false;
                     var forceReload = forceCommand || invalidateCommand;
 
                     // whether to set content disposition on response
                     var useContentDispositionResponse = false;
-                    var a = req.param("a");
+                    var a = req.query["a"];
                     if (a === "true") {
                         useContentDispositionResponse = true;
                     }
@@ -726,10 +727,10 @@ exports = module.exports = function()
                         }
                         else
                         {
-                            if (req.param("fallback"))
+                            if (req.query["fallback"])
                             {
                                 // redirect to the fallback
-                                res.redirect(req.param("fallback"));
+                                res.redirect(req.query["fallback"]);
                                 return;
                             }
 
@@ -770,17 +771,17 @@ exports = module.exports = function()
 
                     if (!previewId)
                     {
-                        previewId = req.param("name");
+                        previewId = req.query["name"];
                     }
 
                     // mimetype (allow null or undefined)
-                    var mimetype = req.param("mimetype");
+                    var mimetype = req.query["mimetype"];
 
                     // determine attachment id
                     var attachmentId = "default";
-                    if (req.param("attachment"))
+                    if (req.query["attachment"])
                     {
-                        attachmentId = req.param("attachment");
+                        attachmentId = req.query["attachment"];
                     }
 
                     var requestedFilename = null;
@@ -805,19 +806,19 @@ exports = module.exports = function()
                     // server side will sort this out for us
 
                     // size
-                    var size = req.param("size") ? req.param("size") : -1;
+                    var size = req.query["size"] ? req.query["size"] : -1;
                     if (size && (typeof(size) == "string"))
                     {
                         size = parseInt(size, 10);
                     }
 
                     // force
-                    var forceReload = req.param("force") ? req.param("force") : false;
+                    var forceReload = req.query["force"] ? req.query["force"] : false;
 
                     // whether to set content disposition on response
                     var useContentDispositionResponse = false;
-                    var a = req.param("a");
-                    if (a == "true") {
+                    var a = req.query["a"];
+                    if (a === "true") {
                         useContentDispositionResponse = true;
                     }
 
@@ -862,10 +863,10 @@ exports = module.exports = function()
                         }
                         else
                         {
-                            if (req.param("fallback"))
+                            if (req.query["fallback"])
                             {
                                 // redirect to the fallback
-                                res.redirect(req.param("fallback"));
+                                res.redirect(req.query["fallback"]);
                                 return;
                             }
 
@@ -1071,26 +1072,26 @@ exports = module.exports = function()
 
                     // pass in the ?metadata=true parameter to get back the JSON for any Gitana object
                     // otherwise, the "default" attachment is gotten
-                    if (req.param("metadata"))
+                    if (req.query["metadata"])
                     {
                         attachmentId = null;
                     }
 
                     // or override the attachmentId
-                    if (req.param("attachment"))
+                    if (req.query["attachment"])
                     {
-                        attachmentId = req.param("attachment");
+                        attachmentId = req.query["attachment"];
                     }
 
                     // the cache can be invalidated with either the "force" or "invalidate" request parameters
-                    var forceCommand = req.param("force") ? req.param("force") : false;
-                    var invalidateCommand = req.param("invalidate") ? req.param("invalidate") : false;
+                    var forceCommand = req.query["force"] ? req.query["force"] : false;
+                    var invalidateCommand = req.query["invalidate"] ? req.query["invalidate"] : false;
                     var forceReload = forceCommand || invalidateCommand;
 
                     // whether to set content disposition on response
                     var useContentDispositionResponse = false;
-                    var a = req.param("a");
-                    if (a == "true") {
+                    var a = req.query["a"];
+                    if (a === "true") {
                         useContentDispositionResponse = true;
                     }
 
@@ -1130,10 +1131,10 @@ exports = module.exports = function()
                         }
                         else
                         {
-                            if (req.param("fallback"))
+                            if (req.query["fallback"])
                             {
                                 // redirect to the fallback
-                                res.redirect(req.param("fallback"));
+                                res.redirect(req.query["fallback"]);
                                 return;
                             }
 
@@ -1163,14 +1164,14 @@ exports = module.exports = function()
 
                     if (!previewId)
                     {
-                        previewId = req.param("name");
+                        previewId = req.query["name"];
                     }
 
                     // determine attachment id
                     var attachmentId = "default";
-                    if (req.param("attachment"))
+                    if (req.query["attachment"])
                     {
-                        attachmentId = req.param("attachment");
+                        attachmentId = req.query["attachment"];
                     }
 
                     var requestedFilename = null;
@@ -1186,22 +1187,22 @@ exports = module.exports = function()
                     }
 
                     // size
-                    var size = req.param("size") ? req.param("size") : -1;
+                    var size = req.query["size"] ? req.query["size"] : -1;
                     if (size && (typeof(size) == "string"))
                     {
                         size = parseInt(size, 10);
                     }
 
                     // mimetype (allow null or undefined)
-                    var mimetype = req.param("mimetype");
+                    var mimetype = req.query["mimetype"];
 
                     // force
-                    var forceReload = req.param("force") ? req.param("force") : false;
+                    var forceReload = req.query["force"] ? req.query["force"] : false;
 
                     // whether to set content disposition on response
                     var useContentDispositionResponse = false;
-                    var a = req.param("a");
-                    if (a == "true") {
+                    var a = req.query["a"];
+                    if (a === "true") {
                         useContentDispositionResponse = true;
                     }
 
@@ -1246,10 +1247,10 @@ exports = module.exports = function()
                         }
                         else
                         {
-                            if (req.param("fallback"))
+                            if (req.query["fallback"])
                             {
                                 // redirect to the fallback
-                                res.redirect(req.param("fallback"));
+                                res.redirect(req.query["fallback"]);
                                 return;
                             }
 
