@@ -954,3 +954,66 @@ var safeReadFile = exports.safeReadFile = function(contentStore, filePath, callb
         });
     });
 };
+
+/**
+ * Finds whether the type of a variable is function.
+ * @param {Any} obj The variable being evaluated.
+ * @returns {Boolean} True if the variable is a function, false otherwise.
+ */
+var isFunction = exports.isFunction = function(obj) {
+    return Object.prototype.toString.call(obj) === "[object Function]";
+};
+
+/**
+ * Finds whether the type of a variable is string.
+ * @param {Any} obj The variable being evaluated.
+ * @returns {Boolean} True if the variable is a string, false otherwise.
+ */
+var isString = exports.isString = function(obj) {
+    return (typeof obj === "string");
+};
+
+/**
+ * Finds whether the type of a variable is object.
+ * @param {Any} obj The variable being evaluated.
+ * @returns {Boolean} True if the variable is an object, false otherwise.
+ */
+var isObject = exports.isObject = function(obj) {
+    return !isUndefined(obj) && Object.prototype.toString.call(obj) === '[object Object]';
+};
+
+/**
+ * Finds whether the type of a variable is number.
+ * @param {Any} obj The variable being evaluated.
+ * @returns {Boolean} True if the variable is a number, false otherwise.
+ */
+var isNumber = exports.isNumber = function(obj) {
+    return (typeof obj === "number");
+};
+
+/**
+ * Finds whether the type of a variable is array.
+ * @param {Any} obj The variable being evaluated.
+ * @returns {Boolean} True if the variable is an array, false otherwise.
+ */
+var isArray = exports.isArray = function(obj) {
+    return obj instanceof Array;
+};
+
+/**
+ * Finds whether the type of a variable is boolean.
+ * @param {Any} obj The variable being evaluated.
+ * @returns {Boolean} True if the variable is a boolean, false otherwise.
+ */
+var isBoolean = exports.isBoolean = function(obj) {
+    return (typeof obj === "boolean");
+};
+
+/**
+ * Finds whether the type of a variable is undefined.
+ * @param {Any} obj The variable being evaluated.
+ * @returns {Boolean} True if the variable is a undefined, false otherwise.
+ */
+var isUndefined = exports.isUndefined = function(obj) {
+    return (typeof obj == "undefined");
+};

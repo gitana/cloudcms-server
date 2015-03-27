@@ -4,6 +4,8 @@ var http = require('http');
 var crypto = require('crypto');
 var async = require("async");
 
+var util = require("../util/util");
+
 /**
  * Populates Cloud CMS server helper methods into a dust instance.
  *
@@ -1829,6 +1831,97 @@ exports = module.exports = function(dust)
                 });
             });
         });
+    };
+
+    /**
+     * Iterate helper, looks over a given object.
+     *
+     * Example:
+     *    {@iterate over=obj}{$key}-{$value} of type {$type}{~n}{/iterate}
+     *
+     * @param key - object of the iteration - Mandatory parameter
+     * @param sort - Optional. If omitted, no sort is done. Values allowed:
+     *  sort="1" - sort ascending (per JavaScript array sort rules)
+     *  sort="-1" - sort descending
+     */
+    dust.helpers.iterate = dust.helpers.it = function (chunk, context, bodies, params)
+    {
+        params = params || {};
+
+        var over = dust.helpers.tap(params.over, chunk, context);
+        if (!over) {
+            console.log("Missing over");
+            return chunk;
+        }
+
+        var sort = dust.helpers.tap(params.sort, chunk, context);
+        if (typeof(sort) === "undefined") {
+            sort = "asc";
+        }
+
+        var body = bodies.block;
+        if (!body)
+        {
+            console.log('Missing body block in the iter helper.');
+            return chunk;
+        }
+
+        var desc = function(a, b) {
+            if (a < b) {
+                return 1;
+            } else if (a > b) {
+                return -1;
+            }
+            return 0;
+        };
+
+        var processBody = function(key, value) {
+            return body(chunk, context.push({
+                $key: key,
+                $value: value,
+                $type: typeof(value)
+            }));
+        };
+
+        // if it is an object
+        if (util.isObject(over) || util.isArray(over))
+        {
+            if (typeof(params.sort) !== "undefined")
+            {
+                var keys = [];
+                for (var k in over)
+                {
+                    if (over.hasOwnProperty(k))
+                    {
+                        keys.push(k);
+                    }
+                }
+
+                if (sort === "-1" || sort === "desc") {
+                    keys.sort(desc);
+                }
+                else if (sort === "1" || sort === "asc") {
+                    keys.sort();
+                }
+
+                for (var i = 0; i < keys.length; i++) {
+                    chunk = processBody(keys[i], over[keys[i]]);
+                }
+            }
+            else
+            {
+                for (var k in over)
+                {
+                    if (over.hasOwnProperty(k))
+                    {
+                        chunk = processBody(k, over[k]);
+                    }
+                }
+            }
+        }
+
+        return chunk;
+
     };
 
 };
