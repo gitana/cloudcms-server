@@ -225,20 +225,24 @@ exports = module.exports = function()
     if (proxyScheme.toLowerCase() === "https")
     {
         proxyConfig.agent = new ForeverAgent.SSL({
-            maxSockets: 500,
-            maxFreeSockets: 100
+            //maxSockets: 500,
+            //maxFreeSockets: 100,
+            keepAlive: true,
+            keepAliveMsecs: 1000 * 60 * 5
         });
     }
     else if (proxyScheme.toLowerCase() === "http")
     {
         proxyConfig.agent = new ForeverAgent({
-            maxSockets: 500,
-            maxFreeSockets: 100
+            //maxSockets: 500,
+            //maxFreeSockets: 100,
+            keepAlive: true,
+            keepAliveMsecs: 1000 * 60 * 5
         });
     }
 
     proxyConfig.keepAlive = true;
-    //proxyConfig.keepAliveMsecs = 1000 * 60 * 5;
+    proxyConfig.keepAliveMsecs = 1000 * 60 * 5;
 
     var proxyServer = new httpProxy.createProxyServer(proxyConfig);
 
