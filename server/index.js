@@ -600,7 +600,7 @@ var startSlave = function(config, afterStartFn)
             }
 
             app.use(cookieParser("secret"));
-            app.use(methodOverride());
+            //app.use(methodOverride());
             //app.use(express.session({ secret: 'secret', store: sessionStore }));
             app.use(session({
                 secret: 'secret',
