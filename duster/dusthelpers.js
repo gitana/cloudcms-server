@@ -1862,14 +1862,18 @@ exports = module.exports = function(dust)
         var body = bodies.block;
         if (!body)
         {
-            console.log('Missing body block in the iter helper.');
+            console.log('Missing body block in the iterate helper.');
             return chunk;
         }
 
+        var asc = function(a, b) {
+            return desc(a, b) * -1;
+        };
+
         var desc = function(a, b) {
-            if (a < b) {
+            if (a.sortable < b.sortable) {
                 return 1;
-            } else if (a > b) {
+            } else if (a.sortable > b.sortable) {
                 return -1;
             }
             return 0;
@@ -1883,33 +1887,52 @@ exports = module.exports = function(dust)
             }));
         };
 
-        // if it is an object
         if (util.isObject(over) || util.isArray(over))
         {
             if (typeof(params.sort) !== "undefined")
             {
-                var keys = [];
+                // construct sort elements
+                var elements = [];
                 for (var k in over)
                 {
                     if (over.hasOwnProperty(k))
                     {
-                        keys.push(k);
+                        var element = {};
+                        element.key = k;
+                        element.value = over[k];
+
+                        if (util.isObject(over))
+                        {
+                            element.sortable = k;
+                        }
+                        else if (util.isArray(over))
+                        {
+                            element.sortable = over[k];
+                        }
+
+                        elements.push(element);
                     }
                 }
 
-                if (sort === "-1" || sort === "desc") {
-                    keys.sort(desc);
+                // run the sort
+                if (sort === "-1" || sort === "desc")
+                {
+                    elements.sort(desc);
                 }
-                else if (sort === "1" || sort === "asc") {
-                    keys.sort();
+                else if (sort === "1" || sort === "asc")
+                {
+                    elements.sort(asc);
                 }
 
-                for (var i = 0; i < keys.length; i++) {
-                    chunk = processBody(keys[i], over[keys[i]]);
+                // process in order
+                for (var i = 0; i < elements.length; i++)
+                {
+                    chunk = processBody(elements[i].key, elements[i].value);
                 }
             }
             else
             {
+                // just do the natural order
                 for (var k in over)
                 {
                     if (over.hasOwnProperty(k))
@@ -1921,7 +1944,6 @@ exports = module.exports = function(dust)
         }
 
         return chunk;
-
     };
 
 };
