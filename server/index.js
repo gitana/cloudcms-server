@@ -25,6 +25,7 @@ var cluster = require("cluster");
 
 var app = express();
 params.extend(app);
+app.disable('x-powered-by');
 
 // cloudcms app server support
 var main = require("../index");
@@ -515,6 +516,12 @@ var startSlave = function(config, afterStartFn)
 
                 req._log = req.log;
 
+                next();
+            });
+
+            // some cosmetic things
+            app.use(function (req, res, next) {
+                res.header("X-Powered-By", "Cloud CMS");
                 next();
             });
 

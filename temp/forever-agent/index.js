@@ -20,7 +20,8 @@ function ForeverAgent(options) {
     if (self.requests[name] && self.requests[name].length) {
       self.requests[name].shift().onSocket(socket)
     //} else if (self.sockets[name].length < self.minSockets) { // TODO: changed by uzi
-    } else if (self.sockets[name] && self.sockets[name].length < self.minSockets) {
+    //} else if (self.sockets[name] && self.sockets[name].length < self.minSockets) { // TODO: old attempt
+    } else if (!self.sockets[name] || self.sockets[name] && self.sockets[name].length < self.minSockets) {
       if (!self.freeSockets[name]) self.freeSockets[name] = []
       self.freeSockets[name].push(socket)
       

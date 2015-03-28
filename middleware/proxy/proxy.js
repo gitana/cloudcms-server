@@ -238,7 +238,7 @@ exports = module.exports = function()
     }
 
     proxyConfig.keepAlive = true;
-    proxyConfig.keepAliveMsecs = 1000 * 60 * 5;
+    //proxyConfig.keepAliveMsecs = 1000 * 60 * 5;
 
     var proxyServer = new httpProxy.createProxyServer(proxyConfig);
 
@@ -335,6 +335,8 @@ exports = module.exports = function()
         util.setHeaderOnce(res, "Cache-Control", "no-store");
         util.setHeaderOnce(res, "Pragma", "no-cache");
         util.setHeaderOnce(res, "Expires", "Mon, 7 Apr 2012, 16:00:00 GMT"); // already expired
+
+        util.setHeader(res, "X-Powered-By", "Cloud CMS Application Server");
 
         proxyServer.web(req, res);
     });
