@@ -135,9 +135,9 @@ exports = module.exports = function(engineConfig)
 
                             if (err) {
                                 err.sendFailed = true;
-                                callback(err);
-                                return;
                             }
+
+                            callback(err);
                         });
 
                     });

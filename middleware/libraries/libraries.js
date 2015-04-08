@@ -50,7 +50,7 @@ exports = module.exports = function()
             var doGitanaInject = false;
             var dirPath = "../../web";
 
-            if (uri == "/gitana/gitana.js" || uri == "/gitana.js" || uri == "/gitana/gitana.min.js")
+            if (uri === "/gitana/gitana.js" || uri === "/gitana.js" || uri === "/gitana/gitana.min.js")
             {
                 // we serve this right from node_modules
                 dirPath = GITANA_JS_PATH;
@@ -90,7 +90,7 @@ exports = module.exports = function()
 
     var wrapWithGitanaInjection = function(req, res, next)
     {
-        var _sendFile = res.sendFile;
+        //var _sendFile = res.sendFile;
         var _send = res.send;
 
         res.sendFile = function(filePath, options, fn)

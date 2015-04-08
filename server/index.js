@@ -11,12 +11,10 @@ var async = require('../util/async');
 
 var morgan = require("morgan");
 var bodyParser = require("body-parser");
-var methodOverride = require('method-override');
 var errorHandler = require("errorhandler");
 var multipart = require("connect-multiparty");
 var session = require('express-session');
 var cookieParser = require('cookie-parser');
-var params = require('express-params');
 
 var util = require("../util/util");
 
@@ -24,7 +22,6 @@ var launchPad = require("../launchpad");
 var cluster = require("cluster");
 
 var app = express();
-params.extend(app);
 app.disable('x-powered-by');
 
 // cloudcms app server support
@@ -496,7 +493,7 @@ var startSlave = function(config, afterStartFn)
                     var finalColor = "\x1b[0m";
 
                     // in production, don't use colors
-                    if (process.env.CLOUDCMS_APPSERVER_MODE == "production") {
+                    if (process.env.CLOUDCMS_APPSERVER_MODE === "production") {
                         grayColor = "";
                         finalColor = "";
                     }
@@ -585,15 +582,15 @@ var startSlave = function(config, afterStartFn)
             app.set('port', process.env.PORT);
             app.set('views', process.env.CLOUDCMS_APPSERVER_BASE_PATH + "/views");
 
-            if (config.viewEngine == "dust") {
+            if (config.viewEngine === "dust") {
                 app.set('view engine', 'html');
                 var cons = require('consolidate');
                 app.engine('html', cons.dust);
             }
-            else if (config.viewEngine == "jade") {
+            else if (config.viewEngine === "jade") {
                 app.set('view engine', 'jade');
             }
-            else if (config.viewEngine == "handlebars" || config.viewEngine == "hbs") {
+            else if (config.viewEngine === "handlebars" || config.viewEngine === "hbs") {
                 app.set('view engine', 'html');
                 var hbs = require('hbs');
                 app.engine('html', hbs.__express);

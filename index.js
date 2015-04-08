@@ -397,7 +397,7 @@ exports = module.exports = function()
             res.set('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Authorization');
             // res.set('Access-Control-Allow-Max-Age', 3600);
 
-            if ('OPTIONS' == req.method) {
+            if ('OPTIONS' === req.method) {
                 return res.send(200);
             }
 
