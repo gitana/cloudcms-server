@@ -25,6 +25,7 @@ exports.bindGitana = function(socket, callback)
 
     // retain host on the socket instance
     socket.host = host;
+    socket.domainHost = host;
 
     // find the stores for this host
     stores.produce(host, function(err, stores) {

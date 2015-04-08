@@ -20,7 +20,7 @@ exports = module.exports = function()
 
     var resolveConfig = r.resolveConfig = function(holder, rootStore, callback)
     {
-        if (!holder.host)
+        if (!holder.domainHost)
         {
             callback({
                 "message": "Missing host"
@@ -48,7 +48,7 @@ exports = module.exports = function()
             callback();
         };
 
-        var cachedValue = GITANA_DRIVER_CONFIG_CACHE.read(holder.host);
+        var cachedValue = GITANA_DRIVER_CONFIG_CACHE.read(holder.domainHost);
         if (cachedValue)
         {
             if (cachedValue == "null")
@@ -88,7 +88,7 @@ exports = module.exports = function()
                             return;
                         }
 
-                        GITANA_DRIVER_CONFIG_CACHE.write(holder.host, {
+                        GITANA_DRIVER_CONFIG_CACHE.write(holder.domainHost, {
                             "config": gitanaConfig
                         });
 
@@ -98,7 +98,7 @@ exports = module.exports = function()
                 else
                 {
                     // mark with sentinel
-                    GITANA_DRIVER_CONFIG_CACHE.write(holder.host, "null");
+                    GITANA_DRIVER_CONFIG_CACHE.write(holder.domainHost, "null");
 
                     completionFunction();
                 }

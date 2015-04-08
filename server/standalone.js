@@ -64,7 +64,7 @@ server.report(function(callback) {
 
 // start the server
 server.start({
-    "setup": "single",
+    "setup": "cluster",
     "virtualHost": {
         "enabled": true
     },
