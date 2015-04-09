@@ -221,8 +221,11 @@ var setupSlave = function(factoryCallback, reportCallback, republishPacket) {
                  */
                 socket.once('data', function(data) {
 
+                    var identifier = "unknown";
+
                     var strData = data.toString().toLowerCase();
 
+                    // does the this string data include anything we can use?
                     var searchPos = strData.indexOf("x-forwarded-for");
                     if (!searchPos)
                     {
@@ -232,21 +235,33 @@ var setupSlave = function(factoryCallback, reportCallback, republishPacket) {
                     {
                         searchPos = strData.indexOf("host");
                     }
-                    if (!searchPos)
+
+                    // if we found something...
+                    if (searchPos)
                     {
-                        searchPos = "unknown";
+                        // strip out port if it is there
+                        searchPos = strData.indexOf(':', searchPos) + 1;
+                        strData = strData.substr(searchPos);
+
+                        var endPos = strData.search(/\r\n|\r|\n/, searchPos);
+                        identifier = strData.substr(0, endPos).trim();
+
+                        // only keep the first IP address or host if we have a chain "i.e. a, b, c"
+                        var idx = identifier.indexOf(",");
+                        if (idx > -1)
+                        {
+                            identifier = identifier.substring(0, idx);
+                        }
                     }
-
-                    searchPos = strData.indexOf(':', searchPos) + 1;
-                    strData = strData.substr(searchPos);
-
-                    var endPos = strData.search(/\r\n|\r|\n/, searchPos);
-                    strData = strData.substr(0, endPos).trim();
+                    else
+                    {
+                        // just keep the "unknown" default
+                    }
 
                     //Send acknowledge + data and identifier back to master
                     process.send({
                         cmd: 'launchpad:sync-ack',
-                        identifier: strData,
+                        identifier: identifier,
                         data: data
                     }, socket);
                 });
