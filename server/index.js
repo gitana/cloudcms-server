@@ -130,7 +130,8 @@ var SETTINGS = {
         "enabled": false // true
     },
     "wcm": {
-        "enabled": false // true
+        "enabled": false, // true
+        "cache": false
     },
     "serverTags": {
         "enabled": false // true

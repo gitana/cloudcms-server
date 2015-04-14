@@ -217,6 +217,7 @@ exports = module.exports = function()
     var preloadPages = function(req, callback)
     {
         var ensureInvalidate = function(callback) {
+
             // allow for forced invalidation via req param
             if (req.query["invalidate"]) {
                 req.cache.remove("wcmPages", function() {
@@ -249,7 +250,10 @@ exports = module.exports = function()
                 // load all wcm pages from the server
                 req.branch(function(err, branch) {
 
-                    branch.then(function () {
+                    branch.trap(function(err) {
+                        errorHandler(err);
+                        return;
+                    }).then(function () {
 
                         this.queryNodes({
                             "_type": "wcm:page"
@@ -338,6 +342,8 @@ exports = module.exports = function()
                 return;
             }
 
+            console.log("WRITING TO CACHE: " + uri);
+
             if (dependencies && dependencies.length > 0)
             {
                 dependencies.add(req, uri, dependencies, function (err) {
@@ -362,8 +368,8 @@ exports = module.exports = function()
         var contentStore = req.stores.content;
 
         var pageFilePath = path.join("wcm", "repositories", req.repositoryId, "branches", req.branchId, "pages", uri, "page.html");
-        util.safeReadStream(contentStore, pageFilePath, function(err, data) {
-            callback(err, data);
+        util.safeReadStream(contentStore, pageFilePath, function(err, stream) {
+            callback(err, stream);
         });
     };
 
@@ -543,15 +549,16 @@ exports = module.exports = function()
                             duster.execute(req, webStore, page.templatePath, model, function (err, text, dependencies) {
 
                                 if (err) {
-                                    res.status(500).send(err);
+                                    res.status(500);
+                                    res.send(err);
+                                    return;
                                 }
-                                else {
-                                    // write to page cache
-                                    console.log("WRITING TO CACHE: " + offsetPath);
-                                    handleCachePageWrite(req, offsetPath, dependencies, text, function(err) {
-                                        res.status(200).send.call(res, text);
-                                    });
-                                }
+
+                                // write to page cache
+                                handleCachePageWrite(req, offsetPath, dependencies, text, function(err) {
+                                    res.status(200);
+                                    res.send(text);
+                                });
 
                             });
                         });

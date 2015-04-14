@@ -76,11 +76,18 @@ var layer4HashBalancedConnectionListener = function(c)
 {
     // Get int31 hash of ip
     var random = crypto.randomBytes(4).readUInt32BE(0, true);
-    var worker = workers[random % workers.length];
+
+    var index = random % workers.length;
+
+    var worker = workers[index]
     if (worker)
     {
         // pass connection to worker
         worker.send('launchpad:sync', c);
+    }
+    else
+    {
+        console.log("NO WORKER!");
     }
 };
 
@@ -89,12 +96,15 @@ var layer4HashBalancedConnectionListener = function(c)
  */
 var patchConnection = function(c, fd)
 {
-    console.log("Patch Connection identifier: " + c.identifier);
-
     var identifierHash = hash((c.identifier || '').split(/\./g), seed);
-    var worker = workers[identifierHash % workers.length];
+
+    var index = identifierHash % workers.length;
+
+    var worker = workers[index];
     if (worker)
     {
+        console.log("Patch Connection identifier: " + c.identifier);
+
         // pass connection to worker
         worker.send({
             cmd: 'launchpad:connection',
@@ -155,8 +165,8 @@ var setupMaster = function(connectionListener, completionCallback) {
                     workers[i] = cluster.fork();
 
                     // Restart worker on exit
-                    workers[i].on('exit', function () {
-                        console.error('launchpad: worker died');
+                    workers[i].on('exit', function (e) {
+                        console.error('launchpad: worker died: ' + JSON.stringify(e));
                         spawn(i);
                     });
 
@@ -184,9 +194,7 @@ var setupMaster = function(connectionListener, completionCallback) {
 
     async.parallel(fns, function (err) {
 
-        var server = net.createServer(function(c) {
-            connectionListener(c);
-        });
+        var server = net.createServer(connectionListener);
 
         var port = process.env.PORT || 2999;
         server.listen(port);
@@ -212,6 +220,20 @@ var setupSlave = function(factoryCallback, reportCallback, republishPacket) {
         });
 
         process.on('message', function(msg, socket) {
+
+            if (!socket)
+            {
+                if (msg === "server-report")
+                {
+                    reportCallback();
+                    return;
+                }
+
+                console.log("Missing Socket");
+                console.log(msg);
+                console.log(JSON.stringify(msg, null, "  "));
+                return;
+            }
 
             if (msg === "launchpad:sync")
             {
@@ -278,10 +300,6 @@ var setupSlave = function(factoryCallback, reportCallback, republishPacket) {
                      */
                     republishPacket(socket, msg.data);
                 }
-            }
-            else if (msg === "server-report")
-            {
-                reportCallback();
             }
             else if (msg === "launchpad:connection")
             {

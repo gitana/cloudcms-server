@@ -64,12 +64,13 @@ server.report(function(callback) {
 
 // start the server
 server.start({
-    "setup": "cluster",
+    "setup": "single",
     "virtualHost": {
         "enabled": true
     },
     "wcm": {
-        "enabled": true
+        "enabled": true,
+        "cache": false
     },
     "serverTags": {
         "enabled": true

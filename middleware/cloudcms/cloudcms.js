@@ -322,7 +322,10 @@ exports = module.exports = function()
                     }
 
                     req.repository(function(err, repository) {
-                        Chain(repository).readBranch(req.branchId).then(function() {
+                        Chain(repository).trap(function(e) {
+                            next();
+                            return false;
+                        }).readBranch(req.branchId).then(function() {
                             req._branch = this;
                             callback(null, req._branch);
                         });

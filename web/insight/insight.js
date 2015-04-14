@@ -1,5 +1,5 @@
 /*
- Copyright 2013 Gitana Software, Inc.
+ Copyright 2015 Gitana Software, Inc.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -453,7 +453,6 @@
                 "timestamp": {
                     "ms": now
                 },
-                //"appKey": Insight.APPLICATION_KEY,
                 "sessionKey": SESSION_KEY,
                 "userKey": USER_KEY
             });
@@ -503,7 +502,6 @@
                 "timestamp": {
                     "ms": now
                 },
-                //"appKey": Insight.APPLICATION_KEY,
                 "sessionKey": SESSION_KEY,
                 "userKey": USER_KEY,
                 "page": contexts["page"](),
@@ -545,7 +543,6 @@
                 "type": event.currentTarget.nodeName,
                 "iid": insightId(event.currentTarget)
             },
-            //"appKey": Insight.APPLICATION_KEY,
             "sessionKey": SESSION_KEY,
             "userKey": USER_KEY,
             "page": contexts["page"](),
