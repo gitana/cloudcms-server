@@ -514,6 +514,11 @@ exports = module.exports = function()
      */
     var downloadNode = function(contentStore, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, callback)
     {
+        // ensure path starts with "/"
+        if (nodePath && nodePath.substring(0, 1) !== "/") {
+            nodePath = "/" + nodePath;
+        }
+
         // base storage directory
         generateContentDirectoryPath(contentStore, repositoryId, branchId, nodeId, locale, function(err, contentDirectoryPath) {
 
