@@ -352,6 +352,7 @@ exports = module.exports = function()
                 headers["Authorization"] = headers2["Authorization"];
 
                 var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT + uri;
+                console.log("URL: " + URL);
                 request({
                     "method": "GET",
                     "url": URL,
@@ -649,6 +650,11 @@ exports = module.exports = function()
             previewId = attachmentId;
         }
 
+        // ensure path starts with "/"
+        if (nodePath && nodePath.substring(0, 1) !== "/") {
+            nodePath = "/" + nodePath;
+        }
+
         // base storage directory
         generateContentDirectoryPath(contentStore, repositoryId, branchId, nodeId, locale, function(err, contentDirectoryPath) {
 
@@ -679,6 +685,9 @@ exports = module.exports = function()
                     var uri = "/repositories/" + repositoryId + "/branches/" + branchId + "/nodes/" + nodeId + "/preview/" + previewId;
                     // force content disposition information to come back
                     uri += "?a=true";
+                    if (forceReload) {
+                        uri += "&force=" + forceReload;
+                    }
                     if (nodePath) {
                         uri += "&path=" + nodePath;
                     }
@@ -690,9 +699,6 @@ exports = module.exports = function()
                     }
                     if (mimetype) {
                         uri += "&mimetype=" + mimetype;
-                    }
-                    if (forceReload) {
-                        uri += "&force=" + forceReload;
                     }
 
                     writeToDisk(contentStore, gitana, uri, filePath, function (err, filePath, responseHeaders) {
@@ -872,6 +878,9 @@ exports = module.exports = function()
                     // begin constructing a URI
                     var uri = generateURL(datastoreTypeId, datastoreId, objectTypeId, objectId, previewId);
                     uri += "?a=true";
+                    if (forceReload) {
+                        uri += "&force=" + forceReload;
+                    }
                     if (attachmentId) {
                         uri += "&attachment=" + attachmentId;
                     }
@@ -880,9 +889,6 @@ exports = module.exports = function()
                     }
                     if (mimetype) {
                         uri += "&mimetype=" + mimetype;
-                    }
-                    if (forceReload) {
-                        uri += "&force=" + forceReload;
                     }
 
                     writeToDisk(contentStore, gitana, uri, filePath, function (err, filePath, responseHeaders) {

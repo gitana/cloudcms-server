@@ -825,6 +825,9 @@ exports = module.exports = function()
                         useContentDispositionResponse = true;
                     }
 
+                    // the range requested (for streaming)
+                    var range = req.headers["range"];
+
                     cloudcmsUtil.preview(contentStore, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, function(err, filePath, cacheInfo) {
 
                         if (err)
@@ -836,6 +839,9 @@ exports = module.exports = function()
                         if (!err && filePath && cacheInfo)
                         {
                             var filename = resolveFilename(filePath, cacheInfo, requestedFilename);
+
+                            // disable the accept-ranges header
+                            res.setHeader("Accept-Ranges", "none");
 
                             if (useContentDispositionResponse)
                             {
