@@ -97,7 +97,7 @@ var rmdirRecursiveSync = function(directoryPath)
             try {
                 fs.unlinkSync(filepath);
             } catch (e) {
-                console.log("Unable to delete: " + filepath + ", err: " + JSON.stringify(e));
+                console.log("Unable to delete file: " + filepath + ", err: " + JSON.stringify(e));
             }
         }
         else if (isDirectory)
@@ -111,7 +111,11 @@ var rmdirRecursiveSync = function(directoryPath)
         }
     }
 
-    fs.rmdirSync(directoryPath);
+    try {
+        fs.rmdirSync(directoryPath);
+    } catch (e) {
+        console.log("Unable to delete directory: " + directoryPath + ", err: " + JSON.stringify(e));
+    }
 };
 
 var executeCommands = function(commands, logMethod, callback)
