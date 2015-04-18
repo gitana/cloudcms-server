@@ -94,7 +94,11 @@ var rmdirRecursiveSync = function(directoryPath)
         } catch (e) {}
         if (isLink || isFile)
         {
-            fs.unlinkSync(filepath);
+            try {
+                fs.unlinkSync(filepath);
+            } catch (e) {
+                console.log("Unable to delete: " + filepath + ", err: " + JSON.stringify(e));
+            }
         }
         else if (isDirectory)
         {
