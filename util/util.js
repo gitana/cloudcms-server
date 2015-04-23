@@ -1038,11 +1038,17 @@ var lookupMimeType = exports.lookupMimeType = function(ext) {
     // rely on the mimetype library for base handling
     var mimetype = mime.lookup(ext);
 
+    var extension = ext;
+    if (extension && extension.indexOf(".") === 0)
+    {
+        extension = ext.substring(1);
+    }
+
     // and then make some adjustments for things that it botches
-    if ("ttf" === ext) {
+    if ("ttf" === extension) {
         mimetype = "application/x-font-truetype";
     }
-    else if ("otf" === ext) {
+    else if ("otf" === extension) {
         mimetype = "application/x-font-opentype";
     }
 
