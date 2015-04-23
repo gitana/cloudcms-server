@@ -799,7 +799,8 @@ exports = module.exports = function()
                             if (extension)
                             {
                                 // see if we can determine the requested mimetype from the file extension of the previewId
-                                mimetype = mime.lookup(extension);
+                                mimetype = util.lookupMimeType(extension);
+                                //mimetype = mime.lookup(extension);
                             }
                             previewId = previewId.substring(0, p);
                         }

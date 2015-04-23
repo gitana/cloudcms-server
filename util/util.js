@@ -740,7 +740,8 @@ var applyResponseContentType = exports.applyResponseContentType = function(respo
     {
         var ext = path.extname(filename);
         if (ext) {
-            contentType = mime.lookup(ext);
+            //contentType = mime.lookup(ext);
+            contentType = lookupMimeType(ext);
         }
     }
 
@@ -754,7 +755,8 @@ var applyResponseContentType = exports.applyResponseContentType = function(respo
         var ext = path.extname(filename);
         if (ext)
         {
-            contentType = mime.lookup(ext);
+            //contentType = mime.lookup(ext);
+            contentType = lookupMimeType(ext);
         }
     }
 
@@ -1024,4 +1026,25 @@ var isBoolean = exports.isBoolean = function(obj) {
  */
 var isUndefined = exports.isUndefined = function(obj) {
     return (typeof obj == "undefined");
+};
+
+/**
+ * Looks up a mimetype for a given file extension.
+ *
+ * @type {Function}
+ */
+var lookupMimeType = exports.lookupMimeType = function(ext) {
+
+    // rely on the mimetype library for base handling
+    var mimetype = mime.lookup(ext);
+
+    // and then make some adjustments for things that it botches
+    if ("ttf" === ext) {
+        mimetype = "application/x-font-truetype";
+    }
+    else if ("otf" === ext) {
+        mimetype = "application/x-font-opentype";
+    }
+
+    return mimetype;
 };

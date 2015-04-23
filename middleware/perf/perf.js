@@ -210,7 +210,8 @@ exports = module.exports = function()
                             var ext = path.extname(filename);
                             if (ext)
                             {
-                                var mimetype = mime.lookup(ext);
+                                var mimetype = util.lookupMimeType(ext);
+                                //var mimetype = mime.lookup(ext);
                                 if (mimetype)
                                 {
                                     var isCSS = ("text/css" == mimetype);
