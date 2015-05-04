@@ -38,7 +38,7 @@ exports = module.exports = function()
     {
         if (req.gitanaConfig)
         {
-            if (req.method.toLowerCase() == "get")
+            if (req.method.toLowerCase() === "get" || req.method.toLowerCase() === "post")
             {
                 if (req.url.indexOf("/oauth/token") === 0)
                 {

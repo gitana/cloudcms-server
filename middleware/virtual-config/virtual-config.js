@@ -226,12 +226,13 @@ exports = module.exports = function()
                         // we're in production mode
 
                         var baseURL = gitanaJson.baseURL;
-                        if (!baseURL || baseURL.indexOf("http://localhost") === 0)
+                        if (baseURL && baseURL.indexOf("localhost") > -1)
                         {
                             // bad - kill it off and then load from remote
                             rootStore.deleteFile("gitana.json", function() {
                                 loadFromRemote();
                             });
+                            return;
                         }
                     }
                     else
@@ -239,19 +240,18 @@ exports = module.exports = function()
                         // we're in dev mode
 
                         var baseURL = gitanaJson.baseURL;
-                        if (!baseURL || baseURL.indexOf("http://localhost") !== 0)
+                        if (baseURL && baseURL.indexOf("localhost") === -1)
                         {
                             // bad - kill it off and then load from remote
                             rootStore.deleteFile("gitana.json", function() {
                                 loadFromRemote();
                             });
+                            return;
                         }
                     }
 
-                    if (exists)
-                    {
-                        callback(null, gitanaJson);
-                    }
+                    // otherwise, fine!
+                    callback(null, gitanaJson);
 
                 });
             }
