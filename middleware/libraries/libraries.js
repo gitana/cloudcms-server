@@ -131,7 +131,7 @@ exports = module.exports = function()
                         };
                         // NO, this does not get handed back
                         // FOR NOW, hand back because the Apache proxy doesn't auto-insert and we're still
-                        // using it for /console
+                        // using it for /admin
                         //if (json.clientSecret) {
                         //    config.clientSecret = json.clientSecret;
                         //}

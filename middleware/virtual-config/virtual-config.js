@@ -141,8 +141,8 @@ exports = module.exports = function()
     {
         rootStore.existsFile("gitana.json", function(exists) {
 
-            if (!exists)
-            {
+            var loadFromRemote = function() {
+
                 var CACHE_KEY = "vcSentinelFailed-" + host;
 
                 // check cache to see if we already tried to load this in the past few minutes and were sorely disappointed
@@ -205,8 +205,9 @@ exports = module.exports = function()
                         });
                     });
                 });
-            }
-            else
+            };
+
+            if (exists)
             {
                 // read gitana json and send back
                 rootStore.readFile("gitana.json", function(err, data) {
@@ -218,9 +219,45 @@ exports = module.exports = function()
                     }
 
                     var gitanaJson = JSON.parse(data.toString());
-                    callback(null, gitanaJson);
+
+                    // sanity check - is this for the right environment?
+                    if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
+                    {
+                        // we're in production mode
+
+                        var baseURL = gitanaJson.baseURL;
+                        if (!baseURL || baseURL.indexOf("http://localhost") === 0)
+                        {
+                            // bad - kill it off and then load from remote
+                            rootStore.deleteFile("gitana.json", function() {
+                                loadFromRemote();
+                            });
+                        }
+                    }
+                    else
+                    {
+                        // we're in dev mode
+
+                        var baseURL = gitanaJson.baseURL;
+                        if (!baseURL || baseURL.indexOf("http://localhost") !== 0)
+                        {
+                            // bad - kill it off and then load from remote
+                            rootStore.deleteFile("gitana.json", function() {
+                                loadFromRemote();
+                            });
+                        }
+                    }
+
+                    if (exists)
+                    {
+                        callback(null, gitanaJson);
+                    }
 
                 });
+            }
+            else
+            {
+                loadFromRemote();
             }
         });
     };
