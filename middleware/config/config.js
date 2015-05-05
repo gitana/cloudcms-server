@@ -114,6 +114,15 @@ exports = module.exports = function()
                                     "gadgetType": bindingConfig.type,
                                     "gadget": bindingConfig.key
                                 };
+
+                                // allow for page config to specify evaluator and condition
+                                if (pageConfig.page.evaluator) {
+                                    r.evaluator = pageConfig.page.evaluator;
+                                }
+                                if (pageConfig.page.condition) {
+                                    r.condition = pageConfig.page.condition;
+                                }
+
                                 array.push(r);
                             }
 
@@ -124,10 +133,21 @@ exports = module.exports = function()
                                 "pages": {
                                 }
                             };
+
+                            // allow for page config to specify evaluator and condition
+                            if (pageConfig.page.evaluator) {
+                                p.evaluator = pageConfig.page.evaluator;
+                            }
+                            if (pageConfig.page.condition) {
+                                p.condition = pageConfig.page.condition;
+                            }
+
                             // need to make a copy here since we're about to delete elements
                             p.config.pages[pageKey] = JSON.parse(JSON.stringify(pageConfig.page));
                             delete p.config.pages[pageKey].bindings;
                             delete p.config.pages[pageKey].gadgets;
+                            delete p.config.pages[pageKey].evaluator;
+                            delete p.config.pages[pageKey].condition;
                             array.push(p);
                         }
 

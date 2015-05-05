@@ -278,6 +278,18 @@ exports = module.exports = function(engineConfig)
 
             fs.stat(filePath, function(err, fileStats) {
 
+                if (err) {
+                    callback(err);
+                    return;
+                }
+
+                if (!fileStats) {
+                    callback({
+                        "message": "Unable to produce file stats for path: " + filePath
+                    });
+                    return;
+                }
+
                 var stats = {};
                 stats.directory = fileStats.isDirectory();
                 stats.file = fileStats.isFile();

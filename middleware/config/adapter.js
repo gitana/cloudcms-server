@@ -269,6 +269,9 @@ module.exports = function(configStore)
                     for (var i = 0; i < filenames.length; i++) {
                         var fn = function (filename, context) {
                             return function (done) {
+
+                                // NOTE: filename = module name
+
                                 configStore.fileStats(filename, function (err, stats) {
                                     if (stats.directory) {
                                         loadPages(path.join(filename, "pages"), "", context, function (err) {
