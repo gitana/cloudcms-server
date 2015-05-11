@@ -261,7 +261,7 @@ exports = module.exports = function()
         // used to auto-assign the client header for /oauth/token requests
         oauth2.autoProxy(req);
 
-        var updateSetCookieHost = function(value)
+        var updateSetCookieValue = function(value)
         {
             var newDomain = req.domainHost;
 
@@ -302,6 +302,7 @@ exports = module.exports = function()
 
             // now proceed
 
+            // replace the domain with the host
             var i = value.indexOf("Domain=");
             if (i > -1)
             {
@@ -316,6 +317,18 @@ exports = module.exports = function()
                 }
             }
 
+            // if the original request is secure, ensure cookies has "secure" set
+            var xForwardedHost = req.headers["x-forwarded-proto"];
+            if (req.secure || "https" === xForwardedHost)
+            {
+                var i = value.toLowerCase().indexOf("; secure");
+                var j = value.toLowerCase().indexOf(";secure");
+                if (i === -1 && j === -1)
+                {
+                    value += ";secure";
+                }
+            }
+
             return value;
         };
 
@@ -326,7 +339,7 @@ exports = module.exports = function()
             {
                 for (var x in value)
                 {
-                    value[x] = updateSetCookieHost(value[x]);
+                    value[x] = updateSetCookieValue(value[x]);
                 }
             }
 
