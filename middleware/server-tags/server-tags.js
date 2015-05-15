@@ -4,7 +4,7 @@ var http = require('http');
 
 var util = require("../../util/util");
 
-var duster = require("../../duster");
+var duster = require("../../duster/index");
 
 
 /**

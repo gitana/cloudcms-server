@@ -4,7 +4,7 @@ var http = require('http');
 var util = require("../../util/util");
 var uuid = require("node-uuid");
 var Gitana = require("gitana");
-var duster = require("../../duster");
+var duster = require("../../duster/index");
 
 var DESCRIPTOR_CACHE = require("../../cache/descriptors");
 var GITANA_DRIVER_CONFIG_CACHE = require("../../cache/driverconfigs");
@@ -165,7 +165,7 @@ exports = module.exports = function()
             }
 
             // construct a "root" store for this host
-            var storeService = require("../../middleware/stores/stores");
+            var storeService = require("../stores/stores");
             storeService.produce(host, function(err, stores) {
 
                 if (err) {
@@ -249,7 +249,7 @@ exports = module.exports = function()
             }
 
             // construct a "root" store for this host
-            var storeService = require("../../middleware/stores/stores");
+            var storeService = require("../stores/stores");
             storeService.produce(host, function(err, stores) {
 
                 if (err) {
@@ -309,7 +309,7 @@ exports = module.exports = function()
             }
 
             // construct a "root" store for this host
-            var storeService = require("../../middleware/stores/stores");
+            var storeService = require("../stores/stores");
             storeService.produce(host, function(err, stores) {
 
                 if (err) {
@@ -373,7 +373,7 @@ exports = module.exports = function()
             }
 
             // construct a "root" store for this host
-            var storeService = require("../../middleware/stores/stores");
+            var storeService = require("../stores/stores");
             storeService.produce(host, function(err, stores) {
 
                 if (err) {
@@ -431,7 +431,7 @@ exports = module.exports = function()
         };
 
         // construct a "root" store for this host
-        var storeService = require("../../middleware/stores/stores");
+        var storeService = require("../stores/stores");
         storeService.produce(host, function(err, stores) {
 
             if (err) {
@@ -493,7 +493,7 @@ exports = module.exports = function()
         }
 
         // construct a "root" store for this host
-        var storeService = require("../../middleware/stores/stores");
+        var storeService = require("../stores/stores");
         storeService.produce(host, function(err, stores) {
 
             if (err) {

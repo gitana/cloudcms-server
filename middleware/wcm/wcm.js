@@ -2,7 +2,7 @@ var path = require('path');
 var fs = require('fs');
 var http = require('http');
 var util = require("../../util/util");
-var duster = require("../../duster");
+var duster = require("../../duster/index");
 var async = require("async");
 var dependencies = require("./dependencies");
 

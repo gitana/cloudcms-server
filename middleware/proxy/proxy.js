@@ -9,7 +9,7 @@ var oauth2 = require("../../util/oauth2")();
 
 //var ForeverAgent = require('forever-agent');
 
-var ForeverAgent = require('../../temp/forever-agent');
+var ForeverAgent = require('../../temp/forever-agent/index');
 
 var util = require("../../util/util");
 

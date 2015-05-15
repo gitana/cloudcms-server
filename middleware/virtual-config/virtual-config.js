@@ -239,6 +239,7 @@ exports = module.exports = function()
                     {
                         // we're in dev mode
 
+                        /*
                         var baseURL = gitanaJson.baseURL;
                         if (baseURL && baseURL.indexOf("localhost") === -1)
                         {
@@ -248,6 +249,7 @@ exports = module.exports = function()
                             });
                             return;
                         }
+                        */
                     }
 
                     // otherwise, fine!

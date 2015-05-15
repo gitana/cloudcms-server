@@ -209,9 +209,7 @@ exports = module.exports = function()
 
                     console.log("Backing up: gitana.json to: " + backupFilename);
                     rootStore.writeFile(backupFilename, JSON.stringify(gitanaConfig, null, "  "), function(err) {
-                        console.log("a.3");
                         rootStore.removeFile(originalFilename, function(err) {
-                            console.log("a.4");
 
                             // remove from cache
                             GITANA_DRIVER_CONFIG_CACHE.invalidate(req.domainHost);

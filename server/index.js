@@ -18,7 +18,7 @@ var cookieParser = require('cookie-parser');
 
 var util = require("../util/util");
 
-var launchPad = require("../launchpad");
+var launchPad = require("../launchpad/index");
 var cluster = require("cluster");
 
 var app = express();
