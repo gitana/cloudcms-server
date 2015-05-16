@@ -65,6 +65,8 @@ exports = module.exports = function()
             if (doGitanaInject)
             {
                 wrapWithGitanaInjection(req, res);
+
+                util.setHeader(res, "Content-Type", "text/javascript");
             }
 
             util.setHeader(res, "Pragma", "no-cache");
