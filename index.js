@@ -71,6 +71,7 @@ exports = module.exports = function()
     var libraries = require("./middleware/libraries/libraries");
     var local = require("./middleware/local/local");
     var locale = require("./middleware/locale/locale");
+    var modules = require("./middleware/modules/modules");
     var perf = require("./middleware/perf/perf");
     var proxy = require("./middleware/proxy/proxy");
     var serverTags = require("./middleware/server-tags/server-tags");
@@ -290,6 +291,9 @@ exports = module.exports = function()
 
         // handles calls to the templates service
         app.use(templates.handler());
+
+        // handles calls to the modules service
+        app.use(modules.handler());
 
         // handles thirdparty browser libraries that are included with cloudcms-server
         app.use(libraries.handler());

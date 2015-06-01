@@ -196,6 +196,9 @@ var SETTINGS = {
     },
     "templates": {
         "enabled": true
+    },
+    "modules": {
+        "enabled": true
     }
 };
 
