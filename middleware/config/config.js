@@ -1,6 +1,8 @@
 var path = require('path');
 var util = require("../../util/util");
 
+var multistore = require("../stores/multistore");
+
 exports = module.exports = function()
 {
     var CACHED_ADAPTERS = {};
@@ -31,6 +33,7 @@ exports = module.exports = function()
 
     var handleConfigRequest = function(configStore, callback)
     {
+        // now bind adapter
         bindConfigAdapter(configStore, function(err, adapter) {
 
             if (err) {
@@ -185,11 +188,25 @@ exports = module.exports = function()
 
             var handled = false;
 
-            if (req.method.toLowerCase() == "get") {
+            if (req.method.toLowerCase() === "get") {
 
-                if (req.url.indexOf("/_config") == 0)
+                if (req.url.indexOf("/_config") === 0)
                 {
-                    handleConfigRequest(configStore, function(err, configArray) {
+                    // for any "modules" that are enabled based on virtual hosts, mount a config store per module
+                    // (if a config directory exists)
+                    var moduleConfigStores = [];
+
+                    // then wrap into a single multi-store wrapper
+                    var stores = [];
+                    for (var i = 0; i < moduleConfigStores.length; i++)
+                    {
+                        stores.push(moduleConfigStores[i]);
+                    }
+                    stores.push(configStore);
+
+                    var multiStore = multistore(stores);
+
+                    handleConfigRequest(multiStore, function(err, configArray) {
 
                         if (err) {
                             res.send({

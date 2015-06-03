@@ -90,10 +90,16 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
         });
     };
 
-    r.cleanup = function(callback)
+    r.cleanup = function(subpath, callback)
     {
+        if (typeof(subpath) === "function")
+        {
+            callback = subpath;
+            subpath = "/";
+
+        }
         debugStart("Start store.cleanup");
-        engine.removeDirectory(_enginePath("/"), function(err) {
+        engine.removeDirectory(_enginePath(subpath), function(err) {
             debugFinish("Finish store.cleanup");
             callback(err);
         });

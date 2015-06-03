@@ -216,7 +216,7 @@ var gitPull = function(directoryPath, gitUrl, sourceType, logMethod, callback)
  *
  * @type {*}
  */
-exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, logMethod, callback)
+exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, offsetPath, moveToPublic, logMethod, callback)
 {
     // this gets a little confusing, so here is what we have:
     //
@@ -282,44 +282,47 @@ exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, logMethod
                         tempRootDirectoryRelativePath = path.join(tempRootDirectoryRelativePath, relativePath);
                     }
 
-                    // if there isn't a "public" and there isn't a "public_build" directory,
-                    // then move files into public
-                    var publicExists = fs.existsSync(path.join(tempRootDirectoryRelativePath, "public"));
-                    var publicBuildExists = fs.existsSync(path.join(tempRootDirectoryRelativePath, "public_build"));
-                    if (!publicExists && !publicBuildExists)
+                    if (moveToPublic)
                     {
-                        fs.mkdirSync(path.join(tempRootDirectoryRelativePath, "public"));
-
-                        var filenames = fs.readdirSync(tempRootDirectoryRelativePath);
-                        if (filenames && filenames.length > 0)
+                        // if there isn't a "public" and there isn't a "public_build" directory,
+                        // then move files into public
+                        var publicExists = fs.existsSync(path.join(tempRootDirectoryRelativePath, "public"));
+                        var publicBuildExists = fs.existsSync(path.join(tempRootDirectoryRelativePath, "public_build"));
+                        if (!publicExists && !publicBuildExists)
                         {
-                            for (var i = 0; i < filenames.length; i++)
+                            fs.mkdirSync(path.join(tempRootDirectoryRelativePath, "public"));
+
+                            var filenames = fs.readdirSync(tempRootDirectoryRelativePath);
+                            if (filenames && filenames.length > 0)
                             {
-                                if (!shouldIgnore(path.join(tempRootDirectoryRelativePath, filenames[i])))
+                                for (var i = 0; i < filenames.length; i++)
                                 {
-                                    if ("config" === filenames[i])
+                                    if (!shouldIgnore(path.join(tempRootDirectoryRelativePath, filenames[i])))
                                     {
-                                        // skip this
-                                    }
-                                    else if ("gitana.json" === filenames[i])
-                                    {
-                                        // skip
-                                    }
-                                    else if ("descriptor.json" === filenames[i])
-                                    {
-                                        // skip
-                                    }
-                                    else if ("public" === filenames[i])
-                                    {
-                                        // skip
-                                    }
-                                    else if ("public_build" === filenames[i])
-                                    {
-                                        // skip
-                                    }
-                                    else
-                                    {
-                                        fs.renameSync(path.join(tempRootDirectoryRelativePath, filenames[i]), path.join(tempRootDirectoryRelativePath, "public", filenames[i]));
+                                        if ("config" === filenames[i])
+                                        {
+                                            // skip this
+                                        }
+                                        else if ("gitana.json" === filenames[i])
+                                        {
+                                            // skip
+                                        }
+                                        else if ("descriptor.json" === filenames[i])
+                                        {
+                                            // skip
+                                        }
+                                        else if ("public" === filenames[i])
+                                        {
+                                            // skip
+                                        }
+                                        else if ("public_build" === filenames[i])
+                                        {
+                                            // skip
+                                        }
+                                        else
+                                        {
+                                            fs.renameSync(path.join(tempRootDirectoryRelativePath, filenames[i]), path.join(tempRootDirectoryRelativePath, "public", filenames[i]));
+                                        }
                                     }
                                 }
                             }
@@ -327,7 +330,7 @@ exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, logMethod
                     }
 
                     // copy everything from temp dir into the store
-                    copyToStore(tempRootDirectoryRelativePath, rootStore, function(err) {
+                    copyToStore(tempRootDirectoryRelativePath, rootStore, offsetPath, function(err) {
 
                         // now remove temp directory
                         rmdir(tempRootDirectoryPath);
@@ -342,7 +345,7 @@ exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, logMethod
     });
 };
 
-var copyToStore = exports.copyToStore = function(sourceDirectory, targetStore, callback)
+var copyToStore = exports.copyToStore = function(sourceDirectory, targetStore, offsetPath, callback)
 {
     var f = function(filepath, fns) {
 
@@ -367,6 +370,7 @@ var copyToStore = exports.copyToStore = function(sourceDirectory, targetStore, c
                     // STORE: CREATE_FILE
                     fns.push(function (sourceFilePath, filepath, targetStore) {
                         return function (done) {
+                            console.log("source: " + sourceFilePath);
                             fs.readFile(sourceFilePath, function (err, data) {
 
                                 if (err) {
@@ -374,7 +378,15 @@ var copyToStore = exports.copyToStore = function(sourceDirectory, targetStore, c
                                     return;
                                 }
 
-                                targetStore.writeFile(filepath, data, function (err) {
+                                var targetFilePath = filepath;
+                                if (offsetPath)
+                                {
+                                    targetFilePath = path.join(offsetPath, targetFilePath);
+                                }
+
+                                console.log("target: " + targetFilePath);
+
+                                targetStore.writeFile(targetFilePath, data, function (err) {
                                     done(err);
                                 });
                             });

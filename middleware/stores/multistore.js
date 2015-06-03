@@ -2,13 +2,21 @@ var async = require("async");
 
 /**
  * Wraps a single store interface around multiple underlying stores.
- * Offers read-only support only.
+ * Offers read-only support (no write).
  *
  * @return {Function}
  */
-exports = module.exports = function(stores)
+exports = module.exports = function(originalStores)
 {
     var r = {};
+
+    // reverse stores
+    var stores = [];
+    for (var i = 0; i < originalStores.length; i++)
+    {
+        stores.push(originalStores[i]);
+    }
+    stores.reverse();
 
     var id = "multistore://";
     for (var i = 0; i < stores.length; i++)

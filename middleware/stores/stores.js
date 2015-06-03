@@ -18,7 +18,7 @@ exports = module.exports = function()
     var ENGINES = {};
 
     // keyed by host
-    var MODULE_DIRECTORY_PATHS = [];
+    var MODULE_DESCRIPTORS_BY_HOST = {};
 
     var buildStore = function(storeType, host, offsetPath)
     {
@@ -119,14 +119,23 @@ exports = module.exports = function()
         });
     };
 
-    var produce = r.produce = function(host, callback)
+    var produce = r.produce = function(host, offsetPath, callback)
     {
+        if (typeof(offsetPath) === "function")
+        {
+            callback = offsetPath;
+            offsetPath = null;
+        }
+
         var stores = {};
         stores["root"] = buildStore("root", host);
 
         // assume a few things...
-        stores["config"] = buildStore("config", host, "config");
         stores["content"] = buildStore("content", host, "content");
+        stores["modules"] = buildStore("modules", host, "modules");
+
+        // these will get overwritten in the binding methods below
+        stores["config"] = buildStore("config", host, "config");
         stores["templates"] = buildStore("templates", host, "templates");
 
         var bindWebStore = function(done) {
@@ -176,23 +185,51 @@ exports = module.exports = function()
 
         var bindModuleStores = function(done)
         {
-            var findModuleDirectoryPaths = function(callback)
+            var findModuleDescriptors = function(callback)
             {
-                // look for any module.json files in the web store
-                // these indicate module mount points and should be considered as part of our possible config set
-                stores.web.matchFiles("/", "module.json", function(err, moduleJsonFilePaths) {
+                var moduleDescriptors = [];
 
-                    var moduleDirectoryPaths = [];
+                // look for any module.json files in the modules store
+                // these indicate module mount points
+                stores.modules.matchFiles("/", "module.json", function(err, moduleJsonFilePaths) {
 
                     // collect matching paths
                     for (var i = 0; i < moduleJsonFilePaths.length; i++)
                     {
                         var moduleDirectoryPath = path.dirname(moduleJsonFilePaths[i]);
 
-                        moduleDirectoryPaths.push(moduleDirectoryPath);
+                        moduleDescriptors.push({
+                            "path": path.join("modules", moduleDirectoryPath),
+                            "store": "modules"
+                        });
+
+                        //console.log("Adding modules:module.json for path: " + moduleDirectoryPath);
                     }
 
-                    callback(moduleDirectoryPaths);
+                    // look for any module.json files in the web store
+                    // these indicate module mount points
+                    stores.web.matchFiles("/", "module.json", function(err, moduleJsonFilePaths) {
+
+                        // collect matching paths
+                        for (var i = 0; i < moduleJsonFilePaths.length; i++)
+                        {
+                            var moduleDirectoryPath = path.dirname(moduleJsonFilePaths[i]);
+
+                            if (stores.web.publicDir)
+                            {
+                                moduleDirectoryPath = path.join(stores.web.publicDir, moduleDirectoryPath);
+                            }
+
+                            moduleDescriptors.push({
+                                "path": path.join(moduleDirectoryPath),
+                                "store": "web"
+                            });
+
+                            //console.log("Adding web:module.json for path: " + moduleDirectoryPath);
+                        }
+
+                        callback(moduleDescriptors);
+                    });
                 });
             };
 
@@ -220,24 +257,21 @@ exports = module.exports = function()
                 });
             };
 
-            var bindConfigStores = function(moduleDirectoryPaths, callback)
+            var bindConfigStores = function(moduleDescriptors, callback)
             {
-                // module-specific config stores
-                var moduleStores = [];
-                for (var i = 0; i < moduleDirectoryPaths.length; i++)
+                // all config stores
+                var configStores = [];
+                for (var i = 0; i < moduleDescriptors.length; i++)
                 {
-                    var moduleDirectoryPath = moduleDirectoryPaths[i];
-                    if (stores.web.publicDir)
-                    {
-                        moduleDirectoryPath = path.join(stores.web.publicDir, moduleDirectoryPath);
-                    }
+                    var moduleStore = moduleDescriptors[i].store;
+                    var modulePath = moduleDescriptors[i].path;
 
-                    var moduleStore = buildStore("web", host, moduleDirectoryPath + "/config");
-                    moduleStores.push(moduleStore);
+                    var configStore = buildStore(moduleStore, host, path.join(modulePath, "config"));
+                    configStores.push(configStore);
                 }
 
                 // trim back and only keep stores that are allocated
-                retainAllocatedStores(moduleStores, function(err, allocatedStores) {
+                retainAllocatedStores(configStores, function(err, allocatedStores) {
 
                     // all stores to be bound in
                     var bindingStores = [];
@@ -245,6 +279,14 @@ exports = module.exports = function()
                     for (var i = 0; i < allocatedStores.length; i++) {
                         bindingStores.push(allocatedStores[i]);
                     }
+
+                    /*
+                    // debug
+                    for (var z = 0; z < bindingStores.length; z++)
+                    {
+                        console.log("Config Store: " + bindingStores[z].id);
+                    }
+                    */
 
                     // bind into a multi-store
                     stores["config"] = require("./multistore")(bindingStores);
@@ -253,31 +295,36 @@ exports = module.exports = function()
                 });
             };
 
-            var bindTemplateStores = function(moduleDirectoryPaths, callback)
+            var bindTemplateStores = function(moduleDescriptors, callback)
             {
-                // module-specific template stores
-                var moduleStores = [];
-                for (var i = 0; i < moduleDirectoryPaths.length; i++)
+                // all template stores
+                var templateStores = [];
+                for (var i = 0; i < moduleDescriptors.length; i++)
                 {
-                    var moduleDirectoryPath = moduleDirectoryPaths[i];
-                    if (stores.web.publicDir)
-                    {
-                        moduleDirectoryPath = path.join(stores.web.publicDir, moduleDirectoryPath);
-                    }
+                    var moduleStore = moduleDescriptors[i].store;
+                    var modulePath = moduleDescriptors[i].path;
 
-                    var moduleStore = buildStore("web", host, moduleDirectoryPath + "/templates");
-                    moduleStores.push(moduleStore);
+                    var templateStore = buildStore(moduleStore, host, path.join(modulePath, "/templates"));
+                    templateStores.push(templateStore);
                 }
 
                 // trim back and only keep stores that are allocated
-                retainAllocatedStores(moduleStores, function(err, allocatedStores) {
+                retainAllocatedStores(templateStores, function(err, allocatedStores) {
 
                     // all stores to be bound in
                     var bindingStores = [];
-                    bindingStores.push(stores.config);
                     for (var i = 0; i < allocatedStores.length; i++) {
                         bindingStores.push(allocatedStores[i]);
                     }
+                    bindingStores.push(stores.templates);
+
+                    /*
+                    // debug
+                    for (var z = 0; z < bindingStores.length; z++)
+                    {
+                        console.log("Template Store: " + bindingStores[z].id);
+                    }
+                    */
 
                     // bind into a multi-store
                     stores["templates"] = require("./multistore")(bindingStores);
@@ -286,15 +333,15 @@ exports = module.exports = function()
                 });
             };
 
-            var moduleDirectoryPaths = MODULE_DIRECTORY_PATHS[host];
-            if (!moduleDirectoryPaths)
+            var moduleDescriptors = MODULE_DESCRIPTORS_BY_HOST[host];
+            if (!moduleDescriptors)
             {
-                findModuleDirectoryPaths(function(moduleDirectoryPaths) {
+                findModuleDescriptors(function(moduleDescriptors) {
 
-                    MODULE_DIRECTORY_PATHS[host] = moduleDirectoryPaths;
+                    MODULE_DESCRIPTORS_BY_HOST[host] = moduleDescriptors;
 
-                    bindConfigStores(moduleDirectoryPaths, function () {
-                        bindTemplateStores(moduleDirectoryPaths, function() {
+                    bindConfigStores(moduleDescriptors, function () {
+                        bindTemplateStores(moduleDescriptors, function() {
                             done();
                         });
                     });
@@ -303,8 +350,8 @@ exports = module.exports = function()
             }
             else
             {
-                bindConfigStores(moduleDirectoryPaths, function() {
-                    bindTemplateStores(moduleDirectoryPaths, function() {
+                bindConfigStores(moduleDescriptors, function() {
+                    bindTemplateStores(moduleDescriptors, function() {
                         done();
                     });
                 });

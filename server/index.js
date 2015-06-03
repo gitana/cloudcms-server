@@ -88,28 +88,32 @@ var SETTINGS = {
             "config": "app",
             "web": "app",
             "content": "tmp",
-            "templates": "app"
+            "templates": "app",
+            "modules": "app"
         },
         "oneteam": {
             "root": "hosts_fs",
             "config": "app",
             "web": "app",
             "content": "hosts_fs",
-            "templates": "app"
+            "templates": "app",
+            "modules": "hosts_fs"
         },
         "net-development": {
             "root": "hosts_fs",
             "config": "hosts_fs",
             "web": "hosts_fs",
             "content": "hosts_fs",
-            "templates": "hosts_fs"
+            "templates": "hosts_fs",
+            "modules": "hosts_fs"
         },
         "net-production": {
             "root": "hosts_s3fs",
             "config": "hosts_s3fs",
             "web": "hosts_s3fs",
             "content": "hosts_s3fs",
-            "templates": "hosts_s3fs"
+            "templates": "hosts_s3fs",
+            "modules": "hosts_s3fs"
         },
         "net-development-s3": {
             "root": "hosts_s3",
@@ -123,7 +127,8 @@ var SETTINGS = {
             "config": "hosts_s3fs",
             "web": "hosts_s3fs",
             "content": "hosts_s3fs",
-            "templates": "hosts_s3fs"
+            "templates": "hosts_s3fs",
+            "modules": "hosts_s3fs"
         }
     },
     "virtualHost": {

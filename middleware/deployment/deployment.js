@@ -217,7 +217,7 @@ exports = module.exports = function()
                             sourcePath = "/";
                         }
                         if ("github" === sourceType || "bitbucket" == sourceType) {
-                            util.gitCheckout(host, sourceType, sourceUrl, sourcePath, req.log, function (err) {
+                            util.gitCheckout(host, sourceType, sourceUrl, sourcePath, null, true, req.log, function (err) {
 
                                 if (err) {
                                     callback(err, host);
@@ -550,9 +550,9 @@ exports = module.exports = function()
         {
             var handled = false;
 
-            if (req.method.toLowerCase() == "post") {
+            if (req.method.toLowerCase() === "post") {
 
-                if (req.url.indexOf("/_deploy") == 0)
+                if (req.url.indexOf("/_deploy") === 0)
                 {
                     doDeploy(req, req.body, function(err, host) {
 
@@ -576,7 +576,7 @@ exports = module.exports = function()
 
                     handled = true;
                 }
-                else if (req.url.indexOf("/_redeploy") == 0)
+                else if (req.url.indexOf("/_redeploy") === 0)
                 {
                     doUndeploy(req, req.body, function(err) {
 
@@ -612,7 +612,7 @@ exports = module.exports = function()
 
                     handled = true;
                 }
-                else if (req.url.indexOf("/_undeploy") == 0)
+                else if (req.url.indexOf("/_undeploy") === 0)
                 {
                     doUndeploy(req, req.body, function(err) {
 
@@ -635,7 +635,7 @@ exports = module.exports = function()
 
                     handled = true;
                 }
-                else if (req.url.indexOf("/_start") == 0)
+                else if (req.url.indexOf("/_start") === 0)
                 {
                     doStart(req, req.body, function(err) {
 
@@ -658,7 +658,7 @@ exports = module.exports = function()
 
                     handled = true;
                 }
-                else if (req.url.indexOf("/_restart") == 0)
+                else if (req.url.indexOf("/_restart") === 0)
                 {
                     doStop(req, req.body, function(err) {
 
@@ -694,7 +694,7 @@ exports = module.exports = function()
 
                     handled = true;
                 }
-                else if (req.url.indexOf("/_stop") == 0)
+                else if (req.url.indexOf("/_stop") === 0)
                 {
                     doStop(req, req.body, function(err) {
 
@@ -717,7 +717,7 @@ exports = module.exports = function()
 
                     handled = true;
                 }
-                else if (req.url.indexOf("/_cleanup") == 0)
+                else if (req.url.indexOf("/_cleanup") === 0)
                 {
                     var host = req.query["host"];
 
@@ -743,9 +743,9 @@ exports = module.exports = function()
                     handled = true;
                 }
             }
-            else if (req.method.toLowerCase() == "get") {
+            else if (req.method.toLowerCase() === "get") {
 
-                if (req.url.indexOf("/_info") == 0)
+                if (req.url.indexOf("/_info") === 0)
                 {
                     var host = req.query["host"];
 
@@ -770,7 +770,7 @@ exports = module.exports = function()
                     });
                     handled = true;
                 }
-                else if (req.url.indexOf("/_ping") == 0)
+                else if (req.url.indexOf("/_ping") === 0)
                 {
                     res.send({
                         "ok": true
