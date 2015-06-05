@@ -3,6 +3,8 @@ var util = require("../../util/util");
 var request = require("request");
 var async = require("async");
 
+var storeService = require("../stores/stores");
+
 exports = module.exports = function()
 {
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -63,6 +65,10 @@ exports = module.exports = function()
         if ("github" === sourceType || "bitbucket" == sourceType)
         {
             util.gitCheckout(host, sourceType, sourceUrl, sourcePath, "modules/" + moduleId, false, req.log, function (err) {
+
+                // invalidate any caching within the stores layer
+                storeService.invalidate(host);
+
                 callback(err);
             });
         }
@@ -75,6 +81,10 @@ exports = module.exports = function()
     var doUndeploy = function(req, host, moduleId, modulesStore, callback)
     {
         modulesStore.cleanup(moduleId, function(err) {
+
+            // invalidate any caching within the stores layer
+            storeService.invalidate(host);
+
             callback(err);
         });
     };

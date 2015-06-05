@@ -386,6 +386,11 @@ exports = module.exports = function()
         });
     };
 
+    r.invalidate = function(host)
+    {
+        delete MODULE_DESCRIPTORS_BY_HOST[host];
+    };
+
     /**
      * @return {Function}
      */
