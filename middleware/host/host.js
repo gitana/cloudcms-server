@@ -89,6 +89,12 @@ exports = module.exports = function()
                 }
             }
 
+            // strip out port if it's somehow on host
+            if (host && host.indexOf(":") > -1)
+            {
+                host = host.substring(0, host.indexOf(":"));
+            }
+
             req.domainHost = host;
 
             next();

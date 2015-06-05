@@ -19,92 +19,63 @@ exports = module.exports = function()
     //
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    var doDeploy = function(req, host, moduleId, source, callback)
+    var doDeploy = function(req, host, moduleId, store, moduleConfig, callback)
     {
-        // construct a "root" store for this host
-        var storeService = require("../stores/stores");
-        storeService.produce(host, function(err, stores) {
-
-            if (err) {
-                callback(err);
-                return;
-            }
-
-            var rootStore = stores.root;
-
-            rootStore.allocated(function(allocated) {
-
-                if (!allocated)
-                {
-                    callback({
-                        "message": "The application for host: " + host + " is not deployed"
-                    });
-                    return;
-                }
-
-                var sourceType = source.type;
-                if (!sourceType)
-                {
-                    callback({
-                        "message": "The source descriptor is missing the module 'type' field"
-                    });
-                    return;
-                }
-
-                var sourceUrl = source.uri;
-                if (!sourceUrl)
-                {
-                    callback({
-                        "message": "The source descriptor is missing the module 'uri' field"
-                    });
-                    return;
-                }
-
-                var sourcePath = source.path;
-                if (!sourcePath) {
-                    sourcePath = "/";
-                }
-
-                if ("github" === sourceType || "bitbucket" == sourceType)
-                {
-                    util.gitCheckout(host, sourceType, sourceUrl, sourcePath, "modules/" + moduleId, false, req.log, function (err) {
-                        callback(err);
-                    });
-                }
-                else
-                {
-                    callback();
-                }
-
+        if (!moduleConfig)
+        {
+            callback({
+                "message": "Missing module config argument"
             });
-        });
+            return;
+        }
+
+        if (!moduleConfig.source)
+        {
+            callback({
+                "message": "Missing module config source settings"
+            });
+            return;
+        }
+
+        var sourceType = moduleConfig.source.type;
+        if (!sourceType)
+        {
+            callback({
+                "message": "The source descriptor is missing the module 'type' field"
+            });
+            return;
+        }
+
+        var sourceUrl = moduleConfig.source.uri;
+        if (!sourceUrl)
+        {
+            callback({
+                "message": "The source descriptor is missing the module 'uri' field"
+            });
+            return;
+        }
+
+        var sourcePath = moduleConfig.source.path;
+        if (!sourcePath) {
+            sourcePath = "/";
+        }
+
+        if ("github" === sourceType || "bitbucket" == sourceType)
+        {
+            util.gitCheckout(host, sourceType, sourceUrl, sourcePath, "modules/" + moduleId, false, req.log, function (err) {
+                callback(err);
+            });
+        }
+        else
+        {
+            callback();
+        }
     };
 
-    var doUndeploy = function(req, host, moduleId, callback)
+    var doUndeploy = function(req, host, moduleId, modulesStore, callback)
     {
-        // construct a "root" store for this host
-        var storeService = require("../stores/stores");
-        storeService.produce(host, function(err, stores) {
-
-            if (err) {
-                callback(err);
-                return;
-            }
-
-            var rootStore = stores.root;
-            rootStore.allocated(function (allocated) {
-
-                if (!allocated) {
-                    callback({
-                        "message": "The application is not currently deployed."
-                    });
-                    return;
-                }
-
-                rootStore.cleanup("/modules/" + moduleId, function(err) {
-                    callback(err);
-                });
-            });
+        modulesStore.cleanup(moduleId, function(err) {
+            callback(err);
         });
     };
 
@@ -131,7 +102,7 @@ exports = module.exports = function()
                 {
                     var moduleId = req.query["id"];
 
-                    doDeploy(req, req.domainHost, moduleId, req.body, function(err, host) {
+                    doDeploy(req, req.domainHost, moduleId, stores.modules, req.body, function(err, host) {
 
                         if (err) {
                             res.send({
@@ -158,7 +129,7 @@ exports = module.exports = function()
                 {
                     var moduleId = req.query["id"];
 
-                    doUndeploy(req, req.domainHost, moduleId, function(err) {
+                    doUndeploy(req, req.domainHost, moduleId, stores.modules, function(err) {
 
                         if (err) {
                             res.send({
@@ -175,6 +146,48 @@ exports = module.exports = function()
                             "ok": true
                         });
                         res.end();
+                    });
+
+                    handled = true;
+                }
+                else if (req.url.indexOf("/_modules/_redeploy") === 0)
+                {
+                    var moduleId = req.query["id"];
+
+                    doUndeploy(req, req.domainHost, moduleId, stores.modules, function(err) {
+
+                        if (err) {
+                            res.send({
+                                "ok": false,
+                                "message": err.message,
+                                "err": err
+                            });
+                            res.end();
+                            return;
+                        }
+
+                        doDeploy(req, req.domainHost, moduleId, stores.modules, req.body, function(err, host) {
+
+                            if (err) {
+                                res.send({
+                                    "ok": false,
+                                    "message": err.message,
+                                    "err": err
+                                });
+                                res.end();
+                                return;
+                            }
+
+                            // respond with ok
+                            res.send({
+                                "ok": true,
+                                "host": host
+                            });
+
+                            res.end();
+                        });
+
+                        handled = true;
                     });
 
                     handled = true;

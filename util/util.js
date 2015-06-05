@@ -370,7 +370,7 @@ var copyToStore = exports.copyToStore = function(sourceDirectory, targetStore, o
                     // STORE: CREATE_FILE
                     fns.push(function (sourceFilePath, filepath, targetStore) {
                         return function (done) {
-                            console.log("source: " + sourceFilePath);
+                            //console.log("source: " + sourceFilePath);
                             fs.readFile(sourceFilePath, function (err, data) {
 
                                 if (err) {
@@ -384,7 +384,7 @@ var copyToStore = exports.copyToStore = function(sourceDirectory, targetStore, o
                                     targetFilePath = path.join(offsetPath, targetFilePath);
                                 }
 
-                                console.log("target: " + targetFilePath);
+                                //console.log("target: " + targetFilePath);
 
                                 targetStore.writeFile(targetFilePath, data, function (err) {
                                     done(err);
