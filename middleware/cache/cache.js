@@ -31,7 +31,7 @@ exports = module.exports = function()
     {
         if (!process.env.CLOUDCMS_CACHE_TYPE)
         {
-            process.env.CLOUDCMS_CACHE_TYPE = "memory";
+            process.env.CLOUDCMS_CACHE_TYPE = "shared-memory";
         }
 
         if (!process.configuration.cache.type)
@@ -56,7 +56,7 @@ exports = module.exports = function()
 
     var write = r.write = function(key, value, seconds, callback)
     {
-        if (typeof(seconds) == "function")
+        if (typeof(seconds) === "function")
         {
             callback = seconds;
             seconds = -1;

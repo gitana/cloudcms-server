@@ -1,10 +1,12 @@
-// all credits to
+// heavily adapted from
 // https://github.com/wzrdtales/socket-io-sticky-session
 
 var net = require("net");
 var cluster = require("cluster");
 var crypto = require("crypto");
 var async = require("async");
+
+var memored = require('../../temp/memored');
 
 var workers = [];
 var seed = crypto.randomBytes(4).readUInt32BE(0, true) % 0x80000000;
@@ -193,6 +195,9 @@ var setupMaster = function(connectionListener, completionCallback) {
     }
 
     async.parallel(fns, function (err) {
+
+        // start up shared memory
+        memored.setup({purgeInterval: 500});
 
         var server = net.createServer(connectionListener);
 

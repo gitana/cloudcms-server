@@ -1,6 +1,8 @@
 var cluster = require("cluster");
 var async = require("async");
 
+var memored = require('../../temp/memored');
+
 var workers = [];
 
 module.exports = function(options)
@@ -59,6 +61,9 @@ module.exports = function(options)
         }
 
         async.parallel(fns, function (err) {
+
+            // start up shared memory
+            memored.setup({purgeInterval: 500});
 
             // tell the first worker to report
             if (workers.length > 0)

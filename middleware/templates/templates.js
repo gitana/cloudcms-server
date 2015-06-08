@@ -24,7 +24,7 @@ exports = module.exports = function()
 
             var handled = false;
 
-            if (req.method.toLowerCase() == "get") {
+            if (req.method.toLowerCase() === "get") {
 
                 if (req.url.indexOf("/_templates") === 0)
                 {

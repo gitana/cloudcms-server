@@ -17,9 +17,6 @@ exports = module.exports = function()
 {
     var ENGINES = {};
 
-    // keyed by host
-    var MODULE_DESCRIPTORS_BY_HOST = {};
-
     var buildStore = function(storeType, host, offsetPath)
     {
         // figure out which store setup to use
@@ -84,19 +81,6 @@ exports = module.exports = function()
                     }
                 }
             }
-
-            /*
-            // on init, produce "{host}" for diagnosis
-            produce("<host>", function(err, stores) {
-
-                for (var k in stores)
-                {
-                    util.log("Store [" + k + "]: " + stores[k].id);
-                }
-
-                callback(err);
-            });
-            */
 
             callback(err);
         });
@@ -198,9 +182,13 @@ exports = module.exports = function()
                     {
                         var moduleDirectoryPath = path.dirname(moduleJsonFilePaths[i]);
 
+                        var moduleId = moduleDirectoryPath.split("/");
+                        moduleId = moduleId[moduleId.length - 1];
+
                         moduleDescriptors.push({
                             "path": path.join("modules", moduleDirectoryPath),
-                            "store": "modules"
+                            "store": "modules",
+                            "id": moduleId
                         });
 
                         //console.log("Adding modules:module.json for path: " + moduleDirectoryPath);
@@ -220,9 +208,13 @@ exports = module.exports = function()
                                 moduleDirectoryPath = path.join(stores.web.publicDir, moduleDirectoryPath);
                             }
 
+                            var moduleId = moduleDirectoryPath.split("/");
+                            moduleId = moduleId[moduleId.length - 1];
+
                             moduleDescriptors.push({
                                 "path": path.join(moduleDirectoryPath),
-                                "store": "web"
+                                "store": "web",
+                                "id": moduleId
                             });
 
                             //console.log("Adding web:module.json for path: " + moduleDirectoryPath);
@@ -333,30 +325,32 @@ exports = module.exports = function()
                 });
             };
 
-            var moduleDescriptors = MODULE_DESCRIPTORS_BY_HOST[host];
-            if (!moduleDescriptors)
-            {
-                findModuleDescriptors(function(moduleDescriptors) {
+            process.cache.read("module-descriptors-" + host, function(err, moduleDescriptors) {
 
-                    MODULE_DESCRIPTORS_BY_HOST[host] = moduleDescriptors;
+                if (!moduleDescriptors)
+                {
+                    findModuleDescriptors(function(moduleDescriptors) {
 
-                    bindConfigStores(moduleDescriptors, function () {
+                        process.cache.write("module-descriptors-" + host, moduleDescriptors);
+
+                        bindConfigStores(moduleDescriptors, function () {
+                            bindTemplateStores(moduleDescriptors, function() {
+                                done();
+                            });
+                        });
+
+                    });
+                }
+                else
+                {
+                    bindConfigStores(moduleDescriptors, function() {
                         bindTemplateStores(moduleDescriptors, function() {
                             done();
                         });
                     });
 
-                });
-            }
-            else
-            {
-                bindConfigStores(moduleDescriptors, function() {
-                    bindTemplateStores(moduleDescriptors, function() {
-                        done();
-                    });
-                });
-
-            }
+                }
+            });
         };
 
         var bindContentStore = function(done)
@@ -382,14 +376,24 @@ exports = module.exports = function()
         fns.push(bindContentStore);
 
         async.series(fns, function() {
-            callback(null, stores);
+
+            process.cache.read("module-descriptors-" + host, function(err, moduleDescriptorsForHost) {
+
+                if (!moduleDescriptorsForHost) {
+                    moduleDescriptorsForHost = [];
+                }
+
+                callback(null, stores, moduleDescriptorsForHost);
+
+            });
         });
     };
 
     r.invalidate = function(host)
     {
-        delete MODULE_DESCRIPTORS_BY_HOST[host];
+        process.cache.remove("module-descriptors-" + host);
     };
+
 
     /**
      * @return {Function}
@@ -398,7 +402,7 @@ exports = module.exports = function()
     {
         return function(req, res, next)
         {
-            produce(req.domainHost, function(err, stores) {
+            produce(req.domainHost, function(err, stores, moduleDescriptors) {
 
                 req.stores = stores;
 
@@ -406,6 +410,29 @@ exports = module.exports = function()
                 req.configStore = stores["config"];
                 req.contentStore = stores["content"];
                 req.webStore = stores["web"];
+                req.templatesStore = stores["templates"];
+                req.modulesStore = stores["modules"];
+
+                // write a cookie with module identifiers
+                var moduleIdentifiers = "";
+                if (moduleDescriptors)
+                {
+                    for (var i = 0; i < moduleDescriptors.length; i++)
+                    {
+                        if (moduleDescriptors[i].store === "modules")
+                        {
+                            if (moduleIdentifiers.length > 0) {
+                                moduleIdentifiers += ",";
+                            }
+                            moduleIdentifiers += moduleDescriptors[i].id;
+                        }
+                    }
+                }
+
+                if (req.path === "/" || req.path.indexOf(".html") > -1)
+                {
+                    res.cookie('cloudcmsModuleIdentifiers', moduleIdentifiers);
+                }
 
                 next();
             });
