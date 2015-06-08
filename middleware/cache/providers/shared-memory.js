@@ -53,7 +53,7 @@ exports = module.exports = function(cacheConfig)
             {
                 if (keys[i].indexOf(prefix) > -1)
                 {
-                    keepers.push(k);
+                    keepers.push(keys[i]);
                 }
             }
 
