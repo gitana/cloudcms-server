@@ -4,7 +4,7 @@ var http = require('http');
 var util = require("../../util/util");
 var duster = require("../../duster/index");
 var async = require("async");
-var dependencies = require("./dependencies");
+var dependenciesService = require("./dependencies");
 
 /**
  * WCM middleware.
@@ -310,12 +310,28 @@ exports = module.exports = function()
         });
     };
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //
+    // PAGE CACHE (WITH DEPENDENCIES)
+    //
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
     var isPageCacheEnabled = function()
     {
         var enabled = false;
 
         if (process.configuration.wcm && process.configuration.wcm.enabled)
         {
+            if (process.env.FORCE_CLOUDCMS_WCM_CACHE === "true")
+            {
+                process.configuration.wcm.cache = true;
+            }
+            else if (typeof(process.env.FORCE_CLOUDCMS_WCM_CACHE) === "boolean" && process.env.FORCE_CLOUDCMS_WCM_CACHE)
+            {
+                process.configuration.wcm.cache = true;
+            }
+
             enabled = process.configuration.wcm.cache;
         }
 
@@ -342,11 +358,11 @@ exports = module.exports = function()
                 return;
             }
 
-            console.log("WRITING TO CACHE: " + uri);
+            console.log("CACHE_WRITE: " + pageFilePath);
 
-            if (dependencies && dependencies.length > 0)
+            if (dependencies)
             {
-                dependencies.add(req, uri, dependencies, function (err) {
+                dependenciesService.add(req, uri, dependencies, function (err) {
                     callback(err);
                 });
             }
@@ -368,12 +384,12 @@ exports = module.exports = function()
         var contentStore = req.stores.content;
 
         var pageFilePath = path.join("wcm", "repositories", req.repositoryId, "branches", req.branchId, "pages", uri, "page.html");
+        console.log("CACHE_READ: " + pageFilePath);
         util.safeReadStream(contentStore, pageFilePath, function(err, stream) {
             callback(err, stream);
         });
     };
 
-    /*
     var handleCachePageInvalidate = function(req, uri, callback)
     {
         var contentStore = req.stores.content;
@@ -390,7 +406,7 @@ exports = module.exports = function()
             contentStore.deleteFile(pageFilePath, function (err) {
 
                 // invalidate all page dependencies
-                dependencies.remove(req, uri, function (err) {
+                dependenciesService.remove(req, uri, function (err) {
                     callback(err);
                 });
             });
@@ -452,7 +468,24 @@ exports = module.exports = function()
             }
         });
     };
-    */
+
+    var bindSubscriptions = function()
+    {
+        if (isPageCacheEnabled())
+        {
+            if (process.broadcast)
+            {
+                process.broadcast.subscribe("node_invalidation", function (message) {
+
+                    console.log("WCM heard node_invalidation: " + JSON.stringify(message));
+
+                    // TODO
+
+                });
+            }
+        }
+    };
+
 
 
 
@@ -472,6 +505,10 @@ exports = module.exports = function()
      */
     r.wcmHandler = function()
     {
+        // bind listeners for broadcast events
+        bindSubscriptions();
+
+        // wcm handler
         return util.createHandler("wcm", function(req, res, next, configuation, stores) {
 
             if (!req.gitana)

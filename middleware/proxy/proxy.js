@@ -317,6 +317,16 @@ exports = module.exports = function()
                 }
             }
 
+            // if the originating request isn't secure, strip out "secure" from cookie
+            if (!req.secure)
+            {
+                var i = value.indexOf("; Secure");
+                if (i > -1)
+                {
+                    value = value.substring(0, i);
+                }
+            }
+
             // if the original request is secure, ensure cookies has "secure" set
             var xForwardedHost = req.headers["x-forwarded-proto"];
             if (req.secure || "https" === xForwardedHost)

@@ -31,7 +31,14 @@ exports = module.exports = function()
     {
         if (!process.env.CLOUDCMS_CACHE_TYPE)
         {
-            process.env.CLOUDCMS_CACHE_TYPE = "shared-memory";
+            if (process.configuration.setup === "single")
+            {
+                process.env.CLOUDCMS_CACHE_TYPE = "memory";
+            }
+            else
+            {
+                process.env.CLOUDCMS_CACHE_TYPE = "shared-memory";
+            }
         }
 
         if (!process.configuration.cache.type)

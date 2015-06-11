@@ -4,6 +4,8 @@ var http = require('http');
 var crypto = require('crypto');
 var async = require("async");
 
+var dependencyUtil = require("../util/dependencyUtil");
+
 var util = require("../util/util");
 
 /**
@@ -305,7 +307,12 @@ exports = module.exports = function(dust)
 
                     var doQuery = function(branch, query, pagination)
                     {
-                        Chain(branch).queryNodes(query, pagination).then(function() {
+                        Chain(branch).queryNodes(query, pagination).each(function() {
+
+                            // DEPENDENCIES: TRACK
+                            dependencyUtil.track(context, "_doc", this._doc);
+
+                        }).then(function() {
                             handleResults.call(this);
                         });
                     };
@@ -318,7 +325,12 @@ exports = module.exports = function(dust)
                             console.log("ERR: " + JSON.stringify(err));
                         }).queryRelatives(query, {
                             "type": "wcm:page_has_content"
-                        }, pagination).then(function() {
+                        }, pagination).each(function(){
+
+                            // DEPENDENCIES: TRACK
+                            dependencyUtil.track(context, "_doc", this._doc);
+
+                        }).then(function() {
                             handleResults.call(this);
                         });
                     };
@@ -1797,7 +1809,7 @@ exports = module.exports = function(dust)
                     url += "&filters=" + filters;
                 }
 
-                console.log("URL:" + url);
+                //console.log("URL:" + url);
 
                 var request = require("request");
                 request(url, function (error, response, body) {

@@ -11,6 +11,11 @@ require("./dusthelpers")(dust);
  */
 var exports = module.exports;
 
+exports.applySetup = function(app, fn)
+{
+    fn(app, dust);
+};
+
 var populateContext = function(req, context, model, templateFilePath)
 {
     if (model)

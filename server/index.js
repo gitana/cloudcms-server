@@ -27,6 +27,9 @@ app.disable('x-powered-by');
 // cloudcms app server support
 var main = require("../index");
 
+// duster service
+var duster = require("../duster/index");
+
 var requestCounter = 0;
 
 // holds configuration settings
@@ -39,6 +42,7 @@ var SETTINGS = {
     "beforeFunctions": [],
     "afterFunctions": [],
     "reportFunctions": [],
+    "dustFunctions": [],
     "viewEngine": "handlebars",
     "storeEngines": {
         "app": {
@@ -269,6 +273,19 @@ exports.sockets = function (fn) {
  */
 exports.routes = function (fn) {
     SETTINGS.routeFunctions.push(fn);
+};
+
+/**
+ * Adds an initialization function to set up dust.
+ *
+ * The function must have signature fn(app, dust)
+ *
+ * @param fn
+ */
+exports.setupDust = function(fn) {
+    SETTINGS.dustFunctions.push(function(app, duster) {
+        duster.applySetup(app, fn);
+    });
 };
 
 /**
@@ -719,21 +736,25 @@ var startSlave = function(config, afterStartFn)
                     // SET INITIAL VALUE FOR SERVER TIMESTAMP
                     process.env.CLOUDCMS_APPSERVER_TIMESTAMP = new Date().getTime();
 
-                    // APPLY SERVER BEFORE START FUNCTIONS
-                    runFunctions(config.beforeFunctions, [app], function (err) {
+                    // DUST
+                    runFunctions(config.dustFunctions, [app, duster], function(err) {
 
-                        server._listenPort = app.get("port");
+                        // APPLY SERVER BEFORE START FUNCTIONS
+                        runFunctions(config.beforeFunctions, [app], function (err) {
 
-                        // AFTER SERVER START
-                        runFunctions(config.afterFunctions, [app], function (err) {
+                            server._listenPort = app.get("port");
 
-                            // if we are on a worker process, then inform the master that we completed
-                            if (process.send) {
-                                process.send("server-startup");
-                            }
+                            // AFTER SERVER START
+                            runFunctions(config.afterFunctions, [app], function (err) {
 
-                            afterStartFn(app, server);
+                                // if we are on a worker process, then inform the master that we completed
+                                if (process.send) {
+                                    process.send("server-startup");
+                                }
 
+                                afterStartFn(app, server);
+
+                            });
                         });
                     });
                 });

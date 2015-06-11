@@ -62,10 +62,6 @@ exports = module.exports = function(remoteStore)
                 }
             });
         }
-        else
-        {
-            callback();
-        }
     };
 
     var toCacheFilePath = function(filePath)

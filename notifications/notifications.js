@@ -40,7 +40,7 @@ var handleInvalidations = function(items, callback) {
                     });
                 }
             }
-            else if (items[i].operation == "invalidate_application")
+            else if (items[i].operation === "invalidate_application")
             {
                 // TODO: invalidate any cache dependent on application
             }

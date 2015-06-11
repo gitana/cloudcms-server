@@ -352,7 +352,7 @@ exports = module.exports = function()
                 headers["Authorization"] = headers2["Authorization"];
 
                 var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT + uri;
-                console.log("URL: " + URL);
+                //console.log("URL: " + URL);
                 request({
                     "method": "GET",
                     "url": URL,

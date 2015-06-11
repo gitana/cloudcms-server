@@ -36,22 +36,29 @@ exports = module.exports = function()
             dependenciesCount++;
         }
 
-        if (dependenciesCount > 0)
+        if (dependenciesCount === 0)
         {
-            var dependenciesFilePath = path.join("dependencies", "repositories", req.repositoryId, "branches", req.branchId, "resources", resource, "dependencies.json");
-            contentStore.writeFile(dependenciesFilePath, JSON.stringify(keys, null, "   "), function (err) {
+            callback();
+            return;
+        }
 
-                if (err) {
-                    callback(err);
-                    return;
-                }
+        var dependenciesFilePath = path.join("dependencies", "repositories", req.repositoryId, "branches", req.branchId, "resources", resource, "dependencies.json");
 
-                // write dependency -> page cache entries
-                var fns = [];
-                for (var key in dependencies)
+        contentStore.writeFile(dependenciesFilePath, JSON.stringify(dependencies, null, "   "), function (err) {
+
+            if (err) {
+                callback(err);
+                return;
+            }
+
+            // write dependency -> page cache entries
+            var fns = [];
+            for (var key in dependencies)
+            {
+                var array = dependencies[key];
+
+                for (var i = 0; i < array.length; i++)
                 {
-                    var value = dependencies[key];
-
                     var fn = function (contentStore, req, key, value) {
                         return function (done) {
 
@@ -67,26 +74,22 @@ exports = module.exports = function()
                                 done();
                             });
                         }
-                    }(contentStore, req, key, value);
+                    }(contentStore, req, key, array[i]);
                     fns.push(fn);
                 }
+            }
 
-                async.series(fns, function (err) {
-                    callback(err);
-                });
+            async.series(fns, function (err) {
+                callback(err);
             });
-        }
-        else
-        {
-            callback();
-        }
+        });
     };
 
     var remove = r.remove = function(req, resource, callback)
     {
         var contentStore = req.stores.content;
 
-        // read all dependencies
+        // read all dependencies for this resource
         var dependenciesFilePath = path.join("dependencies", "repositories", req.repositoryId, "branches", req.branchId, "resources", resource, "dependencies.json");
         contentStore.readFile(dependenciesFilePath, function(err, data) {
 
@@ -95,18 +98,19 @@ exports = module.exports = function()
             var fns = [];
             for (var key in dependenciesJson)
             {
-                var value = dependenciesJson[key];
+                var array = dependenciesJson[key];
 
-                var fn = function(req, key, value)
+                for (var i = 0; i < array.length; i++)
                 {
-                    return function(done)
-                    {
-                        invalidateResourcesWithDependency(req, key, value, function(err) {
-                            done(err);
-                        });
-                    }
-                }(req, key, value);
-                fns.push(fn);
+                    var fn = function (req, key, value) {
+                        return function (done) {
+                            invalidateResourcesWithDependency(req, key, value, function (err) {
+                                done(err);
+                            });
+                        }
+                    }(req, key, array[i]);
+                    fns.push(fn);
+                }
             }
 
             async.series(fns, function(err) {
@@ -196,7 +200,6 @@ exports = module.exports = function()
         });
     };
 
-    /*
     var invalidateResourcesWithDependency = r.invalidateResourcesWithDependency = function(req, key, value, callback)
     {
         var contentStore = req.stores.content;
@@ -237,7 +240,7 @@ exports = module.exports = function()
                                     contentStore.deleteFile(resourceDescriptorFilePath, function(err) {
 
                                         // invalidate the resource
-                                        invalidateResource(req, uri, function(err) {
+                                        remove(req, uri, function(err) {
                                             done(err);
                                         });
                                     });
@@ -259,7 +262,6 @@ exports = module.exports = function()
 
         });
     };
-    */
 
     return r;
 }();

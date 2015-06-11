@@ -69,8 +69,8 @@ server.start({
         "enabled": true
     },
     "wcm": {
-        "enabled": true,
-        "cache": false
+        "enabled": true//,
+        //"cache": false
     },
     "serverTags": {
         "enabled": true
