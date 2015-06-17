@@ -575,12 +575,14 @@ exports = module.exports = function()
                             // page keys to copy
                             for (var k in page) {
                                 if (k == "templatePath") {
-                                } else if (k == "_doc") {
                                 } else if (k.indexOf("_") === 0) {
                                 } else {
                                     model.page[k] = page[k];
                                 }
                             }
+
+                            // set _doc and id (equivalent)
+                            model.page._doc = model.page.id = page._doc;
 
                             // dust it
                             duster.execute(req, webStore, page.templatePath, model, function (err, text, dependencies) {
