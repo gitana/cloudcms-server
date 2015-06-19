@@ -15,20 +15,12 @@ exports = module.exports = function()
 {
     var provider = null;
 
-    var __key = function(applicationId, principalId)
-    {
-        var prefix = applicationId;
-        if (principalId) {
-            prefix = path.join(prefix, principalId);
-        }
-
-        return prefix;
-    };
-
     var r = {};
 
     var init = r.init = function(callback)
     {
+        var self = this;
+
         if (!process.env.CLOUDCMS_CACHE_TYPE)
         {
             if (process.configuration.setup === "single")
@@ -57,6 +49,11 @@ exports = module.exports = function()
 
         provider = require("./providers/" + process.configuration.cache.type)(cacheConfig);
         provider.init(function(err) {
+
+            // global caches
+            process.deploymentDescriptorCache = createNamespacedCache.call(r, "descriptors");
+            process.driverConfigCache = createNamespacedCache.call(r, "driverconfigs");
+
             callback(err);
         });
     };
@@ -96,13 +93,37 @@ exports = module.exports = function()
 
     var keys = r.keys = function(prefix, callback)
     {
+        if (typeof(prefix) === "function") {
+            callback = prefix;
+            prefix = null;
+        }
+
+        if (!prefix) {
+            prefix = "";
+        }
+
         provider.keys(prefix, function(err, keys) {
+
+            // some cleanup
+            if (!err && !keys) {
+                keys = [];
+            }
+
             callback(err, keys);
         });
     };
 
     var invalidate = r.invalidate = function(prefix, callback)
     {
+        if (typeof(prefix) === "function") {
+            callback = prefix;
+            prefix = null;
+        }
+
+        if (!prefix) {
+            prefix = "";
+        }
+
         keys(prefix, function(err, badKeys) {
 
             var fns = [];
@@ -123,11 +144,30 @@ exports = module.exports = function()
         });
     };
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //
+    // END OF CACHE INTERFACE
+    //
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    var __prefixedKey = function()
+    {
+        var prefix = null;
+
+        var namespaces = Array.prototype.slice.call(arguments);
+        if (namespaces.length > 0)
+        {
+            prefix = namespaces.join("/");
+        }
+
+        return prefix;
+    };
+
     var invalidateCacheForApp = r.invalidateCacheForApp = function(applicationId, callback)
     {
-        var prefix = __key(applicationId);
+        var prefixedKey = __prefixedKey(applicationId);
 
-        return invalidate(prefix, function(err) {
+        return invalidate(prefixedKey, function(err) {
             if (callback)
             {
                 callback(err);
@@ -135,11 +175,11 @@ exports = module.exports = function()
         });
     };
 
-    var __cacheBuilder = function(cache, applicationId, principalId)
+    var createNamespacedCache = r.createNamespacedCache = function()
     {
-        var prefix = __key(applicationId, principalId);
+        var prefixedKey = __prefixedKey.apply(this, arguments);
 
-        return require("./wrapper")(cache, prefix, provider);
+        return require("./wrapper")(this, prefixedKey);
     };
 
     /**
@@ -153,20 +193,23 @@ exports = module.exports = function()
 
         return function(req, res, next)
         {
-            /*
-            if (req.applicationId && req.principalId)
-            {
-                req.cache = __cacheBuilder(req.applicationId, req.principalId);
-            }
-            */
-
             if (req.applicationId)
             {
-                req.cache = __cacheBuilder(self, req.applicationId);
+                req.cache = createNamespacedCache.call(self, req.applicationId);
             }
 
             next();
         }
+    };
+
+    r.deploymentDescriptorCache = function()
+    {
+        return process.deploymentDescriptorCache;
+    };
+
+    r.driverConfigCache = function()
+    {
+        return process.driverConfigCache;
     };
 
     return r;

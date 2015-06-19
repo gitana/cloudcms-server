@@ -5,11 +5,23 @@ var path = require("path");
  *
  * @type {*}
  */
-exports = module.exports = function(cache, prefix, provider)
+exports = module.exports = function(cache, basePrefix)
 {
     var _toPrefixedKey = function(key)
     {
-        return path.join(prefix, key);
+        var prefixedKey = key;
+
+        if (basePrefix)
+        {
+            if (key) {
+                prefixedKey = path.join(basePrefix, key);
+            } else {
+                prefixedKey = basePrefix;
+            }
+
+        }
+
+        return prefixedKey;
     };
 
     var r = {};
@@ -18,7 +30,7 @@ exports = module.exports = function(cache, prefix, provider)
     {
         var prefixedKey = _toPrefixedKey(key);
 
-        provider.write(prefixedKey, value, seconds, function(err, res) {
+        cache.write(prefixedKey, value, seconds, function(err, res) {
 
             if (callback)
             {
@@ -32,7 +44,7 @@ exports = module.exports = function(cache, prefix, provider)
     {
         var prefixedKey = _toPrefixedKey(key);
 
-        provider.read(prefixedKey, function(err, value) {
+        cache.read(prefixedKey, function(err, value) {
             callback(err, value);
         });
     };
@@ -41,7 +53,7 @@ exports = module.exports = function(cache, prefix, provider)
     {
         var prefixedKey = _toPrefixedKey(key);
 
-        provider.remove(prefixedKey, function(err) {
+        cache.remove(prefixedKey, function(err) {
 
             if (callback)
             {
@@ -53,30 +65,28 @@ exports = module.exports = function(cache, prefix, provider)
 
     r.keys = function(prefix, callback)
     {
+        if (typeof(prefix) === "function") {
+            callback = prefix;
+            prefix = null;
+        }
+
         var prefixedKey = _toPrefixedKey(prefix);
 
-        provider.keys(prefixedKey, function(err) {
+        cache.keys(prefixedKey, function(err) {
             callback(err);
         });
     };
 
     r.invalidate = function(prefix, callback)
     {
+        if (typeof(prefix) === "function") {
+            callback = prefix;
+            prefix = null;
+        }
+
         var prefixedKey = _toPrefixedKey(prefix);
 
         cache.invalidate(prefixedKey, function(err) {
-
-            if (callback)
-            {
-                callback(err);
-            }
-
-        });
-    };
-
-    r.invalidateCacheForApp = function(applicationId, callback)
-    {
-        cache.invalidateCacheForApp(prefix, function(err) {
 
             if (callback)
             {

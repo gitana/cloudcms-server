@@ -6,10 +6,6 @@ var uuid = require("node-uuid");
 var Gitana = require("gitana");
 var duster = require("../../duster/index");
 
-var DESCRIPTOR_CACHE = require("../../cache/descriptors");
-var GITANA_DRIVER_CONFIG_CACHE = require("../../cache/driverconfigs");
-
-
 /**
  * Deployment middleware.
  *
@@ -199,13 +195,15 @@ exports = module.exports = function()
                             doHandleWriteGitanaConfiguration(descriptor, rootStore, function (err) {
 
                                 // CACHE: INVALIDATE
-                                DESCRIPTOR_CACHE.invalidate(host);
-                                GITANA_DRIVER_CONFIG_CACHE.invalidate(host);
+                                process.deploymentDescriptorCache.invalidate(host, function() {
+                                    process.driverConfigCache.invalidate(host, function() {
 
-                                req.log("Completed deployment of application: " + descriptor.application.id + " to host: " + host);
+                                        req.log("Completed deployment of application: " + descriptor.application.id + " to host: " + host);
 
-                                callback(err, host);
+                                        callback(err, host);
 
+                                    });
+                                });
                             });
                         };
 
@@ -286,12 +284,15 @@ exports = module.exports = function()
                     rootStore.cleanup(function(err) {
 
                         // CACHE: INVALIDATE
-                        DESCRIPTOR_CACHE.invalidate(host);
-                        GITANA_DRIVER_CONFIG_CACHE.invalidate(host);
+                        process.deploymentDescriptorCache.invalidate(host, function() {
+                            process.driverConfigCache.invalidate(host, function() {
 
-                        req.log("Completed undeployment of application: " + descriptor.application.id + " from host: " + host);
+                                req.log("Completed undeployment of application: " + descriptor.application.id + " from host: " + host);
 
-                        callback(err);
+                                callback(err);
+
+                            });
+                        });
                     });
                 });
             });
@@ -516,12 +517,15 @@ exports = module.exports = function()
                 rootStore.cleanup(function (err) {
 
                     // CACHE: INVALIDATE
-                    DESCRIPTOR_CACHE.invalidate(host);
-                    GITANA_DRIVER_CONFIG_CACHE.invalidate(host);
+                    process.deploymentDescriptorCache.invalidate(host, function() {
+                        process.driverConfigCache.invalidate(host, function() {
 
-                    req.log("Cleaned up virtual hosting for host: " + host);
+                            req.log("Cleaned up virtual hosting for host: " + host);
 
-                    callback(err);
+                            callback(err);
+
+                        });
+                    });
                 });
             });
         });

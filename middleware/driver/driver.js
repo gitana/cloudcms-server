@@ -1,12 +1,9 @@
 var path = require('path');
 var http = require('http');
 var util = require("../../util/util");
+var async = require("async");
 
 var Gitana = require("gitana");
-
-var GITANA_DRIVER_CONFIG_CACHE = require("../../cache/driverconfigs");
-
-
 
 ////////////////////////////////////////////////////////////////////////////
 //
@@ -60,103 +57,121 @@ exports = module.exports = function()
             }
 
             // also refresh any of our cached driver config state
-            var keys = GITANA_DRIVER_CONFIG_CACHE.keys();
-            for (var t = 0; t < keys.length; t++)
-            {
-                var c = GITANA_DRIVER_CONFIG_CACHE.read(keys[t]);
-                if (c)
+            process.driverConfigCache.keys(function(err, keys) {
+
+                // collect functions to read driver configs from cache
+                var fns = [];
+                for (var t = 0; t < keys.length; t++)
                 {
-                    driverConfigs[keys[t]] = c.config;
-                }
-            }
-
-            var hosts = [];
-            for (var host in driverConfigs)
-            {
-                hosts.push(host);
-            }
-
-            if (hosts.length === 0) {
-                return;
-            }
-
-            console.log("Processing hosts: " + JSON.stringify(hosts));
-
-            var f = function(i)
-            {
-                if (i == hosts.length)
-                {
-                    // we're done
-                    diLog("Gitana Driver Health Check thread finished");
-                    return;
+                    var fn = function(driverConfigs, key)
+                    {
+                        return function(done) {
+                            process.driverConfigCache.read(key, function(err, c) {
+                                driverConfigs[key] = c.config;
+                                done();
+                            });
+                        };
+                    }(driverConfigs, keys[t]);
+                    fns.push(fn);
                 }
 
-                var host = hosts[i];
-                var gitanaConfig = driverConfigs[host];
+                // run functions
+                async.series(fns, function() {
 
-                if (gitanaConfig && typeof(gitanaConfig) == "object")
-                {
-                    console.log("WORKING ON HOST: " + host);
-                    console.log("WORKING ON CONFIG: " + JSON.stringify(gitanaConfig, null, "  "));
+                    var hosts = [];
+                    for (var host in driverConfigs)
+                    {
+                        hosts.push(host);
+                    }
 
-                    Gitana.connect(gitanaConfig, function(err) {
+                    if (hosts.length === 0)
+                    {
+                        // no hosts, we're all done
+                        return;
+                    }
 
-                        diLog(" -> [" + host + "] running health check");
+                    console.log("Processing hosts: " + JSON.stringify(hosts));
 
-                        var g = this;
-
-                        if (err)
+                    var f = function(i)
+                    {
+                        if (i === hosts.length)
                         {
-                            diLog(" -> [" + host + "] Caught error while running auto-refresh");
-                            diLog(" -> [" + host + "] " + err);
-                            diLog(" -> [" + host + "] " + JSON.stringify(err));
-
-                            diLog(" -> [" + host + "] Removing key: " + gitanaConfig.key);
-                            Gitana.disconnect(gitanaConfig.key);
-
-                            // remove from cache
-                            GITANA_DRIVER_CONFIG_CACHE.invalidate(host);
-
-                            f(i+1);
+                            // we're done
+                            diLog("Gitana Driver Health Check thread finished");
                             return;
                         }
-                        else
+
+                        var host = hosts[i];
+                        var gitanaConfig = driverConfigs[host];
+
+                        if (gitanaConfig && typeof(gitanaConfig) == "object")
                         {
-                            diLog(" -> [" + host + "] refresh for host: " + host);
+                            console.log("WORKING ON HOST: " + host);
+                            console.log("WORKING ON CONFIG: " + JSON.stringify(gitanaConfig, null, "  "));
 
-                            g.getDriver().refreshAuthentication(function(err) {
+                            Gitana.connect(gitanaConfig, function(err) {
 
-                                if (err) {
-                                    diLog(" -> [" + host + "] Refresh Authentication caught error: " + JSON.stringify(err));
+                                diLog(" -> [" + host + "] running health check");
 
-                                    diLog(" -> [" + host + "] Auto disconnecting key: " + gitanaConfig.key);
+                                var g = this;
+
+                                if (err)
+                                {
+                                    diLog(" -> [" + host + "] Caught error while running auto-refresh");
+                                    diLog(" -> [" + host + "] " + err);
+                                    diLog(" -> [" + host + "] " + JSON.stringify(err));
+
+                                    diLog(" -> [" + host + "] Removing key: " + gitanaConfig.key);
                                     Gitana.disconnect(gitanaConfig.key);
 
                                     // remove from cache
-                                    GITANA_DRIVER_CONFIG_CACHE.invalidate(host);
+                                    process.driverConfigCache.invalidate(host, function() {
+                                        f(i+1);
+                                    });
 
-                                } else {
-                                    diLog(" -> [" + host + "] Successfully refreshed authentication for appuser");
-                                    diLog(" -> [" + host + "] grant time: " + new Date(g.getDriver().http.grantTime()));
-                                    diLog(" -> [" + host + "] access token: " + g.getDriver().http.accessToken());
+                                    return;
                                 }
+                                else
+                                {
+                                    diLog(" -> [" + host + "] refresh for host: " + host);
 
-                                f(i+1);
+                                    g.getDriver().refreshAuthentication(function(err) {
+
+                                        if (err) {
+                                            diLog(" -> [" + host + "] Refresh Authentication caught error: " + JSON.stringify(err));
+
+                                            diLog(" -> [" + host + "] Auto disconnecting key: " + gitanaConfig.key);
+                                            Gitana.disconnect(gitanaConfig.key);
+
+                                            // remove from cache
+                                            process.driverConfigCache.invalidate(host, function() {
+                                                // all done
+                                            });
+
+                                        } else {
+                                            diLog(" -> [" + host + "] Successfully refreshed authentication for appuser");
+                                            diLog(" -> [" + host + "] grant time: " + new Date(g.getDriver().http.grantTime()));
+                                            diLog(" -> [" + host + "] access token: " + g.getDriver().http.accessToken());
+                                        }
+
+                                        f(i+1);
+                                    });
+                                }
                             });
                         }
-                    });
-                }
-                else
-                {
-                    // otherwise, skip
-                    console.log("SKIPPING SINCE NO CONFIGURATION FOUND");
+                        else
+                        {
+                            // otherwise, skip
+                            console.log("SKIPPING SINCE NO CONFIGURATION FOUND");
 
-                    f(i+1);
-                }
+                            f(i+1);
+                        }
 
-            };
+                    };
 
-            f(0);
+                    f(0);
+                });
+            });
 
         }, (30*60*1000)); // thirty minutes
     };
@@ -187,11 +202,19 @@ exports = module.exports = function()
                     {
                         // guest mode
                         err.output = "Unable to connect to Cloud CMS as guest user";
+                        if (err.message) {
+                            err.output += "<br/>";
+                            err.output += err.message;
+                        }
                     }
                     else
                     {
                         // otherwise assume that it is a configuration error?
                         err.output = "There was a problem connecting to your tenant.  Please refresh your browser to try again or contact Cloud CMS for assistance.";
+                        if (err.message) {
+                            err.output += "<br/>";
+                            err.output += err.message;
+                        }
                     }
 
                     callback.call(this, err);
@@ -212,9 +235,10 @@ exports = module.exports = function()
                         rootStore.removeFile(originalFilename, function(err) {
 
                             // remove from cache
-                            GITANA_DRIVER_CONFIG_CACHE.invalidate(req.domainHost);
+                            process.driverConfigCache.invalidate(req.domainHost, function() {
+                                completionFn();
+                            });
 
-                            completionFn();
                         });
                     });
 
@@ -272,7 +296,7 @@ exports = module.exports = function()
                             configString = JSON.stringify(gitanaConfig);
                         }
 
-                        console.log("Cannot connect to Cloud CMS for config: " + configString + ", message: " + JSON.stringify(err));
+                        // console.log("Cannot connect to Cloud CMS for path: " + req.path + ", config: " + configString + ", message: " + JSON.stringify(err));
 
                         // send back error
                         res.status(err.status);

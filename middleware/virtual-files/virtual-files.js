@@ -4,9 +4,6 @@ var request = require('request');
 var util = require("../../util/util");
 var Gitana = require("gitana");
 
-var DESCRIPTOR_CACHE = require("../../cache/descriptors");
-
-
 /**
  * Looks for a "descriptor.json" in the root store and if it finds it, loads it to req.descriptor and sets
  * req.virtualFiles == true.
@@ -59,45 +56,52 @@ exports = module.exports = function()
 
             // CACHE: is there a cached descriptor for this host?
             // NOTE: null is a valid sentinel value (meaning none)
-            var descriptor = DESCRIPTOR_CACHE.read(req.domainHost);
-            if (typeof(descriptor) !== "undefined" || descriptor === null) {
-                // all done
-                completionFunction(null, descriptor);
-                return;
-            }
-            else {
-                // nothing in cache, load from disk
-                // check if there is a descriptor on disk
-                rootStore.existsFile("descriptor.json", function (exists) {
+            process.deploymentDescriptorCache.read(req.domainHost, function(err, descriptor) {
 
-                    if (exists) {
+                if (typeof(descriptor) !== "undefined" || descriptor === null) {
+                    // all done
+                    completionFunction(null, descriptor);
+                    return;
+                }
+                else
+                {
+                    // nothing in cache, load from disk
+                    // check if there is a descriptor on disk
+                    rootStore.existsFile("descriptor.json", function (exists) {
 
-                        // load the descriptor
-                        rootStore.readFile("descriptor.json", function (err, descriptor) {
+                        if (exists) {
 
-                            if (err) {
-                                // no file descriptor, virtual files not deployed
-                                next();
-                                return;
-                            }
+                            // load the descriptor
+                            rootStore.readFile("descriptor.json", function (err, descriptor) {
 
-                            // yes, there is a descriptor, so we have virtual files
+                                if (err) {
+                                    // no file descriptor, virtual files not deployed
+                                    next();
+                                    return;
+                                }
 
-                            // convert descriptor to JSON
-                            descriptor = JSON.parse(descriptor);
+                                // yes, there is a descriptor, so we have virtual files
 
-                            // CACHE: write
-                            DESCRIPTOR_CACHE.write(req.domainHost, descriptor);
+                                // convert descriptor to JSON
+                                descriptor = JSON.parse(descriptor);
 
-                            // all done
-                            completionFunction(null, descriptor);
-                        });
-                    }
-                    else {
-                        completionFunction();
-                    }
-                });
-            }
+                                // CACHE: write
+                                process.deploymentDescriptorCache.write(req.domainHost, descriptor, function() {
+
+                                    // all done
+                                    completionFunction(null, descriptor);
+
+                                });
+
+                            });
+                        }
+                        else {
+                            completionFunction();
+                        }
+                    });
+                }
+            });
+
         });
     };
 

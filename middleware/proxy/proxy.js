@@ -256,6 +256,26 @@ exports = module.exports = function()
         res.end('Something went wrong while proxying the request.');
     });
 
+    /*
+    // debug: buffer response
+    proxyServer.on('proxyRes', function (proxyRes, req, res) {
+        var chunks = [];
+        // triggers on data receive
+        proxyRes.on('data', function receiveChunks(chunk) {
+            // add received chunk to chunks array
+            chunks.push(chunk);
+        });
+
+        // triggers on data end
+        proxyRes.on('end', function proxyResponseEnd() {
+            // make string from buffer
+            var buffer = Buffer.concat(chunks);
+            // output buffer
+            console.log("Proxy Response -> " + buffer.toString());
+        });
+    });
+    */
+
     var proxyHandlerServer = http.createServer(function(req, res) {
 
         // used to auto-assign the client header for /oauth/token requests

@@ -2,10 +2,6 @@ var path = require('path');
 var http = require('http');
 var request = require('request');
 var util = require("../../util/util");
-//var Gitana = require("gitana");
-
-var GITANA_DRIVER_CONFIG_CACHE = require("../../cache/driverconfigs");
-
 
 /**
  * Retrieves virtual driver configuration for hosts from Cloud CMS.
@@ -304,43 +300,54 @@ exports = module.exports = function()
                 next();
             };
 
-            var cachedValue = GITANA_DRIVER_CONFIG_CACHE.read(req.domainHost);
-            if (cachedValue)
+            process.driverConfigCache.read(req.domainHost, function(err, cachedValue)
             {
-                if (cachedValue === "null") {
-                    // null means there verifiably isn't anything on disk (null used as sentinel marker)
-                    completionFunction();
-                }
-                else {
-                    // we have something in cache
-                    completionFunction(null, cachedValue.config);
-                }
-            }
-            else
-            {
-                // try to load from disk
-                acquireGitanaJson(req.domainHost, req.rootStore, req.log, function (err, gitanaConfig) {
 
-                    if (err) {
-                        completionFunction(err);
-                        return;
-                    }
-
-                    if (gitanaConfig) {
-                        GITANA_DRIVER_CONFIG_CACHE.write(req.domainHost, {
-                            "config": gitanaConfig
-                        });
-
-                        completionFunction(null, gitanaConfig);
-                    }
-                    else {
-                        // mark with sentinel
-                        GITANA_DRIVER_CONFIG_CACHE.write(req.domainHost, "null");
-
+                if (cachedValue)
+                {
+                    if (cachedValue === "null")
+                    {
+                        // null means there verifiably isn't anything on disk (null used as sentinel marker)
                         completionFunction();
                     }
-                });
-            }
+                    else
+                    {
+                        // we have something in cache
+                        completionFunction(null, cachedValue.config);
+                    }
+                }
+                else
+                {
+                    // try to load from disk
+                    acquireGitanaJson(req.domainHost, req.rootStore, req.log, function (err, gitanaConfig)
+                    {
+
+                        if (err)
+                        {
+                            completionFunction(err);
+                            return;
+                        }
+
+                        if (gitanaConfig)
+                        {
+                            process.driverConfigCache.write(req.domainHost, {
+                                "config": gitanaConfig
+                            }, function (err)
+                            {
+                                completionFunction(null, gitanaConfig);
+                            });
+                        }
+                        else
+                        {
+                            // mark with sentinel
+                            process.driverConfigCache.write(req.domainHost, "null", function (err)
+                            {
+                                completionFunction();
+                            });
+                        }
+                    });
+                }
+            });
         });
     };
 

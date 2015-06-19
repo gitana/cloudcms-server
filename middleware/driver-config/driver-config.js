@@ -6,9 +6,6 @@ var Gitana = require("gitana");
 
 var fs = require("fs");
 
-var GITANA_DRIVER_CONFIG_CACHE = require("../../cache/driverconfigs");
-
-
 /**
  * Retrieves local driver configuration for hosts from Cloud CMS.
  *
@@ -48,62 +45,65 @@ exports = module.exports = function()
             callback();
         };
 
-        var cachedValue = GITANA_DRIVER_CONFIG_CACHE.read(holder.domainHost);
-        if (cachedValue)
-        {
-            if (cachedValue == "null")
-            {
-                // null means there verifiably isn't anything on disk (null used as sentinel marker)
-                completionFunction();
-            }
-            else
-            {
-                // we have something in cache
-                completionFunction(null, cachedValue.config);
-            }
-        }
-        else
-        {
-            rootStore.existsFile("gitana.json", function(exists) {
 
-                if (exists)
+        process.driverConfigCache.read(holder.domainHost, function(err, cachedValue) {
+
+            if (cachedValue)
+            {
+                if (cachedValue == "null")
                 {
-                    rootStore.readFile("gitana.json", function(err, data) {
-
-                        if (err)
-                        {
-                            completionFunction(err);
-                            return;
-                        }
-
-                        var gitanaConfig = null;
-                        try
-                        {
-                            gitanaConfig = JSON.parse(data.toString());
-                        }
-                        catch (e)
-                        {
-                            console.log("Error reading gitana.json file");
-                            completionFunction();
-                            return;
-                        }
-
-                        GITANA_DRIVER_CONFIG_CACHE.write(holder.domainHost, {
-                            "config": gitanaConfig
-                        });
-
-                        completionFunction(null, gitanaConfig);
-                    });
+                    // null means there verifiably isn't anything on disk (null used as sentinel marker)
+                    completionFunction();
                 }
                 else
                 {
-                    // mark with sentinel
-                    GITANA_DRIVER_CONFIG_CACHE.write(holder.domainHost, "null");
-
-                    completionFunction();
+                    // we have something in cache
+                    completionFunction(null, cachedValue.config);
                 }
-            });
-        }
+            } else
+            {
+                rootStore.existsFile("gitana.json", function (exists)
+                {
+                    if (exists)
+                    {
+                        rootStore.readFile("gitana.json", function (err, data)
+                        {
+
+                            if (err)
+                            {
+                                completionFunction(err);
+                                return;
+                            }
+
+                            var gitanaConfig = null;
+                            try
+                            {
+                                gitanaConfig = JSON.parse(data.toString());
+                            }
+                            catch (e)
+                            {
+                                console.log("Error reading gitana.json file");
+                                completionFunction();
+                                return;
+                            }
+
+                            process.driverConfigCache.write(holder.domainHost, {
+                                "config": gitanaConfig
+                            }, function(err) {
+                                completionFunction(null, gitanaConfig);
+                            });
+                        });
+                    }
+                    else
+                    {
+                        // mark with sentinel
+                        process.driverConfigCache.write(holder.domainHost, "null", function(err) {
+                            completionFunction();
+                        });
+                    }
+                });
+            }
+        });
     };
 
     r.interceptor = function()
