@@ -183,10 +183,8 @@ exports = module.exports = function(dust)
 
                     query["loc"] = {
                         "$near" : {
-                            "$geometry": {
-                                "type": "Point",
-                                coordinates: nearArray
-                            }
+                            "lat": nearArray[0],
+                            "long": nearArray[1]
                         }
                     };
                 }
@@ -875,6 +873,9 @@ exports = module.exports = function(dust)
         // as
         var as = dust.helpers.tap(params.as, chunk, context);
 
+        // locale
+        var locale = dust.helpers.tap(params.locale, chunk, context);
+
         return map(chunk, function(chunk) {
             setTimeout(function() {
 
@@ -885,6 +886,11 @@ exports = module.exports = function(dust)
                     console.log("ERROR: " + err);
                     end(chunk, context);
                 };
+
+                if (locale)
+                {
+                    gitana.getDriver().setLocale(locale);
+                }
 
                 var f = function(node)
                 {
