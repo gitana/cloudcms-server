@@ -61,18 +61,20 @@ exports = module.exports = function()
 
                 // collect functions to read driver configs from cache
                 var fns = [];
-                for (var t = 0; t < keys.length; t++)
+                if (keys)
                 {
-                    var fn = function(driverConfigs, key)
+                    for (var t = 0; t < keys.length; t++)
                     {
-                        return function(done) {
-                            process.driverConfigCache.read(key, function(err, c) {
-                                driverConfigs[key] = c.config;
-                                done();
-                            });
-                        };
-                    }(driverConfigs, keys[t]);
-                    fns.push(fn);
+                        var fn = function (driverConfigs, key) {
+                            return function (done) {
+                                process.driverConfigCache.read(key, function (err, c) {
+                                    driverConfigs[key] = c.config;
+                                    done();
+                                });
+                            };
+                        }(driverConfigs, keys[t]);
+                        fns.push(fn);
+                    }
                 }
 
                 // run functions

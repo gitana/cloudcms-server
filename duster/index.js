@@ -4,7 +4,6 @@ var http = require('http');
 
 var dust = require("dustjs-linkedin");
 require("dustjs-helpers");
-require("./dusthelpers")(dust);
 
 /**
  * Provides a convenience interface into the Dust subsystem that Cloud CMS uses to process in-page tags.

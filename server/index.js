@@ -30,6 +30,8 @@ var main = require("../index");
 // duster service
 var duster = require("../duster/index");
 
+var defaultHelpers = require("../duster/helpers/default");
+
 var requestCounter = 0;
 
 // holds configuration settings
@@ -280,11 +282,12 @@ exports.routes = function (fn) {
  *
  * The function must have signature fn(app, dust)
  *
- * @param fn
+ * @param helperFn
  */
-exports.setupDust = function(fn) {
-    SETTINGS.dustFunctions.push(function(app, duster) {
-        duster.applySetup(app, fn);
+var dust = exports.dust = function(helperFn) {
+    SETTINGS.dustFunctions.push(function(app, duster, callback) {
+        duster.applySetup(app, helperFn);
+        callback();
     });
 };
 
@@ -358,6 +361,21 @@ exports.start = function(overrides, callback) {
 
     if (!callback) {
         callback = function() {};
+    }
+
+    // DUST - some setup
+    if (!SETTINGS.dustFunctions) {
+        SETTINGS.dustFunctions = [];
+    }
+    // always prepend default tags
+    SETTINGS.dustFunctions.unshift(function(app, duster, callback) {
+        duster.applySetup(app, defaultHelpers);
+        callback();
+    });
+    // if no other custom dust tags are configured, we include NYT example by default
+    if (SETTINGS.dustFunctions.length === 1)
+    {
+        dust(require("../duster/helpers/nyt"));
     }
 
     // create our master config
