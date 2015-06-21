@@ -13,7 +13,7 @@ var util = require("../../util/util");
  *
  * @type {Function}
  */
-module.exports = function(app, dust)
+module.exports = function(app, dust, callback)
 {
     var support = require("../support")(dust);
 
@@ -1795,5 +1795,7 @@ module.exports = function(app, dust)
 
         return chunk;
     };
+
+    callback();
 
 };

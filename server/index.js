@@ -284,11 +284,8 @@ exports.routes = function (fn) {
  *
  * @param helperFn
  */
-var dust = exports.dust = function(helperFn) {
-    SETTINGS.dustFunctions.push(function(app, duster, callback) {
-        duster.applySetup(app, helperFn);
-        callback();
-    });
+var dust = exports.dust = function(fn) {
+    SETTINGS.dustFunctions.push(fn);
 };
 
 /**
@@ -367,11 +364,8 @@ exports.start = function(overrides, callback) {
     if (!SETTINGS.dustFunctions) {
         SETTINGS.dustFunctions = [];
     }
-    // always prepend default tags
-    SETTINGS.dustFunctions.unshift(function(app, duster, callback) {
-        duster.applySetup(app, defaultHelpers);
-        callback();
-    });
+    // always push default tags to the front
+    SETTINGS.dustFunctions.unshift(defaultHelpers);
     // if no other custom dust tags are configured, we include NYT example by default
     if (SETTINGS.dustFunctions.length === 1)
     {
@@ -755,7 +749,7 @@ var startSlave = function(config, afterStartFn)
                     process.env.CLOUDCMS_APPSERVER_TIMESTAMP = new Date().getTime();
 
                     // DUST
-                    runFunctions(config.dustFunctions, [app, duster], function(err) {
+                    runFunctions(config.dustFunctions, [app, duster.getDust()], function(err) {
 
                         // APPLY SERVER BEFORE START FUNCTIONS
                         runFunctions(config.beforeFunctions, [app], function (err) {

@@ -10,9 +10,9 @@ require("dustjs-helpers");
  */
 var exports = module.exports;
 
-exports.applySetup = function(app, fn)
+exports.getDust = function()
 {
-    fn(app, dust);
+    return dust;
 };
 
 var populateContext = function(req, context, model, templateFilePath)

@@ -3,7 +3,7 @@
  *
  * @type {Function}
  */
-exports = module.exports = function(app, dust)
+exports = module.exports = function(app, dust, callback)
 {
     var support = require("../support")(dust);
 
@@ -110,4 +110,6 @@ exports = module.exports = function(app, dust)
             });
         });
     };
+
+    callback();
 };
