@@ -812,7 +812,6 @@ module.exports = function(app, dust, callback)
                 var gitana = context.get("gitana");
 
                 var errHandler = function(err) {
-
                     console.log("ERROR: " + err);
                     end(chunk, context);
                 };
@@ -824,10 +823,9 @@ module.exports = function(app, dust, callback)
 
                 var f = function(node)
                 {
-                    var newContextObject = null;
+                    var newContextObject = {};
                     if (as)
                     {
-                        newContextObject = {};
                         newContextObject[as] = {
                             "content": JSON.parse(JSON.stringify(node))
                         };
@@ -855,7 +853,7 @@ module.exports = function(app, dust, callback)
                         attachments[id]["preview256/"] = "/static/node/" + node.getId() + "/preview/?attachment=" + id + "&size=256";
                     }).then(function() {
 
-                        newContext.content.attachments = attachments;
+                        newContext.get("content").attachments = attachments;
 
                         chunk.render(bodies.block, newContext);
                         end(chunk, context);
