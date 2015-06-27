@@ -443,9 +443,9 @@
     {
         var now = new Date().getTime();
 
-        if (SESSION_KEY)
+        if (SESSION_KEY())
         {
-            Dispatcher.push({
+            var c = {
                 "warehouseId": config.warehouseId,
                 "event": {
                     "type": "end_session"
@@ -453,9 +453,15 @@
                 "timestamp": {
                     "ms": now
                 },
-                "sessionKey": SESSION_KEY,
-                "userKey": USER_KEY
-            });
+                "sessionKey": SESSION_KEY()
+            };
+
+            if (USER_KEY())
+            {
+                c.userKey = USER_KEY();
+            }
+
+            Dispatcher.push(c);
 
             // flush
             Dispatcher.flush(function(err) {
@@ -467,7 +473,8 @@
 
             });
 
-            SESSION_KEY = null;
+            SESSION_KEY(null);
+            USER_KEY(null);
         }
     };
 
@@ -478,21 +485,27 @@
     //
     /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    // a tag that is created on the browser side (here) to identify the session
-    var SESSION_KEY = null;
-    // a tag that is created on the browser side (here) to identify the user
-    var USER_KEY = null;
+    // stores or retrieves the session key
+    var SESSION_KEY = function(val)
+    {
+        return syncCookie("insight-session-key", val);
+    };
+
+    var USER_KEY = function(val)
+    {
+        return syncCookie("insight-user-key", val);
+    };
 
     var startSession = function(callback)
     {
         var now = new Date().getTime();
 
         // make sure we have a session started
-        if (!SESSION_KEY)
+        if (!SESSION_KEY())
         {
             // generate session and user keys
-            SESSION_KEY = "SESSION_KEY_" + now;
-            USER_KEY = "USER_KEY_" + now;
+            SESSION_KEY("SESSION_KEY_" + now);
+            USER_KEY("USER_KEY_" + now);
 
             // indicate that we started a session
             Dispatcher.push({
@@ -502,8 +515,8 @@
                 "timestamp": {
                     "ms": now
                 },
-                "sessionKey": SESSION_KEY,
-                "userKey": USER_KEY,
+                "sessionKey": SESSION_KEY(),
+                "userKey": USER_KEY(),
                 "page": contexts["page"](),
                 "application": contexts["application"](),
                 "user": contexts["user"](),
@@ -543,8 +556,8 @@
                 "type": event.currentTarget.nodeName,
                 "iid": insightId(event.currentTarget)
             },
-            "sessionKey": SESSION_KEY,
-            "userKey": USER_KEY,
+            "sessionKey": SESSION_KEY(),
+            "userKey": USER_KEY(),
             "page": contexts["page"](),
             "application": contexts["application"](),
             "user": contexts["user"](),
@@ -1021,5 +1034,161 @@
         });
 
     })($);
+
+    // cookies
+
+    /**
+     * Writes a cookie.
+     *
+     * @param {String} name
+     * @param {String} value
+     * @param [String] path optional path (assumed "/" if not provided)
+     * @param [Number] days optional # of days to store cookie
+     *                      if null or -1, assume session cookie
+     *                      if 0, assume expired cookie
+     *                      if > 0, assume # of days
+     * @param [String] domain optional domain (otherwise assumes wildcard base domain)
+     */
+    var writeCookie = function(name, value, path, days, domain)
+    {
+        if (typeof(document) !== "undefined")
+        {
+            var createCookie = function(name, value, path, days, host)
+            {
+                // path
+                if (!path)
+                {
+                    path = "/";
+                }
+                var pathString = ";path=" + path;
+
+                // expiration
+                var expirationString = "";
+                if (typeof(days) == "undefined" || days == -1)
+                {
+                    // session cookie
+                }
+                else if (days == 0)
+                {
+                    // expired cookie
+                    expirationString = ";expires=Thu, 01 Jan 1970 00:00:01 GMT";
+                }
+                else if (days > 0)
+                {
+                    var date = new Date();
+                    date.setTime(date.getTime()+(days*24*60*60*1000));
+                    expirationString = ";expires="+date.toGMTString();
+                }
+
+                // domain
+                var domainString = "";
+                if (host)
+                {
+                    domainString = ";domain=" + host;
+                }
+
+                document.cookie = name + "=" + value + expirationString + pathString + domainString + ";";
+            };
+
+            createCookie(name, value, path, days, domain);
+        }
+    };
+
+    /**
+     * Deletes a cookie.
+     *
+     * @param name
+     * @param path
+     */
+    var deleteCookie = function(name, path)
+    {
+        var existsCookie = function(name, path)
+        {
+            return readCookie(name);
+        };
+
+        if (typeof(document) != "undefined")
+        {
+            // first attempt, let the browser sort out the assumed domain
+            // this works for most modern browsers
+            if (existsCookie(name))
+            {
+                // use expiration time of 0 to signal expired cookie
+                writeCookie(name, "", path, 0);
+            }
+
+            // second attempt, if necessary, plug in an assumed domain
+            // this is needed for phantomjs
+            if (existsCookie(name))
+            {
+                // see if we can resolve a domain
+                if (window)
+                {
+                    var domain = window.location.host;
+                    if (domain)
+                    {
+                        // remove :port
+                        var i = domain.indexOf(":");
+                        if (i > -1)
+                        {
+                            domain = domain.substring(0, i);
+                        }
+                    }
+
+                    // use expiration time of 0 to signal expired cookie
+                    writeCookie(name, "", path, 0, domain);
+                }
+            }
+        }
+    };
+
+    var readCookie = function(name)
+    {
+        function _readCookie(name)
+        {
+            var nameEQ = name + "=";
+            var ca = document.cookie.split(';');
+            for (var i = 0; i < ca.length; i++)
+            {
+                var c = ca[i];
+                while (c.charAt(0)==' ')
+                {
+                    c = c.substring(1,c.length);
+                }
+
+                if (c.indexOf(nameEQ) == 0)
+                {
+                    return c.substring(nameEQ.length,c.length);
+                }
+            }
+            return null;
+        }
+
+        var value = null;
+
+        if (typeof(document) !== "undefined")
+        {
+            value = _readCookie(name);
+        }
+
+        return value;
+    };
+
+    var syncCookie = function(name, val)
+    {
+        if (typeof(val) !== "undefined")
+        {
+            if (val === null)
+            {
+                deleteCookie(name);
+            }
+            else
+            {
+                writeCookie(name, val);
+            }
+        }
+
+        return readCookie(name);
+    };
 
 }));
