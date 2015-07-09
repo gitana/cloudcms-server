@@ -63,9 +63,12 @@ module.exports = function(configStore)
 
             if (!exists)
             {
+                /*
                 callback({
                     "message": "Unable to find directory: " + dirPath
                 });
+                */
+                callback();
                 return;
             }
 
