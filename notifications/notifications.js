@@ -14,7 +14,7 @@ var handleInvalidations = function(items, callback) {
 
             if (items[i].operation === "invalidate_object")
             {
-                if (type == "node")
+                if (type === "node")
                 {
                     var nodeId = parts.reverse()[0];
                     var branchId = parts.reverse()[1];
@@ -26,10 +26,10 @@ var handleInvalidations = function(items, callback) {
                     }
 
                     // manually perform cloudcms invalidation
-                    var cloudcms = require("../middleware/cloudcms/cloudcms");
-                    cloudcms.invalidateNode(repositoryId, branchId, nodeId, function() {
-                        //console.log("Invalidate node completed");
-                    });
+                    //var cloudcms = require("../middleware/cloudcms/cloudcms");
+                    //cloudcms.invalidateNode(repositoryId, branchId, nodeId, function() {
+                    //    console.log("Invalidate Cloud CMS node completed");
+                    //});
 
                     // broadcast invalidation
                     process.broadcast.publish("node_invalidation", {

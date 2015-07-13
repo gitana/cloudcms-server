@@ -456,6 +456,9 @@ exports = module.exports = function()
      */
     r.virtualNodeHandler = function()
     {
+        // bind listeners for broadcast events
+        bindSubscriptions.call(this);
+
         return util.createHandler("virtualContent", function(req, res, next, configuration, stores) {
 
             var contentStore = stores.content;
@@ -938,6 +941,9 @@ exports = module.exports = function()
      */
     r.virtualPrincipalHandler = function()
     {
+        // bind listeners for broadcast events
+        bindSubscriptions.call(this);
+
         return util.createHandler("virtualContent", function(req, res, next, configuration, stores) {
 
             var contentStore = stores.content;
@@ -1418,6 +1424,31 @@ exports = module.exports = function()
 
         });
     };
+
+    var bound = false;
+    var bindSubscriptions = function()
+    {
+        var self = this;
+
+        if (process.broadcast && !bound)
+        {
+            process.broadcast.subscribe("node_invalidation", function (message) {
+
+                var nodeId = message.nodeId;
+                var branchId = message.branchId;
+                var repositoryId = message.repositoryId;
+                var ref = message.ref;
+
+                self.invalidateNode(repositoryId, branchId, nodeId, function() {
+                    console.log("Cloud CMS middleware invalidated: " + ref);
+                });
+
+            });
+
+            bound = true;
+        }
+    };
+
 
     return r;
 }();

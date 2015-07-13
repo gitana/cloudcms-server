@@ -471,18 +471,23 @@ exports = module.exports = function()
 
     var bindSubscriptions = function()
     {
-        if (isPageCacheEnabled())
+        if (process.broadcast)
         {
-            if (process.broadcast)
-            {
-                process.broadcast.subscribe("node_invalidation", function (message) {
+            process.broadcast.subscribe("node_invalidation", function (message) {
 
-                    console.log("WCM heard node_invalidation: " + JSON.stringify(message));
+                var nodeId = message.nodeId;
+                var branchId = message.branchId;
+                var repositoryId = message.repositoryId;
+                var ref = message.ref;
 
+                console.log("WCM middleware invalidated: " + ref);
+
+                if (isPageCacheEnabled())
+                {
                     // TODO
+                }
 
-                });
-            }
+            });
         }
     };
 
