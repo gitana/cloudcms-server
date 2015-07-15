@@ -112,6 +112,9 @@ module.exports.process = function(callback)
         var items = [];
         //var deletionEntries = [];
 
+        var skipped = 0;
+        var handled = 0;
+
         if (data && data.Messages)
         {
             var maxSentTimestamp = -1;
@@ -120,7 +123,7 @@ module.exports.process = function(callback)
             {
                 var message = data.Messages[i];
 
-                var messageId = message.MessageId;
+                //var messageId = message.MessageId;
 
                 var sentTimestamp = message.Attributes.SentTimestamp;
                 if (sentTimestamp > LAST_SENT_TIMESTAMP)
@@ -131,7 +134,7 @@ module.exports.process = function(callback)
                         maxSentTimestamp = sentTimestamp;
                     }
 
-                    console.log("Processing message: " + messageId);
+                    handled++;
 
                     var body = JSON.parse(message.Body);
 
@@ -223,7 +226,7 @@ module.exports.process = function(callback)
                 }
                 else
                 {
-                    console.log("Skipping message: " + messageId);
+                    skipped++;
                 }
             }
 
@@ -257,6 +260,8 @@ module.exports.process = function(callback)
             callback(err, items);
         }
         */
+
+        console.log("SQS Provider awoke, handled: " + handled + ", skipped: " + skipped);
 
         callback(err, items);
     });

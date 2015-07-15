@@ -11,6 +11,8 @@ var oauth2 = require("../../util/oauth2")();
 
 var ForeverAgent = require('../../temp/forever-agent/index');
 
+var async = require("async");
+
 var util = require("../../util/util");
 
 /**
@@ -142,6 +144,60 @@ exports = module.exports = function()
 
                 });
             });
+        });
+    };
+
+    var _handleInvalidate = function(cachedPath, callback)
+    {
+        var stores = require("../stores/stores");
+        stores.listHosts("content", function(err, hostnames) {
+
+            var fns = [];
+            for (var i = 0; i < hostnames.length; i++)
+            {
+                var hostname = hostnames[i];
+
+                var fn = function(hostname, cachedPath)
+                {
+                    return function(done)
+                    {
+                        stores.produce(hostname, function (err, stores) {
+
+                            if (err) {
+                                done(err);
+                                return;
+                            }
+
+                            var filePath = path.join("proxy", cachedPath);
+
+                            stores.content.existsFile(filePath, function(exists) {
+
+                                if (!exists) {
+                                    callback();
+                                    return;
+                                }
+
+                                contentStore.removeFile(filePath, function() {
+                                    contentStore.removeFile(filePath + ".cache", function() {
+                                        callback();
+                                    });
+                                });
+                            });
+
+                        });
+
+                    }
+                }(hostname, cachedPath);
+                fns.push(fn);
+            }
+
+            async.series(fns, function(err) {
+                if (callback)
+                {
+                    callback(err);
+                }
+            });
+
         });
     };
 
@@ -392,6 +448,10 @@ exports = module.exports = function()
     var r = {};
 
     r.proxy = function() {
+
+        // bind listeners for broadcast events
+        bindSubscriptions.call(this);
+
         return function(req, res, next)
         {
             if (req.url.indexOf("/proxy") === 0)
@@ -425,6 +485,31 @@ exports = module.exports = function()
                 next();
             }
         };
+    };
+
+    var bound = false;
+    var bindSubscriptions = function()
+    {
+        var self = this;
+
+        if (process.broadcast && !bound)
+        {
+            process.broadcast.subscribe("node_invalidation", function (message) {
+
+                var repositoryId = message.repositoryId;
+                var branchId = message.branchId;
+                var nodeId = message.nodeId;
+
+                var path = "/repositories/" + repositoryId + "/branches/" + branchId + "/nodes/" + nodeId;
+
+                _handleInvalidate(path, function() {
+                    console.log("Proxy middleware invalidated path: " + path);
+                });
+
+            });
+
+            bound = true;
+        }
     };
 
     return r;
