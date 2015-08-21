@@ -352,7 +352,7 @@ exports = module.exports = function()
                 headers["Authorization"] = headers2["Authorization"];
 
                 var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT + uri;
-                //console.log("URL: " + URL);
+                console.log("URL: " + URL);
                 request({
                     "method": "GET",
                     "url": URL,
@@ -361,9 +361,13 @@ exports = module.exports = function()
                     "timeout": REQUEST_CONNECTION_TIMEOUT_MS
                 }).on('response', function (response) {
 
+                    console.log("Status Code: " + response.statusCode);
+
                     if (response.statusCode >= 200 && response.statusCode <= 204)
                     {
                         response.pipe(tempStream).on("close", function (err) {
+
+                            console.log("ERR: " + err);
 
                             if (err)
                             {
@@ -378,19 +382,24 @@ exports = module.exports = function()
                             {
                                 contentStore.existsFile(filePath, function (exists) {
 
+                                    console.log("Exists: " + exists);
+
                                     if (exists) {
 
                                         // write cache file
                                         var cacheInfo = buildCacheInfo(response);
                                         if (cacheInfo)
                                         {
+                                            console.log("o.2");
                                             contentStore.writeFile(cacheFilePath, JSON.stringify(cacheInfo, null, "    "), function (err) {
 
+                                                console.log("o.3: " + err);
                                                 if (err)
                                                 {
                                                     // failed to write cache file, thus the whole thing is invalid
                                                     safeRemove(contentStore, cacheFilePath, function () {
                                                         safeRemove(contentStore, filePath, function () {
+                                                            console.log("o.4");
                                                             cb({
                                                                 "message": "Failed to write cache file: " + cacheFilePath
                                                             });
@@ -399,6 +408,7 @@ exports = module.exports = function()
                                                 }
                                                 else
                                                 {
+                                                    console.log("o.5");
                                                     cb(null, filePath, cacheInfo);
                                                 }
 
@@ -406,6 +416,7 @@ exports = module.exports = function()
                                         }
                                         else
                                         {
+                                            console.log("o.1");
                                             cb(null, filePath, cacheInfo);
                                         }
                                     }
@@ -431,6 +442,7 @@ exports = module.exports = function()
                     else {
                         // some kind of http error (usually permission denied or invalid_token)
 
+                        console.log("o.10");
                         var body = "";
 
                         response.on('data', function (chunk) {

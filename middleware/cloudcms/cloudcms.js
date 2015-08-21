@@ -429,12 +429,14 @@ exports = module.exports = function()
      *    /static/repository/{repositoryId}/branch/{branchId}/node/{nodeId}/{attachmentId}
      *    /static/repository/{repositoryId}/branch/{branchId}/node/{nodeId}/{attachmentId}/{filename}
      *    /static/repository/{repositoryId}/branch/{branchId}/path/A/B/C/D...
+     *    /static/repository/{repositoryId}/branch/{branchId}?path=/A/B/C/D
      *    /preview/path/{path...}
      *    /preview/node/{nodeId}
      *    /preview/node/{nodeId}/{previewId}
      *    /preview/repository/{repositoryId}/branch/{branchId}/node/{nodeId}/{previewId}
      *    /preview/repository/{repositoryId}/branch/{branchId}/node/{nodeId}?name={previewId}
      *    /preview/repository/{repositoryId}/branch/{branchId}/path/A/B/C/D/{previewId}
+     *    /preview/repository/{repositoryId}/branch/{branchId}/{previewId}?path={path}
      *    /s/{applicationsPath}
      *
      * And the following flags are supported:
@@ -514,14 +516,28 @@ exports = module.exports = function()
 
                     // pluck off the branch id
                     x1 = z.indexOf("/");
-                    branchId = z.substring(0, x1);
+                    if (x1 > -1)
+                    {
+                        branchId = z.substring(0, x1);
 
-                    // advance to "thing" (either node or path)
-                    z = z.substring(x1+1); // node/XYZ or path/1/2/3/4
+                        // advance to "thing" (either node or path)
+                        z = z.substring(x1+1); // node/XYZ or path/1/2/3/4
+                    }
+                    else
+                    {
+                        branchId = z;
+                        z = "";
+                    }
 
                     // pluck off the thing
+                    // "node" or "path" or "{previewId}
                     x1 = z.indexOf("/");
-                    var thing = z.substring(0, x1); // "node" or "path"
+                    var thing = null;
+                    if (x1 > -1) {
+                        thing = z.substring(0, x1);
+                    } else {
+                        thing = z;
+                    }
                     if (thing == "node")
                     {
                         virtualizedNode = z.substring(x1+1);
@@ -537,6 +553,10 @@ exports = module.exports = function()
                     else if (thing == "path")
                     {
                         virtualizedPath = z.substring(x1+1);
+                    }
+                    else
+                    {
+                        virtualizedPath = req.query["path"];
                     }
                 }
                 if (offsetPath.indexOf("/preview/path/") === 0)
@@ -566,6 +586,7 @@ exports = module.exports = function()
                     // examples
                     //    /preview/repository/ABC/branch/DEF/node/XYZ
                     //    /preview/repository/ABC/branch/DEF/path/1/2/3/4
+                    //    /preview/repository/ABC/branch/DEF/{previewId}?path={path}
 
                     var z = offsetPath.substring(20); // ABC/branch/DEF/node/XYZ
 
@@ -581,12 +602,18 @@ exports = module.exports = function()
                     x1 = z.indexOf("/");
                     branchId = z.substring(0, x1);
 
-                    // advance to "thing" (either node or path)
-                    z = z.substring(x1+1); // node/XYZ or path/1/2/3/4
+                    // advance to "thing" (either node or path or preview ID)
+                    z = z.substring(x1+1); // node/XYZ or path/1/2/3/4 or {previewId}
 
                     // pluck off the thing
+                    // "node" or "path" or "{previewId}
                     x1 = z.indexOf("/");
-                    var thing = z.substring(0, x1); // "node" or "path"
+                    var thing = null;
+                    if (x1 > -1) {
+                        thing = z.substring(0, x1);
+                    } else {
+                        thing = z;
+                    }
                     if (thing === "node")
                     {
                         previewNode = z.substring(x1+1);
@@ -601,6 +628,11 @@ exports = module.exports = function()
                     else if (thing == "path")
                     {
                         previewPath = z.substring(x1+1);
+                    }
+                    else
+                    {
+                        previewId = thing;
+                        previewPath = req.query["path"];
                     }
                 }
 
