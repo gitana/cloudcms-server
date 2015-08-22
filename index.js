@@ -272,6 +272,9 @@ exports = module.exports = function()
 
             // enables ICE menu
             // app.use(cloudcms.iceInterceptor());
+
+            // enables cms logging
+            app.use(cloudcms.cmsLogInterceptor());
         }
 
         // authorization interceptor

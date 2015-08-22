@@ -413,6 +413,50 @@ exports = module.exports = function()
     };
 
     /**
+     * Binds the req.cmsLog(message, level, data) method for use in logging to Cloud CMS.
+     *
+     * @return {Function}
+     */
+    r.cmsLogInterceptor = function() {
+        return function (req, res, next) {
+
+            // define function
+            req.cmsLog = function (message, level, data, callback) {
+
+                if (!this.gitana)
+                {
+                    console.log("Cannot find req.gitana instance, skipping logging");
+                    return;
+                }
+
+                if (typeof(data) === "function")
+                {
+                    callback = data;
+                    data = {};
+                }
+
+                if (!data)
+                {
+                    data = {};
+                }
+
+                var obj = {
+                    "data": data
+                };
+
+                this.gitana.platform().createLogEntry(message, level, obj).then(function () {
+                    if (callback)
+                    {
+                        callback();
+                    }
+                });
+            };
+
+            next();
+        };
+    };
+
+    /**
      * Provides virtualized content retrieval from Cloud CMS.
      *
      * This handler checks to see if the requested resource is already cached to disk.  If not, it makes an attempt
