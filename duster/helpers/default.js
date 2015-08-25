@@ -211,11 +211,11 @@ module.exports = function(app, dust, callback)
                             if (as)
                             {
                                 resultObject = {};
-                                resultObject[as] = {
-                                    "rows": array,
+                                resultObject = {
                                     "offset": this.offset(),
                                     "total": this.totalRows()
                                 };
+                                resultObject[as] = array;
                             }
                             else
                             {
