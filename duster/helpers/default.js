@@ -72,7 +72,7 @@ module.exports = function(app, dust, callback)
         }
         if (isDefined(skip))
         {
-            limit = parseInt(skip);
+            skip = parseInt(skip);
         }
 
         return map(chunk, function(chunk) {
