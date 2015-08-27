@@ -210,7 +210,6 @@ module.exports = function(app, dust, callback)
                             var resultObject = null;
                             if (as)
                             {
-                                resultObject = {};
                                 resultObject = {
                                     "offset": this.offset(),
                                     "total": this.totalRows()
