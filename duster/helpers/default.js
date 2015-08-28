@@ -25,6 +25,44 @@ module.exports = function(app, dust, callback)
     var _MARK_INSIGHT = support._MARK_INSIGHT;
 
     /**
+     * iter
+     *
+     * iterates over keys of an object. Something that Dust apparently is not capable of
+     *
+     * Syntax:
+     *
+     *    {@iter obj=jsonObject}
+     *       type: {$key}
+     *       value: {$value}
+     *       type: {$type}
+     *    {/iter}
+     *
+     * @param chunk
+     * @param context
+     * @param bodies
+     * @param params
+     */
+    dust.helpers.iter = function(chunk, context, bodies, params) {
+      var obj = dust.helpers.tap(params.obj, chunk, context);
+
+      var iterable = [];
+
+      for (var key in obj) {
+        if (obj.hasOwnProperty(key)) {
+          var value = obj[key];
+
+          iterable.push({
+            '$key': key,
+            '$value': value,
+            '$type': typeof value
+          });
+        }
+      }
+
+      return chunk.section(iterable, context, bodies);
+    };
+
+    /**
      * Handles behavior for @query and @queryOne.
      *
      * @param chunk
