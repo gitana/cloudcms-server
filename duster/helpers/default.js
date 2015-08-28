@@ -845,11 +845,11 @@ module.exports = function(app, dust, callback)
                     node.listAttachments().each(function() {
                         var id = this["_doc"];
                         attachments[id] = JSON.parse(JSON.stringify(this));
-                        attachments[id]["url"] = "/static/node/" + node.getId() + "/attachments/" + id;
-                        attachments[id]["preview32"] = "/static/node/" + node.getId() + "/preview/?attachment=" + id + "&size=32";
-                        attachments[id]["preview64"] = "/static/node/" + node.getId() + "/preview/?attachment=" + id + "&size=64";
-                        attachments[id]["preview128"] = "/static/node/" + node.getId() + "/preview/?attachment=" + id + "&size=128";
-                        attachments[id]["preview256/"] = "/static/node/" + node.getId() + "/preview/?attachment=" + id + "&size=256";
+                        attachments[id]["url"] = "/static/node/" + node.getId() + "/" + id;
+                        attachments[id]["preview32"] = "/static/node/" + node.getId() + "/preview32/?attachment=" + id + "&size=32";
+                        attachments[id]["preview64"] = "/static/node/" + node.getId() + "/preview64/?attachment=" + id + "&size=64";
+                        attachments[id]["preview128"] = "/static/node/" + node.getId() + "/preview128/?attachment=" + id + "&size=128";
+                        attachments[id]["preview256/"] = "/static/node/" + node.getId() + "/preview256/?attachment=" + id + "&size=256";
                     }).then(function() {
 
                         newContext.get("content").attachments = attachments;
