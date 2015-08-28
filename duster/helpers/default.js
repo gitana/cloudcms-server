@@ -877,7 +877,7 @@ module.exports = function(app, dust, callback)
                     else
                     {
                         // missing both ID and Path?
-                        console.log("Missing ID and PATH!");
+                        console.log("Missing ID and PATH! {@content} helper must have either a path or an id");
                     }
                 });
 
