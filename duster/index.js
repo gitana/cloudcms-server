@@ -5,6 +5,12 @@ var http = require('http');
 var dust = require("dustjs-linkedin");
 require("dustjs-helpers");
 
+if (process.env.NODE_ENV === "production") {
+    dust.debugLevel = "INFO";
+} else {
+    dust.debugLevel = "DEBUG";
+}
+
 /**
  * Provides a convenience interface into the Dust subsystem that Cloud CMS uses to process in-page tags.
  */

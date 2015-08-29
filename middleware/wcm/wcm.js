@@ -42,7 +42,11 @@ exports = module.exports = function()
 
         var printDebug = function()
         {
-            //console.log("Matched - pattern: " + matcher + ", text: " + text + ", tokens: " + JSON.stringify(tokens));
+            if (process.env.NODE_ENV === "production") {
+                // skip
+            } else {
+                console.log("Matched - pattern: " + matcher + ", text: " + text + ", tokens: " + JSON.stringify(tokens));
+            }
         };
 
         var array1 = [];

@@ -382,18 +382,14 @@ exports = module.exports = function()
                             {
                                 contentStore.existsFile(filePath, function (exists) {
 
-                                    console.log("Exists: " + exists);
-
                                     if (exists) {
 
                                         // write cache file
                                         var cacheInfo = buildCacheInfo(response);
                                         if (cacheInfo)
                                         {
-                                            console.log("o.2");
                                             contentStore.writeFile(cacheFilePath, JSON.stringify(cacheInfo, null, "    "), function (err) {
 
-                                                console.log("o.3: " + err);
                                                 if (err)
                                                 {
                                                     // failed to write cache file, thus the whole thing is invalid
@@ -408,7 +404,6 @@ exports = module.exports = function()
                                                 }
                                                 else
                                                 {
-                                                    console.log("o.5");
                                                     cb(null, filePath, cacheInfo);
                                                 }
 
@@ -416,7 +411,6 @@ exports = module.exports = function()
                                         }
                                         else
                                         {
-                                            console.log("o.1");
                                             cb(null, filePath, cacheInfo);
                                         }
                                     }
@@ -442,7 +436,6 @@ exports = module.exports = function()
                     else {
                         // some kind of http error (usually permission denied or invalid_token)
 
-                        console.log("o.10");
                         var body = "";
 
                         response.on('data', function (chunk) {
