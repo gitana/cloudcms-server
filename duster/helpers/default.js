@@ -17,7 +17,7 @@ module.exports = function(app, dust, callback)
 {
     var support = require("../support")(dust);
 
-    var applyAttachmentsToNode = function(node)
+    var enhanceNode = function(node)
     {
         var attachments = {};
 
@@ -293,11 +293,11 @@ module.exports = function(app, dust, callback)
                     {
                         Chain(branch).queryNodes(query, pagination).each(function() {
 
+                            // enhance node information
+                            enhanceNode(this);
+
                             // DEPENDENCIES: TRACK
                             dependencyUtil.track(context, "_doc", this._doc);
-
-                            // add in attachments info
-                            applyAttachmentsToNode(this);
 
                         }).then(function() {
                             handleResults.call(this);
@@ -463,11 +463,11 @@ module.exports = function(app, dust, callback)
 
                     this.searchNodes(text, pagination).each(function() {
 
+                        // enhance node information
+                        enhanceNode(this);
+
                         // DEPENDENCIES: TRACK
                         dependencyUtil.track(context, "_doc", this._doc);
-
-                        // add in attachments info
-                        applyAttachmentsToNode(this);
 
                     }).then(function() {
 
@@ -480,12 +480,11 @@ module.exports = function(app, dust, callback)
                         var resultObject = null;
                         if (as)
                         {
-                            resultObject = {};
-                            resultObject[as] = {
-                                "rows": array,
+                            resultObject = {
                                 "offset": this.offset(),
                                 "total": this.totalRows()
                             };
+                            resultObject[as] = array;
                         }
                         else
                         {
@@ -610,12 +609,11 @@ module.exports = function(app, dust, callback)
                         var resultObject = null;
                         if (as)
                         {
-                            resultObject = {};
-                            resultObject[as] = {
-                                "rows": array,
+                            resultObject = {
                                 "offset": this.offset(),
                                 "total": this.totalRows()
                             };
+                            resultObject[as] = array;
                         }
                         else
                         {
@@ -628,7 +626,7 @@ module.exports = function(app, dust, callback)
 
                         var cf = function()
                         {
-                            //console.log("R: " + JSON.stringify(resultObject, null, "  "));
+                            console.log("R: " + JSON.stringify(resultObject, null, "  "));
                             var newContext = context.push(resultObject);
 
                             chunk.render(bodies.block, newContext);
@@ -672,6 +670,10 @@ module.exports = function(app, dust, callback)
                                 "$in": otherNodeIds
                             }
                         }).each(function() {
+
+                            // enhance node information
+                            enhanceNode(this);
+
                             var associations_array = otherNodeIdToAssociations[this._doc];
                             for (var z = 0; z < associations_array.length; z++)
                             {
@@ -808,11 +810,11 @@ module.exports = function(app, dust, callback)
 
                     this.queryRelatives(query, config, pagination).each(function() {
 
+                        // enhance node information
+                        enhanceNode(this);
+
                         // DEPENDENCIES: TRACK
                         dependencyUtil.track(context, "_doc", this._doc);
-
-                        // add in attachments info
-                        applyAttachmentsToNode(this);
 
                     }).then(function() {
 
@@ -825,12 +827,11 @@ module.exports = function(app, dust, callback)
                         var resultObject = null;
                         if (as)
                         {
-                            resultObject = {};
-                            resultObject[as] = {
-                                "rows": array,
+                            resultObject = {
                                 "offset": this.offset(),
                                 "total": this.totalRows()
                             };
+                            resultObject[as] = array;
                         }
                         else
                         {
@@ -898,15 +899,13 @@ module.exports = function(app, dust, callback)
 
                 var f = function(node)
                 {
-                    // add in attachments info
-                    applyAttachmentsToNode(node);
+                    // enhance node information
+                    enhanceNode(this);
 
                     var newContextObject = {};
                     if (as)
                     {
-                        newContextObject[as] = {
-                            "content": JSON.parse(JSON.stringify(node))
-                        };
+                        newContextObject[as] = JSON.parse(JSON.stringify(node));
 
                         _MARK_INSIGHT(node, newContextObject[as].content);
                     }
