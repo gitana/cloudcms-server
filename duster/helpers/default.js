@@ -17,6 +17,25 @@ module.exports = function(app, dust, callback)
 {
     var support = require("../support")(dust);
 
+    var applyAttachmentsToNode = function(node)
+    {
+        var attachments = {};
+
+        for (var id in node.getSystemMetadata()["attachments"])
+        {
+            var attachment = node.getSystemMetadata()["attachments"][id];
+
+            attachments[id] = JSON.parse(JSON.stringify(attachment));
+            attachments[id]["url"] = "/static/node/" + node.getId() + "/" + id;
+            attachments[id]["preview32"] = "/static/node/" + node.getId() + "/preview32/?attachment=" + id + "&size=32";
+            attachments[id]["preview64"] = "/static/node/" + node.getId() + "/preview64/?attachment=" + id + "&size=64";
+            attachments[id]["preview128"] = "/static/node/" + node.getId() + "/preview128/?attachment=" + id + "&size=128";
+            attachments[id]["preview256/"] = "/static/node/" + node.getId() + "/preview256/?attachment=" + id + "&size=256";
+        }
+
+        node.attachments = attachments;
+    };
+
     // helper functions
     var isDefined = support.isDefined;
     var resolveVariables = support.resolveVariables;
@@ -277,6 +296,9 @@ module.exports = function(app, dust, callback)
                             // DEPENDENCIES: TRACK
                             dependencyUtil.track(context, "_doc", this._doc);
 
+                            // add in attachments info
+                            applyAttachmentsToNode(this);
+
                         }).then(function() {
                             handleResults.call(this);
                         });
@@ -439,7 +461,15 @@ module.exports = function(app, dust, callback)
                         pagination.skip = skip;
                     }
 
-                    this.searchNodes(text, pagination).then(function() {
+                    this.searchNodes(text, pagination).each(function() {
+
+                        // DEPENDENCIES: TRACK
+                        dependencyUtil.track(context, "_doc", this._doc);
+
+                        // add in attachments info
+                        applyAttachmentsToNode(this);
+
+                    }).then(function() {
 
                         var array = this.asArray();
                         for (var a = 0; a < array.length; a++)
@@ -776,7 +806,15 @@ module.exports = function(app, dust, callback)
                         config.direction = associationDirection;
                     }
 
-                    this.queryRelatives(query, config, pagination).then(function() {
+                    this.queryRelatives(query, config, pagination).each(function() {
+
+                        // DEPENDENCIES: TRACK
+                        dependencyUtil.track(context, "_doc", this._doc);
+
+                        // add in attachments info
+                        applyAttachmentsToNode(this);
+
+                    }).then(function() {
 
                         var array = this.asArray();
                         for (var a = 0; a < array.length; a++)
@@ -860,6 +898,9 @@ module.exports = function(app, dust, callback)
 
                 var f = function(node)
                 {
+                    // add in attachments info
+                    applyAttachmentsToNode(node);
+
                     var newContextObject = {};
                     if (as)
                     {
@@ -877,24 +918,9 @@ module.exports = function(app, dust, callback)
                     }
 
                     var newContext = context.push(newContextObject);
-
-                    // add in attachments info
-                    var attachments = {};
-                    node.listAttachments().each(function() {
-                        var id = this["_doc"];
-                        attachments[id] = JSON.parse(JSON.stringify(this));
-                        attachments[id]["url"] = "/static/node/" + node.getId() + "/" + id;
-                        attachments[id]["preview32"] = "/static/node/" + node.getId() + "/preview32/?attachment=" + id + "&size=32";
-                        attachments[id]["preview64"] = "/static/node/" + node.getId() + "/preview64/?attachment=" + id + "&size=64";
-                        attachments[id]["preview128"] = "/static/node/" + node.getId() + "/preview128/?attachment=" + id + "&size=128";
-                        attachments[id]["preview256/"] = "/static/node/" + node.getId() + "/preview256/?attachment=" + id + "&size=256";
-                    }).then(function() {
-
-                        newContext.get("content").attachments = attachments;
-
-                        chunk.render(bodies.block, newContext);
-                        end(chunk, context);
-                    });
+                    //newContext.get("content").attachments = attachments;
+                    chunk.render(bodies.block, newContext);
+                    end(chunk, context);
                 };
 
                 Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").then(function() {

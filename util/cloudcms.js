@@ -352,7 +352,7 @@ exports = module.exports = function()
                 headers["Authorization"] = headers2["Authorization"];
 
                 var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT + uri;
-                console.log("URL: " + URL);
+                //console.log("URL: " + URL);
                 request({
                     "method": "GET",
                     "url": URL,
@@ -361,13 +361,13 @@ exports = module.exports = function()
                     "timeout": REQUEST_CONNECTION_TIMEOUT_MS
                 }).on('response', function (response) {
 
-                    console.log("Status Code: " + response.statusCode);
+                    //console.log("Status Code: " + response.statusCode);
 
                     if (response.statusCode >= 200 && response.statusCode <= 204)
                     {
                         response.pipe(tempStream).on("close", function (err) {
 
-                            console.log("ERR: " + err);
+                            //console.log("ERR: " + err);
 
                             if (err)
                             {

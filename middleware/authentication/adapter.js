@@ -258,8 +258,8 @@ exports = module.exports = function(providerId, lib, config)
     {
         var targetUrl = req.gitanaConfig.baseURL + attachable.getUri() + "/attachments/" + attachmentId;
 
-        console.log("url:" + url);
-        console.log("targetUrl: " + targetUrl);
+        //console.log("url:" + url);
+        //console.log("targetUrl: " + targetUrl);
 
         // add "authorization" for OAuth2 bearer token
         var headers = {};
