@@ -53,7 +53,7 @@ exports = module.exports = function()
         return util.createInterceptor("perf", function(req, res, next, configuration, stores) {
 
             // NOTE: if we're not in production mode, we don't do any of this
-            if (process.env.CLOUDCMS_APPSERVER_MODE == "production" || TEST_MODE)
+            if (process.env.CLOUDCMS_APPSERVER_MODE === "production" || TEST_MODE)
             {
                 // if req.query.invalidate, don't bother
                 if (util.isInvalidateTrue(req))
@@ -88,14 +88,14 @@ exports = module.exports = function()
 
                                         if (cacheSettings.seconds === 0)
                                         {
-                                            cacheControl = "max-age=0, no-cache, no-store";
-                                            pragma = "no-cache";
+                                            cacheControl = "no-cache,no-store,max-age=0,s-maxage=0";
+                                            //pragma = "no-cache";
                                             expires = "Mon, 7 Apr 2012, 16:00:00 GMT"; // some time in the past
                                         }
                                         else if (cacheSettings.seconds > 0)
                                         {
                                             cacheControl = "public, max-age=" + cacheSettings.seconds;
-                                            pragma = "public";
+                                            //pragma = "public";
                                             expires = new Date(Date.now() + (cacheSettings.seconds * 1000)).toUTCString();
                                         }
                                     }
@@ -105,10 +105,14 @@ exports = module.exports = function()
                                         util.setHeaderOnce(res, "Cache-Control", cacheControl);
                                     }
 
+                                    /*
                                     if (pragma)
                                     {
                                         util.setHeaderOnce(res, "Pragma", pragma);
                                     }
+                                    */
+                                    // always remove pragma
+                                    util.removeHeader("Pragma");
 
                                     if (expires)
                                     {

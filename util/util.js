@@ -804,37 +804,43 @@ var applyDefaultContentTypeCaching = exports.applyDefaultContentTypeCaching = fu
     }
 
     // assume no caching
-    var cacheControl = "no-cache";
+    var cacheControl = "no-cache,no-store,max-age=0,s-maxage=0,must-revalidate,no-transform";
+    var expires = "Mon, 7 Apr 2012, 16:00:00 GMT"; // some time in the past
 
     // if we're in production mode, we apply caching
-    if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
+    if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
     {
         var isCSS = ("text/css" == mimetype);
         var isImage = (mimetype.indexOf("image/") > -1);
         var isJS = ("text/javascript" == mimetype) || ("application/javascript" == mimetype);
         var isHTML = ("text/html" == mimetype);
 
+        var maxAge = -1;
+
         // html
         if (isHTML)
         {
-            cacheControl = "public, max-age=" + MAXAGE_THIRTY_MINUTES;
+            maxAge = MAXAGE_THIRTY_MINUTES;
         }
 
         // css, images and js get 1 year
         if (isCSS || isImage || isJS)
         {
-            cacheControl = "public, max-age=" + MAXAGE_THIRTY_MINUTES;
+            maxAge = MAXAGE_THIRTY_MINUTES;
         }
-    }
-    else
-    {
-        setHeaderOnce(response, 'Pragma', 'no-cache');
+
+        cacheControl = "public,max-age=" + maxAge + ",s-maxage=" + maxAge + ",no-transform";
+        expires = new Date(Date.now() + (maxAge * 1000)).toUTCString();
     }
 
-    setHeaderOnce(response, 'Cache-Control', cacheControl);
+    // overwrite the cache-control header
+    setHeader(response, 'Cache-Control', cacheControl);
 
-    // test
-    //res.header("Expires", "Mon, 7 Apr 2014, 16:00:00 GMT");
+    // overwrite the expires header
+    setHeader(response, 'Expires', expires);
+
+    // remove pragma, this isn't used anymore
+    removeHeader(response, "Pragma");
 };
 
 var handleSendFileError = exports.handleSendFileError = function(req, res, filePath, cacheInfo, logMethod, err)
@@ -889,7 +895,7 @@ var createDirectory = exports.createDirectory = function(directoryPath, callback
 var setHeaderOnce = exports.setHeaderOnce = function(response, name, value)
 {
     var existing = response.getHeader(name);
-    if (typeof(existing) == "undefined")
+    if (typeof(existing) === "undefined")
     {
         setHeader(response, name, value);
     }
@@ -898,6 +904,11 @@ var setHeaderOnce = exports.setHeaderOnce = function(response, name, value)
 var setHeader = exports.setHeader = function(response, name, value)
 {
     try { response.setHeader(name, value); } catch (e) { }
+};
+
+var removeHeader = exports.removeHeader = function(response, name)
+{
+    try { response.removeHeader(name); } catch (e) { }
 };
 
 var isInvalidateTrue = exports.isInvalidateTrue = function(request)
