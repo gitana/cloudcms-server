@@ -2,9 +2,13 @@ var path = require('path');
 var fs = require('fs');
 var util = require("../../util/util");
 var async = require("async");
+var request = require("request");
 
 /**
- * Lightweight store-based dependencies management.
+ * WCM Resource Dependency Manager
+ *
+ * Tracks page renditions and their dependencies.
+ * Calls over to Cloud CMS to store page renditions.
  *
  * @type {Function}
  */
@@ -19,69 +23,112 @@ exports = module.exports = function()
     var r = {};
 
     /**
-     * Adds a resource and marks it as dependent upon the given set of dependencies (key/value pairs).
+     * Marks a resource as dependent on a set of dependencies.  This calls over to Cloud CMS to register a page rendition
+     * described by "descriptor" as being dependent on the "dependencies".
      *
-     * The resource can be a string or a path separated URI.
+     * The descriptor structure is:
+     *
+     *  {
+     *      "url": req.url,
+     *      "host": req.host,
+     *      "path": offsetPath,
+     *      "params": req.params,
+     *      "headers": req.headers,
+     *      "tokens": tokens,
+     *      "matchingPath": matchingPath,
+     *      "pageId": page._doc
+     *  }
      *
      * @type {Function}
      */
-    var add = r.add = function(req, resource, dependencies, callback)
+    var add = r.add = function(req, descriptor, dependencies, callback)
     {
-        var contentStore = req.stores.content;
-
-        // write page -> dependencies cache entry
-        var dependenciesCount = 0;
-        for (var key in dependencies)
-        {
-            dependenciesCount++;
+        // empty dependencies if not defined
+        if (!dependencies) {
+            dependencies = {};
         }
 
-        if (dependenciesCount === 0)
-        {
-            callback();
-            return;
+        // noop callback if not defined
+        if (!callback) {
+            callback = function() { };
         }
 
-        var dependenciesFilePath = path.join("dependencies", "repositories", req.repositoryId, "branches", req.branchId, "resources", resource, "dependencies.json");
-
-        contentStore.writeFile(dependenciesFilePath, JSON.stringify(dependencies, null, "   "), function (err) {
+        req.application(function(err, application) {
 
             if (err) {
                 callback(err);
                 return;
             }
 
-            // write dependency -> page cache entries
-            var fns = [];
-            for (var key in dependencies)
+            var applicationId = application._doc;
+
+            var deploymentKey = "default";
+            if (req.descriptor && req.descriptor.deploymentKey)
             {
-                var array = dependencies[key];
-
-                for (var i = 0; i < array.length; i++)
-                {
-                    var fn = function (contentStore, req, key, value) {
-                        return function (done) {
-
-                            var resourceJson = {
-                                "resource": resource
-                            };
-
-                            var filename = util.hashcode(resource);
-
-                            var resourceJsonPath = path.join("dependencies", "repositories", req.repositoryId, "branches", req.branchId, "dependencies", key, value, filename + ".json");
-
-                            contentStore.writeFile(resourceJsonPath, JSON.stringify(resourceJson, null, "  "), function (err) {
-                                done();
-                            });
-                        }
-                    }(contentStore, req, key, array[i]);
-                    fns.push(fn);
-                }
+                deploymentKey = req.descriptor.deploymentKey;
             }
 
-            async.series(fns, function (err) {
-                callback(err);
+            // the descriptor contains "path", "params" and "headers".  We use this to generate a unique key.
+            // essentially this is a hash and acts as the page cache key
+            var pageCacheKey = util.generatePageCacheKey(descriptor);
+
+            // headers
+            var headers = {};
+
+            // add "authorization" for OAuth2 bearer token
+            var headers2 = req.gitana.platform().getDriver().getHttpHeaders();
+            headers["Authorization"] = headers2["Authorization"];
+
+            var pageRenditionObject = {
+                "deploymentKey": deploymentKey,
+                "key": pageCacheKey,
+                "page": {
+                    "id": descriptor.matchingPageId,
+                    "title": descriptor.matchingPageTitle,
+                    "url": descriptor.matchingUrl,
+                    "path": descriptor.matchingPath,
+                    "tokens": descriptor.tokens
+                },
+                "request": {
+                    "url": descriptor.url,
+                    "path": descriptor.path,
+                    "host": descriptor.host,
+                    "protocol": descriptor.protocol,
+                    "headers": descriptor.headers,
+                    "params": descriptor.params
+                },
+                "dependencies": dependencies,
+                "active": true
+            };
+
+            //console.log("PAGE RENDITION OBJECT");
+            //console.log(JSON.stringify(pageRenditionObject, null, "  "));
+
+            var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT + "/applications/" + applicationId + "/deployments/" + deploymentKey + "/pagerenditions";
+
+            request({
+                "method": "POST",
+                "url": URL,
+                "qs": {},
+                "json": pageRenditionObject,
+                "headers": headers
+            }, function(err, response, body) {
+
+                //console.log("Response error: " + JSON.stringify(err));
+                //console.log("Response: " + response);
+                //console.log("Body: " + body);
+                //console.log("Body2: " + JSON.stringify(body));
+
+                if (err)
+                {
+                    // failed to add the page rendition
+                    callback(err);
+                    return;
+                }
+
+                callback();
             });
+
         });
     };
 

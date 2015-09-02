@@ -3,7 +3,7 @@ var fs = require('fs');
 
 var exports = module.exports;
 
-exports.track = function(context, key, value)
+exports.trackDependency = function(context, key, value)
 {
     var dependencies = context.get("dependencies");
     if (!dependencies)
@@ -17,7 +17,8 @@ exports.track = function(context, key, value)
         dependencies[key] = array;
     }
 
-    //console.log("Tracking: " + key + " = " + value);
-
-    array.push(value);
+    if (array.indexOf(value) === -1)
+    {
+        array.push(value);
+    }
 };

@@ -4,7 +4,7 @@ var http = require('http');
 var util = require("../../util/util");
 var duster = require("../../duster/index");
 var async = require("async");
-var dependenciesService = require("./dependencies");
+var dependencyManager = require("./dependencies");
 
 /**
  * WCM middleware.
@@ -15,6 +15,13 @@ var dependenciesService = require("./dependencies");
  */
 exports = module.exports = function()
 {
+    // cache keys
+    var WCM_PAGES_PRELOADING_FLAG = "wcmPagesPreloadingFlag";
+    var WCM_PAGES = "wcmPages";
+
+    // thread wait time if other thread preloading
+    var WCM_PRELOAD_DEFER_WAIT_MS = 500;
+
     var isEmpty = function(thing)
     {
         return (typeof(thing) === "undefined") || (thing === null);
@@ -224,7 +231,7 @@ exports = module.exports = function()
 
             // allow for forced invalidation via req param
             if (req.query["invalidate"]) {
-                req.cache.remove("wcmPages", function() {
+                req.cache.remove(WCM_PAGES, function() {
                     callback();
                 });
                 return;
@@ -235,79 +242,118 @@ exports = module.exports = function()
 
         ensureInvalidate(function() {
 
-            req.cache.read("wcmPages", function (err, pages) {
+            req.cache.read(WCM_PAGES, function (err, pages) {
 
                 if (pages) {
                     callback(null, pages);
                     return;
                 }
 
-                // build out pages
-                pages = {};
+                // are these pages already being preloaded by another thread
+                req.cache.read(WCM_PAGES_PRELOADING_FLAG, function(err, preloading) {
 
-                var errorHandler = function (err) {
-                    req.log("WCM populate cache err: " + JSON.stringify(err));
+                    if (preloading)
+                    {
+                        req.log("Another thread is currently preloading pages, waiting " + WCM_PRELOAD_DEFER_WAIT_MS + " ms");
+                        // wait a while and try again
+                        setTimeout(function() {
+                            preloadPages(req, callback);
+                        }, WCM_PRELOAD_DEFER_WAIT_MS);
 
-                    callback(err);
-                };
-
-                // load all wcm pages from the server
-                req.branch(function(err, branch) {
-
-                    branch.trap(function(err) {
-                        errorHandler(err);
                         return;
-                    }).then(function () {
+                    }
 
-                        this.queryNodes({
-                            "_type": "wcm:page"
-                        }, {
-                            "limit": -1
-                        }).each(function () {
 
-                            // THIS = wcm:page
-                            var page = this;
+                    // mark that we are preloading
+                    // this prevents other "threads" from entering here and preloading at the same time
+                    // we set this marker for 30 seconds max
+                    req.cache.write(WCM_PAGES_PRELOADING_FLAG, true, 30);
 
-                            // if page has a template
-                            if (page.template)
-                            {
-                                if (page.uris)
+                    req.log("Loading Web Pages into cache");
+
+                    // build out pages
+                    pages = {};
+
+                    var errorHandler = function (err) {
+
+                        //  mark that we're finished preloading
+                        req.cache.remove(WCM_PAGES_PRELOADING_FLAG, function() {
+                            // this eventually finishes but we don't care to wait
+                        });
+
+                        req.log("Error while loading web pages: " + JSON.stringify(err));
+
+                        callback(err);
+                    };
+
+                    // load all wcm pages from the server
+                    req.branch(function(err, branch) {
+
+                        branch.trap(function(err) {
+
+                            //  mark that we're finished preloading
+                            req.cache.remove(WCM_PAGES_PRELOADING_FLAG, function() {
+                                // this eventually finishes but we don't care to wait
+                            });
+
+                            errorHandler(err);
+                            return;
+                        }).then(function () {
+
+                            this.queryNodes({
+                                "_type": "wcm:page"
+                            }, {
+                                "limit": -1
+                            }).each(function () {
+
+                                // THIS = wcm:page
+                                var page = this;
+
+                                // if page has a template
+                                if (page.template)
                                 {
-                                    // merge into our pages collection
-                                    for (var i = 0; i < page.uris.length; i++)
+                                    if (page.uris)
                                     {
-                                        pages[page.uris[i]] = page;
+                                        // merge into our pages collection
+                                        for (var i = 0; i < page.uris.length; i++)
+                                        {
+                                            pages[page.uris[i]] = page;
+                                        }
+                                    }
+
+                                    // is the template a GUID or a path to the template file?
+                                    if (page.template.indexOf("/") > -1)
+                                    {
+                                        page.templatePath = page.template;
+                                    }
+                                    else
+                                    {
+                                        // load the template
+                                        this.subchain(branch).readNode(page.template).then(function () {
+
+                                            // THIS = wcm:template
+                                            var template = this;
+                                            page.templatePath = template.path;
+                                        });
                                     }
                                 }
+                            })
 
-                                // is the template a GUID or a path to the template file?
-                                if (page.template.indexOf("/") > -1)
-                                {
-                                    page.templatePath = page.template;
-                                }
-                                else
-                                {
-                                    // load the template
-                                    this.subchain(branch).readNode(page.template).then(function () {
+                        }).then(function () {
 
-                                        // THIS = wcm:template
-                                        var template = this;
-                                        page.templatePath = template.path;
-                                    });
-                                }
+                            for (var uri in pages) {
+                                req.log("Loaded Web Page -> " + uri);
                             }
-                        })
 
-                    }).then(function () {
+                            req.cache.write(WCM_PAGES, pages, WCM_CACHE_TIMEOUT_SECONDS);
 
-                        console.log("Writing pages to WCM cache");
-                        for (var uri in pages) {
-                            console.log(" -> " + uri);
-                        }
+                            //  mark that we're finished preloading
+                            req.cache.remove(WCM_PAGES_PRELOADING_FLAG, function() {
+                                // this eventually finishes but we don't care to wait
+                            });
 
-                        req.cache.write("wcmPages", pages, WCM_CACHE_TIMEOUT_SECONDS);
-
-                        callback(null, pages);
+                            callback(null, pages);
+                        });
                     });
                 });
             });
@@ -321,17 +367,23 @@ exports = module.exports = function()
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
+    /**
+     * Determines whether to use the page cache.  We use this cache if we're instructed to and if we're in
+     * production model.
+     *
+     * @returns {boolean}
+     */
     var isPageCacheEnabled = function()
     {
         var enabled = false;
 
         if (process.configuration.wcm && process.configuration.wcm.enabled)
         {
-            if (process.env.FORCE_CLOUDCMS_WCM_CACHE === "true")
+            if (process.env.FORCE_CLOUDCMS_WCM_PAGE_CACHE === "true")
             {
                 process.configuration.wcm.cache = true;
             }
-            else if (typeof(process.env.FORCE_CLOUDCMS_WCM_CACHE) === "boolean" && process.env.FORCE_CLOUDCMS_WCM_CACHE)
+            else if (typeof(process.env.FORCE_CLOUDCMS_WCM_PAGE_CACHE) === "boolean" && process.env.FORCE_CLOUDCMS_WCM_PAGE_CACHE)
             {
                 process.configuration.wcm.cache = true;
             }
@@ -339,10 +391,15 @@ exports = module.exports = function()
             enabled = process.configuration.wcm.cache;
         }
 
+        if (process.env.CLOUDCMS_APPSERVER_MODE !== "production")
+        {
+            enabled = false;
+        }
+
         return enabled;
     };
 
-    var handleCachePageWrite = function(req, uri, dependencies, text, callback)
+    var handleCachePageWrite = function(req, descriptor, dependencies, text, callback)
     {
         if (!isPageCacheEnabled())
         {
@@ -352,8 +409,12 @@ exports = module.exports = function()
 
         var contentStore = req.stores.content;
 
+        // the descriptor contains "path", "params" and "headers".  We use this to generate a unique key.
+        // essentially this is a hash and acts as the page cache key
+        var pageCacheKey = util.generatePageCacheKey(descriptor);
+
         // write page cache entry
-        var pageFilePath = path.join("wcm", "repositories", req.repositoryId, "branches", req.branchId, "pages", uri, "page.html");
+        var pageFilePath = path.join("wcm", "repositories", req.repositoryId, "branches", req.branchId, "pages", pageCacheKey, "page.html");
         contentStore.writeFile(pageFilePath, text, function(err) {
 
             if (err)
@@ -362,11 +423,9 @@ exports = module.exports = function()
                 return;
             }
 
-            console.log("CACHE_WRITE: " + pageFilePath);
-
             if (dependencies)
             {
-                dependenciesService.add(req, uri, dependencies, function (err) {
+                dependencyManager.add(req, descriptor, dependencies, function (err) {
                     callback(err);
                 });
             }
@@ -377,7 +436,7 @@ exports = module.exports = function()
         });
     };
 
-    var handleCachePageRead = function(req, uri, callback)
+    var handleCachePageRead = function(req, descriptor, callback)
     {
         if (!isPageCacheEnabled())
         {
@@ -387,13 +446,17 @@ exports = module.exports = function()
 
         var contentStore = req.stores.content;
 
-        var pageFilePath = path.join("wcm", "repositories", req.repositoryId, "branches", req.branchId, "pages", uri, "page.html");
-        console.log("CACHE_READ: " + pageFilePath);
+        // the descriptor contains "path", "params" and "headers".  We use this to generate a unique key.
+        // essentially this is a hash and acts as the page cache key
+        var pageCacheKey = util.generatePageCacheKey(descriptor);
+
+        var pageFilePath = path.join("wcm", "repositories", req.repositoryId, "branches", req.branchId, "pages", pageCacheKey, "page.html");
         util.safeReadStream(contentStore, pageFilePath, function(err, stream) {
             callback(err, stream);
         });
     };
 
+    /*
     var handleCachePageInvalidate = function(req, uri, callback)
     {
         var contentStore = req.stores.content;
@@ -416,7 +479,9 @@ exports = module.exports = function()
             });
         });
     };
+    */
 
+    /*
     var handleCacheDependencyInvalidate = function(req, key, value, callback)
     {
         var contentStore = req.stores.content;
@@ -472,6 +537,7 @@ exports = module.exports = function()
             }
         });
     };
+    */
 
     var bindSubscriptions = function()
     {
@@ -528,6 +594,8 @@ exports = module.exports = function()
 
             var webStore = stores.web;
 
+            // ensures that the WCM PAGES cache is preloaded for the current branch
+            // pages must be loaded ahead of time so that matching can be performed
             preloadPages(req, function(err, pages) {
 
                 if (err)
@@ -539,76 +607,116 @@ exports = module.exports = function()
                 var offsetPath = req.path;
 
                 // find a page for this path
+                // this looks at wcm:page urls and finds a best fit, extracting tokens
                 findMatchingPage(pages, offsetPath, function(err, page, tokens, matchingPath) {
 
                     if (err)
                     {
+                        req.log("An error occurred while attempting to match path: " + offsetPath);
+
                         next();
                         return;
                     }
 
+                    // if no extracted tokens, assume empty set
+                    if (!tokens) {
+                        tokens = {};
+                    }
+
+                    // if we found a page, then we either need to serve back from cache or run dust over it
+                    // after dust is run over it, we can stuff it into cache for the next request to benefit from
                     if (page)
                     {
-                        // handle cache read
-                        handleCachePageRead(req, offsetPath, function(err, readStream) {
+                        var host = req.domainHost;
+                        if ("localhost" === host) {
+                            host = req.headers["host"];
+                        }
+
+                        var descriptor = {
+                            "url": req.protocol + "://" + host + offsetPath,
+                            "host": host,
+                            "protocol": req.protocol,
+                            "path": offsetPath,
+                            "params": req.query,
+                            "headers": req.headers,
+                            "matchingTokens": tokens,
+                            "matchingPath": matchingPath,
+                            "matchingUrl": req.protocol + "://" + host + matchingPath,
+                            "matchingPageId": page._doc,
+                            "matchingPageTitle": page.title ? page.title : page._doc
+                        };
+
+                        // is this already in cache?
+                        handleCachePageRead(req, descriptor, function(err, readStream) {
 
                             if (!err && readStream)
                             {
-                                console.log("SERVING FROM CACHE: " + offsetPath);
+                                // yes, we found it in cache, so we'll simply pipe it back from disk
+                                req.log("WCM Page Cache Hit: " + offsetPath);
                                 res.status(200);
                                 readStream.pipe(res);
                                 return;
                             }
 
-                            if (!tokens) {
-                                tokens = {};
-                            }
+                            // otherwise, we need to run dust!
 
-                            if (!req.helpers) {
-                                req.helpers = {};
-                            }
-                            req.helpers.page = page;
+                            var runDust = function()
+                            {
+                                // TODO: block here in case another thread is trying to dust this page at the same time?
 
-                            // build the model
-                            var model = {
-                                "page": {},
-                                "template": {
-                                    "path": page.templatePath
-                                },
-                                "request": {
-                                    "tokens": tokens,
-                                    "matchingPath": matchingPath
+                                if (!req.helpers) {
+                                    req.helpers = {};
                                 }
-                            };
+                                req.helpers.page = page;
 
-                            // page keys to copy
-                            for (var k in page) {
-                                if (k == "templatePath") {
-                                } else if (k.indexOf("_") === 0) {
-                                } else {
-                                    model.page[k] = page[k];
-                                }
-                            }
+                                // build the model
+                                var model = {
+                                    "page": {},
+                                    "template": {
+                                        "path": page.templatePath
+                                    },
+                                    "request": {
+                                        "tokens": tokens,
+                                        "matchingPath": matchingPath
+                                    }
+                                };
 
-                            // set _doc and id (equivalent)
-                            model.page._doc = model.page.id = page._doc;
-
-                            // dust it
-                            duster.execute(req, webStore, page.templatePath, model, function (err, text, dependencies) {
-
-                                if (err) {
-                                    res.status(500);
-                                    res.send(err);
-                                    return;
+                                // page keys to copy
+                                for (var k in page) {
+                                    if (k == "templatePath") {
+                                    } else if (k.indexOf("_") === 0) {
+                                    } else {
+                                        model.page[k] = page[k];
+                                    }
                                 }
 
-                                // write to page cache
-                                handleCachePageWrite(req, offsetPath, dependencies, text, function(err) {
-                                    res.status(200);
-                                    res.send(text);
+                                // set _doc and id (equivalent)
+                                model.page._doc = model.page.id = page._doc;
+
+                                // dust it up
+                                duster.execute(req, webStore, page.templatePath, model, function (err, text, dependencies) {
+
+                                    if (err)
+                                    {
+                                        // something screwed up during the dust execution
+                                        // it might be a bad template
+                                        req.log("Failed to process dust template: " + page.templatePath + " for model: " + JSON.stringify(model, null, "  "));
+
+                                        res.status(500);
+                                        res.send(err);
+                                        return;
+                                    }
+
+                                    // we now have the result (text) and the dependencies that this page flagged (dependencies)
+                                    // use these to write to the page cache
+                                    handleCachePageWrite(req, descriptor, dependencies, text, function(err) {
+                                        res.status(200);
+                                        res.send(text);
+                                    });
+
                                 });
-
-                            });
+                            };
+                            runDust();
                         });
                     }
                     else

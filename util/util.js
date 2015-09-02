@@ -1077,3 +1077,52 @@ var lookupMimeType = exports.lookupMimeType = function(ext) {
 
     return mimetype;
 };
+
+/**
+ * Generates a page cache key for a given wcm page descriptor.
+ */
+var generatePageCacheKey = exports.generatePageCacheKey = function(descriptor) {
+
+    // sort params alphabetically
+    var paramNames = [];
+    for (var paramName in descriptor.params) {
+        paramNames.push(paramName);
+    }
+    paramNames.sort();
+
+    /*
+    // sort headers alphabetically
+    var headerNames = [];
+    for (var headerName in descriptor.headers) {
+        headerNames.push(headerName);
+    }
+    headerNames.sort();
+    */
+
+    var str = descriptor.url;
+
+    // add in param names
+    for (var i = 0; i < paramNames.length; i++)
+    {
+        var paramName = paramNames[i];
+        var paramValue = descriptor.params[paramName];
+        str += "&param_" + paramName + "=" + paramValue;
+    }
+
+    /*
+    // add in header names
+    for (var i = 0; i < headerNames.length; i++)
+    {
+        var headerName = headerNames[i];
+        var headerValue = descriptor.headers[headerName];
+        str += "&header_" + headerName + "=" + headerValue;
+    }
+    */
+
+    // calculate a hashcode
+    var hash = hashcode(str);
+
+    var pageCacheKey = "pc-" + hash;
+
+    return pageCacheKey;
+};

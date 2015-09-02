@@ -296,8 +296,8 @@ module.exports = function(app, dust, callback)
                             // enhance node information
                             enhanceNode(this);
 
-                            // DEPENDENCIES: TRACK
-                            dependencyUtil.track(context, "_doc", this._doc);
+                            // TRACK DEPENDENCY
+                            dependencyUtil.trackDependency(context, "node", this._doc);
 
                         }).then(function() {
                             handleResults.call(this);
@@ -314,8 +314,8 @@ module.exports = function(app, dust, callback)
                             "type": "wcm:page_has_content"
                         }, pagination).each(function(){
 
-                            // DEPENDENCIES: TRACK
-                            dependencyUtil.track(context, "_doc", this._doc);
+                            // TRACK DEPENDENCY
+                            dependencyUtil.trackDependency(context, "node", this._doc);
 
                         }).then(function() {
                             handleResults.call(this);
@@ -466,8 +466,8 @@ module.exports = function(app, dust, callback)
                         // enhance node information
                         enhanceNode(this);
 
-                        // DEPENDENCIES: TRACK
-                        dependencyUtil.track(context, "_doc", this._doc);
+                        // TRACK DEPENDENCY
+                        dependencyUtil.trackDependency(context, "node", this._doc);
 
                     }).then(function() {
 
@@ -626,7 +626,6 @@ module.exports = function(app, dust, callback)
 
                         var cf = function()
                         {
-                            console.log("R: " + JSON.stringify(resultObject, null, "  "));
                             var newContext = context.push(resultObject);
 
                             chunk.render(bodies.block, newContext);
@@ -813,8 +812,8 @@ module.exports = function(app, dust, callback)
                         // enhance node information
                         enhanceNode(this);
 
-                        // DEPENDENCIES: TRACK
-                        dependencyUtil.track(context, "_doc", this._doc);
+                        // TRACK DEPENDENCY
+                        dependencyUtil.trackDependency(context, "node", this._doc);
 
                     }).then(function() {
 
