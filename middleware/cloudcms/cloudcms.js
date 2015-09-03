@@ -299,11 +299,29 @@ exports = module.exports = function()
         {
             if (req.gitana)
             {
+                var cookieBranchId = req.cookies["cloudcms-server-branch-id"];
+
                 // pick which branch
                 var branchId = req.query["branch"];
                 if (!branchId)
                 {
+                    branchId = req.query["branchId"];
+                }
+                if (!branchId)
+                {
                     branchId = req.header("CLOUDCMS_BRANCH");
+                }
+                if (!branchId)
+                {
+                    // allow for the branch to specified via an environment parameter
+                    if (process.env.CLOUDCMS_BRANCH_ID)
+                    {
+                        branchId = process.env.CLOUDCMS_BRANCH_ID;
+                    }
+                }
+                if (!branchId)
+                {
+                    branchId = cookieBranchId;
                 }
                 if (!branchId)
                 {
@@ -311,6 +329,13 @@ exports = module.exports = function()
                 }
 
                 req.branchId = branchId;
+
+                // write a cookie down to store branch ID if it changed
+                if (branchId !== cookieBranchId)
+                {
+                    res.clearCookie("cloudcms-server-branch-id");
+                    res.cookie("cloudcms-server-branch-id", branchId);
+                }
 
                 // helper function
                 req.branch = function(callback)
