@@ -1,6 +1,3 @@
-var path = require('path');
-var fs = require('fs');
-
 var exports = module.exports;
 
 exports.trackDependency = function(context, key, value)

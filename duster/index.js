@@ -119,6 +119,13 @@ exports.execute = function(req, store, filePath, model, callback)
 
             // collect rendered item dependencies
             context.dependencies = {};
+            // we are always dependent on the following
+            if (req.repositoryId) {
+                context.dependencies.repository = req.repositoryId;
+            }
+            if (req.branchId) {
+                context.dependencies.branch = req.branchId;
+            }
 
             // execute template
             dust.render(templateKey, context, function(err, out) {
