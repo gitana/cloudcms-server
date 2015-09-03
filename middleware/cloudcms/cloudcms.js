@@ -772,13 +772,17 @@ exports = module.exports = function()
                     if (a === "true") {
                         useContentDispositionResponse = true;
                     }
+                    var filename = req.query["filename"];
+                    if (filename) {
+                        useContentDispositionResponse = true;
+                    }
 
                     cloudcmsUtil.download(contentStore, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, function(err, filePath, cacheInfo) {
 
                         // if the file was found on disk or was downloaded, then stream it back
                         if (!err && filePath && cacheInfo)
                         {
-                            var filename = resolveFilename(filePath, cacheInfo, requestedFilename);
+                            var filename = resolveFilename(req, filePath, cacheInfo, requestedFilename);
 
                             if (useContentDispositionResponse)
                             {
@@ -904,6 +908,10 @@ exports = module.exports = function()
                     if (a === "true") {
                         useContentDispositionResponse = true;
                     }
+                    var filename = req.query["filename"];
+                    if (filename) {
+                        useContentDispositionResponse = true;
+                    }
 
                     // the range requested (for streaming)
                     var range = req.headers["range"];
@@ -918,7 +926,7 @@ exports = module.exports = function()
                         // if the file was found on disk or was downloaded, then stream it back
                         if (!err && filePath && cacheInfo)
                         {
-                            var filename = resolveFilename(filePath, cacheInfo, requestedFilename);
+                            var filename = resolveFilename(req, filePath, cacheInfo, requestedFilename);
 
                             // disable the accept-ranges header
                             res.setHeader("Accept-Ranges", "none");
@@ -1192,7 +1200,7 @@ exports = module.exports = function()
                         // if the file was found on disk or was downloaded, then stream it back
                         if (!err && filePath && cacheInfo)
                         {
-                            var filename = resolveFilename(filePath, cacheInfo, requestedFilename);
+                            var filename = resolveFilename(req, filePath, cacheInfo, requestedFilename);
 
                             if (useContentDispositionResponse)
                             {
@@ -1308,7 +1316,7 @@ exports = module.exports = function()
                         // if the file was found on disk or was downloaded, then stream it back
                         if (!err && filePath && cacheInfo)
                         {
-                            var filename = resolveFilename(filePath, cacheInfo, requestedFilename);
+                            var filename = resolveFilename(req, filePath, cacheInfo, requestedFilename);
 
                             if (useContentDispositionResponse)
                             {
@@ -1419,13 +1427,18 @@ exports = module.exports = function()
      *
      * If, in the end, an extension cannot be applied, then the filename may come back without one.
      *
+     * @param req
      * @param filePath
      * @param cacheInfo
      * @param requestedFilename
      */
-    var resolveFilename = function(filePath, cacheInfo, requestedFilename)
+    var resolveFilename = function(req, filePath, cacheInfo, requestedFilename)
     {
-        var filename = requestedFilename;
+        var filename = req.query.filename;
+        if (!filename)
+        {
+            filename = requestedFilename;
+        }
         if (!filename)
         {
             filename = cacheInfo.filename;
