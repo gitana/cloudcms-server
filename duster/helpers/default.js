@@ -296,10 +296,16 @@ module.exports = function(app, dust, callback)
                             // enhance node information
                             enhanceNode(this);
 
-                            // TRACK DEPENDENCY
+                            // TRACK NODE DEPENDENCY
                             dependencyUtil.trackDependency(context, "node", this._doc);
 
                         }).then(function() {
+
+                            // TRACK OTHER DEPENDENCIES
+                            if (locale) {
+                                dependencyUtil.trackDependency(context, "locale", locale);
+                            }
+
                             handleResults.call(this);
                         });
                     };
@@ -316,6 +322,11 @@ module.exports = function(app, dust, callback)
 
                             // TRACK DEPENDENCY
                             dependencyUtil.trackDependency(context, "node", this._doc);
+
+                            // TRACK OTHER DEPENDENCIES
+                            if (locale) {
+                                dependencyUtil.trackDependency(context, "locale", locale);
+                            }
 
                         }).then(function() {
                             handleResults.call(this);
@@ -413,6 +424,9 @@ module.exports = function(app, dust, callback)
         // as
         var as = dust.helpers.tap(params.as, chunk, context);
 
+        // locale
+        var locale = dust.helpers.tap(params.locale, chunk, context);
+
         // ensure limit and skip are numerical
         if (isDefined(limit))
         {
@@ -432,6 +446,11 @@ module.exports = function(app, dust, callback)
                     console.log("ERROR: " + err);
                     end(chunk, context);
                 };
+
+                if (locale)
+                {
+                    gitana.getDriver().setLocale(locale);
+                }
 
                 Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").then(function() {
 
@@ -470,6 +489,11 @@ module.exports = function(app, dust, callback)
                         dependencyUtil.trackDependency(context, "node", this._doc);
 
                     }).then(function() {
+
+                        // TRACK OTHER DEPENDENCIES
+                        if (locale) {
+                            dependencyUtil.trackDependency(context, "locale", locale);
+                        }
 
                         var array = this.asArray();
                         for (var a = 0; a < array.length; a++)
@@ -540,6 +564,9 @@ module.exports = function(app, dust, callback)
         var associationType = dust.helpers.tap(params.type, chunk, context);
         var associationDirection = dust.helpers.tap(params.direction, chunk, context);
 
+        // locale
+        var locale = dust.helpers.tap(params.locale, chunk, context);
+
         // ensure limit and skip are numerical
         if (isDefined(limit))
         {
@@ -559,6 +586,11 @@ module.exports = function(app, dust, callback)
                     console.log("ERROR: " + err);
                     end(chunk, context);
                 };
+
+                if (locale)
+                {
+                    gitana.getDriver().setLocale(locale);
+                }
 
                 Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").readNode(nodeId).then(function() {
 
@@ -598,7 +630,17 @@ module.exports = function(app, dust, callback)
 
                     var node = this;
 
-                    this.associations(config, pagination).then(function() {
+                    this.associations(config, pagination).each(function() {
+
+                        // TRACK NODE DEPENDENCIES (this is the association)
+                        dependencyUtil.trackDependency(context, "node", this._doc);
+
+                    }).then(function() {
+
+                        // TRACK OTHER DEPENDENCIES
+                        if (locale) {
+                            dependencyUtil.trackDependency(context, "locale", locale);
+                        }
 
                         var array = this.asArray();
                         for (var a = 0; a < array.length; a++)
@@ -670,15 +712,20 @@ module.exports = function(app, dust, callback)
                             }
                         }).each(function() {
 
-                            // enhance node information
-                            enhanceNode(this);
-
                             var associations_array = otherNodeIdToAssociations[this._doc];
                             for (var z = 0; z < associations_array.length; z++)
                             {
                                 associations_array[z].other = this;
                             }
+
+                            // enhance node information
+                            enhanceNode(this);
+
+                            // TRACK NODE DEPENDENCIES
+                            dependencyUtil.trackDependency(context, "node", this._doc);
+
                         }).then(function() {
+
                             cf();
                         });
                     });
@@ -728,6 +775,9 @@ module.exports = function(app, dust, callback)
         var field = dust.helpers.tap(params.field, chunk, context);
         var fieldRegex = dust.helpers.tap(params.fieldRegex, chunk, context);
         var fieldValue = dust.helpers.tap(params.fieldValue, chunk, context);
+
+        // locale
+        var locale = dust.helpers.tap(params.locale, chunk, context);
 
         // ensure limit and skip are numerical
         if (isDefined(limit))
@@ -817,6 +867,11 @@ module.exports = function(app, dust, callback)
 
                     }).then(function() {
 
+                        // TRACK OTHER DEPENDENCIES
+                        if (locale) {
+                            dependencyUtil.trackDependency(context, "locale", locale);
+                        }
+
                         var array = this.asArray();
                         for (var a = 0; a < array.length; a++)
                         {
@@ -899,7 +954,10 @@ module.exports = function(app, dust, callback)
                 var f = function(node)
                 {
                     // enhance node information
-                    enhanceNode(this);
+                    enhanceNode(node);
+
+                    // TRACK NODE DEPENDENCIES
+                    dependencyUtil.trackDependency(context, "node", node._doc);
 
                     var newContextObject = {};
                     if (as)
