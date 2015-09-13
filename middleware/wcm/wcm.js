@@ -4,7 +4,8 @@ var http = require('http');
 var util = require("../../util/util");
 var duster = require("../../duster/index");
 var async = require("async");
-var dependencyManager = require("./dependencies");
+
+var renditions = require("../../util/renditions");
 
 /**
  * WCM middleware.
@@ -425,7 +426,7 @@ exports = module.exports = function()
 
             if (dependencies)
             {
-                dependencyManager.add(req, descriptor, dependencies, function (err) {
+                renditions.markRendition(req, descriptor, dependencies, function (err) {
                     callback(err);
                 });
             }
@@ -643,7 +644,8 @@ exports = module.exports = function()
                             "matchingPath": matchingPath,
                             "matchingUrl": req.protocol + "://" + host + matchingPath,
                             "matchingPageId": page._doc,
-                            "matchingPageTitle": page.title ? page.title : page._doc
+                            "matchingPageTitle": page.title ? page.title : page._doc,
+                            "scope": "PAGE"
                         };
 
                         // is this already in cache?
@@ -681,6 +683,9 @@ exports = module.exports = function()
                                     }
                                 };
 
+                                // model stores reference to page descriptor
+                                model._page_descriptor = descriptor;
+
                                 // page keys to copy
                                 for (var k in page) {
                                     if (k == "templatePath") {
@@ -710,9 +715,13 @@ exports = module.exports = function()
                                     // we now have the result (text) and the dependencies that this page flagged (dependencies)
                                     // use these to write to the page cache
                                     handleCachePageWrite(req, descriptor, dependencies, text, function(err) {
-                                        res.status(200);
-                                        res.send(text);
+                                        //res.status(200);
+                                        //res.send(text);
                                     });
+
+                                    // slight improvement here, send back results right away
+                                    res.status(200);
+                                    res.send(text);
 
                                 });
                             };

@@ -11,6 +11,8 @@ if (process.env.NODE_ENV === "production") {
     dust.debugLevel = "DEBUG";
 }
 
+var tracker = require("./tracker");
+
 /**
  * Provides a convenience interface into the Dust subsystem that Cloud CMS uses to process in-page tags.
  */
@@ -117,15 +119,11 @@ exports.execute = function(req, store, filePath, model, callback)
             var context = {};
             populateContext(req, context, model, filePath);
 
-            // collect rendered item dependencies
-            context.dependencies = {};
-            // we are always dependent on the following
-            if (req.repositoryId) {
-                context.dependencies.repository = req.repositoryId;
-            }
-            if (req.branchId) {
-                context.dependencies.branch = req.branchId;
-            }
+            // push base tracker instance for tracking dependencies
+            var tracker = context["__tracker"] = {
+                "requires": {},
+                "produces": {}
+            };
 
             // execute template
             dust.render(templateKey, context, function(err, out) {
@@ -135,8 +133,13 @@ exports.execute = function(req, store, filePath, model, callback)
                     console.log("An error was caught while rendering dust template: " + templateKey + ", error: " + err);
                 }
 
+                var dependencies = {
+                    "requires": tracker.requires,
+                    "produces": tracker.produces
+                };
+
                 // callback with dependencies
-                callback(err, out, context.dependencies);
+                callback(err, out, dependencies);
             });
         };
 
@@ -195,7 +198,7 @@ var ensureInit = function(store)
 
     _init = true;
 
-    if (process.env.CLOUDCMS_APPSERVER_MODE === "development")
+    if (process.env.CLOUDCMS_APPSERVER_MODE !== "production")
     {
         // watch everything in web store
         store.watchDirectory("/", function (f, curr, prev) {

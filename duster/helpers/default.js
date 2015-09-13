@@ -4,9 +4,30 @@ var http = require('http');
 var crypto = require('crypto');
 var async = require("async");
 
-var dependencyUtil = require("../../util/dependencyUtil");
+var tracker = require("../tracker");
 
 var util = require("../../util/util");
+
+/*
+// start up the dependency tracker
+tracker.start(context);
+// we are always dependent on the following
+if (req.repositoryId) {
+    tracker.track("repository", req.repositoryId);
+}
+if (req.branchId) {
+    tracker.track("branch", req.branchId);
+}
+
+// TODO: check - does a fragment exist for this?
+// if so, serve back from fragment cache
+
+var dependencies = tracker.get(context);
+
+// TODO: write to fragment cache
+*/
+
+
 
 /**
  * Default dust tags for Cloud CMS.
@@ -44,9 +65,46 @@ module.exports = function(app, dust, callback)
     var _MARK_INSIGHT = support._MARK_INSIGHT;
 
     /**
-     * iter
+     * if
      *
-     * iterates over keys of an object. Something that Dust apparently is not capable of
+     * It seems ridiculous to me that we should have to add this back in.  But it was deprecated in newer versions of
+     * dust.js.  Logic is sound but frankly, I expect most of our users will want to use @if.
+     *
+     * @param chunk
+     * @param context
+     * @param bodies
+     * @param params
+     * @returns {*}
+     */
+    dust.helpers.if = function( chunk, context, bodies, params ){
+        var body = bodies.block,
+            skip = bodies['else'];
+        if( params && params.cond){
+            var cond = params.cond;
+            cond = context.resolve(cond);
+            // eval expressions with given dust references
+            if(eval(cond)){
+                if(body) {
+                    return chunk.render( bodies.block, context );
+                }
+                else {
+                    _console.log( "Missing body block in the if helper!" );
+                    return chunk;
+                }
+            }
+            if(skip){
+                return chunk.render( bodies['else'], context );
+            }
+        }
+        // no condition
+        else {
+            _console.log( "No condition given in the if helper!" );
+        }
+        return chunk;
+    };
+
+    /**
+     * iterates over keys of an object. Something that Dust apparently is not capable of.
      *
      * Syntax:
      *
@@ -62,23 +120,17 @@ module.exports = function(app, dust, callback)
      * @param params
      */
     dust.helpers.iter = function(chunk, context, bodies, params) {
-      var obj = dust.helpers.tap(params.obj, chunk, context);
 
-      var iterable = [];
+        // TODO: there is already an @iterate helper defined in this helper file
+        // TODO: do we need another?
+        // TODO: {@iterate over=obj}{$key}-{$value} of type {$type}{~n}{/iterate}
 
-      for (var key in obj) {
-        if (obj.hasOwnProperty(key)) {
-          var value = obj[key];
+        var obj = context.resolve(params.obj);
 
-          iterable.push({
-            '$key': key,
-            '$value': value,
-            '$type': typeof value
-          });
-        }
-      }
+        var params2 = {};
+        params2.over = obj;
 
-      return chunk.section(iterable, context, bodies);
+        return dust.helpers.iterate(chunk, context, bodies, params2);
     };
 
     /**
@@ -97,30 +149,30 @@ module.exports = function(app, dust, callback)
         params = params || {};
 
         // type
-        var type = dust.helpers.tap(params.type, chunk, context);
+        var type = context.resolve(params.type);
 
         // pagination
-        var sort = dust.helpers.tap(params.sort, chunk, context);
-        var sortDirection = dust.helpers.tap(params.sortDirection, chunk, context);
-        var limit = dust.helpers.tap(params.limit, chunk, context);
-        var skip = dust.helpers.tap(params.skip, chunk, context);
+        var sort = context.resolve(params.sort);
+        var sortDirection = context.resolve(params.sortDirection);
+        var limit = context.resolve(params.limit);
+        var skip = context.resolve(params.skip);
 
         // scope
-        var scope = dust.helpers.tap(params.scope, chunk, context);
+        var scope = context.resolve(params.scope);
 
         // as
-        var as = dust.helpers.tap(params.as, chunk, context);
+        var as = context.resolve(params.as);
 
         // single field constraints
-        var field = dust.helpers.tap(params.field, chunk, context);
-        var fieldRegex = dust.helpers.tap(params.fieldRegex, chunk, context);
-        var fieldValue = dust.helpers.tap(params.fieldValue, chunk, context);
+        var field = context.resolve(params.field);
+        var fieldRegex = context.resolve(params.fieldRegex);
+        var fieldValue = context.resolve(params.fieldValue);
 
         // geolocation (near)
-        var near = dust.helpers.tap(params.near, chunk, context);
+        var near = context.resolve(params.near);
 
         // locale
-        var locale = dust.helpers.tap(params.locale, chunk, context);
+        var locale = context.resolve(params.locale);
 
         // ensure limit and skip are numerical
         if (isDefined(limit))
@@ -132,300 +184,281 @@ module.exports = function(app, dust, callback)
             skip = parseInt(skip);
         }
 
-        return map(chunk, function(chunk) {
-            setTimeout(function() {
+        var requirements = support.buildRequirements({
+            "type": type,
+            "sort": sort,
+            "sortDirection": sortDirection,
+            "limit": limit,
+            "skip": skip,
+            "scope": scope,
+            "as": as,
+            "field": field,
+            "fieldRegex": fieldRegex,
+            "fieldValue": fieldValue,
+            "near": near,
+            "locale": locale
+        });
 
-                var gitana = context.get("gitana");
+        // identifier for this fragment
+        var fragmentId = context.resolve(params.fragment);
 
-                var errHandler = function(err) {
-                    console.log("ERROR: " + err);
-                    end(chunk, context);
-                };
+        // if we can serve this from the fragment cache, we do so
+        support.serveFragment(context, chunk, fragmentId, requirements, function(err, noFragmentId) {
 
-                var query = {};
-                if (isDefined(type))
-                {
-                    query._type = type;
-                }
-                if (isDefined(field))
-                {
-                    if (isDefined(fieldRegex))
+            if (!err && !noFragmentId) {
+                return;
+            }
+
+            // not cached, so run this puppy
+
+            // TRACKER: START
+            tracker.start(context, fragmentId, requirements);
+
+            return map(chunk, function(chunk) {
+                setTimeout(function() {
+
+                    var gitana = context.get("gitana");
+
+                    var errHandler = function(err) {
+                        console.log("ERROR: " + err);
+                        end(chunk, context);
+                    };
+
+                    var query = {};
+                    if (isDefined(type))
                     {
-                        query[field] = {
-                            $regex: fieldRegex,
-                            $options: "i"
+                        query._type = type;
+                    }
+                    if (isDefined(field))
+                    {
+                        if (isDefined(fieldRegex))
+                        {
+                            query[field] = {
+                                $regex: fieldRegex,
+                                $options: "i"
+                            };
+                        }
+                        else if (isDefined(fieldValue))
+                        {
+                            query[field] = fieldValue;
+                        }
+                    }
+
+                    if (near)
+                    {
+                        var nearArray = near.split(",");
+                        nearArray[0] = parseFloat(nearArray[0]);
+                        nearArray[1] = parseFloat(nearArray[1]);
+
+                        query["loc"] = {
+                            "$near" : {
+                                "lat": nearArray[0],
+                                "long": nearArray[1]
+                            }
                         };
                     }
-                    else if (isDefined(fieldValue))
-                    {
-                        query[field] = fieldValue;
-                    }
-                }
 
-                if (near)
-                {
-                    var nearArray = near.split(",");
-                    nearArray[0] = parseFloat(nearArray[0]);
-                    nearArray[1] = parseFloat(nearArray[1]);
-
-                    query["loc"] = {
-                        "$near" : {
-                            "lat": nearArray[0],
-                            "long": nearArray[1]
-                        }
+                    // strip out translations
+                    query["_features.f:translation"] = {
+                        "$exists": false
                     };
-                }
 
-                // strip out translations
-                query["_features.f:translation"] = {
-                    "$exists": false
-                };
-
-                var pagination = {};
-                if (!isDefined(limit)) {
-                    limit = -1;
-                }
-                pagination.limit = limit;
-                if (isDefined(sort))
-                {
-                    if (typeof(sortDirection) !== "undefined")
-                    {
-                        sortDirection = parseInt(sortDirection, 10);
+                    var pagination = {};
+                    if (!isDefined(limit)) {
+                        limit = -1;
                     }
-                    else
+                    pagination.limit = limit;
+                    if (isDefined(sort))
                     {
-                        sortDirection = 1;
-                    }
-
-                    pagination.sort = {};
-                    pagination.sort[sort] = sortDirection;
-                }
-                if (isDefined(skip))
-                {
-                    pagination.skip = skip;
-                }
-
-                if (locale)
-                {
-                    gitana.getDriver().setLocale(locale);
-                }
-
-                Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").then(function() {
-
-                    var branch = this;
-
-                    var handleResults = function()
-                    {
-                        var array = this.asArray();
-                        if (array.length > 0)
+                        if (typeof(sortDirection) !== "undefined")
                         {
-                            for (var i = 0; i < array.length; i++)
-                            {
-                                array[i]._statistics = array[i].__stats();
-                            }
+                            sortDirection = parseInt(sortDirection, 10);
+                        }
+                        else
+                        {
+                            sortDirection = 1;
                         }
 
-                        if (keepOne)
+                        pagination.sort = {};
+                        pagination.sort[sort] = sortDirection;
+                    }
+                    if (isDefined(skip))
+                    {
+                        pagination.skip = skip;
+                    }
+
+                    if (locale)
+                    {
+                        gitana.getDriver().setLocale(locale);
+                    }
+
+                    Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").then(function() {
+
+                        var branch = this;
+
+                        var handleResults = function()
                         {
-                            var newContext = null;
-                            if (this.totalRows() > 0)
+                            var array = this.asArray();
+                            if (array.length > 0)
                             {
-                                var result = array[0];
+                                for (var i = 0; i < array.length; i++)
+                                {
+                                    array[i]._statistics = array[i].__stats();
+                                }
+                            }
+
+                            if (keepOne)
+                            {
+                                var newContext = null;
+                                if (this.totalRows() > 0)
+                                {
+                                    var result = array[0];
+
+                                    var resultObject = null;
+                                    if (as)
+                                    {
+                                        resultObject = {};
+                                        resultObject[as] = JSON.parse(JSON.stringify(result));
+
+                                        _MARK_INSIGHT(result, resultObject[as]);
+                                    }
+                                    else
+                                    {
+                                        resultObject = JSON.parse(JSON.stringify(result));
+
+                                        _MARK_INSIGHT(result, resultObject);
+                                    }
+
+                                    newContext = context.push(resultObject);
+                                }
+                                else
+                                {
+                                    newContext = context.push({});
+                                }
+
+                                support.renderFragment(newContext, fragmentId, requirements, chunk, bodies, function(err) {
+
+                                });
+
+                                //chunk.render(bodies.block, newContext);
+                                //end(chunk, context);
+                            }
+                            else
+                            {
+                                for (var a = 0; a < array.length; a++)
+                                {
+                                    _MARK_INSIGHT(array[a], array[a]);
+                                }
 
                                 var resultObject = null;
                                 if (as)
                                 {
-                                    resultObject = {};
-                                    resultObject[as] = JSON.parse(JSON.stringify(result));
-
-                                    _MARK_INSIGHT(result, resultObject[as]);
+                                    resultObject = {
+                                        "offset": this.offset(),
+                                        "total": this.totalRows()
+                                    };
+                                    resultObject[as] = array;
                                 }
                                 else
                                 {
-                                    resultObject = JSON.parse(JSON.stringify(result));
-
-                                    _MARK_INSIGHT(result, resultObject);
+                                    resultObject = {
+                                        "rows": array,
+                                        "offset": this.offset(),
+                                        "total": this.totalRows()
+                                    };
                                 }
 
-                                newContext = context.push(resultObject);
-                            }
-                            else
-                            {
-                                newContext = context.push({});
-                            }
+                                var newContext = context.push(resultObject);
 
-                            chunk.render(bodies.block, newContext);
-                            end(chunk, context);
+                                //chunk.render(bodies.block, newContext);
+                                //end(chunk, context);
+
+                                support.renderFragment(context, fragmentId, requirements, chunk, bodies, newContext, function(err) {
+
+                                });
+                            }
+                        };
+
+                        var doQuery = function(branch, query, pagination)
+                        {
+                            Chain(branch).queryNodes(query, pagination).each(function() {
+
+                                // enhance node information
+                                enhanceNode(this);
+
+                                // TRACKER - PRODUCES "node"
+                                tracker.produces(context, "node", this._doc);
+
+                            }).then(function() {
+                                handleResults.call(this);
+                            });
+                        };
+
+                        var doQueryPageHasContents = function(branch, query, pagination)
+                        {
+                            var page = context.get("helpers")["page"];
+
+                            Chain(page).trap(function(err) {
+                                console.log("ERR: " + JSON.stringify(err));
+                            }).queryRelatives(query, {
+                                "type": "wcm:page_has_content"
+                            }, pagination).each(function(){
+
+                                // TRACKER - PRODUCES "node"
+                                tracker.produces(context, "node", this._doc);
+
+                            }).then(function() {
+                                handleResults.call(this);
+                            });
+                        };
+
+                        if (isDefined(scope))
+                        {
+                            doQueryPageHasContents(branch, query, pagination);
                         }
                         else
                         {
-                            for (var a = 0; a < array.length; a++)
-                            {
-                                _MARK_INSIGHT(array[a], array[a]);
-                            }
-
-                            var resultObject = null;
-                            if (as)
-                            {
-                                resultObject = {
-                                    "offset": this.offset(),
-                                    "total": this.totalRows()
-                                };
-                                resultObject[as] = array;
-                            }
-                            else
-                            {
-                                resultObject = {
-                                    "rows": array,
-                                    "offset": this.offset(),
-                                    "total": this.totalRows()
-                                };
-                            }
-
-                            var newContext = context.push(resultObject);
-
-                            chunk.render(bodies.block, newContext);
-                            end(chunk, context);
+                            doQuery(branch, query, pagination);
                         }
-                    };
 
-                    var doQuery = function(branch, query, pagination)
-                    {
-                        Chain(branch).queryNodes(query, pagination).each(function() {
-
-                            // enhance node information
-                            enhanceNode(this);
-
-                            // TRACK NODE DEPENDENCY
-                            dependencyUtil.trackDependency(context, "node", this._doc);
-
-                        }).then(function() {
-
-                            // TRACK OTHER DEPENDENCIES
-                            if (locale) {
-                                dependencyUtil.trackDependency(context, "locale", locale);
-                            }
-
-                            handleResults.call(this);
-                        });
-                    };
-
-                    var doQueryPageHasContents = function(branch, query, pagination)
-                    {
-                        var page = context.get("helpers")["page"];
-
-                        Chain(page).trap(function(err) {
-                            console.log("ERR: " + JSON.stringify(err));
-                        }).queryRelatives(query, {
-                            "type": "wcm:page_has_content"
-                        }, pagination).each(function(){
-
-                            // TRACK DEPENDENCY
-                            dependencyUtil.trackDependency(context, "node", this._doc);
-
-                            // TRACK OTHER DEPENDENCIES
-                            if (locale) {
-                                dependencyUtil.trackDependency(context, "locale", locale);
-                            }
-
-                        }).then(function() {
-                            handleResults.call(this);
-                        });
-                    };
-
-                    if (isDefined(scope))
-                    {
-                        doQueryPageHasContents(branch, query, pagination);
-                    }
-                    else
-                    {
-                        doQuery(branch, query, pagination);
-                    }
-
+                    });
                 });
             });
         });
     };
 
     /**
-     * QUERY
-     *
-     * Queries for content from the content repository and renders.
-     *
-     * Syntax:
-     *
-     *    {@query sort="title" scope="page" type="custom:type" limit="" skip="" as=""}
-     *       {+templateIdentifier/}
-     *    {/query}
+     * Handles behavior for @search and @searchOne.
      *
      * @param chunk
      * @param context
      * @param bodies
      * @param params
+     * @param keepOne
+     * @returns {*}
+     * @private
      */
-    dust.helpers.query = function(chunk, context, bodies, params)
-    {
-        return _handleQuery(chunk, context, bodies, params, false);
-    };
-
-    /**
-     * QUERY AND KEEP ONE
-     *
-     * Queries for content from the content repository and renders.
-     *
-     * Syntax:
-     *
-     *    {@queryOne sort="title" scope="page" type="custom:type" limit="" skip="" as=""}
-     *       {+templateIdentifier/}
-     *    {/queryOne}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.queryOne = function(chunk, context, bodies, params)
-    {
-        return _handleQuery(chunk, context, bodies, params, true);
-    };
-
-    /**
-     * SEARCH
-     *
-     * Searches for content and renders.
-     *
-     * Syntax:
-     *
-     *    {@search sort="title" scope="page" text="something" limit="" skip="" as=""}
-     *       {+templateIdentifier/}
-     *    {/search}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.search = function(chunk, context, bodies, params)
+    var _handleSearch = function(chunk, context, bodies, params, keepOne)
     {
         params = params || {};
 
         // pagination
-        var sort = dust.helpers.tap(params.sort, chunk, context);
-        var sortDirection = dust.helpers.tap(params.sortDirection, chunk, context);
-        var limit = dust.helpers.tap(params.limit, chunk, context);
-        var skip = dust.helpers.tap(params.skip, chunk, context);
+        var sort = context.resolve(params.sort);
+        var sortDirection = context.resolve(params.sortDirection);
+        var limit = context.resolve(params.limit);
+        var skip = context.resolve(params.skip);
 
         // scope
-        var scope = dust.helpers.tap(params.scope, chunk, context);
+        //var scope = context.resolve(params.scope);
 
         // text
-        var text = dust.helpers.tap(params.text, chunk, context);
+        var text = context.resolve(params.text);
 
         // as
-        var as = dust.helpers.tap(params.as, chunk, context);
+        var as = context.resolve(params.as);
 
         // locale
-        var locale = dust.helpers.tap(params.locale, chunk, context);
+        var locale = context.resolve(params.locale);
 
         // ensure limit and skip are numerical
         if (isDefined(limit))
@@ -435,6 +468,12 @@ module.exports = function(app, dust, callback)
         if (isDefined(skip))
         {
             limit = parseInt(skip);
+        }
+
+        // TRACKER: START
+        tracker.start(context);
+        if (locale) {
+            tracker.requires(context, "locale", locale);
         }
 
         return map(chunk, function(chunk) {
@@ -485,15 +524,10 @@ module.exports = function(app, dust, callback)
                         // enhance node information
                         enhanceNode(this);
 
-                        // TRACK DEPENDENCY
-                        dependencyUtil.trackDependency(context, "node", this._doc);
+                        // TRACKER - PRODUCES "node"
+                        tracker.produces(context, "node", this._doc);
 
                     }).then(function() {
-
-                        // TRACK OTHER DEPENDENCIES
-                        if (locale) {
-                            dependencyUtil.trackDependency(context, "locale", locale);
-                        }
 
                         var array = this.asArray();
                         for (var a = 0; a < array.length; a++)
@@ -530,42 +564,26 @@ module.exports = function(app, dust, callback)
         });
     };
 
-    /**
-     * ASSOCIATIONS
-     *
-     * Finds associations around a node.
-     *
-     * Syntax:
-     *
-     *    {@associations node="<nodeId>" type="<association_type>" limit="" skip="" as=""}
-     *       {+templateIdentifier/}
-     *    {/associations}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.associations = function(chunk, context, bodies, params)
+    var _handleAssociations = function(chunk, context, bodies, params)
     {
         params = params || {};
 
         // pagination
-        var sort = dust.helpers.tap(params.sort, chunk, context);
-        var sortDirection = dust.helpers.tap(params.sortDirection, chunk, context);
-        var limit = dust.helpers.tap(params.limit, chunk, context);
-        var skip = dust.helpers.tap(params.skip, chunk, context);
+        var sort = context.resolve(params.sort);
+        var sortDirection = context.resolve(params.sortDirection);
+        var limit = context.resolve(params.limit);
+        var skip = context.resolve(params.skip);
 
         // as
-        var as = dust.helpers.tap(params.as, chunk, context);
+        var as = context.resolve(params.as);
 
         // node
-        var nodeId = dust.helpers.tap(params.node, chunk, context);
-        var associationType = dust.helpers.tap(params.type, chunk, context);
-        var associationDirection = dust.helpers.tap(params.direction, chunk, context);
+        var nodeId = context.resolve(params.node);
+        var associationType = context.resolve(params.type);
+        var associationDirection = context.resolve(params.direction);
 
         // locale
-        var locale = dust.helpers.tap(params.locale, chunk, context);
+        var locale = context.resolve(params.locale);
 
         // ensure limit and skip are numerical
         if (isDefined(limit))
@@ -575,6 +593,12 @@ module.exports = function(app, dust, callback)
         if (isDefined(skip))
         {
             limit = parseInt(skip);
+        }
+
+        // TRACKER: START
+        tracker.start(context);
+        if (locale) {
+            tracker.requires(context, "locale", locale);
         }
 
         return map(chunk, function(chunk) {
@@ -632,15 +656,10 @@ module.exports = function(app, dust, callback)
 
                     this.associations(config, pagination).each(function() {
 
-                        // TRACK NODE DEPENDENCIES (this is the association)
-                        dependencyUtil.trackDependency(context, "node", this._doc);
+                        // TRACKER - PRODUCES "node"
+                        tracker.produces(context, "node", this._doc);
 
                     }).then(function() {
-
-                        // TRACK OTHER DEPENDENCIES
-                        if (locale) {
-                            dependencyUtil.trackDependency(context, "locale", locale);
-                        }
 
                         var array = this.asArray();
                         for (var a = 0; a < array.length; a++)
@@ -721,8 +740,8 @@ module.exports = function(app, dust, callback)
                             // enhance node information
                             enhanceNode(this);
 
-                            // TRACK NODE DEPENDENCIES
-                            dependencyUtil.trackDependency(context, "node", this._doc);
+                            // TRACKER - PRODUCES "node"
+                            tracker.produces(context, "node", this._doc);
 
                         }).then(function() {
 
@@ -735,49 +754,33 @@ module.exports = function(app, dust, callback)
         });
     };
 
-    /**
-     * RELATIVES
-     *
-     * Finds relatives around a node.
-     *
-     * Syntax:
-     *
-     *    {@relatives node="<nodeId>" type="<association_type>" limit="" skip="" as=""}
-     *       {+templateIdentifier/}
-     *    {/relatives}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.relatives = function(chunk, context, bodies, params)
+    var _handleRelatives = function(chunk, context, bodies, params)
     {
         params = params || {};
 
         // pagination
-        var sort = dust.helpers.tap(params.sort, chunk, context);
-        var sortDirection = dust.helpers.tap(params.sortDirection, chunk, context);
-        var limit = dust.helpers.tap(params.limit, chunk, context);
-        var skip = dust.helpers.tap(params.skip, chunk, context);
+        var sort = context.resolve(params.sort);
+        var sortDirection = context.resolve(params.sortDirection);
+        var limit = context.resolve(params.limit);
+        var skip = context.resolve(params.skip);
 
         // as
-        var as = dust.helpers.tap(params.as, chunk, context);
+        var as = context.resolve(params.as);
 
         // from and type
-        var fromNodeId = dust.helpers.tap(params.node, chunk, context);
-        var associationType = dust.helpers.tap(params.associationType, chunk, context);
-        var associationDirection = dust.helpers.tap(params.direction, chunk, context);
+        var fromNodeId = context.resolve(params.node);
+        var associationType = context.resolve(params.associationType);
+        var associationDirection = context.resolve(params.direction);
 
-        var type = dust.helpers.tap(params.type, chunk, context);
+        var type = context.resolve(params.type);
 
         // single field constraints
-        var field = dust.helpers.tap(params.field, chunk, context);
-        var fieldRegex = dust.helpers.tap(params.fieldRegex, chunk, context);
-        var fieldValue = dust.helpers.tap(params.fieldValue, chunk, context);
+        var field = context.resolve(params.field);
+        var fieldRegex = context.resolve(params.fieldRegex);
+        var fieldValue = context.resolve(params.fieldValue);
 
         // locale
-        var locale = dust.helpers.tap(params.locale, chunk, context);
+        var locale = context.resolve(params.locale);
 
         // ensure limit and skip are numerical
         if (isDefined(limit))
@@ -787,6 +790,12 @@ module.exports = function(app, dust, callback)
         if (isDefined(skip))
         {
             limit = parseInt(skip);
+        }
+
+        // TRACKER: START
+        tracker.start(context);
+        if (locale) {
+            tracker.requires(context, "locale", locale);
         }
 
         return map(chunk, function(chunk) {
@@ -862,15 +871,10 @@ module.exports = function(app, dust, callback)
                         // enhance node information
                         enhanceNode(this);
 
-                        // TRACK DEPENDENCY
-                        dependencyUtil.trackDependency(context, "node", this._doc);
+                        // TRACKER - PRODUCES "node"
+                        tracker.produces(context, "node", this._doc);
 
                     }).then(function() {
-
-                        // TRACK OTHER DEPENDENCIES
-                        if (locale) {
-                            dependencyUtil.trackDependency(context, "locale", locale);
-                        }
 
                         var array = this.asArray();
                         for (var a = 0; a < array.length; a++)
@@ -907,34 +911,24 @@ module.exports = function(app, dust, callback)
         });
     };
 
-    /**
-     * CONTENT
-     *
-     * Selects a single content item.
-     *
-     * Syntax:
-     *
-     *    {@content id="GUID" path="/a/b/c" as=""}
-     *       {+templateIdentifier/}
-     *    {/content}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.content = function(chunk, context, bodies, params)
+    var _handleContent = function(chunk, context, bodies, params)
     {
         params = params || {};
 
-        var id = dust.helpers.tap(params.id, chunk, context);
-        var contentPath = dust.helpers.tap(params.path, chunk, context);
+        var id = context.resolve(params.id);
+        var contentPath = context.resolve(params.path);
 
         // as
-        var as = dust.helpers.tap(params.as, chunk, context);
+        var as = context.resolve(params.as);
 
         // locale
-        var locale = dust.helpers.tap(params.locale, chunk, context);
+        var locale = context.resolve(params.locale);
+
+        // TRACKER: START
+        tracker.start(context);
+        if (locale) {
+            tracker.requires(context, "locale", locale);
+        }
 
         return map(chunk, function(chunk) {
             setTimeout(function() {
@@ -956,8 +950,8 @@ module.exports = function(app, dust, callback)
                     // enhance node information
                     enhanceNode(node);
 
-                    // TRACK NODE DEPENDENCIES
-                    dependencyUtil.trackDependency(context, "node", node._doc);
+                    // TRACKER - PRODUCES "node"
+                    tracker.produces(context, "node", this._doc);
 
                     var newContextObject = {};
                     if (as)
@@ -1005,31 +999,15 @@ module.exports = function(app, dust, callback)
         });
     };
 
-    /**
-     * FORM
-     *
-     * Renders a form.
-     *
-     * Syntax:
-     *
-     *    {@form definition="custom:type" form="formKey" list="listKeyOrId" successUrl="" errorUrl=""}
-     *       {+templateIdentifier/}
-     *    {/form}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.form = function(chunk, context, bodies, params)
+    var _handleForm = function(chunk, context, bodies, params)
     {
         params = params || {};
 
-        var definition = dust.helpers.tap(params.definition, chunk, context);
-        var form = dust.helpers.tap(params.form, chunk, context);
-        var list = dust.helpers.tap(params.list, chunk, context);
-        var successUrl = dust.helpers.tap(params.success, chunk, context);
-        var errorUrl = dust.helpers.tap(params.error, chunk, context);
+        var definition = context.resolve(params.definition);
+        var form = context.resolve(params.form);
+        var list = context.resolve(params.list);
+        var successUrl = context.resolve(params.success);
+        var errorUrl = context.resolve(params.error);
 
         return map(chunk, function(chunk) {
             setTimeout(function() {
@@ -1080,9 +1058,9 @@ module.exports = function(app, dust, callback)
                                 options.form = {
                                     "attributes": {
                                         "method": "POST",
-                                            "action": action,
-                                            "enctype": "multipart/form-data",
-                                            "data-ajax": "false"
+                                        "action": action,
+                                        "enctype": "multipart/form-data",
+                                        "data-ajax": "false"
                                     },
                                     "buttons": {
                                         "submit": {
@@ -1118,6 +1096,8 @@ module.exports = function(app, dust, callback)
      */
     var _handleInclude = function(chunk, context, bodies, params, targetPath)
     {
+        params = params || {};
+
         return map(chunk, function(chunk) {
             setTimeout(function() {
 
@@ -1252,7 +1232,7 @@ module.exports = function(app, dust, callback)
 
                         var includeContextObject = {};
                         for (var k in params) {
-                            var value = dust.helpers.tap(params[k], chunk, context);
+                            var value = context.resolve(params[k]);
                             if (value) {
                                 includeContextObject[k] = value;
                             }
@@ -1280,6 +1260,173 @@ module.exports = function(app, dust, callback)
     };
 
     /**
+     * QUERY
+     *
+     * Queries for content from the content repository and renders.
+     *
+     * Syntax:
+     *
+     *    {@query sort="title" scope="page" type="custom:type" limit="" skip="" as=""}
+     *       {+templateIdentifier/}
+     *    {/query}
+     *
+     * @param chunk
+     * @param context
+     * @param bodies
+     * @param params
+     */
+    dust.helpers.query = function(chunk, context, bodies, params)
+    {
+        return _handleQuery(chunk, context, bodies, params, false);
+    };
+
+    /**
+     * QUERY AND KEEP ONE
+     *
+     * Queries for content from the content repository and renders.
+     *
+     * Syntax:
+     *
+     *    {@queryOne sort="title" scope="page" type="custom:type" limit="" skip="" as=""}
+     *       {+templateIdentifier/}
+     *    {/queryOne}
+     *
+     * @param chunk
+     * @param context
+     * @param bodies
+     * @param params
+     */
+    dust.helpers.queryOne = function(chunk, context, bodies, params)
+    {
+        return _handleQuery(chunk, context, bodies, params, true);
+    };
+
+    /**
+     * SEARCH
+     *
+     * Runs a search and passes the rows to a rendering template.
+     *
+     * Syntax:
+     *
+     *    {@search sort="title" scope="page" text="something" limit="" skip="" as=""}
+     *       {+templateIdentifier/}
+     *    {/search}
+     *
+     * @param chunk
+     * @param context
+     * @param bodies
+     * @param params
+     */
+    dust.helpers.search = function(chunk, context, bodies, params)
+    {
+        return _handleSearch(chunk, context, bodies, params, false);
+    };
+
+    /**
+     * SEARCH
+     *
+     * Runs a search and keeps one of the result items.  Passes the result to the rendering template.
+     *
+     * Syntax:
+     *
+     *    {@searchOne sort="title" scope="page" text="something" limit="" skip="" as=""}
+     *       {+templateIdentifier/}
+     *    {/searchOne}
+     *
+     * @param chunk
+     * @param context
+     * @param bodies
+     * @param params
+     */
+    dust.helpers.searchOne = function(chunk, context, bodies, params)
+    {
+        return _handleSearch(chunk, context, bodies, params, true);
+    };
+
+    /**
+     * ASSOCIATIONS
+     *
+     * Finds associations around a node.
+     *
+     * Syntax:
+     *
+     *    {@associations node="<nodeId>" type="<association_type>" limit="" skip="" as=""}
+     *       {+templateIdentifier/}
+     *    {/associations}
+     *
+     * @param chunk
+     * @param context
+     * @param bodies
+     * @param params
+     */
+    dust.helpers.associations = function(chunk, context, bodies, params)
+    {
+        return _handleAssociations(chunk, context, bodies, params);
+    };
+
+    /**
+     * RELATIVES
+     *
+     * Finds relatives around a node.
+     *
+     * Syntax:
+     *
+     *    {@relatives node="<nodeId>" type="<association_type>" limit="" skip="" as=""}
+     *       {+templateIdentifier/}
+     *    {/relatives}
+     *
+     * @param chunk
+     * @param context
+     * @param bodies
+     * @param params
+     */
+    dust.helpers.relatives = function(chunk, context, bodies, params)
+    {
+        return _handleRelatives(chunk, context, bodies, params);
+    };
+
+    /**
+     * CONTENT
+     *
+     * Selects a single content item.
+     *
+     * Syntax:
+     *
+     *    {@content id="GUID" path="/a/b/c" as=""}
+     *       {+templateIdentifier/}
+     *    {/content}
+     *
+     * @param chunk
+     * @param context
+     * @param bodies
+     * @param params
+     */
+    dust.helpers.content = function(chunk, context, bodies, params) {
+        return _handleContent(chunk, context, bodies, params);
+    };
+
+    /**
+     * FORM
+     *
+     * Renders a form.
+     *
+     * Syntax:
+     *
+     *    {@form definition="custom:type" form="formKey" list="listKeyOrId" successUrl="" errorUrl=""}
+     *       {+templateIdentifier/}
+     *    {/form}
+     *
+     * @param chunk
+     * @param context
+     * @param bodies
+     * @param params
+     */
+    dust.helpers.form = function(chunk, context, bodies, params)
+    {
+        return _handleForm(chunk, context, bodies, params);
+    };
+
+    /**
      * INCLUDE TEMPLATE
      *
      * Includes another dust template into this one and passes any context forward.
@@ -1297,7 +1444,7 @@ module.exports = function(app, dust, callback)
     {
         params = params || {};
 
-        var targetPath = dust.helpers.tap(params.path, chunk, context);
+        var targetPath = context.resolve(params.path);
 
         return _handleInclude(chunk, context, bodies, params, targetPath);
     };
@@ -1320,7 +1467,7 @@ module.exports = function(app, dust, callback)
     {
         params = params || {};
 
-        var targetPath = dust.helpers.tap(params.path, chunk, context);
+        var targetPath = context.resolve(params.path);
 
         if (targetPath.indexOf("/blocks") === 0)
         {
@@ -1352,7 +1499,7 @@ module.exports = function(app, dust, callback)
     {
         params = params || {};
 
-        var targetPath = dust.helpers.tap(params.path, chunk, context);
+        var targetPath = context.resolve(params.path);
 
         if (targetPath.indexOf("/layouts") === 0)
         {
@@ -1387,7 +1534,7 @@ module.exports = function(app, dust, callback)
     {
         params = params || {};
 
-        var name = dust.helpers.tap(params.name, chunk, context);
+        var name = context.resolve(params.name);
 
         return chunk.capture(bodies.block, context, function(text, chunk) {
 
@@ -1448,7 +1595,7 @@ module.exports = function(app, dust, callback)
     {
         params = params || {};
 
-        var uri = dust.helpers.tap(params.uri, chunk, context);
+        var uri = context.resolve(params.uri);
 
         return map(chunk, function(chunk) {
             setTimeout(function() {
@@ -1547,8 +1694,8 @@ module.exports = function(app, dust, callback)
     {
         params = params || {};
 
-        var nodeId = dust.helpers.tap(params.node, chunk, context);
-        var propertyId = dust.helpers.tap(params.property, chunk, context);
+        var nodeId = context.resolve(params.node);
+        var propertyId = context.resolve(params.property);
 
         return map(chunk, function(chunk) {
             setTimeout(function() {
@@ -1585,63 +1732,6 @@ module.exports = function(app, dust, callback)
     };
 
     /**
-     * Builds a URL.
-     *
-     * Syntax:
-     *
-     *    {@uri [uri="uri"] [other token values]}
-     *    {/uri}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    /*
-    dust.helpers.uri = function(chunk, context, bodies, params)
-    {
-        // push tokens into context
-        var tokens = context.get("request").tokens;
-        context = context.push(tokens);
-
-        // push params into context
-        var paramsObject = {};
-        for (var name in params)
-        {
-            if (name !== "uri")
-            {
-                paramsObject[name] = dust.helpers.tap(params[name], chunk, context);
-            }
-        }
-        context = context.push(paramsObject);
-
-        // use uri from params or fallback to request uri
-        var uri = dust.helpers.tap(params.uri, chunk, context);
-        if (!uri)
-        {
-            uri = context.get("request").matchingPath;
-        }
-
-        return map(chunk, function(chunk) {
-            setTimeout(function() {
-
-                // ensure uri is resolved
-                resolveVariables([uri], context, function(err, results) {
-
-                    var uri = results[0];
-
-                    chunk.write(uri);
-
-                    end(chunk, context);
-
-                });
-
-            });
-        });
-    };
-    */
-
-    /**
      * Produces an anchor link.
      *
      * Syntax:
@@ -1657,7 +1747,7 @@ module.exports = function(app, dust, callback)
      */
     dust.helpers.link = function(chunk, context, bodies, params)
     {
-        var classParam = dust.helpers.tap(params.class, chunk, context);
+        var classParam = context.resolve(params.class);
 
         // push tokens into context
         var tokens = context.get("request").tokens;
@@ -1669,13 +1759,13 @@ module.exports = function(app, dust, callback)
         {
             if (name !== "uri")
             {
-                paramsObject[name] = dust.helpers.tap(params[name], chunk, context);
+                paramsObject[name] = context.resolve(params[name]);
             }
         }
         context = context.push(paramsObject);
 
         // use uri from params or fallback to request uri
-        var uri = dust.helpers.tap(params.uri, chunk, context);
+        var uri = context.resolve(params.uri);
         if (!uri)
         {
             uri = context.get("request").matchingPath;
@@ -1712,8 +1802,8 @@ module.exports = function(app, dust, callback)
     {
         params = params || {};
 
-        var nodeId = dust.helpers.tap(params.node, chunk, context);
-        var attachmentId = dust.helpers.tap(params.attachment, chunk, context);
+        var nodeId = context.resolve(params.node);
+        var attachmentId = context.resolve(params.attachment);
         if (!attachmentId)
         {
             attachmentId = "default";
@@ -1745,14 +1835,14 @@ module.exports = function(app, dust, callback)
     {
         params = params || {};
 
-        var nodeId = dust.helpers.tap(params.node, chunk, context);
-        var attachmentId = dust.helpers.tap(params.attachment, chunk, context);
+        var nodeId = context.resolve(params.node);
+        var attachmentId = context.resolve(params.attachment);
         if (!attachmentId)
         {
             attachmentId = "default";
         }
-        var propertyId = dust.helpers.tap(params.property, chunk, context);
-        var locale = dust.helpers.tap(params.locale, chunk, context);
+        var propertyId = context.resolve(params.property);
+        var locale = context.resolve(params.locale);
 
         return map(chunk, function(chunk) {
             setTimeout(function() {
@@ -1811,17 +1901,17 @@ module.exports = function(app, dust, callback)
      *  sort="1" - sort ascending (per JavaScript array sort rules)
      *  sort="-1" - sort descending
      */
-    dust.helpers.iterate = dust.helpers.it = function (chunk, context, bodies, params)
+    dust.helpers.iterate = dust.helpers.it = function(chunk, context, bodies, params)
     {
         params = params || {};
 
-        var over = dust.helpers.tap(params.over, chunk, context);
+        var over = context.resolve(params.over);
         if (!over) {
             console.log("Missing over");
             return chunk;
         }
 
-        var sort = dust.helpers.tap(params.sort, chunk, context);
+        var sort = context.resolve(params.sort);
         if (typeof(sort) === "undefined") {
             sort = "asc";
         }

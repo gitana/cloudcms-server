@@ -1126,3 +1126,34 @@ var generatePageCacheKey = exports.generatePageCacheKey = function(descriptor) {
 
     return pageCacheKey;
 };
+
+/**
+ * Generates a cache key for fragments.
+ */
+var generateFragmentCacheKey = exports.generateFragmentCacheKey = function(fragmentId, requirements) {
+
+    // sort params alphabetically
+    var requirementKeys = [];
+    for (var requirementKey in requirements) {
+        requirementKeys.push(requirementKey);
+    }
+    requirementKeys.sort();
+
+    var str = fragmentId;
+
+    // add in requirement keys
+    for (var i = 0; i < requirementKeys.length; i++)
+    {
+        var requirementKey = requirementKeys[i];
+        var requirementValue = requirements[requirementKey];
+
+        str += "&" + requirementKey + "=" + requirementValue;
+    }
+
+    // calculate a hashcode
+    var hash = hashcode(str);
+
+    var fragmentCacheKey = "pc-" + hash;
+
+    return fragmentCacheKey;
+};
