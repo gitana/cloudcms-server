@@ -14,6 +14,11 @@ exports = module.exports = function(dust)
 {
     var r = {};
 
+    var isDefined = r.isDefined = function(thing)
+    {
+        return (typeof(thing) !== "undefined");
+    };
+
     /**
      * Determines whether to use the fragment cache.  We use this cache if we're instructed to and if we're in
      * production model.
@@ -32,8 +37,13 @@ exports = module.exports = function(dust)
             process.configuration.duster.fragments.cache = true;
         }
 
-        if (process.env.FORCE_DUST_FRAGMENT_CACHE === "true") {
+        if (process.env.FORCE_CLOUDCMS_DUST_FRAGMENT_CACHE === "true")
+        {
             process.configuration.duster.fragments.cache = true;
+        }
+        else if (process.env.FORCE_CLOUDCMS_DUST_FRAGMENT_CACHE === "false")
+        {
+            process.configuration.duster.fragments.cache = false;
         }
 
         if (process.env.CLOUDCMS_APPSERVER_MODE !== "production") {

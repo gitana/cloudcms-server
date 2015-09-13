@@ -202,21 +202,21 @@ module.exports = function(app, dust, callback)
         // identifier for this fragment
         var fragmentId = context.resolve(params.fragment);
 
-        // if we can serve this from the fragment cache, we do so
-        support.serveFragment(context, chunk, fragmentId, requirements, function(err, disabled) {
+        return map(chunk, function(chunk) {
+            setTimeout(function() {
 
-            // if active and no error, then asset was served back, so simply return
-            if (!err && !disabled) {
-                return;
-            }
+                // if we can serve this from the fragment cache, we do so
+                support.serveFragment(context, chunk, fragmentId, requirements, function(err, disabled) {
 
-            // not cached, so run this puppy
+                    // if active and no error, then asset was served back, so simply return
+                    if (!err && !disabled) {
+                        return;
+                    }
 
-            // TRACKER: START
-            tracker.start(context, fragmentId, requirements);
+                    // not cached, so run this puppy
 
-            return map(chunk, function(chunk) {
-                setTimeout(function() {
+                    // TRACKER: START
+                    tracker.start(context, fragmentId, requirements);
 
                     var gitana = context.get("gitana");
 
@@ -293,9 +293,8 @@ module.exports = function(app, dust, callback)
                         gitana.getDriver().setLocale(locale);
                     }
 
-                    Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").then(function() {
-
-                        var branch = this;
+                    var req = context.get("req");
+                    req.branch(function(err, branch) {
 
                         var handleResults = function()
                         {
@@ -374,7 +373,7 @@ module.exports = function(app, dust, callback)
                                 //chunk.render(bodies.block, newContext);
                                 //end(chunk, context);
 
-                                support.renderFragment(context, fragmentId, requirements, chunk, bodies, newContext, function(err) {
+                                support.renderFragment(newContext, fragmentId, requirements, chunk, bodies, function(err) {
 
                                 });
                             }
@@ -492,7 +491,8 @@ module.exports = function(app, dust, callback)
                     gitana.getDriver().setLocale(locale);
                 }
 
-                Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").then(function() {
+                var req = context.get("req");
+                req.branch(function(err, branch) {
 
                     // TODO: use a "find" to limit to a range of nodes (for page scope)?
 
@@ -520,7 +520,7 @@ module.exports = function(app, dust, callback)
                         pagination.skip = skip;
                     }
 
-                    this.searchNodes(text, pagination).each(function() {
+                    branch.searchNodes(text, pagination).each(function() {
 
                         // enhance node information
                         enhanceNode(this);
@@ -617,136 +617,139 @@ module.exports = function(app, dust, callback)
                     gitana.getDriver().setLocale(locale);
                 }
 
-                Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").readNode(nodeId).then(function() {
+                var req = context.get("req");
+                req.branch(function(err, branch) {
+                    branch.readNode(nodeId).then(function() {
 
-                    var pagination = {};
-                    if (!isDefined(limit)) {
-                        limit = -1;
-                    }
-                    pagination.limit = limit;
-                    if (sort)
-                    {
-                        if (typeof(sortDirection) !== "undefined")
-                        {
-                            sortDirection = parseInt(sortDirection, 10);
+                        var pagination = {};
+                        if (!isDefined(limit)) {
+                            limit = -1;
                         }
-                        else
+                        pagination.limit = limit;
+                        if (sort)
                         {
-                            sortDirection = 1;
-                        }
-
-                        pagination.sort = {};
-                        pagination.sort[sort] = sortDirection;
-                    }
-                    if (skip)
-                    {
-                        pagination.skip = skip;
-                    }
-
-                    var config = {};
-                    if (associationType)
-                    {
-                        config.type = associationType;
-                    }
-                    if (associationDirection)
-                    {
-                        config.direction = associationDirection;
-                    }
-
-                    var node = this;
-
-                    this.associations(config, pagination).each(function() {
-
-                        // TRACKER - PRODUCES "node"
-                        tracker.produces(context, "node", this._doc);
-
-                    }).then(function() {
-
-                        var array = this.asArray();
-                        for (var a = 0; a < array.length; a++)
-                        {
-                            _MARK_INSIGHT(array[a], array[a]);
-                        }
-
-                        var resultObject = null;
-                        if (as)
-                        {
-                            resultObject = {
-                                "offset": this.offset(),
-                                "total": this.totalRows()
-                            };
-                            resultObject[as] = array;
-                        }
-                        else
-                        {
-                            resultObject = {
-                                "rows": array,
-                                "offset": this.offset(),
-                                "total": this.totalRows()
-                            };
-                        }
-
-                        var cf = function()
-                        {
-                            var newContext = context.push(resultObject);
-
-                            chunk.render(bodies.block, newContext);
-                            end(chunk, context);
-                        };
-
-                        if (array.length == 0)
-                        {
-                            cf();
-                            return;
-                        }
-
-                        // load target node data for each association
-                        var otherNodeIdsMap = {};
-                        var otherNodeIds = [];
-                        var otherNodeIdToAssociations = {};
-                        for (var z = 0; z < array.length; z++)
-                        {
-                            var otherNodeId = null;
-                            if (array[z].source == node._doc) {
-                                otherNodeId = array[z].target;
-                            } else {
-                                otherNodeId = array[z].source;
-                            }
-
-                            if (!otherNodeIdsMap[otherNodeId])
+                            if (typeof(sortDirection) !== "undefined")
                             {
-                                otherNodeIdsMap[otherNodeId] = true;
-                                otherNodeIds.push(otherNodeId);
+                                sortDirection = parseInt(sortDirection, 10);
                             }
-
-                            if (!otherNodeIdToAssociations[otherNodeId])
+                            else
                             {
-                                otherNodeIdToAssociations[otherNodeId] = [];
+                                sortDirection = 1;
                             }
 
-                            otherNodeIdToAssociations[otherNodeId].push(array[z]);
+                            pagination.sort = {};
+                            pagination.sort[sort] = sortDirection;
                         }
-                        Chain(node.getBranch()).queryNodes({
-                            "_doc": {
-                                "$in": otherNodeIds
-                            }
-                        }).each(function() {
+                        if (skip)
+                        {
+                            pagination.skip = skip;
+                        }
 
-                            var associations_array = otherNodeIdToAssociations[this._doc];
-                            for (var z = 0; z < associations_array.length; z++)
-                            {
-                                associations_array[z].other = this;
-                            }
+                        var config = {};
+                        if (associationType)
+                        {
+                            config.type = associationType;
+                        }
+                        if (associationDirection)
+                        {
+                            config.direction = associationDirection;
+                        }
 
-                            // enhance node information
-                            enhanceNode(this);
+                        var node = this;
+
+                        this.associations(config, pagination).each(function() {
 
                             // TRACKER - PRODUCES "node"
                             tracker.produces(context, "node", this._doc);
 
                         }).then(function() {
 
-                            cf();
+                            var array = this.asArray();
+                            for (var a = 0; a < array.length; a++)
+                            {
+                                _MARK_INSIGHT(array[a], array[a]);
+                            }
+
+                            var resultObject = null;
+                            if (as)
+                            {
+                                resultObject = {
+                                    "offset": this.offset(),
+                                    "total": this.totalRows()
+                                };
+                                resultObject[as] = array;
+                            }
+                            else
+                            {
+                                resultObject = {
+                                    "rows": array,
+                                    "offset": this.offset(),
+                                    "total": this.totalRows()
+                                };
+                            }
+
+                            var cf = function()
+                            {
+                                var newContext = context.push(resultObject);
+
+                                chunk.render(bodies.block, newContext);
+                                end(chunk, context);
+                            };
+
+                            if (array.length == 0)
+                            {
+                                cf();
+                                return;
+                            }
+
+                            // load target node data for each association
+                            var otherNodeIdsMap = {};
+                            var otherNodeIds = [];
+                            var otherNodeIdToAssociations = {};
+                            for (var z = 0; z < array.length; z++)
+                            {
+                                var otherNodeId = null;
+                                if (array[z].source == node._doc) {
+                                    otherNodeId = array[z].target;
+                                } else {
+                                    otherNodeId = array[z].source;
+                                }
+
+                                if (!otherNodeIdsMap[otherNodeId])
+                                {
+                                    otherNodeIdsMap[otherNodeId] = true;
+                                    otherNodeIds.push(otherNodeId);
+                                }
+
+                                if (!otherNodeIdToAssociations[otherNodeId])
+                                {
+                                    otherNodeIdToAssociations[otherNodeId] = [];
+                                }
+
+                                otherNodeIdToAssociations[otherNodeId].push(array[z]);
+                            }
+                            Chain(node.getBranch()).queryNodes({
+                                "_doc": {
+                                    "$in": otherNodeIds
+                                }
+                            }).each(function() {
+
+                                var associations_array = otherNodeIdToAssociations[this._doc];
+                                for (var z = 0; z < associations_array.length; z++)
+                                {
+                                    associations_array[z].other = this;
+                                }
+
+                                // enhance node information
+                                enhanceNode(this);
+
+                                // TRACKER - PRODUCES "node"
+                                tracker.produces(context, "node", this._doc);
+
+                            }).then(function() {
+
+                                cf();
+                            });
                         });
                     });
                 });
@@ -809,105 +812,108 @@ module.exports = function(app, dust, callback)
                     end(chunk, context);
                 };
 
-                Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").readNode(fromNodeId).then(function() {
+                var req = context.get("req");
+                req.branch(function(err, branch) {
 
-                    // first query for relatives
-                    var query = {};
-                    if (isDefined(type))
-                    {
-                        query._type = type;
-                    }
-                    if (isDefined(field))
-                    {
-                        if (isDefined(fieldRegex))
-                        {
-                            query[field] = {
-                                $regex: fieldRegex,
-                                $options: "i"
-                            };
-                        }
-                        else if (isDefined(fieldValue))
-                        {
-                            query[field] = fieldValue;
-                        }
-                    }
+                    branch.readNode(fromNodeId).then(function() {
 
-                    // pagination
-                    var pagination = {};
-                    if (!isDefined(limit)) {
-                        limit = -1;
-                    }
-                    pagination.limit = limit;
-                    if (sort)
-                    {
-                        if (typeof(sortDirection) !== "undefined")
+                        // first query for relatives
+                        var query = {};
+                        if (isDefined(type))
                         {
-                            sortDirection = parseInt(sortDirection, 10);
+                            query._type = type;
                         }
-                        else
+                        if (isDefined(field))
                         {
-                            sortDirection = 1;
+                            if (isDefined(fieldRegex))
+                            {
+                                query[field] = {
+                                    $regex: fieldRegex,
+                                    $options: "i"
+                                };
+                            }
+                            else if (isDefined(fieldValue))
+                            {
+                                query[field] = fieldValue;
+                            }
                         }
 
-                        pagination.sort = {};
-                        pagination.sort[sort] = sortDirection;
-                    }
-                    if (skip)
-                    {
-                        pagination.skip = skip;
-                    }
-
-                    var config = {};
-                    if (associationType)
-                    {
-                        config.type = associationType;
-                    }
-                    if (associationDirection)
-                    {
-                        config.direction = associationDirection;
-                    }
-
-                    this.queryRelatives(query, config, pagination).each(function() {
-
-                        // enhance node information
-                        enhanceNode(this);
-
-                        // TRACKER - PRODUCES "node"
-                        tracker.produces(context, "node", this._doc);
-
-                    }).then(function() {
-
-                        var array = this.asArray();
-                        for (var a = 0; a < array.length; a++)
+                        // pagination
+                        var pagination = {};
+                        if (!isDefined(limit)) {
+                            limit = -1;
+                        }
+                        pagination.limit = limit;
+                        if (sort)
                         {
-                            _MARK_INSIGHT(array[a], array[a]);
+                            if (typeof(sortDirection) !== "undefined")
+                            {
+                                sortDirection = parseInt(sortDirection, 10);
+                            }
+                            else
+                            {
+                                sortDirection = 1;
+                            }
+
+                            pagination.sort = {};
+                            pagination.sort[sort] = sortDirection;
+                        }
+                        if (skip)
+                        {
+                            pagination.skip = skip;
                         }
 
-                        var resultObject = null;
-                        if (as)
+                        var config = {};
+                        if (associationType)
                         {
-                            resultObject = {
-                                "offset": this.offset(),
-                                "total": this.totalRows()
-                            };
-                            resultObject[as] = array;
+                            config.type = associationType;
                         }
-                        else
+                        if (associationDirection)
                         {
-                            resultObject = {
-                                "rows": array,
-                                "offset": this.offset(),
-                                "total": this.totalRows()
-                            };
+                            config.direction = associationDirection;
                         }
 
-                        var newContext = context.push(resultObject);
+                        this.queryRelatives(query, config, pagination).each(function() {
 
-                        chunk.render(bodies.block, newContext);
-                        end(chunk, context);
+                            // enhance node information
+                            enhanceNode(this);
+
+                            // TRACKER - PRODUCES "node"
+                            tracker.produces(context, "node", this._doc);
+
+                        }).then(function() {
+
+                            var array = this.asArray();
+                            for (var a = 0; a < array.length; a++)
+                            {
+                                _MARK_INSIGHT(array[a], array[a]);
+                            }
+
+                            var resultObject = null;
+                            if (as)
+                            {
+                                resultObject = {
+                                    "offset": this.offset(),
+                                    "total": this.totalRows()
+                                };
+                                resultObject[as] = array;
+                            }
+                            else
+                            {
+                                resultObject = {
+                                    "rows": array,
+                                    "offset": this.offset(),
+                                    "total": this.totalRows()
+                                };
+                            }
+
+                            var newContext = context.push(resultObject);
+
+                            chunk.render(bodies.block, newContext);
+                            end(chunk, context);
+                        });
                     });
                 });
-
             });
         });
     };
@@ -974,18 +980,19 @@ module.exports = function(app, dust, callback)
                     end(chunk, context);
                 };
 
-                Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").then(function() {
+                var req = context.get("req");
+                req.branch(function(err, branch) {
 
                     // select by ID or select by Path
                     if (id)
                     {
-                        this.readNode(id).then(function() {
+                        branch.readNode(id).then(function() {
                             f(this);
                         });
                     }
                     else if (contentPath)
                     {
-                        this.readNode("root", contentPath).then(function() {
+                        branch.readNode("root", contentPath).then(function() {
                             f(this);
                         });
                     }
@@ -1021,10 +1028,11 @@ module.exports = function(app, dust, callback)
                     end(chunk, context);
                 };
 
-                Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").then(function() {
+                var req = context.get("req");
+                req.branch(function(err, branch) {
 
                     // read the definition
-                    this.readDefinition(definition).then(function() {
+                    branch.readDefinition(definition).then(function() {
                         var schema = this;
 
                         // if a form is specified, read the form
@@ -1709,10 +1717,11 @@ module.exports = function(app, dust, callback)
                     end(chunk, context);
                 };
 
-                Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").then(function() {
+                var req = context.get("req");
+                req.branch(function(err, branch) {
 
-                    var repositoryId = this.getRepositoryId();
-                    var branchId = this.getId();
+                    var repositoryId = branch.getRepositoryId();
+                    var branchId = branch.getId();
 
                     var wrapperStart = "<div class='cloudcms-value' data-repository-id='" + repositoryId + "' data-branch-id='" + branchId + "' data-node-id='" + nodeId + "'";
                     if (propertyId) {
@@ -1821,12 +1830,15 @@ module.exports = function(app, dust, callback)
                     end(chunk, context);
                 };
 
-                Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").readNode(nodeId).attachment(attachmentId).download(function(text) {
+                var req = context.get("req");
+                req.branch(function(err, branch) {
 
-                    chunk.write(text);
+                    branch.readNode(nodeId).attachment(attachmentId).download(function(text) {
 
-                    end(chunk, context);
+                        chunk.write(text);
 
+                        end(chunk, context);
+                    });
                 });
             });
         });
@@ -1863,27 +1875,33 @@ module.exports = function(app, dust, callback)
 
                 if (propertyId)
                 {
-                    Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").readNode(nodeId).then(function() {
+                    var req = context.get("req");
+                    req.branch(function(err, branch) {
+                        branch.readNode(nodeId).then(function() {
 
-                        resolveVariables([this[propertyId]], context, function (err, resolutions) {
+                            resolveVariables([this[propertyId]], context, function (err, resolutions) {
 
-                            chunk.write(resolutions[0]);
+                                chunk.write(resolutions[0]);
 
-                            end(chunk, context);
+                                end(chunk, context);
 
+                            });
                         });
                     });
                 }
                 else
                 {
-                    Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").readNode(nodeId).attachment(attachmentId).download(function (text) {
+                    var req = context.get("req");
+                    req.branch(function(err, branch) {
+                        branch.readNode(nodeId).attachment(attachmentId).download(function (text) {
 
-                        resolveVariables([text], context, function (err, resolutions) {
+                            resolveVariables([text], context, function (err, resolutions) {
 
-                            chunk.write(resolutions[0]);
+                                chunk.write(resolutions[0]);
 
-                            end(chunk, context);
+                                end(chunk, context);
 
+                            });
                         });
                     });
                 }

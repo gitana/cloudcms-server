@@ -392,9 +392,9 @@ exports = module.exports = function()
         {
             process.configuration.wcm.cache = true;
         }
-        else if (typeof(process.env.FORCE_CLOUDCMS_WCM_PAGE_CACHE) === "boolean" && process.env.FORCE_CLOUDCMS_WCM_PAGE_CACHE)
+        else if (process.env.FORCE_CLOUDCMS_WCM_PAGE_CACHE === "false")
         {
-            process.configuration.wcm.cache = true;
+            process.configuration.wcm.cache = false;
         }
 
         if (process.env.CLOUDCMS_APPSERVER_MODE !== "production")
