@@ -44,6 +44,40 @@ var handleInvalidations = function(items, callback) {
             {
                 // TODO: invalidate any cache dependent on application
             }
+            else if (items[i].operation === "invalidate_application_page_rendition")
+            {
+                //var pageRenditionId = parts.reverse()[0];
+                var deploymentKey = parts.reverse()[1];
+                var applicationId = parts.reverse()[2];
+
+                var repositoryId = items[i].repositoryId;
+                var branchId = items[i].branchId;
+                if (items[i].isMasterBranch)
+                {
+                    branchId = "master";
+                }
+                var scope = items[i].scope;
+                var key = items[i].key;
+                var pageCacheKey = items[i].pageCacheKey;
+
+                var message = {
+                    "key": key,
+                    "scope": scope,
+                    "pageCacheKey": pageCacheKey,
+                    "branchId": branchId,
+                    "repositoryId": repositoryId,
+                    "applicationId": applicationId,
+                    "deploymentKey": deploymentKey
+                };
+
+                var fragmentCacheKey = items[i].fragmentCacheKey;
+                if (fragmentCacheKey) {
+                    message.fragmentCacheKey = fragmentCacheKey;
+                }
+
+                // broadcast invalidation
+                process.broadcast.publish("page_rendition_invalidation", message);
+            }
         }
     }
 

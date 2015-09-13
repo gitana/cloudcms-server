@@ -120,8 +120,12 @@ exports.execute = function(req, store, filePath, model, callback)
             populateContext(req, context, model, filePath);
 
             // push base tracker instance for tracking dependencies
+            // TODO: add user information?
             var tracker = context["__tracker"] = {
-                "requires": {},
+                "requires": {
+                    "repository": [req.repositoryId],
+                    "branch": [req.branchId]
+                },
                 "produces": {}
             };
 

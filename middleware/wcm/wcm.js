@@ -376,31 +376,36 @@ exports = module.exports = function()
      */
     var isPageCacheEnabled = function()
     {
-        var enabled = false;
+        if (!process.configuration.wcm) {
+            process.configuration.wcm = {};
+        }
 
-        if (process.configuration.wcm && process.configuration.wcm.enabled)
+        if (typeof(process.configuration.wcm.enabled) === "undefined") {
+            process.configuration.wcm.enabled = false;
+        }
+
+        if (typeof(process.configuration.wcm.cache) === "undefined") {
+            process.configuration.wcm.cache = false;
+        }
+
+        if (process.env.FORCE_CLOUDCMS_WCM_PAGE_CACHE === "true")
         {
-            if (process.env.FORCE_CLOUDCMS_WCM_PAGE_CACHE === "true")
-            {
-                process.configuration.wcm.cache = true;
-            }
-            else if (typeof(process.env.FORCE_CLOUDCMS_WCM_PAGE_CACHE) === "boolean" && process.env.FORCE_CLOUDCMS_WCM_PAGE_CACHE)
-            {
-                process.configuration.wcm.cache = true;
-            }
-
-            enabled = process.configuration.wcm.cache;
+            process.configuration.wcm.cache = true;
+        }
+        else if (typeof(process.env.FORCE_CLOUDCMS_WCM_PAGE_CACHE) === "boolean" && process.env.FORCE_CLOUDCMS_WCM_PAGE_CACHE)
+        {
+            process.configuration.wcm.cache = true;
         }
 
         if (process.env.CLOUDCMS_APPSERVER_MODE !== "production")
         {
-            enabled = false;
+            process.configuration.wcm.cache = false;
         }
 
-        return enabled;
+        return (process.configuration.wcm.enabled && process.configuration.wcm.cache);
     };
 
-    var handleCachePageWrite = function(req, descriptor, dependencies, text, callback)
+    var handleCachePageWrite = function(req, descriptor, pageBasePath, dependencies, text, callback)
     {
         if (!isPageCacheEnabled())
         {
@@ -410,12 +415,8 @@ exports = module.exports = function()
 
         var contentStore = req.stores.content;
 
-        // the descriptor contains "path", "params" and "headers".  We use this to generate a unique key.
-        // essentially this is a hash and acts as the page cache key
-        var pageCacheKey = util.generatePageCacheKey(descriptor);
-
         // write page cache entry
-        var pageFilePath = path.join("wcm", "repositories", req.repositoryId, "branches", req.branchId, "pages", pageCacheKey, "page.html");
+        var pageFilePath = path.join(pageBasePath, "page.html");
         contentStore.writeFile(pageFilePath, text, function(err) {
 
             if (err)
@@ -437,7 +438,7 @@ exports = module.exports = function()
         });
     };
 
-    var handleCachePageRead = function(req, descriptor, callback)
+    var handleCachePageRead = function(req, descriptor, pageBasePath, callback)
     {
         if (!isPageCacheEnabled())
         {
@@ -447,103 +448,78 @@ exports = module.exports = function()
 
         var contentStore = req.stores.content;
 
-        // the descriptor contains "path", "params" and "headers".  We use this to generate a unique key.
-        // essentially this is a hash and acts as the page cache key
-        var pageCacheKey = util.generatePageCacheKey(descriptor);
-
-        var pageFilePath = path.join("wcm", "repositories", req.repositoryId, "branches", req.branchId, "pages", pageCacheKey, "page.html");
+        var pageFilePath = path.join(pageBasePath, "page.html");
         util.safeReadStream(contentStore, pageFilePath, function(err, stream) {
             callback(err, stream);
         });
     };
 
-    /*
-    var handleCachePageInvalidate = function(req, uri, callback)
+    var handleCachePageInvalidate = function(repositoryId, branchId, pageCacheKey, callback)
     {
-        var contentStore = req.stores.content;
+        // this is the path to the page folder
+        // if we blow away this folder, we blow away all page fragments as well
+        var pageFolderPath = path.join("wcm", "repositories", repositoryId, "branches", branchId, "pages", pageCacheKey);
 
-        var pageFilePath = path.join("wcm", "repositories", req.repositoryId, "branches", req.branchId, "pages", uri, "page.html");
-        contentStore.existsFile(pageFilePath, function(exists) {
+        // list all of the hosts
+        var stores = require("../stores/stores");
+        stores.listHosts("content", function(err, hostnames) {
 
-            if (!exists) {
-                callback();
-                return;
-            }
-
-            // delete the page file
-            contentStore.deleteFile(pageFilePath, function (err) {
-
-                // invalidate all page dependencies
-                dependenciesService.remove(req, uri, function (err) {
-                    callback(err);
-                });
-            });
-        });
-    };
-    */
-
-    /*
-    var handleCacheDependencyInvalidate = function(req, key, value, callback)
-    {
-        var contentStore = req.stores.content;
-
-        // read page json
-        var dependencyDirectoryPath = path.join("wcm", "applications", req.applicationId, "dependencies", key, value);
-        contentStore.listFiles(dependencyDirectoryPath, function(err, filenames) {
-
+            // for each host, produce a "content" store and see if it contains the page folder
+            // if it does, remove it
+            // wrap into a waterfall function
             var fns = [];
-            for (var i = 0; i < filenames.length; i++)
+            for (var i = 0; i < hostnames.length; i++)
             {
-                var fn = function(req, dependencyDirectoryPath, filename) {
-                    return function(done) {
+                var hostname = hostnames[i];
 
-                        var dependencyFilePath = path.join(dependencyDirectoryPath, filename);
-                        contentStore.existsFile(dependencyFilePath, function(exists) {
+                var fn = function(hostname, pageFolderPath)
+                {
+                    return function(done)
+                    {
+                        stores.produce(hostname, function (err, stores) {
 
-                            if (!exists) {
-                                done();
+                            if (err) {
+                                done(err);
                                 return;
                             }
 
-                            contentStore.readFile(dependencyFilePath, function (err, data) {
+                            stores.content.existsDirectory(pageFolderPath, function(exists) {
 
-                                if (err) {
-                                    done();
+                                if (!exists) {
+                                    callback();
                                     return;
                                 }
 
-                                try
-                                {
-                                    var json = JSON.parse("" + data);
-                                    var uri = json.uri;
-
-                                    // remove the dependency entry
-                                    contentStore.deleteFile(dependencyFilePath, function(err) {
-
-                                        // invalidate the page
-                                        handleCachePageInvalidate(req, uri, function (err) {
-                                            done();
-                                        });
-                                    });
-                                }
-                                catch (e) {
-                                    // oh well
-                                }
+                                console.log("[Page Invalidation] removing " + hostname + ": " + pageFolderPath);
+                                contentStore.removeDirectory(pageFolderPath, function() {
+                                    callback();
+                                });
                             });
+
                         });
 
-                    };
-                }(req, dependencyDirectoryPath, filenames[i]);
+                    }
+                }(hostname, pageFolderPath);
                 fns.push(fn);
             }
+
+            // run the waterfall functions
+            // TODO: in parallel?
+            async.series(fns, function(err) {
+                if (callback)
+                {
+                    callback(err);
+                }
+            });
+
         });
     };
-    */
 
     var bindSubscriptions = function()
     {
         if (process.broadcast)
         {
+            // listen for node invalidation events
             process.broadcast.subscribe("node_invalidation", function (message) {
 
                 var nodeId = message.nodeId;
@@ -551,19 +527,39 @@ exports = module.exports = function()
                 var repositoryId = message.repositoryId;
                 var ref = message.ref;
 
-                console.log("WCM middleware invalidated: " + ref);
+                console.log("WCM middleware invalidated node: " + ref);
 
-                if (isPageCacheEnabled())
+                // TODO: nothing specific to do here...?
+            });
+
+            // listen for page rendition invalidation events
+            process.broadcast.subscribe("page_rendition_invalidation", function (message) {
+
+                var repositoryId = message.repositoryId;
+                var branchId = message.branchId;
+                var pageCacheKey = message.pageCacheKey;
+                var scope = message.scope;
+
+                if (scope === "PAGE")
                 {
-                    // TODO
+                    console.log("WCM middleware invalidated page: " + repositoryId + "/" + branchId + "/" + pageCacheKey);
+
+                    if (isPageCacheEnabled())
+                    {
+                        handleCachePageInvalidate(repositoryId, branchId, pageCacheKey, function(err) {
+                            console.log("Finished invalidating page: " + repositoryId + "/" + branchId + "/" + pageCacheKey);
+                        });
+                    }
+                }
+                else if (scope === "FRAGMENT")
+                {
+                    // TODO: fragment level invalidation
                 }
 
             });
+
         }
     };
-
-
-
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
@@ -648,8 +644,15 @@ exports = module.exports = function()
                             "scope": "PAGE"
                         };
 
+                        // generate a page cache key from the descriptor (and store on the descriptor)
+                        var pageCacheKey = util.generatePageCacheKey(descriptor);
+                        descriptor.pageCacheKey = pageCacheKey;
+
+                        // base path for storage
+                        var pageBasePath = path.join("wcm", "repositories", req.repositoryId, "branches", req.branchId, "pages", pageCacheKey);
+
                         // is this already in cache?
-                        handleCachePageRead(req, descriptor, function(err, readStream) {
+                        handleCachePageRead(req, descriptor, pageBasePath, function(err, readStream) {
 
                             if (!err && readStream)
                             {
@@ -686,6 +689,9 @@ exports = module.exports = function()
                                 // model stores reference to page descriptor
                                 model._page_descriptor = descriptor;
 
+                                // model stores a base path that we'll use for storage of fragments
+                                model._fragments_base_path = path.join(pageBasePath, "fragments");
+
                                 // page keys to copy
                                 for (var k in page) {
                                     if (k == "templatePath") {
@@ -714,7 +720,7 @@ exports = module.exports = function()
 
                                     // we now have the result (text) and the dependencies that this page flagged (dependencies)
                                     // use these to write to the page cache
-                                    handleCachePageWrite(req, descriptor, dependencies, text, function(err) {
+                                    handleCachePageWrite(req, descriptor, pageBasePath, dependencies, text, function(err) {
                                         //res.status(200);
                                         //res.send(text);
                                     });

@@ -14,10 +14,35 @@ exports = module.exports = function(dust)
 {
     var r = {};
 
-    var isDefined = r.isDefined = function(thing)
+    /**
+     * Determines whether to use the fragment cache.  We use this cache if we're instructed to and if we're in
+     * production model.
+     *
+     * @returns {boolean}
+     */
+    var isFragmentCacheEnabled = function()
     {
-        return (typeof(thing) !== "undefined");
+        if (!process.configuration.duster) {
+            process.configuration.duster = {};
+        }
+        if (!process.configuration.duster.fragments) {
+            process.configuration.duster.fragments = {};
+        }
+        if (typeof(process.configuration.duster.fragments.cache) === "undefined") {
+            process.configuration.duster.fragments.cache = true;
+        }
+
+        if (process.env.FORCE_DUST_FRAGMENT_CACHE === "true") {
+            process.configuration.duster.fragments.cache = true;
+        }
+
+        if (process.env.CLOUDCMS_APPSERVER_MODE !== "production") {
+            process.configuration.duster.fragments.cache = false;
+        }
+
+        return process.configuration.duster.fragments.cache;
     };
+
 
     var resolveVariables = r.resolveVariables = function(variables, context, callback)
     {
@@ -110,7 +135,7 @@ exports = module.exports = function(dust)
     // tracker related stuff
     //
 
-    var buildRequirements = r.buildRequirements  = function(requirements)
+    var buildRequirements = r.buildRequirements  = function(context, requirements)
     {
         var badKeys = [];
 
@@ -125,28 +150,43 @@ exports = module.exports = function(dust)
             delete requirements[badKeys[i]];
         }
 
+        // add in stuff from request if available
+        var req = context.get("req");
+        if (req)
+        {
+            if (req.repositoryId) {
+                requirements["repository"] = req.repositoryId;
+            }
+            if (req.branchId) {
+                requirements["branch"] = req.branchId;
+            }
+        }
+
         return requirements;
     };
 
     var handleCacheFragmentRead = function(context, fragmentId, requirements, callback)
     {
-        /*
         if (!isFragmentCacheEnabled())
         {
             callback();
             return;
         }
-        */
 
         var req = context.get("req");
 
         var contentStore = req.stores.content;
 
+        var fragmentsBasePath = context.get("_fragments_base_path");
+        if (!fragmentsBasePath) {
+            fragmentsBasePath = path.join("duster", "repositories", req.repositoryId, "branches", req.branchId, "fragments");
+        }
+
         // fragment cache key
         var fragmentCacheKey = util.generateFragmentCacheKey(fragmentId, requirements);
 
         // disk location
-        var fragmentFilePath = path.join("duster", "fragments", fragmentId, fragmentCacheKey, "fragment.html");
+        var fragmentFilePath = path.join(fragmentsBasePath, fragmentId, fragmentCacheKey, "fragment.html");
         util.safeReadStream(contentStore, fragmentFilePath, function(err, stream) {
             callback(err, stream);
         });
@@ -154,17 +194,20 @@ exports = module.exports = function(dust)
 
     var handleCacheFragmentWrite = function(context, fragmentDescriptor, fragmentDependencies, requirements, text, callback)
     {
-        /*
         if (!isFragmentCacheEnabled())
         {
             callback();
             return;
         }
-        */
 
         var req = context.get("req");
 
         var contentStore = req.stores.content;
+
+        var fragmentsBasePath = context.get("_fragments_base_path");
+        if (!fragmentsBasePath) {
+            fragmentsBasePath = path.join("duster", "repositories", req.repositoryId, "branches", req.branchId, "fragments");
+        }
 
         // fragment cache key
         var fragmentCacheKey = util.generateFragmentCacheKey(fragmentDescriptor.fragmentId, requirements);
@@ -173,7 +216,7 @@ exports = module.exports = function(dust)
         fragmentDescriptor.fragmentCacheKey = fragmentCacheKey;
 
         // disk location
-        var fragmentFilePath = path.join("duster", "fragments", fragmentDescriptor.fragmentId, fragmentCacheKey, "fragment.html");
+        var fragmentFilePath = path.join(fragmentsBasePath, fragmentDescriptor.fragmentId, fragmentCacheKey, "fragment.html");
         contentStore.writeFile(fragmentFilePath, text, function(err) {
 
             if (err)
@@ -189,9 +232,14 @@ exports = module.exports = function(dust)
         });
     };
 
-
     var serveFragment = r.serveFragment = function(context, chunk, fragmentId, requirements, callback)
     {
+        if (!isFragmentCacheEnabled())
+        {
+            callback(null, true);
+            return;
+        }
+
         if (!fragmentId) {
             callback(null, true);
             return;
@@ -235,7 +283,7 @@ exports = module.exports = function(dust)
 
     var renderFragment = r.renderFragment = function(context, fragmentId, requirements, chunk, bodies, callback)
     {
-        if (!fragmentId)
+        if (!isFragmentCacheEnabled() || !fragmentId)
         {
             chunk.render(bodies.block, context);
             end(chunk, context);
@@ -245,9 +293,6 @@ exports = module.exports = function(dust)
         }
 
         // otherwise, trap the output stream so that we can cache to disk
-
-        //chunk.render(bodies.block, context);
-        //end(chunk, context);
 
         var curChunk = chunk.data.join() || ""; // Capture anything in chunk prior to this helper
         chunk.data = []; // Empty current chunk

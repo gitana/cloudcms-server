@@ -137,6 +137,11 @@ var SETTINGS = {
             "modules": "hosts_s3fs"
         }
     },
+    "duster": {
+        "fragments": {
+            "cache": true
+        }
+    },
     "virtualHost": {
         "enabled": false // true
     },

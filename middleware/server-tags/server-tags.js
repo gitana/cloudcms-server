@@ -69,13 +69,14 @@ exports = module.exports = function()
                     return;
                 }
                 text = text.toString();
-                var z = text.indexOf("{@query");
+                var z = text.indexOf("{@");
                 if (z === -1)
                 {
                     _sendFile.call(res, filePath, options, fn);
                     return;
                 }
-                duster.execute(req, fullFilePath, function(err, out) {
+                var model = {};
+                duster.execute(req, webStore, fullFilePath, model, function(err, text) {
 
                     if (err)
                     {
@@ -84,7 +85,7 @@ exports = module.exports = function()
                     }
                     else
                     {
-                        _send.call(res, 200, out);
+                        _send.call(res, 200, text);
                     }
                 });
 

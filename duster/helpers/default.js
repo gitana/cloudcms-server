@@ -184,7 +184,7 @@ module.exports = function(app, dust, callback)
             skip = parseInt(skip);
         }
 
-        var requirements = support.buildRequirements({
+        var requirements = support.buildRequirements(context, {
             "type": type,
             "sort": sort,
             "sortDirection": sortDirection,
@@ -203,9 +203,10 @@ module.exports = function(app, dust, callback)
         var fragmentId = context.resolve(params.fragment);
 
         // if we can serve this from the fragment cache, we do so
-        support.serveFragment(context, chunk, fragmentId, requirements, function(err, noFragmentId) {
+        support.serveFragment(context, chunk, fragmentId, requirements, function(err, disabled) {
 
-            if (!err && !noFragmentId) {
+            // if active and no error, then asset was served back, so simply return
+            if (!err && !disabled) {
                 return;
             }
 

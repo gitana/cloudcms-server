@@ -1122,7 +1122,7 @@ var generatePageCacheKey = exports.generatePageCacheKey = function(descriptor) {
     // calculate a hashcode
     var hash = hashcode(str);
 
-    var pageCacheKey = "pc-" + hash;
+    var pageCacheKey = "p-" + hash;
 
     return pageCacheKey;
 };
@@ -1153,7 +1153,7 @@ var generateFragmentCacheKey = exports.generateFragmentCacheKey = function(fragm
     // calculate a hashcode
     var hash = hashcode(str);
 
-    var fragmentCacheKey = "pc-" + hash;
+    var fragmentCacheKey = "f-" + hash;
 
     return fragmentCacheKey;
 };
