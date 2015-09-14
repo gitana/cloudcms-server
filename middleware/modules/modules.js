@@ -127,21 +127,17 @@ exports = module.exports = function()
 
     var doRefresh = function(req, host, moduleId, modulesStore, callback)
     {
-        modulesStore.cleanup(moduleId, function(err) {
+        // invalidate any caching within the stores layer
+        storeService.invalidate(host);
 
-            // invalidate any caching within the stores layer
-            storeService.invalidate(host);
-
-            // broadcast that a module was invalidated (undeployed)
-            console.log("Modules Middleware notifying of refresh: " + host);
-            notify({
-                "command": "refresh",
-                "host": host
-            });
-
-            callback(err);
-
+        // broadcast that a module was invalidated (undeployed)
+        console.log("Modules Middleware notifying of refresh: " + host);
+        notify({
+            "command": "refresh",
+            "host": host
         });
+
+        callback(err);
     };
 
     r.handler = function()
