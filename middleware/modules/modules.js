@@ -137,7 +137,7 @@ exports = module.exports = function()
             "host": host
         });
 
-        callback(err);
+        callback();
     };
 
     r.handler = function()
