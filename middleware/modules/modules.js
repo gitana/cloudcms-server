@@ -7,6 +7,28 @@ var storeService = require("../stores/stores");
 
 exports = module.exports = function()
 {
+    var INVALIDATION_TOPIC = "module-invalidation-topic";
+
+    var notify = function(message, callback)
+    {
+        if (process.broadcast)
+        {
+            //console.log("[" + cluster.worker.id + "] Notifying: " + JSON.stringify(message));
+            process.broadcast.publish(INVALIDATION_TOPIC, message);
+
+            // TODO: is it possible to wait for broadcast to complete?
+            if (callback) {
+                callback();
+            }
+        }
+        else
+        {
+            if (callback) {
+                callback();
+            }
+        }
+    };
+
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
     // RESULTING OBJECT
@@ -69,6 +91,13 @@ exports = module.exports = function()
                 // invalidate any caching within the stores layer
                 storeService.invalidate(host);
 
+                // broadcast that a module was invalidated (deployed)
+                console.log("Modules Middleware notifying of deploy: " + host);
+                notify({
+                    "command": "deploy",
+                    "host": host
+                });
+
                 callback(err);
             });
         }
@@ -85,7 +114,33 @@ exports = module.exports = function()
             // invalidate any caching within the stores layer
             storeService.invalidate(host);
 
+            // broadcast that a module was invalidated (undeployed)
+            console.log("Modules Middleware notifying of undeploy: " + host);
+            notify({
+                "command": "undeploy",
+                "host": host
+            });
+
             callback(err);
+        });
+    };
+
+    var doRefresh = function(req, host, moduleId, modulesStore, callback)
+    {
+        modulesStore.cleanup(moduleId, function(err) {
+
+            // invalidate any caching within the stores layer
+            storeService.invalidate(host);
+
+            // broadcast that a module was invalidated (undeployed)
+            console.log("Modules Middleware notifying of refresh: " + host);
+            notify({
+                "command": "refresh",
+                "host": host
+            });
+
+            callback(err);
+
         });
     };
 
@@ -202,6 +257,31 @@ exports = module.exports = function()
 
                     handled = true;
                 }
+                else if (req.url.indexOf("/_modules/_refresh") === 0)
+                {
+                    var moduleId = req.query["id"];
+                    doRefresh(req, req.domainHost, moduleId, stores.modules, function(err) {
+
+                        if (err) {
+                            res.send({
+                                "ok": false,
+                                "message": err.message,
+                                "err": err
+                            });
+                            res.end();
+                            return;
+                        }
+
+                        // respond with ok
+                        res.send({
+                            "ok": true
+                        });
+                        res.end();
+                    });
+
+                    handled = true;
+                }
+
             }
             else if (req.method.toLowerCase() === "get")
             {

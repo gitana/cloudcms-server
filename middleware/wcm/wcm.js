@@ -644,6 +644,14 @@ exports = module.exports = function()
                             "scope": "PAGE"
                         };
 
+                        if (req.repositoryId) {
+                            descriptor.repositoryId = req.repositoryId;
+                        }
+
+                        if (req.branchId) {
+                            descriptor.branchId = req.branchId;
+                        }
+
                         // generate a page cache key from the descriptor (and store on the descriptor)
                         var pageCacheKey = util.generatePageCacheKey(descriptor);
                         descriptor.pageCacheKey = pageCacheKey;

@@ -212,7 +212,7 @@ exports = module.exports = function()
                             moduleId = moduleId[moduleId.length - 1];
 
                             moduleDescriptors.push({
-                                "path": path.join(moduleDirectoryPath),
+                                "path": moduleDirectoryPath,
                                 "store": "web",
                                 "id": moduleId
                             });
@@ -244,7 +244,6 @@ exports = module.exports = function()
                     fns.push(fn);
                 }
                 async.series(fns, function (err) {
-
                     callback(err, allocatedStores);
                 });
             };
@@ -255,10 +254,10 @@ exports = module.exports = function()
                 var configStores = [];
                 for (var i = 0; i < moduleDescriptors.length; i++)
                 {
-                    var moduleStore = moduleDescriptors[i].store;
+                    var moduleStoreType = moduleDescriptors[i].store;
                     var modulePath = moduleDescriptors[i].path;
 
-                    var configStore = buildStore(moduleStore, host, path.join(modulePath, "config"));
+                    var configStore = buildStore(moduleStoreType, host, path.join(modulePath, "config"));
                     configStores.push(configStore);
                 }
 

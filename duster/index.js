@@ -122,10 +122,7 @@ exports.execute = function(req, store, filePath, model, callback)
             // push base tracker instance for tracking dependencies
             // TODO: add user information?
             var tracker = context["__tracker"] = {
-                "requires": {
-                    "repository": [req.repositoryId],
-                    "branch": [req.branchId]
-                },
+                "requires": {},
                 "produces": {}
             };
 

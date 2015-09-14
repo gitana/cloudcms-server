@@ -63,11 +63,6 @@ module.exports = function(configStore)
 
             if (!exists)
             {
-                /*
-                callback({
-                    "message": "Unable to find directory: " + dirPath
-                });
-                */
                 callback();
                 return;
             }
@@ -209,6 +204,11 @@ module.exports = function(configStore)
                                         loadBlocks(childPath, context, function(err) {
                                             done();
                                         });
+                                    }
+                                    else
+                                    {
+                                        // it is something else, something we do not care about (such as .DS_Store)
+                                        done();
                                     }
 
                                 });

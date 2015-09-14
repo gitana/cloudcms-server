@@ -182,6 +182,10 @@ exports = module.exports = function()
      */
     r.handler = function()
     {
+        // bind listeners for broadcast events
+        bindSubscriptions();
+
+        // config handler
         return util.createHandler("config", function(req, res, next, configuration, stores) {
 
             var configStore = stores.config;
@@ -192,21 +196,7 @@ exports = module.exports = function()
 
                 if (req.url.indexOf("/_config") === 0)
                 {
-                    // for any "modules" that are enabled based on virtual hosts, mount a config store per module
-                    // (if a config directory exists)
-                    var moduleConfigStores = [];
-
-                    // then wrap into a single multi-store wrapper
-                    var stores = [];
-                    for (var i = 0; i < moduleConfigStores.length; i++)
-                    {
-                        stores.push(moduleConfigStores[i]);
-                    }
-                    stores.push(configStore);
-
-                    var multiStore = multistore(stores);
-
-                    handleConfigRequest(multiStore, function(err, configArray) {
+                    handleConfigRequest(configStore, function(err, configArray) {
 
                         if (err) {
                             res.send({
@@ -230,6 +220,52 @@ exports = module.exports = function()
             {
                 next();
             }
+        });
+    };
+
+    r.invalidateAdapter = function(configStore)
+    {
+        var adapter = CACHED_ADAPTERS[configStore.id];
+        if (adapter)
+        {
+            delete CACHED_ADAPTERS[configStore.id];
+        }
+    };
+
+    var bindSubscriptions = function()
+    {
+        if (process.broadcast)
+        {
+            // listen for node invalidation events
+            process.broadcast.subscribe("module-invalidation-topic", function (message) {
+
+                var command = message.command;
+                var host = message.host;
+
+                console.log("Config Service invalidated host: " + host);
+
+                handleModuleInvalidation(host, function(err) {
+                    console.log("Successfully invalidated host: " + host);
+                });
+            });
+        }
+    };
+
+    var handleModuleInvalidation = function(host, callback)
+    {
+        var stores = require("../stores/stores");
+        stores.produce(host, function (err, stores) {
+
+            if (err) {
+                done(err);
+                return;
+            }
+
+            var configStore = stores.config;
+
+            delete CACHED_ADAPTERS[configStore.id];
+
+            callback();
         });
     };
 

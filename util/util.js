@@ -40,9 +40,9 @@ var assertSafeToDelete = function(directoryPath)
 {
     var b = true;
 
-    if (!directoryPath || directoryPath.length < 4 || directoryPath === "/" || directoryPath === "//") {
+    if (!directoryPath || directoryPath.length < 4 || directoryPath === "" || directoryPath === "/" || directoryPath === "//") {
         b = false;
-        throw new Error("Cannot delete null or root directory");
+        throw new Error("Cannot delete null or root directory: " + directoryPath);
     }
 
     if (directoryPath == __dirname) {
@@ -58,63 +58,87 @@ var assertSafeToDelete = function(directoryPath)
     return b;
 };
 
-var rmdirRecursiveSync = function(directoryPath)
+var rmdirRecursiveSync = function(directoryOrFilePath)
 {
-    if (!assertSafeToDelete(directoryPath)) {
+    if (!assertSafeToDelete(directoryOrFilePath)) {
         return false;
     }
 
-    if (!fs.existsSync(directoryPath))
+    if (!fs.existsSync(directoryOrFilePath))
     {
-        return;
+        return false;
     }
 
-    var list = fs.readdirSync(directoryPath);
-    for (var i = 0; i < list.length; i++)
+    // get stats about the things we're about to delete
+    var isDirectory = false;
+    var isFile = false;
+    var isLink = false;
+    try
     {
-        if (list[i] == "." || list[i] == "..")
-        {
-            // pass these files
-            continue;
-        }
+        var stat = fs.lstatSync(directoryOrFilePath);
 
-        var filepath = path.join(directoryPath, list[i]);
+        isDirectory = stat.isDirectory();
+        isFile = stat.isFile();
+        isLink = stat.isSymbolicLink();
 
-        var isDirectory = false;
-        var isFile = false;
-        var isLink = false;
+    }
+    catch (e)
+    {
+        console.log("Failed to get lstat for file: " + directoryOrFilePath);
+        return false;
+    }
+
+    // check if the file is a symbolic link
+    // if so, we just unlink it and save ourselves a lot of work
+    if (isLink)
+    {
         try
         {
-            var stat = fs.lstatSync(filepath);
-
-            isDirectory = stat.isDirectory();
-            isFile = stat.isFile();
-            isLink = stat.isSymbolicLink();
-
-        } catch (e) {}
-        if (isLink || isFile)
+            fs.unlinkSync(directoryOrFilePath);
+        }
+        catch (e)
         {
-            try {
-                fs.unlinkSync(filepath);
-            } catch (e) {
-                console.log("Unable to delete file: " + filepath + ", err: " + JSON.stringify(e));
+            console.log("Unable to unlink: " + directoryOrFilePath + ", err: " + JSON.stringify(e));
+        }
+    }
+    else
+    {
+        // it is a physical directory or file...
+
+        // if it is a directory, dive down into children first
+        if (isDirectory)
+        {
+            var list = fs.readdirSync(directoryOrFilePath);
+            for (var i = 0; i < list.length; i++)
+            {
+                if (list[i] == "." || list[i] == "..")
+                {
+                    // skip these files
+                    continue;
+                }
+
+                var childPath = path.join(directoryOrFilePath, list[i]);
+
+                rmdirRecursiveSync(childPath);
+            }
+        }
+
+        // now delete the actual file or directory
+        if (isFile)
+        {
+            try
+            {
+                fs.unlinkSync(directoryOrFilePath);
+            }
+            catch (e)
+            {
+                console.log("Unable to delete file: " + directoryOrFilePath + ", err: " + JSON.stringify(e));
             }
         }
         else if (isDirectory)
         {
-            rmdirRecursiveSync(filepath);
+            fs.rmdirSync(directoryOrFilePath);
         }
-        else
-        {
-            // unable to process
-            console.log("Unable to determine stat");
-        }
-    }
-
-    try {
-        fs.rmdirSync(directoryPath);
-    } catch (e) {
-        console.log("Unable to delete directory: " + directoryPath + ", err: " + JSON.stringify(e));
     }
 };
 
