@@ -211,13 +211,17 @@ exports = module.exports = function()
                             var moduleId = moduleDirectoryPath.split("/");
                             moduleId = moduleId[moduleId.length - 1];
 
-                            moduleDescriptors.push({
-                                "path": moduleDirectoryPath,
-                                "store": "web",
-                                "id": moduleId
-                            });
+                            var include = process.includeWebModule(host, moduleId);
+                            if (include)
+                            {
+                                moduleDescriptors.push({
+                                    "path": moduleDirectoryPath,
+                                    "store": "web",
+                                    "id": moduleId
+                                });
 
-                            //console.log("Adding web:module.json for path: " + moduleDirectoryPath);
+                                //console.log("Adding web:module.json for path: " + moduleDirectoryPath);
+                            }
                         }
 
                         callback(moduleDescriptors);

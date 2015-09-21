@@ -11,8 +11,6 @@ if (process.env.NODE_ENV === "production") {
     dust.debugLevel = "DEBUG";
 }
 
-var tracker = require("./tracker");
-
 /**
  * Provides a convenience interface into the Dust subsystem that Cloud CMS uses to process in-page tags.
  */

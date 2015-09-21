@@ -52,6 +52,13 @@ exports = module.exports = function()
 
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
+    // all web modules are included by default
+    if (!process.includeWebModule) {
+        process.includeWebModule = function(host, moduleId) {
+            return true;
+        };
+    }
+
     // root ssl ca's
     require('ssl-root-cas').inject();
 
