@@ -313,7 +313,9 @@ exports = module.exports = function()
                 else
                 {
                     // try again with attempt count + 1
-                    _writeToDisk(contentStore, gitana, uri, filePath, attemptCount + 1, maxAttemptsAllowed, previousError, cb)
+                    setTimeout(function() {
+                        _writeToDisk(contentStore, gitana, uri, filePath, attemptCount + 1, maxAttemptsAllowed, previousError, cb)
+                    }, 250);
                 }
             });
         };
@@ -501,7 +503,7 @@ exports = module.exports = function()
 
         };
 
-        _writeToDisk(contentStore, gitana, uri, filePath, 0, 2, null, callback);
+        _writeToDisk(contentStore, gitana, uri, filePath, 0, 3, null, callback);
     };
 
     /**
