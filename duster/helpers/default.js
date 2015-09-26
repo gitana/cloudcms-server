@@ -737,7 +737,7 @@ module.exports = function(app, dust, callback)
                                 var associations_array = otherNodeIdToAssociations[this._doc];
                                 for (var z = 0; z < associations_array.length; z++)
                                 {
-                                    associations_array[z].other = this;
+                                    associations_array[z].other = JSON.parse(JSON.stringify(this));
                                 }
 
                                 // enhance node information
