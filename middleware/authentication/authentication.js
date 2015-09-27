@@ -7,12 +7,18 @@ var util = require('../../util/util');
 var Gitana = require("gitana");
 
 var passport = require('passport');
+/*
 passport.serializeUser(function(user, done) {
+    done(null, user.getDomainId() + "/" + user.getId());
+});
+passport.deserializeUser(function(domainQualifiedId, done) {
+
+    console.log("DESR!!!");
+    var user = null;
+
     done(null, user);
 });
-passport.deserializeUser(function(user, done) {
-    done(null, user);
-});
+*/
 
 /**
  * Authentication middleware.

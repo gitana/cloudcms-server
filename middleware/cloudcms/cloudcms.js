@@ -24,6 +24,14 @@ var cloudcmsUtil = require("../../util/cloudcms");
 //
 ////////////////////////////////////////////////////////////////////////////
 
+passport.serializeUser(function(user, done) {
+    done(null, user);
+});
+
+passport.deserializeUser(function(user, done) {
+    done(null, user);
+});
+
 /**
  * Looks up the user by username or email.
  *
@@ -132,19 +140,6 @@ passport.use(new LocalStrategy({
     }
 ));
 
-/*
-passport.serializeUser(function(user, done) {
-    done(null, user._doc);
-});
-
-passport.deserializeUser(function(id, done) {
-    accounts.findOne(id, function (err, user) {
-        done(err, user);
-    });
-});
-*/
-
-
 ////////////////////////////////////////////////////////////////////////////
 //
 // INTERFACE METHODS
@@ -159,54 +154,64 @@ exports = module.exports = function()
         var failureUrl = req.query["failureUrl"];
 
         var options = {
-            session: false
+            //session: false
         };
 
         passport.authenticate("local", options, function(err, user, info) {
+
+            if (err) {
+                return next(err);
+            }
+
+            if (!user)
+            {
+                if (failureUrl)
+                {
+                    var url = failureUrl;
+                    if (info.message)
+                    {
+                        url += "?message=" + info.message;
+                    }
+
+                    return res.redirect(url);
+                }
+
+                // otherwise, send JSON response
+                res.status(503);
+
+                var body = {
+                    "ok": false
+                };
+                if (info.message) {
+                    body.message = info.message;
+                }
+
+                res.send(body);
+            }
 
             // info contains the "GITANA_COOKIE" that we handle back as a SSO token
             // it should be sent over in the GITANA_COOKIE or a "GITANA_TICKET" header on every follow-on request
             var ticket = info.ticket;
             var user = info.user;
 
-            if (err) {
-                return next(err);
-            }
+            // convert to a regular old JS object to be compatible with session serialization
+            user = JSON.parse(JSON.stringify(user));
+            console.log("USER: " + JSON.stringify(user, null, "  "));
 
-            if (!user) {
-
-                if (failureUrl) {
-                    return res.redirect(failureUrl);
-                }
-
-                try
-                {
-                    res.status(503);
-                    res.send({
-                        "ok": false,
-                        "message": info.message
-                    });
-                }
-                catch (e)
-                {
-                    console.log("handleLogin error");
-                    console.log(e);
-                    return;
-                }
-                return;
-            }
-
-            req.logIn(user, { session: false }, function(err) {
+            //req.logIn(user, { session: false }, function(err) {
+            req.logIn(user, function(err) {
 
                 if (err) {
                     return next(err);
                 }
 
-                if (successUrl) {
+                if (successUrl)
+                {
                     res.redirect(successUrl + "?ticket=" + ticket);
                     return;
                 }
 
+                // otherwise, send JSON response
                 res.status(200);
                 res.send({
                     "ok": true,
@@ -214,6 +219,7 @@ exports = module.exports = function()
                     "user": user
                 });
                 res.end();
+
             });
 
         })(req, res, next);
@@ -241,7 +247,6 @@ exports = module.exports = function()
             "ok": true
         });
     };
-
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
@@ -1410,7 +1415,7 @@ exports = module.exports = function()
     r.authenticationHandler = function(app)
     {
         app.use(passport.initialize());
-        //app.use(passport.session());
+        app.use(passport.session());
 
         return function(req, res, next)
         {

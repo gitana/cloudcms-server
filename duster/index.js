@@ -31,13 +31,13 @@ var populateContext = function(req, context, model, templateFilePath)
         }
     }
 
-    // TODO: populate user information
-    context.user = {
-        "name": "user@user.com",
-        "firstName": "First Name",
-        "lastName": "Last Name",
-        "email": "user@email.com"
-    };
+    // assume no user information
+
+    // if we have a req.user, add this in
+    if (req.user)
+    {
+        context.user = req.user;
+    }
 
     // populate request information
     var qs = {};
