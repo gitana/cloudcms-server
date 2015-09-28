@@ -137,7 +137,14 @@ exports = module.exports = function(dust)
 
     var _MARK_INSIGHT = r._MARK_INSIGHT = function(node, result)
     {
-        result.insightNode = node.getRepositoryId() + "/" + node.getBranchId() + "/" + node.getId();
+        if (result)
+        {
+            result.insightNode = node.getRepositoryId() + "/" + node.getBranchId() + "/" + node.getId();
+        }
+        else
+        {
+            console.log("WARN: result node should not be null");
+        }
     };
 
 
