@@ -157,6 +157,10 @@ exports.execute = function(req, store, filePath, model, callback)
 
                 try
                 {
+                    if (process.env.CLOUDCMS_APPSERVER_MODE !== "production") {
+                        dust.config.whitespace = true;
+                    }
+
                     // compile
                     var compiledTemplate = dust.compile(html, templateKey);
                     dust.loadSource(compiledTemplate);
