@@ -692,7 +692,12 @@ var startSlave = function(config, afterStartFn)
 
                         // attach _log function
                         socket._log = function (text) {
-                            var host = socket.host;
+
+                            var host = socket.handshake.headers.host;
+                            if (socket.handshake.headers["x-forwarded-host"])
+                            {
+                                host = socket.handshake.headers["x-forwarded-host"];
+                            }
 
                             var d = new Date();
                             var dateString = d.toDateString();

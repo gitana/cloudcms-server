@@ -5,11 +5,70 @@ var http = require('http');
 var dust = require("dustjs-linkedin");
 require("dustjs-helpers");
 
-if (process.env.NODE_ENV === "production") {
+if (process.env.CLOUDCMS_APPSERVER_MODE === "production") {
     dust.debugLevel = "INFO";
 } else {
     dust.debugLevel = "DEBUG";
+    dust.config.cache = false;
 }
+
+if (process.env.CLOUDCMS_APPSERVER_MODE !== "production") {
+    dust.config.whitespace = true;
+}
+
+/**
+ * Override Dust's isThenable() function so that Gitana driver chainable objects aren't included.
+ *
+ * @param elem
+ * @returns {*|boolean}
+ */
+dust.isThenable = function(elem) {
+    return elem &&
+        typeof elem === 'object' &&
+        typeof elem.then === 'function' && !elem.objectType;
+};
+
+/**
+ * Override Dust's onLoad() function so that templates are loaded from the store.
+ * The cache key is also determined to include the appId.
+ *
+ * @param templatePath
+ * @param options
+ * @param callback
+ */
+dust.onLoad = function(templatePath, options, callback)
+{
+    var log = options.log;
+
+    log("Loading: " + templatePath);
+
+    // `templateName` is the name of the template requested by dust.render / dust.stream
+    // or via a partial include, like {> "hello-world" /}
+    // `options` can be set as part of a Context. They will be explored later
+    // `callback` is a Node-like callback that takes (err, data)
+
+    var store = options.store;
+
+    store.existsFile(templatePath, function(exists) {
+
+        if (!exists) {
+            callback({
+                "message": "Dust cannot find file path: " + templatePath
+            });
+            return;
+        }
+
+        store.readFile(templatePath, function(err, data) {
+
+            if (err) {
+                callback(err);
+                return;
+            }
+
+            callback(null, "" + data);
+        });
+    });
+};
 
 /**
  * Provides a convenience interface into the Dust subsystem that Cloud CMS uses to process in-page tags.
@@ -67,6 +126,13 @@ var populateContext = function(req, context, model, templateFilePath)
     {
         context.helpers = req.helpers;
     }
+
+    // push base tracker instance for tracking dependencies
+    // TODO: add user information?
+    context["__tracker"] = {
+        "requires": {},
+        "produces": {}
+    };
 };
 
 exports.invalidateCacheForApp = function(applicationId)
@@ -99,90 +165,36 @@ exports.execute = function(req, store, filePath, model, callback)
 
     ensureInit(store);
 
-    store.existsFile(filePath, function(exists) {
+    var templatePath = filePath.split(path.sep).join("/");
 
-        if (!exists) {
-            callback({
-                "message": "Dust cannot find file path: " + filePath
-            });
-            return;
+    // build context
+    var contextObject = {};
+    populateContext(req, contextObject, model, templatePath);
+    var context = dust.context(contextObject, {
+        "req": req,
+        "store": store,
+        "log": dust.log,
+        "dust": dust
+    });
+
+    // hold on to this instance so that we can get at it once we're done
+    var tracker = context.get("__tracker");
+
+    // execute template
+    dust.render(templatePath, context, function(err, out) {
+
+        if (err)
+        {
+            console.log("An error was caught while rendering dust template: " + templatePath + ", error: " + err);
         }
 
-        var templatePath = filePath.split(path.sep).join("/");
-        var templateKey = req.applicationId + ":" + templatePath;
-
-        var processTemplate = function()
-        {
-            // build context
-            var context = {};
-            populateContext(req, context, model, filePath);
-
-            // push base tracker instance for tracking dependencies
-            // TODO: add user information?
-            var tracker = context["__tracker"] = {
-                "requires": {},
-                "produces": {}
-            };
-
-            // execute template
-            dust.render(templateKey, context, function(err, out) {
-
-                if (err)
-                {
-                    console.log("An error was caught while rendering dust template: " + templateKey + ", error: " + err);
-                }
-
-                var dependencies = {
-                    "requires": tracker.requires,
-                    "produces": tracker.produces
-                };
-
-                // callback with dependencies
-                callback(err, out, dependencies);
-            });
+        var dependencies = {
+            "requires": tracker.requires,
+            "produces": tracker.produces
         };
 
-        // load the contents of the file
-        // make sure this is text
-        if (!dust.cache[templateKey])
-        {
-            store.readFile(templatePath, function(err, data) {
-
-                if (err) {
-                    callback(err);
-                    return;
-                }
-
-                var html = "" + data;
-
-                try
-                {
-                    if (process.env.CLOUDCMS_APPSERVER_MODE !== "production") {
-                        dust.config.whitespace = true;
-                    }
-
-                    // compile
-                    var compiledTemplate = dust.compile(html, templateKey);
-                    dust.loadSource(compiledTemplate);
-
-                    processTemplate();
-                }
-                catch (e)
-                {
-                    // compilation failed
-                    console.log("Compilation failed for: " + filePath);
-                    console.log(e);
-
-                    callback({
-                        "message": "Dust compilation failed for: " + filePath
-                    });
-                }
-            });
-        }
-        else
-        {
-            processTemplate();
-        }
+        // callback with dependencies
+        callback(err, out, dependencies);
     });
 };
 

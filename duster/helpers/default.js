@@ -1107,10 +1107,12 @@ module.exports = function(app, dust, callback)
     {
         params = params || {};
 
+        var log = context.options.log;
+
         return map(chunk, function(chunk) {
             setTimeout(function() {
 
-                var webStore = context.get("req").stores.web;
+                var store = context.options.store;
 
                 // the stack of executing template file paths
                 var currentTemplateFilePaths = context.get("templateFilePaths").reverse();
@@ -1131,7 +1133,7 @@ module.exports = function(app, dust, callback)
                             filePath += ".html";
                         }
 
-                        webStore.existsFile(filePath, function(exists) {
+                        store.existsFile(filePath, function(exists) {
 
                             if (exists) {
                                 callback(null, filePath);
@@ -1145,6 +1147,7 @@ module.exports = function(app, dust, callback)
                         var fns = [];
 
                         // relative path, walk the template file paths list backwards
+                        var filePaths = [];
                         for (var a = 0; a < currentTemplateFilePaths.length; a++)
                         {
                             var fn = function(currentTemplateFilePath) {
@@ -1159,20 +1162,21 @@ module.exports = function(app, dust, callback)
                                         filePath += ".html";
                                     }
 
-                                    webStore.existsFile(filePath, function(exists) {
+                                    store.existsFile(filePath, function(exists) {
 
                                         if (exists) {
-                                            done(filePath);
-                                        } else {
-                                            done();
+                                            filePaths.push(filePath);
                                         }
+
+                                        done();
                                     });
                                 }
                             };
                             fns.push(fn);
                         }
 
-                        async.series(fns, function(filePaths) {
+                        async.series(fns, function() {
+
                             for (var i = 0; i < filePaths.length; i++) {
                                 if (filePaths[i]) {
                                     callback(null, filePaths[i]);
@@ -1197,71 +1201,33 @@ module.exports = function(app, dust, callback)
 
                     var templatePath = filePath.split(path.sep).join("/");
 
-                    // load the contents of the file
-                    // make sure this is text
-                    var compileTemplate = function(templatePath, callback) {
-
-                        if (!dust.cache[templatePath])
-                        {
-                            webStore.readFile(filePath, function(err, data) {
-
-                                var html = "" + data;
-
-                                try
-                                {
-                                    // compile
-                                    var compiledTemplate = dust.compile(html, templatePath);
-                                    dust.loadSource(compiledTemplate);
-
-                                    callback();
-                                }
-                                catch (e)
-                                {
-                                    // compilation failed
-                                    console.log("Compilation failed for: " + filePath);
-                                    console.log(e);
-
-                                    callback(e);
-                                }
-                            });
+                    var includeContextObject = {};
+                    for (var k in params) {
+                        var value = context.resolve(params[k]);
+                        if (value) {
+                            includeContextObject[k] = value;
                         }
-                        else
-                        {
-                            callback();
-                        }
-                    };
+                    }
+                    // push down new file path
+                    var templateFilePaths = context.get("templateFilePaths");
+                    var newTemplateFilePaths = [];
+                    for (var r = 0; r < templateFilePaths.length; r++) {
+                        newTemplateFilePaths.push(templateFilePaths[r]);
+                    }
+                    newTemplateFilePaths.push(filePath);
+                    includeContextObject["templateFilePaths"] = newTemplateFilePaths;
+                    var subContext = context.push(includeContextObject);
 
-                    compileTemplate(templatePath, function(err) {
+                    dust.render(templatePath, subContext, function (err, out) {
 
                         if (err) {
-                            console.log("Failed to compile template: " + err.message);
-                            console.log(err);
-                            end(chunk, context);
+                            log("Error while rendering include for: " + templatePath);
+                            log(err);
                         }
 
-                        var includeContextObject = {};
-                        for (var k in params) {
-                            var value = context.resolve(params[k]);
-                            if (value) {
-                                includeContextObject[k] = value;
-                            }
-                        }
-                        // push down new file path
-                        var templateFilePaths = context.get("templateFilePaths");
-                        var newTemplateFilePaths = [];
-                        for (var r = 0; r < templateFilePaths.length; r++) {
-                            newTemplateFilePaths.push(templateFilePaths[r]);
-                        }
-                        newTemplateFilePaths.push(filePath);
-                        includeContextObject["templateFilePaths"] = newTemplateFilePaths;
-                        var subContext = context.push(includeContextObject);
+                        chunk.write(out);
 
-                        dust.render(templatePath, subContext, function (err, out) {
-
-                            chunk.write(out);
-
-                            end(chunk, context);
-                        });
+                        end(chunk, context);
                     });
                 });
             });

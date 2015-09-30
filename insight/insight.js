@@ -41,10 +41,12 @@ var PENDING_DATA = {};
  */
 var scheduleData = function(socket, data)
 {
+    var host = socket.handshake.headers['x-forwarded-host'] || socket.handshake.headers.host;
+
     var gitana = socket.gitana;
     if (!gitana)
     {
-        socket._log("Insight - the socket does not have a gitana instance attached to it, host: " + socket.host + ", skipping...");
+        socket._log("Insight - the socket does not have a gitana instance attached to it, host: " + host + ", skipping...");
         return;
     }
 
@@ -64,7 +66,6 @@ var scheduleData = function(socket, data)
     }
 
     var ip = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address.address;
-    var host = socket.handshake.headers['x-forwarded-host'] || socket.handshake.headers.host;
 
     // tag all rows with the "applicationKey" + ip + host
     for (var i = 0; i < data.rows.length; i++)

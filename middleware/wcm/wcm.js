@@ -210,9 +210,22 @@ exports = module.exports = function()
         var discoveredPageOffsetPath = null;
         if (discoveredPages.length > 0)
         {
-            discoveredPage = discoveredPages[0];
-            discoveredTokens = discoveredTokensArray[0];
-            discoveredPageOffsetPath = discoveredPageOffsetPaths[0];
+            // find the index with the greatest # of tokens
+            var index = 0;
+            var maxLen = 0;
+            for (var i = 0; i < discoveredTokensArray.length; i++)
+            {
+                var len = discoveredTokensArray[i].length;
+                if (len > maxLen) {
+                    index = i;
+                    maxLen = len;
+                }
+            }
+
+            // hand back the discovered page that matches the greatest # of tokens
+            discoveredPage = discoveredPages[index];
+            discoveredTokens = discoveredTokensArray[index];
+            discoveredPageOffsetPath = discoveredPageOffsetPaths[index];
         }
 
         callback(null, discoveredPage, discoveredTokens, discoveredPageOffsetPath);
