@@ -41,7 +41,7 @@ passport.deserializeUser(function(user, done) {
  */
 var findUser = function(req, username, callback)
 {
-    var ds = req.gitana.datastore("principals");
+    var domain = req.gitana.datastore("principals");
     var trap = function(err) {
         callback({
             "message": "Unable to find user for username or email: " + username
@@ -54,7 +54,7 @@ var findUser = function(req, username, callback)
             "email": username
         }]
     };
-    Chain(ds).trap(trap).queryPrincipals(query).keepOne().then(function() {
+    Chain(domain).trap(trap).queryPrincipals(query).keepOne().then(function() {
         callback(null, this);
     });
 };
@@ -239,7 +239,7 @@ exports = module.exports = function()
 
         if (redirectUri) {
             res.redirect(redirectUri);
-            res.end();
+            return;
         }
 
         res.status(200);
@@ -1421,14 +1421,18 @@ exports = module.exports = function()
         {
             var handled = false;
 
-            if (req.method.toLowerCase() == "post") {
-
-                if (req.url.indexOf("/login") == 0)
+            if (req.method.toLowerCase() === "post")
+            {
+                if (req.url.indexOf("/login") === 0)
                 {
                     handleLogin(req, res, next);
                     handled = true;
                 }
-                else if (req.url.indexOf("/logout") == 0)
+            }
+
+            if (req.method.toLowerCase() === "post" || req.method.toLowerCase() === "get")
+            {
+                if (req.url.indexOf("/logout") === 0)
                 {
                     handleLogout(req, res, next);
                     handled = true;
