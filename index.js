@@ -284,6 +284,9 @@ exports = module.exports = function()
             app.use(cloudcms.cmsLogInterceptor());
         }
 
+        // authentication interceptor
+        app.use(authentication.authenticationInterceptor(app));
+
         // authorization interceptor
         app.use(authorization.authorizationInterceptor());
 

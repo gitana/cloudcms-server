@@ -639,13 +639,12 @@ var startSlave = function(config, afterStartFn)
                 app.engine('html', hbs.__express);
             }
 
-            app.use(cookieParser("secret"));
-            //app.use(methodOverride());
-            //app.use(express.session({ secret: 'secret', store: sessionStore }));
+            //app.use(cookieParser("secret"));
+            app.use(cookieParser());
             app.use(session({
-                secret: 'secret',
-                resave: false,
-                saveUninitialized: false
+                secret: 'secret'//,
+                //resave: false,
+                //saveUninitialized: false
             }));
 
             // configure cloudcms app server command handing

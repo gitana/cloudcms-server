@@ -45,6 +45,16 @@ exports = module.exports = function()
 
     var r = {};
 
+    r.authenticationInterceptor = function(app)
+    {
+        app.use(passport.initialize());
+        app.use(passport.session());
+
+        return util.createInterceptor("authentication", function(req, res, next, configuration) {
+            next();
+        });
+    };
+
     /**
      * Handler for authentication.
      *
@@ -52,9 +62,6 @@ exports = module.exports = function()
      */
     r.handler = function(app)
     {
-        app.use(passport.initialize());
-        app.use(passport.session());
-
         return util.createHandler("auth", function(req, res, next, configuration) {
 
             var handled = false;
