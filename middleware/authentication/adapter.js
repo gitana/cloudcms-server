@@ -43,7 +43,7 @@ exports = module.exports = function(providerId, lib, config)
 
                     return this.trap(function(err) {
                         callback(err);
-                        return;
+                        return false;
                     }).chainPostResponse(this, uriFunction, params, payload).then(function(response) {
                         callback(null, response);
                     });
@@ -77,7 +77,7 @@ exports = module.exports = function(providerId, lib, config)
 
                     return this.trap(function(err) {
                         callback(err);
-                        return;
+                        return false;
                     }).chainPostResponse(this, uriFunction, params, payload).then(function(response) {
                         callback(null, response);
                     });

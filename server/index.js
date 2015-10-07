@@ -16,6 +16,9 @@ var multipart = require("connect-multiparty");
 var session = require('express-session');
 var cookieParser = require('cookie-parser');
 
+// session file store
+var SessionFileStore = require('session-file-store')(session);
+
 var util = require("../util/util");
 
 var launchPad = require("../launchpad/index");
@@ -508,6 +511,18 @@ var startSlave = function(config, afterStartFn)
                 return message;
             });
 
+            /*
+            // debug headers being set
+            app.use(function(req, res, next) {
+                var setHeader = res.setHeader;
+                res.setHeader = function(a,b) {
+                    console.trace("Writing header: " + a + " = " + b);
+                    setHeader.call(this, a,b);
+                };
+                next();
+            });
+            */
+
             // add req.id  re
             app.use(function (req, res, next) {
                 requestCounter++;
@@ -642,9 +657,10 @@ var startSlave = function(config, afterStartFn)
             //app.use(cookieParser("secret"));
             app.use(cookieParser());
             app.use(session({
-                secret: 'secret'//,
-                //resave: false,
-                //saveUninitialized: false
+                secret: 'secret',
+                resave: false,
+                saveUninitialized: false,
+                store: new SessionFileStore()
             }));
 
             // configure cloudcms app server command handing

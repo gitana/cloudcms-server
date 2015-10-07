@@ -311,7 +311,7 @@ exports = module.exports = function()
                             });
 
                             errorHandler(err);
-                            return;
+                            return false;
                         }).then(function () {
 
                             this.queryNodes({
