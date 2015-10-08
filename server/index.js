@@ -16,9 +16,6 @@ var multipart = require("connect-multiparty");
 var session = require('express-session');
 var cookieParser = require('cookie-parser');
 
-// session file store
-var SessionFileStore = require('session-file-store')(session);
-
 var util = require("../util/util");
 
 var launchPad = require("../launchpad/index");
@@ -440,6 +437,29 @@ var startSlave = function(config, afterStartFn)
         process.env.CLOUDCMS_DOMAIN = process.env.CLOUDCMS_DOMAIN.toLowerCase();
     }
 
+    // session store
+    var initializedSession = null;
+    if (process.configuration.session)
+    {
+        if (process.configuration.session.enabled)
+        {
+            var sessionConfig = {
+                secret: 'secret',
+                resave: false,
+                saveUninitialized: false
+            };
+
+            if (process.configuration.session.type === "file")
+            {
+                // session file store
+                var SessionFileStore = require('session-file-store')(session);
+                sessionConfig.store = new SessionFileStore();
+            }
+
+            initializedSession = session(sessionConfig);
+        }
+    }
+
     // global temp directory
     util.createTempDirectory(function(err, tempDirectory) {
         process.env.CLOUDCMS_TEMPDIR_PATH = tempDirectory;
@@ -656,12 +676,10 @@ var startSlave = function(config, afterStartFn)
 
             //app.use(cookieParser("secret"));
             app.use(cookieParser());
-            app.use(session({
-                secret: 'secret',
-                resave: false,
-                saveUninitialized: false,
-                store: new SessionFileStore()
-            }));
+
+            if (initializedSession) {
+                app.use(initializedSession);
+            }
 
             // configure cloudcms app server command handing
             main.interceptors(app, true);
