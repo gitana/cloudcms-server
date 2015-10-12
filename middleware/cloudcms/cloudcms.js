@@ -74,8 +74,11 @@ passport.use(new LocalStrategy({
         findUser(req, username, function(err, user) {
 
             if (err) {
-                done(null, false, { "message": err.message });
-                return;
+                return done(null, false, { "message": err.message });
+            }
+
+            if (!user) {
+                return done(null, false, { "message": "Unable to find user: " + username });
             }
 
             // update username to the username of the actual user
@@ -94,8 +97,7 @@ passport.use(new LocalStrategy({
             }, function(err) {
 
                 if (err) {
-                    done(null, false, { "message": err.message });
-                    return;
+                    return done(null, false, err);
                 }
 
                 // authentication was successful!
