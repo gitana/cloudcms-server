@@ -38,24 +38,7 @@ module.exports = function(app, dust, callback)
 {
     var support = require("../support")(dust);
 
-    var enhanceNode = function(node)
-    {
-        var attachments = {};
-
-        for (var id in node.getSystemMetadata()["attachments"])
-        {
-            var attachment = node.getSystemMetadata()["attachments"][id];
-
-            attachments[id] = JSON.parse(JSON.stringify(attachment));
-            attachments[id]["url"] = "/static/node/" + node.getId() + "/" + id;
-            attachments[id]["preview32"] = "/static/node/" + node.getId() + "/preview32/?attachment=" + id + "&size=32";
-            attachments[id]["preview64"] = "/static/node/" + node.getId() + "/preview64/?attachment=" + id + "&size=64";
-            attachments[id]["preview128"] = "/static/node/" + node.getId() + "/preview128/?attachment=" + id + "&size=128";
-            attachments[id]["preview256/"] = "/static/node/" + node.getId() + "/preview256/?attachment=" + id + "&size=256";
-        }
-
-        node.attachments = attachments;
-    };
+    var enhanceNode = util.enhanceNode;
 
     // helper functions
     var isDefined = support.isDefined;
