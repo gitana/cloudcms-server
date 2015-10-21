@@ -283,7 +283,19 @@ exports = module.exports = function()
             {
                 if (req.url.indexOf("/_modules") === 0)
                 {
-                    var filePath = req.path.substring(10);
+                    var filePath = null;
+
+                    // skip ahead to everything after the next "/"
+                    // this allows for URIs like:
+                    //     /_modules-TIMESTAMP/{moduleId}/something.jpg
+                    var q = req.path.indexOf("/", 2);
+                    if (q > -1)
+                    {
+                        filePath = req.path.substring(q + 1);
+                    }
+
+                    // filePath should now be "{moduleId}/something.jpg"
+                    // or "{moduleId}"
 
                     var moduleId = null;
                     var modulePath = null;
