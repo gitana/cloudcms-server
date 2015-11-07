@@ -410,7 +410,7 @@ exports = module.exports = function()
 
             res.set('Access-Control-Allow-Origin', origin);
             res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-            res.set('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Authorization, Origin, X-Requested-With, X-Prototype-Version, Cache-Control, Pragma, X-CSRF-TOKEN, X-XSRF-TOKEN');
+            res.set('Access-Control-Allow-Headers', 'X-Forwarded-Host, X-Requested-With, Content-Type, Authorization, Origin, X-Requested-With, X-Prototype-Version, Cache-Control, Pragma, X-CSRF-TOKEN, X-XSRF-TOKEN');
             res.set('Access-Control-Allow-Credentials', 'true');
             // res.set('Access-Control-Allow-Max-Age', 3600);
 
