@@ -40,8 +40,7 @@ exports = module.exports = function()
                 if (!descriptor.active) {
                     // we're inactive, virtual host not running
                     // send back a 404
-                    res.status(404);
-                    res.end();
+                    util.status(res, 404).end();
                     return;
                 }
 

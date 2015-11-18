@@ -193,14 +193,17 @@ exports = module.exports = function(engineConfig)
 
             if (err)
             {
-                try { res.status(503).send(err); } catch (e) { }
-                res.end();
+                try
+                {
+                    util.status(res, 503).send(err).end();
+                }
+                catch(e) {}
                 return;
             }
 
             util.applyResponseContentType(res, cacheInfo, filePath);
 
-            res.status(200);
+            util.status(res, 200);
             util.sendFile(res, stream, function(err) {
                 callback(err);
             });
@@ -213,8 +216,11 @@ exports = module.exports = function(engineConfig)
 
             if (err)
             {
-                try { res.status(503).send(err); } catch (e) { }
-                res.end();
+                try
+                {
+                    util.status(res, 503).send(err).end();
+                }
+                catch (e) { }
                 return;
             }
 
@@ -233,7 +239,7 @@ exports = module.exports = function(engineConfig)
             // set Content-Disposition when file is sent
             res.setHeader("Content-Disposition", contentDisposition);
 
-            res.status(200);
+            util.status(res, 200);
             util.sendFile(res, stream, function(err) {
                 callback(err);
             });

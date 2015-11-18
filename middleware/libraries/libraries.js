@@ -82,7 +82,11 @@ exports = module.exports = function()
                     console.log("ERR5: " + JSON.stringify(err));
 
                     // some kind of IO issue streaming back
-                    try { res.status(503).send(err); } catch (e) { }
+                    try
+                    {
+                        util.status(res, 503);
+                        res.send(err);
+                    } catch (e) { }
                     res.end();
                 }
 
@@ -153,7 +157,7 @@ exports = module.exports = function()
                         text = text.substring(0, i1) + itext + text.substring(i2);
                     }
 
-                    res.status(200);
+                    util.status(res, 200);
                     _send.call(res, text);
 
                     fn();

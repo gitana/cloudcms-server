@@ -679,7 +679,7 @@ exports = module.exports = function()
                             {
                                 // yes, we found it in cache, so we'll simply pipe it back from disk
                                 req.log("WCM Page Cache Hit: " + offsetPath);
-                                res.status(200);
+                                util.status(res, 200);
                                 readStream.pipe(res);
                                 return;
                             }
@@ -734,7 +734,7 @@ exports = module.exports = function()
                                         // it might be a bad template
                                         req.log("Failed to process dust template: " + page.templatePath + " for model: " + JSON.stringify(model, null, "  "));
 
-                                        res.status(500);
+                                        util.status(res, 500);
                                         res.send(err);
                                         return;
                                     }
@@ -747,7 +747,7 @@ exports = module.exports = function()
                                     });
 
                                     // slight improvement here, send back results right away
-                                    res.status(200);
+                                    util.status(res, 200);
                                     res.send(text);
 
                                 });

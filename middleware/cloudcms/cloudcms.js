@@ -179,7 +179,7 @@ exports = module.exports = function()
                 }
 
                 // otherwise, send JSON response
-                res.status(503);
+                util.status(res, 503);
 
                 var body = {
                     "ok": false
@@ -214,7 +214,7 @@ exports = module.exports = function()
                 }
 
                 // otherwise, send JSON response
-                res.status(200);
+                util.status(res, 200);
                 res.send({
                     "ok": true,
                     "ticket": ticket,
@@ -244,7 +244,7 @@ exports = module.exports = function()
             return;
         }
 
-        res.status(200);
+        util.status(res, 200);
         res.send({
             "ok": true
         });
@@ -823,7 +823,7 @@ exports = module.exports = function()
                                     // something went wrong while streaming the content back...
                                     if (err)
                                     {
-                                        res.status(503);
+                                        util.status(res, 503);
                                         res.send(err);
                                         res.end();
                                     }
@@ -969,7 +969,7 @@ exports = module.exports = function()
 
                                     // something went wrong while streaming the content back...
                                     if (err) {
-                                        res.status(503);
+                                        util.status(res, 503);
                                         res.send(err);
                                         res.end();
                                     }
@@ -1240,7 +1240,7 @@ exports = module.exports = function()
 
                                     // something went wrong while streaming the content back...
                                     if (err) {
-                                        res.status(503);
+                                        util.status(res, 503);
                                         res.send(err);
                                         res.end();
                                     }
@@ -1356,7 +1356,7 @@ exports = module.exports = function()
 
                                     // something went wrong while streaming the content back...
                                     if (err) {
-                                        res.status(503);
+                                        util.status(res, 503);
                                         res.send(err);
                                         res.end();
                                     }

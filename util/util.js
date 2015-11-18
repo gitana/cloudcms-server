@@ -875,7 +875,7 @@ var handleSendFileError = exports.handleSendFileError = function(req, res, fileP
         {
             var fallback = req.query["fallback"];
             if (!fallback) {
-                try { res.status(404); } catch (e) { }
+                try { util.status(res, 404); } catch (e) { }
                 res.end();
             }
             else
@@ -885,19 +885,19 @@ var handleSendFileError = exports.handleSendFileError = function(req, res, fileP
         }
         else if (err.zeroSize)
         {
-            try { res.status(200); } catch (e) { }
+            try { util.status(res, 200); } catch (e) { }
             res.end();
         }
         else if (err.readFailed)
         {
             logMethod(JSON.stringify(err));
-            try { res.status(503); } catch (e) { }
+            try { util.status(res, 503); } catch (e) { }
             res.end();
         }
         else if (err.sendFailed)
         {
             logMethod(JSON.stringify(err));
-            try { res.status(503); } catch (e) { }
+            try { util.status(res, 503); } catch (e) { }
             res.end();
         }
     }
@@ -1199,4 +1199,26 @@ var enhanceNode = exports.enhanceNode = function(node)
     }
 
     node.attachments = attachments;
+};
+
+var status = exports.status = function(res, code)
+{
+    res.status(code);
+
+    if (code >= 200 && code <= 204)
+    {
+        // ok
+    }
+    else
+    {
+        // don't include cache headers
+        setHeader(res, "Cache-Control", "no-cache,no-store");
+        setHeader(res, "Pragma", "no-cache");
+        setHeader(res, "Expires", "Mon, 7 Apr 2012, 16:00:00 GMT"); // already expired
+        //removeHeader(res, "Cache-Control");
+        //removeHeader(res, "Pragma");
+        //removeHeader(res, "Expires");
+    }
+
+    return res;
 };

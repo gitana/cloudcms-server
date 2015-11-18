@@ -56,7 +56,7 @@ exports = module.exports = function()
                                 console.log("ERR6: " + err);
                                 console.log("ERR6: " + JSON.stringify(err));
 
-                                res.status(503).end();
+                                util.status(res, 503).end();
                             }
 
                         });

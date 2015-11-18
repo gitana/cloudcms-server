@@ -2,6 +2,8 @@ var path = require('path');
 var fs = require('fs');
 var http = require('http');
 
+var util = require("../../util/util");
+
 /**
  * Final middleware.
  *
@@ -28,8 +30,7 @@ exports = module.exports = function()
     {
         return function(req, res, next)
         {
-            // hand back a 404
-            res.status(404).end();
+            util.status(res, 404).end();
         };
     };
 

@@ -318,7 +318,7 @@ exports = module.exports = function()
 
                         if (!exists)
                         {
-                            res.status(404).end();
+                            util.status(res, 404).end();
                             return;
                         }
 
