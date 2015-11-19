@@ -169,7 +169,7 @@ var executeCommands = function(commands, logMethod, callback)
             };
         }
 
-        callback(err);
+        callback(err, text);
     });
 
     setTimeout(function() {
@@ -1221,4 +1221,41 @@ var status = exports.status = function(res, code)
     }
 
     return res;
+};
+
+var maxFiles = exports.maxFiles = function(callback)
+{
+    var logMethod = function(txt) { };
+
+    var commands = [];
+    commands.push("ulimit -n");
+    executeCommands(commands, logMethod, function(err, text) {
+
+        if (err) {
+            return callback(err);
+        }
+
+        var maxFiles = -1;
+        try
+        {
+            maxFiles = parseInt(text, 10);
+        }
+        catch (e)
+        {
+            // swallow
+        }
+
+        callback(null, maxFiles);
+    });
+};
+
+var countOpenHandles = exports.countOpenHandles = function(callback)
+{
+    fs.readdir('/proc/self/fd', function(err, list) {
+        if (err) {
+            return callback(err);
+        }
+
+        callback(null, list.length);
+    });
 };

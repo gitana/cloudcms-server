@@ -53,6 +53,7 @@ server.report(function(callback) {
     console.log("Cache Provider: " + process.env.CLOUDCMS_CACHE_TYPE);
     console.log("Temp Directory: " + process.env.CLOUDCMS_TEMPDIR_PATH);
     console.log("LaunchPad Mode: " + process.env.CLOUDCMS_LAUNCHPAD_SETUP);
+    console.log("Max Files Detected: " + process.env.CLOUDCMS_MAX_FILES);
 
     console.log("");
 

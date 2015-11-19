@@ -464,351 +464,375 @@ var startSlave = function(config, afterStartFn)
     util.createTempDirectory(function(err, tempDirectory) {
         process.env.CLOUDCMS_TEMPDIR_PATH = tempDirectory;
 
-        // global service starts
-        main.init(function (err) {
+        // determine the max files
+        util.maxFiles(function(err, maxFiles) {
 
-            //console.log("");
-            //console.log("Starting " + config.name);
-            //console.log("Settings: " + JSON.stringify(config, null, "   "));
+            process.env.CLOUDCMS_MAX_FILES = maxFiles;
 
-            app.enable('strict routing');
+            // global service starts
+            main.init(function (err) {
 
-            ////////////////////////////////////////////////////////////////////////////
-            //
-            // VIRTUAL SUPPORT
-            //
-            // Configure NodeJS to load virtual driver and configure for virtual descriptors
-            // ahead of anything else running.
-            //
-            ////////////////////////////////////////////////////////////////////////////
+                //console.log("");
+                //console.log("Starting " + config.name);
+                //console.log("Settings: " + JSON.stringify(config, null, "   "));
 
-            // custom morgan logger
-            morgan(function (tokens, req, res) {
+                app.enable('strict routing');
 
-                var status = res.statusCode;
-                var len = parseInt(res.getHeader('Content-Length'), 10);
-                var host = req.domainHost;
-                if (!host) {
-                    host = req.hostname;
-                }
-                len = isNaN(len) ? '0b' : len = bytes(len);
+                ////////////////////////////////////////////////////////////////////////////
+                //
+                // VIRTUAL SUPPORT
+                //
+                // Configure NodeJS to load virtual driver and configure for virtual descriptors
+                // ahead of anything else running.
+                //
+                ////////////////////////////////////////////////////////////////////////////
 
-                var d = new Date();
-                var dateString = d.toDateString();
-                var timeString = d.toTimeString();
+                // custom morgan logger
+                morgan(function (tokens, req, res) {
 
-                // gray color
-                var grayColor = "\x1b[90m";
-
-                // status color
-                var color = 32;
-                if (status >= 500) color = 31
-                else if (status >= 400) color = 33
-                else if (status >= 300) color = 36;
-                var statusColor = "\x1b[" + color + "m"
-
-                // final color
-                var finalColor = "\x1b[0m";
-
-                if (process.env.CLOUDCMS_APPSERVER_MODE == "production") {
-                    grayColor = "";
-                    statusColor = "";
-                    finalColor = "";
-                }
-
-                var message = '';
-                message += grayColor + '<' + req.id + '> ';
-                message += grayColor + '[' + dateString + ' ' + timeString + '] ';
-                message += grayColor + host + ' ';
-                //message += grayColor + '(' + req.ip + ') ';
-                message += statusColor + res.statusCode + ' ';
-                message += statusColor + (new Date - req._startTime) + ' ms ';
-                message += grayColor + '"' + req.method + ' ';
-                message += grayColor + req.originalUrl + '" ';
-                message += grayColor + len + ' ';
-                message += finalColor;
-
-                return message;
-            });
-
-            /*
-            // debug headers being set
-            app.use(function(req, res, next) {
-                var setHeader = res.setHeader;
-                res.setHeader = function(a,b) {
-                    console.trace("Writing header: " + a + " = " + b);
-                    setHeader.call(this, a,b);
-                };
-                next();
-            });
-            */
-
-            // add req.id  re
-            app.use(function (req, res, next) {
-                requestCounter++;
-                req.id = requestCounter;
-                next();
-            });
-
-            app.use(function (req, res, next) {
-                req.originalUrl = req.url;
-                req.originalPath = req.path;
-                next();
-            });
-
-            // add req.log function
-            app.use(function (req, res, next) {
-
-                req.log = function (text) {
-
+                    var status = res.statusCode;
+                    var len = parseInt(res.getHeader('Content-Length'), 10);
                     var host = req.domainHost;
-                    if (!host) {
+                    if (!host)
+                    {
                         host = req.hostname;
                     }
+                    len = isNaN(len) ? '0b' : len = bytes(len);
 
-                    var timestamp = moment(new Date()).format("MM/DD/YYYY HH:mm:ss Z");
+                    var d = new Date();
+                    var dateString = d.toDateString();
+                    var timeString = d.toTimeString();
+
+                    // gray color
                     var grayColor = "\x1b[90m";
+
+                    // status color
+                    var color = 32;
+                    if (status >= 500) color = 31
+                    else if (status >= 400) color = 33
+                    else if (status >= 300) color = 36;
+                    var statusColor = "\x1b[" + color + "m"
+
+                    // final color
                     var finalColor = "\x1b[0m";
 
-                    // in production, don't use colors
-                    if (process.env.CLOUDCMS_APPSERVER_MODE === "production") {
+                    if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
+                    {
                         grayColor = "";
+                        statusColor = "";
                         finalColor = "";
                     }
 
                     var message = '';
                     message += grayColor + '<' + req.id + '> ';
-                    if (cluster.worker && cluster.worker.id) {
-                        message += grayColor + '(' + cluster.worker.id + ') ';
-                    }
-                    message += grayColor + '[' + timestamp + '] ';
+                    message += grayColor + '[' + dateString + ' ' + timeString + '] ';
                     message += grayColor + host + ' ';
-                    message += grayColor + text + '';
+                    //message += grayColor + '(' + req.ip + ') ';
+                    message += statusColor + res.statusCode + ' ';
+                    message += statusColor + (new Date - req._startTime) + ' ms ';
+                    message += grayColor + '"' + req.method + ' ';
+                    message += grayColor + req.originalUrl + '" ';
+                    message += grayColor + len + ' ';
                     message += finalColor;
 
-                    console.log(message);
-                };
+                    return message;
+                });
 
-                req._log = req.log;
+                /*
+                 // debug headers being set
+                 app.use(function(req, res, next) {
+                 var setHeader = res.setHeader;
+                 res.setHeader = function(a,b) {
+                 console.trace("Writing header: " + a + " = " + b);
+                 setHeader.call(this, a,b);
+                 };
+                 next();
+                 });
+                 */
 
-                next();
-            });
+                // add req.id  re
+                app.use(function (req, res, next) {
+                    requestCounter++;
+                    req.id = requestCounter;
+                    next();
+                });
 
-            // some cosmetic things
-            app.use(function (req, res, next) {
-                res.header("X-Powered-By", "Cloud CMS");
-                next();
-            });
+                app.use(function (req, res, next) {
+                    req.originalUrl = req.url;
+                    req.originalPath = req.path;
+                    next();
+                });
 
-            // common interceptors and config
-            main.common1(app);
+                // add req.log function
+                app.use(function (req, res, next) {
 
-            // initial log
-            app.use(function (req, res, next) {
-                req.log(req.method + " " + req.url);
-                next();
-            });
+                    req.log = function (text) {
 
-            // set up CORS allowances
-            // this lets CORS requests float through the proxy
-            app.use(main.ensureCORS());
+                        var host = req.domainHost;
+                        if (!host)
+                        {
+                            host = req.hostname;
+                        }
 
-            // common interceptors and config
-            main.common2(app);
+                        var timestamp = moment(new Date()).format("MM/DD/YYYY HH:mm:ss Z");
+                        var grayColor = "\x1b[90m";
+                        var finalColor = "\x1b[0m";
 
-            // PATH BASED PERFORMANCE CACHING
-            main.perf1(app);
+                        // in production, don't use colors
+                        if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
+                        {
+                            grayColor = "";
+                            finalColor = "";
+                        }
 
-            // proxy - anything that goes to /proxy is handled here early and nothing processes afterwards
-            main.proxy(app);
+                        var message = '';
+                        message += grayColor + '<' + req.id + '> ';
+                        if (cluster.worker && cluster.worker.id)
+                        {
+                            message += grayColor + '(' + cluster.worker.id + ') ';
+                        }
+                        message += grayColor + '[' + timestamp + '] ';
+                        message += grayColor + host + ' ';
+                        message += grayColor + text + '';
+                        message += finalColor;
 
-            // MIMETYPE BASED PERFORMANCE CACHING
-            main.perf2(app);
+                        console.log(message);
+                    };
 
-            // standard body parsing + a special cloud cms body parser that makes a last ditch effort for anything
-            // that might be JSON (regardless of content type)
-            app.use(function (req, res, next) {
+                    req._log = req.log;
 
-                multipart()(req, res, function (err) {
-                    bodyParser.json()(req, res, function (err) {
-                        bodyParser.urlencoded({
-                            extended: true
-                        })(req, res, function (err) {
-                            main.bodyParser()(req, res, function (err) {
-                                next(err);
+                    next();
+                });
+
+                // some cosmetic things
+                app.use(function (req, res, next) {
+                    res.header("X-Powered-By", "Cloud CMS");
+                    next();
+                });
+
+                // common interceptors and config
+                main.common1(app);
+
+                // initial log
+                app.use(function (req, res, next) {
+                    req.log(req.method + " " + req.url);
+                    next();
+                });
+
+                // set up CORS allowances
+                // this lets CORS requests float through the proxy
+                app.use(main.ensureCORS());
+
+                // common interceptors and config
+                main.common2(app);
+
+                // PATH BASED PERFORMANCE CACHING
+                main.perf1(app);
+
+                // proxy - anything that goes to /proxy is handled here early and nothing processes afterwards
+                main.proxy(app);
+
+                // MIMETYPE BASED PERFORMANCE CACHING
+                main.perf2(app);
+
+                // standard body parsing + a special cloud cms body parser that makes a last ditch effort for anything
+                // that might be JSON (regardless of content type)
+                app.use(function (req, res, next) {
+
+                    multipart()(req, res, function (err) {
+                        bodyParser.json()(req, res, function (err) {
+                            bodyParser.urlencoded({
+                                extended: true
+                            })(req, res, function (err) {
+                                main.bodyParser()(req, res, function (err) {
+                                    next(err);
+                                });
                             });
                         });
                     });
+
                 });
 
-            });
-
-            // welcome files
-            main.welcome(app);
+                // welcome files
+                main.welcome(app);
 
 
-            ////////////////////////////////////////////////////////////////////////////
-            //
-            // BASE CONFIGURATION
-            //
-            // Configures NodeJS app server using dustjs templating engine
-            // Runs on port 2999 by default
-            //
-            ////////////////////////////////////////////////////////////////////////////
+                ////////////////////////////////////////////////////////////////////////////
+                //
+                // BASE CONFIGURATION
+                //
+                // Configures NodeJS app server using dustjs templating engine
+                // Runs on port 2999 by default
+                //
+                ////////////////////////////////////////////////////////////////////////////
 
-            // all environments
-            app.set('port', process.env.PORT);
-            app.set('views', process.env.CLOUDCMS_APPSERVER_BASE_PATH + "/views");
+                // all environments
+                app.set('port', process.env.PORT);
+                app.set('views', process.env.CLOUDCMS_APPSERVER_BASE_PATH + "/views");
 
-            if (config.viewEngine === "dust") {
-                app.set('view engine', 'html');
-                var cons = require('consolidate');
-                app.engine('html', cons.dust);
-            }
-            else if (config.viewEngine === "jade") {
-                app.set('view engine', 'jade');
-            }
-            else if (config.viewEngine === "handlebars" || config.viewEngine === "hbs") {
-                app.set('view engine', 'html');
-                var hbs = require('hbs');
-                app.engine('html', hbs.__express);
-            }
+                if (config.viewEngine === "dust")
+                {
+                    app.set('view engine', 'html');
+                    var cons = require('consolidate');
+                    app.engine('html', cons.dust);
+                }
+                else if (config.viewEngine === "jade")
+                {
+                    app.set('view engine', 'jade');
+                }
+                else if (config.viewEngine === "handlebars" || config.viewEngine === "hbs")
+                {
+                    app.set('view engine', 'html');
+                    var hbs = require('hbs');
+                    app.engine('html', hbs.__express);
+                }
 
-            //app.use(cookieParser("secret"));
-            app.use(cookieParser());
+                //app.use(cookieParser("secret"));
+                app.use(cookieParser());
 
-            if (initializedSession) {
-                app.use(initializedSession);
-            }
+                if (initializedSession)
+                {
+                    app.use(initializedSession);
+                }
 
-            // configure cloudcms app server command handing
-            main.interceptors(app, true);
+                // configure cloudcms app server command handing
+                main.interceptors(app, true);
 
-            //app.use(app.router);
-            app.use(errorHandler());
+                //app.use(app.router);
+                app.use(errorHandler());
 
-            // APPLY CUSTOM ROUTES
-            runFunctions(config.routeFunctions, [app], function (err) {
+                // APPLY CUSTOM ROUTES
+                runFunctions(config.routeFunctions, [app], function (err) {
 
-                // configure cloudcms app server handlers
-                main.handlers(app, true);
+                    // configure cloudcms app server handlers
+                    main.handlers(app, true);
 
-                // APPLY CUSTOM CONFIGURE FUNCTIONS
-                var allConfigureFunctions = [];
-                for (var env in config.configureFunctions) {
-                    var functions = config.configureFunctions[env];
-                    if (functions) {
-                        for (var i = 0; i < functions.length; i++) {
-                            allConfigureFunctions.push(functions[i]);
+                    // APPLY CUSTOM CONFIGURE FUNCTIONS
+                    var allConfigureFunctions = [];
+                    for (var env in config.configureFunctions)
+                    {
+                        var functions = config.configureFunctions[env];
+                        if (functions)
+                        {
+                            for (var i = 0; i < functions.length; i++)
+                            {
+                                allConfigureFunctions.push(functions[i]);
+                            }
                         }
                     }
-                }
-                runFunctions(allConfigureFunctions, [app], function (err) {
+                    runFunctions(allConfigureFunctions, [app], function (err) {
 
-                    ////////////////////////////////////////////////////////////////////////////
-                    //
-                    // INITIALIZE THE SERVER
-                    //
-                    ////////////////////////////////////////////////////////////////////////////
+                        ////////////////////////////////////////////////////////////////////////////
+                        //
+                        // INITIALIZE THE SERVER
+                        //
+                        ////////////////////////////////////////////////////////////////////////////
 
-                    // CORE OBJECTS
-                    var server = http.Server(app);
-                    server.setTimeout(30000); // 30 seconds
-                    server.on("connection", function (socket) {
-                        socket.setNoDelay(true);
-                    });
-                    var io = process.IO = require("socket.io")(server);
-                    io.set('transports', config.socketTransports);
-                    io.use(function (socket, next) {
-
-                        console.log("New socket being initialized");
-
-                        // attach _log function
-                        socket._log = function (text) {
-
-                            var host = socket.handshake.headers.host;
-                            if (socket.handshake.headers["x-forwarded-host"])
-                            {
-                                host = socket.handshake.headers["x-forwarded-host"];
-                            }
-
-                            var d = new Date();
-                            var dateString = d.toDateString();
-                            var timeString = d.toTimeString();
-
-                            // gray color
-                            var grayColor = "\x1b[90m";
-
-                            // final color
-                            var finalColor = "\x1b[0m";
-
-                            if (process.env.CLOUDCMS_APPSERVER_MODE === "production") {
-                                grayColor = "";
-                                finalColor = "";
-                            }
-
-                            var message = '';
-                            message += grayColor + '<socket> ';
-                            message += grayColor + '[' + dateString + ' ' + timeString + '] ';
-                            message += grayColor + host + ' ';
-                            message += grayColor + text + '';
-                            message += finalColor;
-
-                            console.log(message);
-                        };
-                        socket.on("connect", function () {
-                            console.log("Socket connect()");
+                        // CORE OBJECTS
+                        var server = http.Server(app);
+                        server.setTimeout(30000); // 30 seconds
+                        server.on("connection", function (socket) {
+                            socket.setNoDelay(true);
                         });
-                        socket.on("disconnect", function () {
-                            var message = "Socket disconnected";
-                            if (socket && socket.host) {
-                                message += ", host=" + socket.host;
-                            }
-                            if (socket && socket.gitana && socket.gitana.application && socket.gitana.application()) {
-                                message += ", application=" + socket.gitana.application().title;
-                            }
-                            console.log(message);
-                        });
+                        var io = process.IO = require("socket.io")(server);
+                        io.set('transports', config.socketTransports);
+                        io.use(function (socket, next) {
 
-                        // APPLY CUSTOM SOCKET.IO CONFIG
-                        runFunctions(config.socketFunctions, [socket], function (err) {
+                            console.log("New socket being initialized");
 
-                            // INSIGHT SERVER
-                            if (config.insight && config.insight.enabled) {
-                                console.log("Init Insight to Socket");
+                            // attach _log function
+                            socket._log = function (text) {
 
-                                require("../insight/insight").init(socket, function () {
-                                    next();
-                                });
-                            }
-                            else {
-                                next();
-                            }
-                        });
-
-                    });
-
-                    // SET INITIAL VALUE FOR SERVER TIMESTAMP
-                    process.env.CLOUDCMS_APPSERVER_TIMESTAMP = new Date().getTime();
-
-                    // DUST
-                    runFunctions(config.dustFunctions, [app, duster.getDust()], function(err) {
-
-                        // APPLY SERVER BEFORE START FUNCTIONS
-                        runFunctions(config.beforeFunctions, [app], function (err) {
-
-                            server._listenPort = app.get("port");
-
-                            // AFTER SERVER START
-                            runFunctions(config.afterFunctions, [app], function (err) {
-
-                                // if we are on a worker process, then inform the master that we completed
-                                if (process.send) {
-                                    process.send("server-startup");
+                                var host = socket.handshake.headers.host;
+                                if (socket.handshake.headers["x-forwarded-host"])
+                                {
+                                    host = socket.handshake.headers["x-forwarded-host"];
                                 }
 
-                                afterStartFn(app, server);
+                                var d = new Date();
+                                var dateString = d.toDateString();
+                                var timeString = d.toTimeString();
 
+                                // gray color
+                                var grayColor = "\x1b[90m";
+
+                                // final color
+                                var finalColor = "\x1b[0m";
+
+                                if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
+                                {
+                                    grayColor = "";
+                                    finalColor = "";
+                                }
+
+                                var message = '';
+                                message += grayColor + '<socket> ';
+                                message += grayColor + '[' + dateString + ' ' + timeString + '] ';
+                                message += grayColor + host + ' ';
+                                message += grayColor + text + '';
+                                message += finalColor;
+
+                                console.log(message);
+                            };
+                            socket.on("connect", function () {
+                                console.log("Socket connect()");
+                            });
+                            socket.on("disconnect", function () {
+                                var message = "Socket disconnected";
+                                if (socket && socket.host)
+                                {
+                                    message += ", host=" + socket.host;
+                                }
+                                if (socket && socket.gitana && socket.gitana.application && socket.gitana.application())
+                                {
+                                    message += ", application=" + socket.gitana.application().title;
+                                }
+                                console.log(message);
+                            });
+
+                            // APPLY CUSTOM SOCKET.IO CONFIG
+                            runFunctions(config.socketFunctions, [socket], function (err) {
+
+                                // INSIGHT SERVER
+                                if (config.insight && config.insight.enabled)
+                                {
+                                    console.log("Init Insight to Socket");
+
+                                    require("../insight/insight").init(socket, function () {
+                                        next();
+                                    });
+                                }
+                                else
+                                {
+                                    next();
+                                }
+                            });
+
+                        });
+
+                        // SET INITIAL VALUE FOR SERVER TIMESTAMP
+                        process.env.CLOUDCMS_APPSERVER_TIMESTAMP = new Date().getTime();
+
+                        // DUST
+                        runFunctions(config.dustFunctions, [app, duster.getDust()], function (err) {
+
+                            // APPLY SERVER BEFORE START FUNCTIONS
+                            runFunctions(config.beforeFunctions, [app], function (err) {
+
+                                server._listenPort = app.get("port");
+
+                                // AFTER SERVER START
+                                runFunctions(config.afterFunctions, [app], function (err) {
+
+                                    // if we are on a worker process, then inform the master that we completed
+                                    if (process.send)
+                                    {
+                                        process.send("server-startup");
+                                    }
+
+                                    afterStartFn(app, server);
+
+                                });
                             });
                         });
                     });
