@@ -7,9 +7,9 @@ var LAST_SENT_TIMESTAMP = -1;
 module.exports = {};
 module.exports.start = function(configuration, callback)
 {
-    if (process.env.CLOUDCMS_NOTIFICATIONS_SQS_QUEUE)
+    if (process.env.CLOUDCMS_NOTIFICATIONS_SQS_QUEUE_URL)
     {
-        configuration.queue = process.env.CLOUDCMS_NOTIFICATIONS_SQS_QUEUE;
+        configuration.queueUrl = process.env.CLOUDCMS_NOTIFICATIONS_SQS_QUEUE_URL;
     }
     if (process.env.CLOUDCMS_NOTIFICATIONS_SQS_ACCESS_KEY)
     {
@@ -24,7 +24,7 @@ module.exports.start = function(configuration, callback)
         configuration.region = process.env.CLOUDCMS_NOTIFICATIONS_SQS_REGION;
     }
 
-    var queue = configuration.queue;
+    var queueUrl = configuration.queueUrl;
     var accessKey = configuration.accessKey;
     var secretKey = configuration.secretKey;
     var region = configuration.region;
@@ -38,48 +38,16 @@ module.exports.start = function(configuration, callback)
         });
 
         holder.sqsParams = {
-            //QueueUrl: queueUrl,
+            QueueUrl: queueUrl,
             AttributeNames: [
                 "All"
             ],
             MaxNumberOfMessages: 10,
-            //MessageAttributeNames: [
-            //    'STRING_VALUE'
-            //],
             VisibilityTimeout: 1,
             WaitTimeSeconds: 20 // long polling
         };
 
-        var sqs = holder.sqs;
-
-        var params = {
-            QueueNamePrefix: queue
-        };
-        sqs.listQueues(params, function(err, data)
-        {
-            if (err)
-            {
-                console.log("listQueues err: " + err);
-                callback(err);
-                return;
-            }
-
-            for (var i = 0; i < data.QueueUrls.length; i++)
-            {
-                var queueUrl = data.QueueUrls[i];
-
-                var x = queueUrl.lastIndexOf("/");
-                var name = queueUrl.substring(x+1);
-
-                if (name === queue)
-                {
-                    holder.sqsParams.QueueUrl = queueUrl;
-                    break;
-                }
-            }
-
-            callback();
-        });
+        callback();
     }
     else
     {
@@ -123,7 +91,7 @@ module.exports.process = function(callback)
             {
                 var message = data.Messages[i];
 
-                //var messageId = message.MessageId;
+                var messageId = message.MessageId;
 
                 var sentTimestamp = message.Attributes.SentTimestamp;
                 if (sentTimestamp > LAST_SENT_TIMESTAMP)
@@ -161,18 +129,13 @@ module.exports.process = function(callback)
                     // if we got something
                     if (item)
                     {
-                        //item.ref = json.ref;
-                        //item.type = json.type;
-                        //item.id = json.id;
+                        // unique message id
+                        item._id = messageId;
+
+                        // other properties
                         item.timestamp = timestamp;
                         item.sentTimestamp = sentTimestamp;
                         item.subject = subject;
-
-                        //item.applicationId = json.applicationId;
-                        //item.deploymentKey = json.deploymentKey;
-                        //item.deployedApplicationId = json.deployedApplicationId;
-                        //item.host = json.host;
-                        //item.operation = json.operation;
 
                         /*
 
@@ -261,7 +224,10 @@ module.exports.process = function(callback)
         }
         */
 
-        console.log("SQS Provider awoke, handled: " + handled + ", skipped: " + skipped);
+        if (handled > 0)
+        {
+            console.log("SQS Provider handled: " + handled + ", skipped: " + skipped);
+        }
 
         callback(err, items);
     });

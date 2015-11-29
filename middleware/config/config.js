@@ -237,15 +237,18 @@ exports = module.exports = function()
         if (process.broadcast)
         {
             // listen for node invalidation events
-            process.broadcast.subscribe("module-invalidation-topic", function (message) {
+            process.broadcast.subscribe("module-invalidation-topic", function (message, done) {
 
                 var command = message.command;
                 var host = message.host;
 
-                console.log("Config Service invalidated host: " + host);
-
                 handleModuleInvalidation(host, function(err) {
-                    console.log("Successfully invalidated host: " + host);
+
+                    if (!err) {
+                        console.log("ConfigService invalidated host: " + host);
+                    }
+
+                    done(err);
                 });
             });
         }

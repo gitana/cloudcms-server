@@ -1,107 +1,160 @@
-var TIMEOUT = 2500;
+var async = require("async");
+var cluster = require("cluster");
 
 var handleInvalidations = function(items, callback) {
 
-    if (items)
+    if (!items) {
+        return callback();
+    }
+
+    // do a little trick here to merge identical items so that we have less to work on
+    //console.log("ITEMS SIZE WAS: " + items.length);
+    var map = {};
+    var i = 0;
+    while (i < items.length)
     {
-        for (var i = 0; i < items.length; i++)
+        var item = items[i];
+
+        var key = item.type + "_" + item.ref + "_" + item.operation;
+
+        if (map[key])
         {
-            var type = items[i].type;
+            items.splice(i, 1);
+        }
+        else
+        {
+            map[key] = true;
+            i++;
+        }
+    }
+    map = null;
+    //console.log("ITEMS SIZE IS: " + items.length);
 
-            var ref = items[i].ref;
-            var identifier = ref.substring(ref.indexOf("://") + 3);
-            var parts = identifier.split("/").reverse();
+    var fns = [];
 
-            if (items[i].operation === "invalidate_object")
-            {
-                if (type === "node")
+    for (var i = 0; i < items.length; i++)
+    {
+        var fn = function(item, i) {
+            return function(done) {
+
+                var type = item.type;
+                var ref = item.ref;
+                var operation = item.operation;
+
+                var identifier = ref.substring(ref.indexOf("://") + 3);
+                var parts = identifier.split("/").reverse();
+
+                if (operation === "invalidate_object")
                 {
-                    var nodeId = parts[0];
-                    var branchId = parts[1];
-                    var repositoryId = parts[2];
+                    if (type === "node")
+                    {
+                        var nodeId = parts[0];
+                        var branchId = parts[1];
+                        var repositoryId = parts[2];
+
+                        // broadcast invalidation
+                        process.broadcast.publish("node_invalidation", {
+                            "ref": ref,
+                            "nodeId": nodeId,
+                            "branchId": branchId,
+                            "repositoryId": repositoryId
+                        }, function(err) {
+                            done(err);
+                        });
+                    }
+                    else
+                    {
+                        done();
+                    }
+                }
+                else if (operation === "invalidate_application")
+                {
+                    // TODO: invalidate any cache dependent on application
+                    done();
+                }
+                else if (operation === "invalidate_application_page_rendition")
+                {
+                    //var pageRenditionId = parts[0];
+                    var deploymentKey = parts[1];
+                    var applicationId = parts[2];
+
+                    var repositoryId = item.repositoryId;
+                    var branchId = item.branchId;
+                    if (item.isMasterBranch)
+                    {
+                        branchId = "master";
+                    }
+                    var scope = item.scope;
+                    var key = item.key;
+                    var pageCacheKey = item.pageCacheKey;
+
+                    var message = {
+                        "key": key,
+                        "scope": scope,
+                        "pageCacheKey": pageCacheKey,
+                        "branchId": branchId,
+                        "repositoryId": repositoryId,
+                        "applicationId": applicationId,
+                        "deploymentKey": deploymentKey
+                    };
+
+                    var fragmentCacheKey = item.fragmentCacheKey;
+                    if (fragmentCacheKey) {
+                        message.fragmentCacheKey = fragmentCacheKey;
+                    }
 
                     // broadcast invalidation
-                    process.broadcast.publish("node_invalidation", {
-                        "ref": ref,
-                        "nodeId": nodeId,
-                        "branchId": branchId,
-                        "repositoryId": repositoryId
+                    process.broadcast.publish("page_rendition_invalidation", message, function(err) {
+                        done(err);
                     });
                 }
             }
-            else if (items[i].operation === "invalidate_application")
-            {
-                // TODO: invalidate any cache dependent on application
-            }
-            else if (items[i].operation === "invalidate_application_page_rendition")
-            {
-                //var pageRenditionId = parts.reverse()[0];
-                var deploymentKey = parts.reverse()[1];
-                var applicationId = parts.reverse()[2];
+        }(items[i], i);
+        fns.push(fn);
 
-                var repositoryId = items[i].repositoryId;
-                var branchId = items[i].branchId;
-                if (items[i].isMasterBranch)
-                {
-                    branchId = "master";
-                }
-                var scope = items[i].scope;
-                var key = items[i].key;
-                var pageCacheKey = items[i].pageCacheKey;
-
-                var message = {
-                    "key": key,
-                    "scope": scope,
-                    "pageCacheKey": pageCacheKey,
-                    "branchId": branchId,
-                    "repositoryId": repositoryId,
-                    "applicationId": applicationId,
-                    "deploymentKey": deploymentKey
-                };
-
-                var fragmentCacheKey = items[i].fragmentCacheKey;
-                if (fragmentCacheKey) {
-                    message.fragmentCacheKey = fragmentCacheKey;
-                }
-
-                // broadcast invalidation
-                process.broadcast.publish("page_rendition_invalidation", message);
-            }
-        }
+        async.series(fns, function(err) {
+            callback();
+        });
     }
-
-    callback();
 };
 
 var runnerFn = function(provider)
 {
+    var wid = "main";
+    if (cluster && cluster.worker) {
+        wid = cluster.worker.id;
+    }
+
     provider.process(function(err, items) {
 
         if (err)
         {
-            console.log("ERR: " + err, err.stack);
+            console.log("[" + wid + "] Broadcast Runner error: " + err, err.stack);
 
-            setTimeout(function() {
-                runnerFn(provider);
-            }, TIMEOUT);
+            // start it up again
+            runnerFn(provider);
 
             return;
         }
 
-        if (items)
+        if (items && items.length > 0)
         {
-            handleInvalidations(items, function () {
+            console.log("[" + wid + "] Broadcast Runner found: " + items.length + " items to work on");
 
-                setTimeout(function() {
-                    runnerFn(provider);
-                }, TIMEOUT);
+            handleInvalidations(items, function(err) {
+
+                // TODO: what do we do about errors that come back?
+
+                console.log("[" + wid + "] Broadcast Runner completed work");
+
+                // start it up again
+                runnerFn(provider);
             });
         }
         else
         {
-            setTimeout(function() {
-                runnerFn(provider);
-            }, TIMEOUT);
+            // start it up again
+            runnerFn(provider);
         }
     });
 };

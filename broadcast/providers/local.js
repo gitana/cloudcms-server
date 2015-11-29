@@ -1,5 +1,7 @@
 var path = require("path");
 
+var async = require("async");
+
 /**
  * A local process provider.
  *
@@ -11,6 +13,8 @@ exports = module.exports = function(broadcastConfig)
 
     var r = {};
 
+    var fnCounter = 0;
+
     r.start = function(callback)
     {
         callback();
@@ -21,13 +25,27 @@ exports = module.exports = function(broadcastConfig)
         var handlers = subscribers[topic];
         if (handlers)
         {
+            var fns = [];
             for (var i = 0; i < handlers.length; i++)
             {
-                handlers[i](message);
+                var fn = function(handler, i, message) {
+                    return function(done) {
+                        handlers[i](message, function(err) {
+                            done(err);
+                        });
+                    };
+                }(handlers[i], i, message);
+                fns.push(fn);
             }
-        }
 
-        callback();
+            async.series(fns, function() {
+                callback();
+            });
+        }
+        else
+        {
+            callback();
+        }
     };
 
     r.subscribe = function(topic, fn, callback)
@@ -39,6 +57,8 @@ exports = module.exports = function(broadcastConfig)
             subscribers[topic] = handlers;
         }
 
+        fn._id = fnCounter++;
+
         handlers.push(fn);
 
         callback();
@@ -46,6 +66,24 @@ exports = module.exports = function(broadcastConfig)
 
     r.unsubscribe = function(topic, fn, callback)
     {
+        var handlers = subscribers[topic];
+        if (handlers)
+        {
+            var removeIndex = -1;
+
+            for (var i = 0; i < handlers.length; i++)
+            {
+                if (handlers[i]._id === fn._id) {
+                    removeIndex = i;
+                    break;
+                }
+            }
+
+            if (removeIndex > -1)
+            {
+                handlers.splice(removeIndex, 1);
+            }
+        }
         callback();
     };
 

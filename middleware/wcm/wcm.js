@@ -533,7 +533,7 @@ exports = module.exports = function()
         if (process.broadcast)
         {
             // listen for node invalidation events
-            process.broadcast.subscribe("node_invalidation", function (message) {
+            process.broadcast.subscribe("node_invalidation", function (message, done) {
 
                 var nodeId = message.nodeId;
                 var branchId = message.branchId;
@@ -543,10 +543,12 @@ exports = module.exports = function()
                 console.log("WCM middleware invalidated node: " + ref);
 
                 // TODO: nothing specific to do here...?
+
+                done();
             });
 
             // listen for page rendition invalidation events
-            process.broadcast.subscribe("page_rendition_invalidation", function (message) {
+            process.broadcast.subscribe("page_rendition_invalidation", function (message, done) {
 
                 var repositoryId = message.repositoryId;
                 var branchId = message.branchId;
@@ -555,18 +557,26 @@ exports = module.exports = function()
 
                 if (scope === "PAGE")
                 {
-                    console.log("WCM middleware invalidated page: " + repositoryId + "/" + branchId + "/" + pageCacheKey);
-
                     if (isPageCacheEnabled())
                     {
                         handleCachePageInvalidate(repositoryId, branchId, pageCacheKey, function(err) {
-                            console.log("Finished invalidating page: " + repositoryId + "/" + branchId + "/" + pageCacheKey);
+
+                            if (!err) {
+                                console.log("WCM invalidated page: " + repositoryId + "/" + branchId + "/" + pageCacheKey);
+                            }
+
+                            return done();
                         });
+                    }
+                    else
+                    {
+                        return done();
                     }
                 }
                 else if (scope === "FRAGMENT")
                 {
                     // TODO: fragment level invalidation
+                    return done();
                 }
 
             });

@@ -1526,11 +1526,10 @@ exports = module.exports = function()
                         stores.produce(hostname, function (err, stores) {
 
                             if (err) {
-                                done(err);
-                                return;
+                                return done(err);
                             }
 
-                            //console.log("Calling invalidate for hostname: " + hostname);
+                            console.log("Invalidating for hostname: " + hostname);
 
                             cloudcmsUtil.invalidate(stores.content, repositoryId, branchId, nodeId, function () {
                                 done();
@@ -1559,20 +1558,20 @@ exports = module.exports = function()
 
         if (process.broadcast && !bound)
         {
-            process.broadcast.subscribe("node_invalidation", function (message) {
-
-                //console.log("MESSAGE:" + JSON.stringify(message, null, "  "));
+            process.broadcast.subscribe("node_invalidation", function (message, done) {
 
                 var nodeId = message.nodeId;
                 var branchId = message.branchId;
                 var repositoryId = message.repositoryId;
                 var ref = message.ref;
 
-                self.invalidateNode(repositoryId, branchId, nodeId, function(err, success) {
+                self.invalidateNode(repositoryId, branchId, nodeId, function(err) {
 
-                    if (success) {
-                        console.log("Cloud CMS middleware invalidated: " + ref);
+                    if (!err) {
+                        console.log("Cloud CMS Cache invalidated: " + ref);
                     }
+
+                    done(err);
 
                 });
 

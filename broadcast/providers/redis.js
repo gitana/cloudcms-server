@@ -1,6 +1,6 @@
 var path = require("path");
 
-var NRP = require('node-redis-pubsub-fork');
+var NRP = require('node-redis-pubsub');
 
 /**
  * Redis broadcast provider.
@@ -42,6 +42,17 @@ exports = module.exports = function(broadcastConfig)
     {
         nrp.emit(topic, message);
 
+        // TODO: how do we measure when redis has completed distributing and firing remote handlers?
+
+        setTimeout(function() {
+            callback();
+        }, 2500);
+    };
+
+    r.publish = function(topic, message, callback)
+    {
+        nrp.emit(topic, message);
+
         callback();
     };
 
@@ -54,6 +65,8 @@ exports = module.exports = function(broadcastConfig)
 
     r.unsubscribe = function(topic, fn, callback)
     {
+        nrp.off(topic, fn);
+
         callback();
     };
 

@@ -494,7 +494,7 @@ exports = module.exports = function()
 
         if (process.broadcast && !bound)
         {
-            process.broadcast.subscribe("node_invalidation", function (message) {
+            process.broadcast.subscribe("node_invalidation", function (message, done) {
 
                 var repositoryId = message.repositoryId;
                 var branchId = message.branchId;
@@ -502,8 +502,14 @@ exports = module.exports = function()
 
                 var path = "/repositories/" + repositoryId + "/branches/" + branchId + "/nodes/" + nodeId;
 
-                _handleInvalidate(path, function() {
-                    console.log("Proxy middleware invalidated path: " + path);
+                _handleInvalidate(path, function(err) {
+
+                    if (!err)
+                    {
+                        console.log("Proxy invalidated path: " + path);
+                    }
+
+                    done(err);
                 });
 
             });

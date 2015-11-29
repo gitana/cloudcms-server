@@ -51,15 +51,17 @@ exports = module.exports = function(remoteStore)
     {
         if (process.broadcast)
         {
-            process.broadcast.subscribe(INVALIDATION_TOPIC, function(message) {
-
-                //console.log("[" + cluster.worker.id + "] Heard: " + JSON.stringify(message));
+            process.broadcast.subscribe(INVALIDATION_TOPIC, function(message, done) {
 
                 var command = message.command;
                 if ("invalidatePath" === command)
                 {
+                    console.log("FS CACHING invalidated path: " + message.path);
+
                     __internal_removeCachedObject(message.path);
                 }
+
+                done();
             });
         }
     };
