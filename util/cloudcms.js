@@ -617,6 +617,7 @@ exports = module.exports = function()
         // base storage directory
         var contentDirectoryPath = path.join(repositoryId, branchId, nodeId);
 
+        //console.log("Considering: " + contentDirectoryPath);
         contentStore.existsDirectory(contentDirectoryPath, function(exists) {
 
             if (!exists)
@@ -627,7 +628,7 @@ exports = module.exports = function()
 
             contentStore.removeDirectory(contentDirectoryPath, function(err) {
                 console.log("Invalidated [repository: " + repositoryId + ", branch: " + branchId + ", node: " + nodeId + "]");
-                callback(err);
+                callback(err, true);
             });
 
         });

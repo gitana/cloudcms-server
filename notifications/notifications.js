@@ -10,26 +10,15 @@ var handleInvalidations = function(items, callback) {
 
             var ref = items[i].ref;
             var identifier = ref.substring(ref.indexOf("://") + 3);
-            var parts = identifier.split("/");
+            var parts = identifier.split("/").reverse();
 
             if (items[i].operation === "invalidate_object")
             {
                 if (type === "node")
                 {
-                    var nodeId = parts.reverse()[0];
-                    var branchId = parts.reverse()[1];
-                    var repositoryId = parts.reverse()[2];
-
-                    if (items[i].isMasterBranch)
-                    {
-                        branchId = "master";
-                    }
-
-                    // manually perform cloudcms invalidation
-                    //var cloudcms = require("../middleware/cloudcms/cloudcms");
-                    //cloudcms.invalidateNode(repositoryId, branchId, nodeId, function() {
-                    //    console.log("Invalidate Cloud CMS node completed");
-                    //});
+                    var nodeId = parts[0];
+                    var branchId = parts[1];
+                    var repositoryId = parts[2];
 
                     // broadcast invalidation
                     process.broadcast.publish("node_invalidation", {
@@ -136,9 +125,16 @@ module.exports = function()
 
         var notifications = config["notifications"];
 
-        if (process.env.CLOUDCMS_NOTIFICATIONS_ENABLED)
+        if (typeof(process.env.CLOUDCMS_NOTIFICATIONS_ENABLED) !== "undefined")
         {
-            notifications.enabled = true;
+            if (!process.env.CLOUDCMS_NOTIFICATIONS_ENABLED || process.env.CLOUDCMS_NOTIFICATIONS_ENABLED === "false")
+            {
+                notifications.enabled = false;
+            }
+            else if (process.env.CLOUDCMS_NOTIFICATIONS_ENABLED || process.env.CLOUDCMS_NOTIFICATIONS_ENABLED === "true")
+            {
+                notifications.enabled = true;
+            }
         }
 
         if (notifications.enabled)

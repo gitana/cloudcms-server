@@ -1530,6 +1530,8 @@ exports = module.exports = function()
                                 return;
                             }
 
+                            //console.log("Calling invalidate for hostname: " + hostname);
+
                             cloudcmsUtil.invalidate(stores.content, repositoryId, branchId, nodeId, function () {
                                 done();
                             });
@@ -1559,13 +1561,19 @@ exports = module.exports = function()
         {
             process.broadcast.subscribe("node_invalidation", function (message) {
 
+                //console.log("MESSAGE:" + JSON.stringify(message, null, "  "));
+
                 var nodeId = message.nodeId;
                 var branchId = message.branchId;
                 var repositoryId = message.repositoryId;
                 var ref = message.ref;
 
-                self.invalidateNode(repositoryId, branchId, nodeId, function() {
-                    console.log("Cloud CMS middleware invalidated: " + ref);
+                self.invalidateNode(repositoryId, branchId, nodeId, function(err, success) {
+
+                    if (success) {
+                        console.log("Cloud CMS middleware invalidated: " + ref);
+                    }
+
                 });
 
             });
