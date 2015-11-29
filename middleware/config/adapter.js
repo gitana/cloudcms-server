@@ -3,6 +3,12 @@ var async = require("async");
 
 var util = require("../../util/util");
 
+// debug helper method to reduce logging
+var _log = function(text)
+{
+    //console.log(text);
+};
+
 /**
  * Provides an adapter around a store.
  *
@@ -131,7 +137,7 @@ module.exports = function(configStore)
                         context.pages[pageKey] = d;
                         delete configs["page.json"];
 
-                        console.log(" -> Registered page: " + pageKey);
+                        _log(" -> Registered page: " + pageKey);
 
                         // everything else in the directory is assumed to be a region binding
                         for (var regionFileName in configs)
@@ -150,7 +156,7 @@ module.exports = function(configStore)
                             context.pages[pageKey].bindings[region] = gadget;
                             context.gadgets[gadgetKey] = gadget;
 
-                            console.log("     -> Registered gadget: " + gadgetKey + " (" + region + ")");
+                            _log("     -> Registered gadget: " + gadgetKey + " (" + region + ")");
                         }
                     }
 
@@ -338,7 +344,7 @@ module.exports = function(configStore)
                             registry.reloadContext(context);
                             var t2 = new Date().getTime();
 
-                            console.log("Reloaded context in: " + (t2 - t1) + " ms");
+                            _log("Reloaded context in: " + (t2 - t1) + " ms");
                         });
                     }
 
@@ -393,10 +399,10 @@ module.exports = function(configStore)
 
     var compileContextToRegistry = function(context)
     {
-        console.log("Configuration Store");
+        _log("Configuration Store");
 
         // compile the pages
-        //console.log(" -> Compiling pages");
+        //_log(" -> Compiling pages");
         context.compiledPages = {};
         for (var pageKey in context.pages)
         {
@@ -405,7 +411,7 @@ module.exports = function(configStore)
                 context.compiledPages[pageKey] = compilePage(context, pageKey);
             }
         }
-        //console.log(" -> Page compilation completed");
+        //_log(" -> Page compilation completed");
 
         // store page count
         context.pageCount = 0;
@@ -413,7 +419,7 @@ module.exports = function(configStore)
         {
             context.pageCount++;
         }
-        console.log(" -> Page count: " + context.pageCount);
+        _log(" -> Page count: " + context.pageCount);
 
         // compiled page count
         context.compiledPageCount = 0;
@@ -421,7 +427,7 @@ module.exports = function(configStore)
         {
             context.compiledPageCount++;
         }
-        console.log(" -> Compiled page count: " + context.compiledPageCount);
+        _log(" -> Compiled page count: " + context.compiledPageCount);
 
         // gadget bindings count
         context.gadgetCount = 0;
@@ -429,7 +435,7 @@ module.exports = function(configStore)
         {
             context.gadgetCount++;
         }
-        console.log(" -> Gadget count: " + context.gadgetCount);
+        _log(" -> Gadget count: " + context.gadgetCount);
 
         // blocks count
         context.blockCount = 0;
@@ -437,7 +443,7 @@ module.exports = function(configStore)
         {
             context.blockCount++;
         }
-        console.log(" -> Block count: " + context.blockCount);
+        _log(" -> Block count: " + context.blockCount);
 
 
 
@@ -462,7 +468,7 @@ module.exports = function(configStore)
 
             // compiled page
             //config.compiledPage = context.compiledPages[pageKey];
-            //console.log("Compiled page is -> " + JSON.stringify(config.compiledPage));
+            //_log("Compiled page is -> " + JSON.stringify(config.compiledPage));
 
             // template
             config.template = config.page.template;
