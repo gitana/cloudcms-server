@@ -7,6 +7,7 @@ var handleInvalidations = function(items, callback) {
         return callback();
     }
 
+    /*
     // do a little trick here to merge identical items so that we have less to work on
     //console.log("ITEMS SIZE WAS: " + items.length);
     var map = {};
@@ -29,6 +30,7 @@ var handleInvalidations = function(items, callback) {
     }
     map = null;
     //console.log("ITEMS SIZE IS: " + items.length);
+    */
 
     var fns = [];
 
@@ -36,6 +38,11 @@ var handleInvalidations = function(items, callback) {
     {
         var fn = function(item, i) {
             return function(done) {
+
+                var host = item.host;
+                if (!host && item.tenantDnsSlug) {
+                    host = item.tenantDnsSlug + ".cloudcms.net";
+                }
 
                 var type = item.type;
                 var ref = item.ref;
@@ -57,7 +64,8 @@ var handleInvalidations = function(items, callback) {
                             "ref": ref,
                             "nodeId": nodeId,
                             "branchId": branchId,
-                            "repositoryId": repositoryId
+                            "repositoryId": repositoryId,
+                            "host": host
                         }, function(err) {
                             done(err);
                         });
@@ -95,7 +103,8 @@ var handleInvalidations = function(items, callback) {
                         "branchId": branchId,
                         "repositoryId": repositoryId,
                         "applicationId": applicationId,
-                        "deploymentKey": deploymentKey
+                        "deploymentKey": deploymentKey,
+                        "host": host
                     };
 
                     var fragmentCacheKey = item.fragmentCacheKey;

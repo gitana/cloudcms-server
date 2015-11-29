@@ -1509,45 +1509,20 @@ exports = module.exports = function()
         return filename;
     };
 
-    r.invalidateNode = function(repositoryId, branchId, nodeId, callback)
+    r.invalidateNode = function(host, repositoryId, branchId, nodeId, callback)
     {
         var stores = require("../stores/stores");
-        stores.listHosts("content", function(err, hostnames) {
+        stores.produce(host, function (err, stores) {
 
-            var fns = [];
-            for (var i = 0; i < hostnames.length; i++)
-            {
-                var hostname = hostnames[i];
-
-                var fn = function(hostname, repositoryId, branchId, nodeId)
-                {
-                    return function(done)
-                    {
-                        stores.produce(hostname, function (err, stores) {
-
-                            if (err) {
-                                return done(err);
-                            }
-
-                            console.log("Invalidating for hostname: " + hostname);
-
-                            cloudcmsUtil.invalidate(stores.content, repositoryId, branchId, nodeId, function () {
-                                done();
-                            });
-                        });
-
-                    }
-                }(hostname, repositoryId, branchId, nodeId);
-                fns.push(fn);
+            if (err) {
+                return callback(err);
             }
 
-            async.series(fns, function(err) {
-                if (callback)
-                {
-                    callback(err);
-                }
-            });
+            console.log("Invalidating for hostname: " + host);
 
+            cloudcmsUtil.invalidate(stores.content, repositoryId, branchId, nodeId, function (err) {
+                callback(err);
+            });
         });
     };
 
@@ -1565,7 +1540,9 @@ exports = module.exports = function()
                 var repositoryId = message.repositoryId;
                 var ref = message.ref;
 
-                self.invalidateNode(repositoryId, branchId, nodeId, function(err) {
+                var host = message.host;
+
+                self.invalidateNode(host, repositoryId, branchId, nodeId, function(err) {
 
                     if (!err) {
                         console.log("Cloud CMS Cache invalidated: " + ref);

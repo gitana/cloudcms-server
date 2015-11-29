@@ -147,55 +147,29 @@ exports = module.exports = function()
         });
     };
 
-    var _handleInvalidate = function(cachedPath, callback)
+    var _handleInvalidate = function(host, cachedPath, callback)
     {
         var stores = require("../stores/stores");
-        stores.listHosts("content", function(err, hostnames) {
+        stores.produce(host, function (err, stores) {
 
-            var fns = [];
-            for (var i = 0; i < hostnames.length; i++)
-            {
-                var hostname = hostnames[i];
-
-                var fn = function(hostname, cachedPath)
-                {
-                    return function(done)
-                    {
-                        stores.produce(hostname, function (err, stores) {
-
-                            if (err) {
-                                done(err);
-                                return;
-                            }
-
-                            var filePath = path.join("proxy", cachedPath);
-
-                            stores.content.existsFile(filePath, function(exists) {
-
-                                if (!exists) {
-                                    callback();
-                                    return;
-                                }
-
-                                contentStore.removeFile(filePath, function() {
-                                    contentStore.removeFile(filePath + ".cache", function() {
-                                        callback();
-                                    });
-                                });
-                            });
-
-                        });
-
-                    }
-                }(hostname, cachedPath);
-                fns.push(fn);
+            if (err) {
+                return callback(err);
             }
 
-            async.series(fns, function(err) {
-                if (callback)
-                {
-                    callback(err);
+            var filePath = path.join("proxy", cachedPath);
+
+            stores.content.existsFile(filePath, function(exists) {
+
+                if (!exists) {
+                    callback();
+                    return;
                 }
+
+                contentStore.removeFile(filePath, function() {
+                    contentStore.removeFile(filePath + ".cache", function() {
+                        callback();
+                    });
+                });
             });
 
         });
@@ -500,9 +474,11 @@ exports = module.exports = function()
                 var branchId = message.branchId;
                 var nodeId = message.nodeId;
 
+                var host = message.host;
+
                 var path = "/repositories/" + repositoryId + "/branches/" + branchId + "/nodes/" + nodeId;
 
-                _handleInvalidate(path, function(err) {
+                _handleInvalidate(host, path, function(err) {
 
                     if (!err)
                     {

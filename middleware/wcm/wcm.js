@@ -467,7 +467,7 @@ exports = module.exports = function()
         });
     };
 
-    var handleCachePageInvalidate = function(repositoryId, branchId, pageCacheKey, callback)
+    var handleCachePageInvalidate = function(host, repositoryId, branchId, pageCacheKey, callback)
     {
         // this is the path to the page folder
         // if we blow away this folder, we blow away all page fragments as well
@@ -475,54 +475,22 @@ exports = module.exports = function()
 
         // list all of the hosts
         var stores = require("../stores/stores");
-        stores.listHosts("content", function(err, hostnames) {
+        stores.produce(host, function (err, stores) {
 
-            // for each host, produce a "content" store and see if it contains the page folder
-            // if it does, remove it
-            // wrap into a waterfall function
-            var fns = [];
-            for (var i = 0; i < hostnames.length; i++)
-            {
-                var hostname = hostnames[i];
-
-                var fn = function(hostname, pageFolderPath)
-                {
-                    return function(done)
-                    {
-                        stores.produce(hostname, function (err, stores) {
-
-                            if (err) {
-                                done(err);
-                                return;
-                            }
-
-                            stores.content.existsDirectory(pageFolderPath, function(exists) {
-
-                                if (!exists) {
-                                    callback();
-                                    return;
-                                }
-
-                                console.log("[Page Invalidation] removing " + hostname + ": " + pageFolderPath);
-                                contentStore.removeDirectory(pageFolderPath, function() {
-                                    callback();
-                                });
-                            });
-
-                        });
-
-                    }
-                }(hostname, pageFolderPath);
-                fns.push(fn);
+            if (err) {
+                return callback(err);
             }
 
-            // run the waterfall functions
-            // TODO: in parallel?
-            async.series(fns, function(err) {
-                if (callback)
-                {
-                    callback(err);
+            stores.content.existsDirectory(pageFolderPath, function(exists) {
+
+                if (!exists) {
+                    return callback();
                 }
+
+                console.log("[Page Invalidation] removing " + host + ": " + pageFolderPath);
+                contentStore.removeDirectory(pageFolderPath, function() {
+                    callback();
+                });
             });
 
         });
@@ -555,11 +523,13 @@ exports = module.exports = function()
                 var pageCacheKey = message.pageCacheKey;
                 var scope = message.scope;
 
+                var host = message.host;
+
                 if (scope === "PAGE")
                 {
                     if (isPageCacheEnabled())
                     {
-                        handleCachePageInvalidate(repositoryId, branchId, pageCacheKey, function(err) {
+                        handleCachePageInvalidate(host, repositoryId, branchId, pageCacheKey, function(err) {
 
                             if (!err) {
                                 console.log("WCM invalidated page: " + repositoryId + "/" + branchId + "/" + pageCacheKey);
