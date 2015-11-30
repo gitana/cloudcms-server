@@ -71,6 +71,27 @@ exports = module.exports = function()
                 configuration.providers = {};
             }
 
+            if (!configuration.providers.facebook) {
+               configuration.providers.facebook = {};
+            }
+            if (process.env.CLOUDCMS_AUTH_PROVIDERS_FACEBOOK_ENABLED === "true") {
+               configuration.providers.facebook.enabled = true;
+            }
+
+            if (!configuration.providers.twitter) {
+               configuration.providers.twitter = {};
+            }
+            if (process.env.CLOUDCMS_AUTH_PROVIDERS_TWITTER_ENABLED === "true") {
+               configuration.providers.twitter.enabled = true;
+            }
+
+            if (!configuration.providers.linkedin) {
+               configuration.providers.linkedin = {};
+            }
+            if (process.env.CLOUDCMS_AUTH_PROVIDERS_LINKEDIN_ENABLED === "true") {
+               configuration.providers.linkedin.enabled = true;
+            }
+
             // add in any libraries
             for (var providerId in configuration.providers)
             {
@@ -185,4 +206,3 @@ exports = module.exports = function()
     return r;
 
 }();
-
