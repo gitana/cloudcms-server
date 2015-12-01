@@ -224,10 +224,12 @@ module.exports.process = function(callback)
         }
         */
 
+        /*
         if (handled > 0)
         {
             console.log("SQS Provider handled: " + handled + ", skipped: " + skipped);
         }
+        */
 
         callback(err, items);
     });

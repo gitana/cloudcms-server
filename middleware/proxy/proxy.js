@@ -480,10 +480,12 @@ exports = module.exports = function()
 
                 _handleInvalidate(host, path, function(err) {
 
+                    /*
                     if (!err)
                     {
                         console.log("Proxy invalidated path: " + path);
                     }
+                    */
 
                     done(err);
                 });

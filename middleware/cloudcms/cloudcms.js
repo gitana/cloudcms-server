@@ -1518,7 +1518,7 @@ exports = module.exports = function()
                 return callback(err);
             }
 
-            console.log("Invalidating for hostname: " + host);
+            //console.log("Invalidating for hostname: " + host);
 
             cloudcmsUtil.invalidate(stores.content, repositoryId, branchId, nodeId, function (err) {
                 callback(err);
@@ -1544,9 +1544,12 @@ exports = module.exports = function()
 
                 self.invalidateNode(host, repositoryId, branchId, nodeId, function(err) {
 
-                    if (!err) {
+                    /*
+                    if (!err)
+                    {
                         console.log("Cloud CMS Cache invalidated: " + ref);
                     }
+                    */
 
                     done(err);
 

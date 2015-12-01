@@ -508,7 +508,7 @@ exports = module.exports = function()
                 var repositoryId = message.repositoryId;
                 var ref = message.ref;
 
-                console.log("WCM middleware invalidated node: " + ref);
+                //console.log("WCM middleware invalidated node: " + ref);
 
                 // TODO: nothing specific to do here...?
 

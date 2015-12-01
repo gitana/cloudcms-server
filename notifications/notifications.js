@@ -148,13 +148,13 @@ var runnerFn = function(provider)
 
         if (items && items.length > 0)
         {
-            console.log("[" + wid + "] Broadcast Runner found: " + items.length + " items to work on");
+            //console.log("[" + wid + "] Broadcast Runner found: " + items.length + " items to work on");
 
             handleInvalidations(items, function(err) {
 
                 // TODO: what do we do about errors that come back?
 
-                console.log("[" + wid + "] Broadcast Runner completed work");
+                //console.log("[" + wid + "] Broadcast Runner completed work");
 
                 // start it up again
                 runnerFn(provider);

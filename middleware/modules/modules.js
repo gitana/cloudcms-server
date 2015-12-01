@@ -313,25 +313,94 @@ exports = module.exports = function()
 
                     var store = stores.modules;
 
-                    var filepath = path.join(moduleId, modulePath);
-                    store.existsFile(filepath, function(exists) {
+                    var assetPath = path.join(moduleId, modulePath);
 
-                        if (!exists)
-                        {
-                            util.status(res, 404).end();
-                            return;
-                        }
+                    if (modulePath === "index.js" && process.env.CLOUDCMS_APPSERVER_MODE === "production")
+                    {
+                        // check whether index-prod.js exists, if so, use that
+                        var productionAssetPath = path.join(moduleId, "index-prod.js");
+                        store.existsFile(productionAssetPath, function(exists) {
 
-                        store.sendFile(res, filePath, function (err) {
-
-                            if (err)
+                            if (exists)
                             {
-                                util.handleSendFileError(req, res, filePath, null, req.log, err);
+                                serveFromStore(req, res, store, productionAssetPath, true);
+                            }
+                            else
+                            {
+                                // serve normal version
+                                serveFromStore(req, res, store, assetPath);
+                            }
+                        });
+                    }
+                    else
+                    {
+                        serveFromStore(req, res, store, assetPath);
+                    }
+
+                    handled = true;
+                }
+                else if (req.url.indexOf("/oneteam") === 0 && req.url.indexOf("/modules") > -1 && req.url.indexOf("app/") !== 0)
+                {
+                    // this route handling is provided for support of local modules within OneTeam
+                    // the full url is /oneteam-XYZ/modules/{moduleId}/something.jpg
+
+                    var filePath = null;
+
+                    // skip ahead to everything after "/modules/"
+                    // this allows for URIs like:
+                    //     /oneteam-XYZ/modules-TIMESTAMP/{moduleId}/something.jpg
+                    var z = req.path.indexOf("/modules");
+                    var q = req.path.indexOf("/", z + 2);
+                    if (q > -1)
+                    {
+                        filePath = req.path.substring(q + 1); // {moduleId}/something.jpg
+                    }
+
+                    var oneTeamPath = req.path.substring(1, z); // /oneteam-XYZ
+
+                    // filePath should now be "{moduleId}/something.jpg"
+                    // or "{moduleId}"
+
+                    var moduleId = null;
+                    var modulePath = null;
+
+                    var x = filePath.indexOf("/");
+                    if (x > -1)
+                    {
+                        moduleId = filePath.substring(0, x);
+                        modulePath = filePath.substring(x + 1);
+                    }
+                    else
+                    {
+                        moduleId = filePath;
+                    }
+
+                    var store = stores.web;
+
+                    var assetPath = path.join(oneTeamPath, "modules", moduleId, modulePath);
+
+                    if (modulePath === "index.js" && process.env.CLOUDCMS_APPSERVER_MODE === "production")
+                    {
+                        // check whether index-prod.js exists, if so, use that
+                        var productionAssetPath = path.join(oneTeamPath, "modules", moduleId, "index-prod.js");
+                        store.existsFile(productionAssetPath, function(exists) {
+
+                            if (exists)
+                            {
+                                serveFromStore(req, res, store, productionAssetPath, true);
+                            }
+                            else
+                            {
+                                // serve normal version
+                                serveFromStore(req, res, store, assetPath);
                             }
 
                         });
-
-                    });
+                    }
+                    else
+                    {
+                        serveFromStore(req, res, store, assetPath);
+                    }
 
                     handled = true;
                 }
@@ -342,6 +411,27 @@ exports = module.exports = function()
             {
                 next();
             }
+        });
+    };
+
+    var serveFromStore = function(req, res, store, filePath)
+    {
+        store.existsFile(filePath, function(exists) {
+
+            if (!exists)
+            {
+                util.status(res, 404).end();
+                return;
+            }
+
+            store.sendFile(res, filePath, function (err) {
+
+                if (err)
+                {
+                    util.handleSendFileError(req, res, filePath, null, req.log, err);
+                }
+
+            });
         });
     };
 
