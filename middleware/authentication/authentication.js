@@ -7,18 +7,6 @@ var util = require('../../util/util');
 var Gitana = require("gitana");
 
 var passport = require('passport');
-/*
-passport.serializeUser(function(user, done) {
-    done(null, user.getDomainId() + "/" + user.getId());
-});
-passport.deserializeUser(function(domainQualifiedId, done) {
-
-    console.log("DESR!!!");
-    var user = null;
-
-    done(null, user);
-});
-*/
 
 /**
  * Authentication middleware.
@@ -47,9 +35,6 @@ exports = module.exports = function()
 
     r.authenticationInterceptor = function(app)
     {
-        app.use(passport.initialize());
-        app.use(passport.session());
-
         return util.createInterceptor("authentication", function(req, res, next, configuration) {
             next();
         });

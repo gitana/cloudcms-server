@@ -121,6 +121,17 @@ var populateContext = function(req, context, model, templateFilePath)
     context.gitana = req.gitana;
     context.templateFilePaths = [templateFilePath];
     context.req = req;
+    context.messages = {};
+
+    // populate any flash messages
+    if (req.flash)
+    {
+        var info = req.flash("info");
+        if (info)
+        {
+            context.messages.info = info;
+        }
+    }
 
     if (req.helpers)
     {

@@ -15,6 +15,9 @@ var errorHandler = require("errorhandler");
 var multipart = require("connect-multiparty");
 var session = require('express-session');
 var cookieParser = require('cookie-parser');
+var flash = require("connect-flash");
+
+var passport = require('passport');
 
 var util = require("../util/util");
 
@@ -539,16 +542,16 @@ var startSlave = function(config, afterStartFn)
                 });
 
                 /*
-                 // debug headers being set
-                 app.use(function(req, res, next) {
-                 var setHeader = res.setHeader;
-                 res.setHeader = function(a,b) {
-                 console.trace("Writing header: " + a + " = " + b);
-                 setHeader.call(this, a,b);
-                 };
-                 next();
-                 });
-                 */
+                // debug headers being set
+                app.use(function(req, res, next) {
+                    var setHeader = res.setHeader;
+                    res.setHeader = function(a,b) {
+                        console.trace("Writing header: " + a + " = " + b);
+                        setHeader.call(this, a,b);
+                    };
+                    next();
+                });
+                */
 
                 // add req.id  re
                 app.use(function (req, res, next) {
@@ -653,8 +656,6 @@ var startSlave = function(config, afterStartFn)
 
                 });
 
-                // welcome files
-                main.welcome(app);
 
 
                 ////////////////////////////////////////////////////////////////////////////
@@ -693,7 +694,18 @@ var startSlave = function(config, afterStartFn)
                 if (initializedSession)
                 {
                     app.use(initializedSession);
+                    app.use(flash());
                 }
+
+                // passport
+                app.use(passport.initialize());
+                if (initializedSession)
+                {
+                    app.use(passport.session());
+                }
+
+                // welcome files
+                main.welcome(app);
 
                 // configure cloudcms app server command handing
                 main.interceptors(app, true);

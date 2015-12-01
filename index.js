@@ -296,6 +296,12 @@ exports = module.exports = function()
 
     r.handlers = function(app, includeCloudCMS)
     {
+        if (includeCloudCMS)
+        {
+            // handles /login and /logout for cloudcms principals
+            app.use(cloudcms.authenticationHandler(app));
+        }
+
         // handles deploy/undeploy commands
         app.use(deployment.handler());
 
@@ -316,9 +322,6 @@ exports = module.exports = function()
 
         if (includeCloudCMS)
         {
-            // handles /login and /logout for cloudcms principals
-            app.use(cloudcms.authenticationHandler(app));
-
             // handles virtualized content retrieval from cloud cms
             app.use(cloudcms.virtualNodeHandler());
 

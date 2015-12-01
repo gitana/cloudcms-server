@@ -42,11 +42,7 @@ passport.deserializeUser(function(user, done) {
 var findUser = function(req, username, callback)
 {
     var domain = req.gitana.datastore("principals");
-    var trap = function(err) {
-        callback({
-            "message": "Unable to find user for username or email: " + username
-        });
-    };
+
     var query = {
         "$or": [{
             "name": username
@@ -54,8 +50,18 @@ var findUser = function(req, username, callback)
             "email": username
         }]
     };
-    Chain(domain).trap(trap).queryPrincipals(query).keepOne().then(function() {
-        callback(null, this);
+
+    Chain(domain).queryPrincipals(query).then(function() {
+
+        if (this.size() === 0) {
+            return callback({
+                "message": "Unable to find user for username or email: " + username
+            });
+        }
+
+        this.keepOne().then(function() {
+            callback(null, this);
+        });
     });
 };
 
@@ -150,6 +156,39 @@ passport.use(new LocalStrategy({
 
 exports = module.exports = function()
 {
+    var handleErrorMessage = function(req, res, errorMessage)
+    {
+        // stores error message into "flash" session memory
+        req.flash("info", errorMessage);
+
+        var failureUrl = req.query["failureUrl"];
+        if (failureUrl)
+        {
+            // redirect
+            //res.redirect(failureUrl);
+
+            req.session.save(function(){
+                res.redirect(failureUrl);
+            });
+        }
+        else
+        {
+            // otherwise, send JSON response
+            util.status(res, 503);
+
+            var body = {
+                "ok": false
+            };
+
+            if (errorMessage)
+            {
+                body.message = errorMessage;
+            }
+
+            res.send(body);
+        }
+    };
+
     var handleLogin = function(req, res, next)
     {
         var successUrl = req.query["successUrl"];
@@ -161,35 +200,33 @@ exports = module.exports = function()
 
         passport.authenticate("local", options, function(err, user, info) {
 
-            if (err) {
-                return next(err);
+            var errorMessage = null;
+
+            if (err)
+            {
+                console.log("ERROR DURING AUTHENTICATION: " + err + ", text: " + JSON.stringify(err));
+                errorMessage = "There was a problem logging in, please contact your system administrator";
             }
 
             if (!user)
             {
-                if (failureUrl)
+                if (info && info.message)
                 {
-                    var url = failureUrl;
-                    if (info.message)
-                    {
-                        url += "?message=" + info.message;
-                    }
-
-                    return res.redirect(url);
+                    errorMessage = info.message;
                 }
-
-                // otherwise, send JSON response
-                util.status(res, 503);
-
-                var body = {
-                    "ok": false
-                };
-                if (info.message) {
-                    body.message = info.message;
+                else
+                {
+                    errorMessage = "There was a problem logging in, please contact your system administrator.  User not found.";
                 }
-
-                res.send(body);
             }
+
+            // if there was an error, respond thusly
+            if (errorMessage)
+            {
+                return handleErrorMessage(req, res, errorMessage);
+            }
+
+            // otherwise, we're ok
 
             // info contains the "GITANA_COOKIE" that we handle back as a SSO token
             // it should be sent over in the GITANA_COOKIE or a "GITANA_TICKET" header on every follow-on request
@@ -198,30 +235,34 @@ exports = module.exports = function()
 
             // convert to a regular old JS object to be compatible with session serialization
             user = JSON.parse(JSON.stringify(user));
-            console.log("USER: " + JSON.stringify(user, null, "  "));
 
-            //req.logIn(user, { session: false }, function(err) {
+            // try to log in to cloud cms with this user
             req.logIn(user, function(err) {
 
-                if (err) {
-                    return next(err);
+                if (err)
+                {
+                    // failed to log in...
+                    console.log("ERROR DURING LOGIN: " + err + ", text: " + JSON.stringify(err));
+                    errorMessage = "There was a problem logging in, please contact your system administrator";
+
+                    return handleErrorMessage(req, res, errorMessage);
                 }
 
                 if (successUrl)
                 {
                     res.redirect(successUrl + "?ticket=" + ticket);
-                    return;
                 }
-
-                // otherwise, send JSON response
-                util.status(res, 200);
-                res.send({
-                    "ok": true,
-                    "ticket": ticket,
-                    "user": user
-                });
-                res.end();
-
+                else
+                {
+                    // otherwise, send JSON response
+                    util.status(res, 200);
+                    res.send({
+                        "ok": true,
+                        "ticket": ticket,
+                        "user": user
+                    });
+                    res.end();
+                }
             });
 
         })(req, res, next);
@@ -1416,9 +1457,6 @@ exports = module.exports = function()
      */
     r.authenticationHandler = function(app)
     {
-        app.use(passport.initialize());
-        app.use(passport.session());
-
         return function(req, res, next)
         {
             var handled = false;
