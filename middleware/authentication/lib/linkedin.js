@@ -14,8 +14,8 @@ var LinkedInStrategy = require('passport-linkedin').Strategy;
  *       "successRedirect": "/",
  *       "failureRedirect": "/",
  *       "callbackUrl": "/auth/linkedin/callback",
- *       "appId": "",
- *       "appSecret": ""
+ *       "apiKey": "",
+ *       "apiSecret": ""
  *    }
  * }
  *

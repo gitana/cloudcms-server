@@ -63,6 +63,7 @@ exports = module.exports = function()
     require('ssl-root-cas').inject();
 
     // middleware
+    var admin = require("./middleware/admin/admin");
     var authentication = require("./middleware/authentication/authentication");
     var authorization = require("./middleware/authorization/authorization");
     var cache = require("./middleware/cache/cache");
@@ -301,6 +302,9 @@ exports = module.exports = function()
             // handles /login and /logout for cloudcms principals
             app.use(cloudcms.authenticationHandler(app));
         }
+
+        // handles admin commands
+        app.use(admin.handler());
 
         // handles deploy/undeploy commands
         app.use(deployment.handler());

@@ -86,10 +86,10 @@ exports = module.exports = function()
             // HANDLE
             if (req.method.toLowerCase() === "get")
             {
-                var i = req.url.indexOf("/auth/");
+                var i = req.path.indexOf("/auth/");
                 if (i > -1)
                 {
-                    var providerId = req.url.substring(i + 6);
+                    var providerId = req.path.substring(i + 6);
 
                     var j = providerId.indexOf("/");
                     if (j > -1)
@@ -100,14 +100,15 @@ exports = module.exports = function()
                     var lib = LIBS[providerId];
                     if (lib)
                     {
-                        if (req.url.indexOf("/callback"))
+                        if (req.path.indexOf("/callback") > -1)
                         {
                             handled = true;
 
-                            var config = configuration.auth[providerId];
+                            var config = configuration.providers[providerId];
 
                             var cb = function (providerId, config) {
                                 return function (err, user, info) {
+
                                     if (err) {
                                         return next(err);
                                     }
