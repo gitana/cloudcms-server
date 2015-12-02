@@ -1,8 +1,6 @@
 var request = require('request');
 var path = require('path');
 
-var request = require("request");
-
 /**
  * Helper methods for working with domains, identities and connections.
  *
