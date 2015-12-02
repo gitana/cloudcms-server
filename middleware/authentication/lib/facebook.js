@@ -24,6 +24,7 @@ var FacebookStrategy = require('passport-facebook').Strategy;
 exports = module.exports = function(passport, config)
 {
     var PROVIDER_ID = "facebook";
+    var PROVIDER_TITLE = "Facebook";
 
     var r = {};
 
@@ -37,6 +38,16 @@ exports = module.exports = function(passport, config)
         },
         adapter.verifyCallback
     ));
+
+    r.providerId = function()
+    {
+        return PROVIDER_ID;
+    };
+
+    r.providerTitle = function()
+    {
+        return PROVIDER_TITLE;
+    };
 
     r.handleLogin = function(req, res, next)
     {

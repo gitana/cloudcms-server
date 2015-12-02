@@ -24,6 +24,7 @@ var LinkedInStrategy = require('passport-linkedin').Strategy;
 exports = module.exports = function(passport, config)
 {
     var PROVIDER_ID = "linkedin";
+    var PROVIDER_TITLE = "LinkedIn";
 
     var r = {};
 
@@ -37,6 +38,16 @@ exports = module.exports = function(passport, config)
         },
         adapter.verifyCallback
     ));
+
+    r.providerId = function()
+    {
+        return PROVIDER_ID;
+    };
+
+    r.providerTitle = function()
+    {
+        return PROVIDER_TITLE;
+    };
 
     r.handleLogin = function(req, res, next)
     {

@@ -109,12 +109,25 @@ exports = module.exports = function()
                             var cb = function (providerId, config) {
                                 return function (err, user, info) {
 
+                                    // store provider information onto session
+                                    req.session.lastProviderInfo = info;
+
                                     if (err) {
-                                        return next(err);
+                                        return res.redirect(config.failureRedirect);
                                     }
 
                                     if (!user) {
-                                        return res.redirect(config.failureRedirect);
+
+                                        // we signed into the provider but a logged in user wasn't found
+                                        // if a registration page redirect is provided, we'll go there
+                                        // otherwise, we just go to the error page
+                                        var redirectUrl = config.registrationRedirect;
+                                        if (!redirectUrl) {
+                                            redirectUrl = config.failureRedirect;
+                                        }
+
+                                        // redirect
+                                        return res.redirect(redirectUrl);
                                     }
 
                                     req.session.user = user;
@@ -122,10 +135,11 @@ exports = module.exports = function()
                                     req.logIn(user, function (err) {
 
                                         if (err) {
-                                            return next(err);
+                                            return res.redirect(config.failureRedirect);
                                         }
 
                                         if (config.passTicket || config.passTokens) {
+
                                             var domain = req.gitana.datastore("principals");
 
                                             // connect and get ticket
@@ -187,6 +201,11 @@ exports = module.exports = function()
                 next();
             }
         });
+    };
+
+    r.getProvider = function(providerId)
+    {
+        return LIBS[providerId];
     };
 
     return r;

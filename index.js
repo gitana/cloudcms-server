@@ -82,6 +82,7 @@ exports = module.exports = function()
     var modules = require("./middleware/modules/modules");
     var perf = require("./middleware/perf/perf");
     var proxy = require("./middleware/proxy/proxy");
+    var registration = require("./middleware/registration/registration");
     var serverTags = require("./middleware/server-tags/server-tags");
     var storeService = require("./middleware/stores/stores");
     var templates = require("./middleware/templates/templates");
@@ -333,6 +334,9 @@ exports = module.exports = function()
             app.use(cloudcms.virtualPrincipalHandler());
         }
 
+        // registration
+        app.use(registration.handler());
+
         // handles calls to web flow controllers
         app.use(flow.handlers());
 
@@ -427,6 +431,83 @@ exports = module.exports = function()
 
             next();
         };
+    };
+
+    // additional methods for Gitana driver
+    var Gitana = require("gitana");
+
+    Gitana.Directory.prototype.findUserForProvider = function(providerId, providerUserId, token, refreshToken, tokenSecret, profile, domain, callback)
+    {
+        var self = this;
+
+        var params = {
+            "domainId": domain.getId(),
+            "providerId": providerId,
+            "providerUserId": providerUserId
+        };
+
+        var payload = {};
+        if (token)
+        {
+            payload.token = token;
+        }
+        if (refreshToken)
+        {
+            payload.refreshToken = refreshToken;
+        }
+        if (tokenSecret)
+        {
+            payload.tokenSecret = tokenSecret;
+        }
+        if (profile)
+        {
+            payload.profile = profile;
+        }
+
+        payload = {};
+
+        var uriFunction = function()
+        {
+            return self.getUri() + "/connections/finduser";
+        };
+
+        return this.trap(function(err) {
+            callback(err);
+            return false;
+        }).chainPostResponse(this, uriFunction, params, payload).then(function(response) {
+            callback(null, response);
+        });
+    };
+
+    Gitana.Directory.prototype.createUserForProvider = function(providerId, providerUserId, userObject, token, refreshToken, tokenSecret, profile, domain, callback)
+    {
+        var self = this;
+
+        var params = {
+            "domainId": domain.getId(),
+            "providerId": providerId,
+            "providerUserId": providerUserId
+        };
+
+        var payload = {
+            "user": userObject,
+            "token": token,
+            "refreshToken": refreshToken,
+            "tokenSecret": tokenSecret,
+            "profile": profile
+        };
+
+        var uriFunction = function()
+        {
+            return self.getUri() + "/connections/createuser";
+        };
+
+        return this.trap(function(err) {
+            callback(err);
+            return false;
+        }).chainPostResponse(this, uriFunction, params, payload).then(function(response) {
+            callback(null, response);
+        });
     };
 
     return r;

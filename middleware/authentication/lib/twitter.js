@@ -24,6 +24,7 @@ var TwitterStrategy = require('passport-twitter').Strategy;
 exports = module.exports = function(passport, config)
 {
     var PROVIDER_ID = "twitter";
+    var PROVIDER_TITLE = "Twitter";
 
     var r = {};
 
@@ -37,6 +38,16 @@ exports = module.exports = function(passport, config)
         },
         adapter.verifyCallback
     ));
+
+    r.providerId = function()
+    {
+        return PROVIDER_ID;
+    };
+
+    r.providerTitle = function()
+    {
+        return PROVIDER_TITLE;
+    };
 
     r.handleLogin = function(req, res, next)
     {
@@ -59,6 +70,12 @@ exports = module.exports = function(passport, config)
     r.handleSyncProfile = function(req, token, tokenSecret, profile, userObject, callback)
     {
         adapter.syncProfile(profile, userObject, function() {
+
+            // username
+            if (!userObject.name)
+            {
+                userObject.name = profile._json.name;
+            }
 
             // description
             if (!userObject.description)

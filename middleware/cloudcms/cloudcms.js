@@ -41,8 +41,6 @@ passport.deserializeUser(function(user, done) {
  */
 var findUser = function(req, username, callback)
 {
-    var domain = req.gitana.datastore("principals");
-
     var query = {
         "$or": [{
             "name": username
@@ -51,6 +49,7 @@ var findUser = function(req, username, callback)
         }]
     };
 
+    var domain = req.gitana.datastore("principals");
     Chain(domain).queryPrincipals(query).then(function() {
 
         if (this.size() === 0) {

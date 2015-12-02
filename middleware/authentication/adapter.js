@@ -16,74 +16,6 @@ exports = module.exports = function(providerId, lib, config)
         var domain = req.gitana.datastore("principals");
 
         Chain(platform).readDirectory(domain.defaultDirectoryId).then(function() {
-
-            if (!this.findUserForProvider)
-            {
-                this.findUserForProvider = function(providerId, providerUserId, token, refreshToken, tokenSecret, profile, callback)
-                {
-                    var self = this;
-
-                    var params = {
-                        "domainId": domain.getId(),
-                        "providerId": providerId,
-                        "providerUserId": providerUserId
-                    };
-
-                    var payload = {
-                        "token": token,
-                        "refreshToken": refreshToken,
-                        "tokenSecret": tokenSecret,
-                        "profile": profile
-                    };
-
-                    var uriFunction = function()
-                    {
-                        return self.getUri() + "/connections/finduser";
-                    };
-
-                    return this.trap(function(err) {
-                        callback(err);
-                        return false;
-                    }).chainPostResponse(this, uriFunction, params, payload).then(function(response) {
-                        callback(null, response);
-                    });
-                };
-            }
-
-            if (!this.createUserForProvider)
-            {
-                this.createUserForProvider = function(providerId, providerUserId, userObject, token, refreshToken, tokenSecret, profile, callback)
-                {
-                    var self = this;
-
-                    var params = {
-                        "domainId": domain.getId(),
-                        "providerId": providerId,
-                        "providerUserId": providerUserId
-                    };
-
-                    var payload = {
-                        "user": userObject,
-                        "token": token,
-                        "refreshToken": refreshToken,
-                        "tokenSecret": tokenSecret,
-                        "profile": profile
-                    };
-
-                    var uriFunction = function()
-                    {
-                        return self.getUri() + "/connections/createuser";
-                    };
-
-                    return this.trap(function(err) {
-                        callback(err);
-                        return false;
-                    }).chainPostResponse(this, uriFunction, params, payload).then(function(response) {
-                        callback(null, response);
-                    });
-                };
-            }
-
             callback.call(this);
         });
     };
@@ -99,7 +31,9 @@ exports = module.exports = function(providerId, lib, config)
 
             // THIS = directory
 
-            this.findUserForProvider(providerId, providerUserId, token, null, tokenSecret, null, function(err, data) {
+            var domain = req.gitana.datastore("principals");
+
+            this.findUserForProvider(providerId, providerUserId, token, null, tokenSecret, null, domain, function(err, data) {
 
                 if (err)
                 {
@@ -115,13 +49,27 @@ exports = module.exports = function(providerId, lib, config)
                 }
 
                 // read the user
-                var domain = req.gitana.datastore("principals");
                 domain.readPrincipal(data.user._doc).then(function() {
                     callback(null, this);
                 });
 
             });
 
+        });
+    };
+
+    var generateUserInfoObject = function(req, providerUserId, token, tokenSecret, profile, callback)
+    {
+        var userObject = {};
+
+        // if user properties provided in config, copy those in
+        if (config.user)
+        {
+            userObject = JSON.parse(JSON.stringify(config.user));
+        }
+
+        lib.handleSyncProfile(req, token, tokenSecret, profile, userObject, function(err) {
+            callback(null, userObject);
         });
     };
 
@@ -151,13 +99,15 @@ exports = module.exports = function(providerId, lib, config)
             userObject._doc = req.session.user._doc;
         }
 
+        var domain = req.gitana.datastore("principals");
+
         lib.handleSyncProfile(req, token, tokenSecret, profile, userObject, function(err) {
 
             directory(req, function() {
 
                 // THIS = directory
 
-                this.createUserForProvider(providerId, providerUserId, userObject, token, null, tokenSecret, profile, function(err, data) {
+                this.createUserForProvider(providerId, providerUserId, userObject, token, null, tokenSecret, profile, domain, function(err, data) {
 
                     if (err)
                     {
@@ -165,8 +115,7 @@ exports = module.exports = function(providerId, lib, config)
                         return;
                     }
 
-                    // read the user
-                    var domain = req.gitana.datastore("principals");
+                    // read the user back
                     domain.readPrincipal(data.user._doc).then(function() {
 
                         var user = this;
@@ -190,7 +139,11 @@ exports = module.exports = function(providerId, lib, config)
 
         var info = {
             "token": token,
-            "tokenSecret": tokenSecret
+            "tokenSecret": tokenSecret,
+            "profile": profile,
+            "providerId": lib.providerId(),
+            "providerTitle": lib.providerTitle(),
+            "providerUserId": providerUserId
         };
 
         // loads the existing user for this profile (if it exists)
@@ -229,6 +182,10 @@ exports = module.exports = function(providerId, lib, config)
                 return;
             }
 
+            generateUserInfoObject(req, providerUserId, token, tokenSecret, profile, function(err, userObject) {
+                info.userObject = userObject;
+            });
+
             if (config.autoRegister)
             {
                 createUserForProvider(req, providerUserId, token, tokenSecret, profile, function(err, user) {
@@ -257,9 +214,6 @@ exports = module.exports = function(providerId, lib, config)
     r.downloadAndAttach = function(req, url, attachable, attachmentId, callback)
     {
         var targetUrl = req.gitanaConfig.baseURL + attachable.getUri() + "/attachments/" + attachmentId;
-
-        //console.log("url:" + url);
-        //console.log("targetUrl: " + targetUrl);
 
         // add "authorization" for OAuth2 bearer token
         var headers = {};
