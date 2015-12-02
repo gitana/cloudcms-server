@@ -858,10 +858,10 @@ var applyDefaultContentTypeCaching = exports.applyDefaultContentTypeCaching = fu
     }
 
     // overwrite the cache-control header
-    setHeader(response, 'Cache-Control', cacheControl);
+    setHeaderOnce(response, 'Cache-Control', cacheControl);
 
     // overwrite the expires header
-    setHeader(response, 'Expires', expires);
+    setHeaderOnce(response, 'Expires', expires);
 
     // remove pragma, this isn't used anymore
     removeHeader(response, "Pragma");

@@ -76,7 +76,6 @@ exports = module.exports = function()
                                 if (cacheSettings)
                                 {
                                     var cacheControl = null;
-                                    var pragma = null;
                                     var expires = null;
 
                                     if (typeof(cacheSettings) !== "undefined")
@@ -105,12 +104,6 @@ exports = module.exports = function()
                                         util.setHeaderOnce(res, "Cache-Control", cacheControl);
                                     }
 
-                                    /*
-                                    if (pragma)
-                                    {
-                                        util.setHeaderOnce(res, "Pragma", pragma);
-                                    }
-                                    */
                                     // always remove pragma
                                     util.removeHeader("Pragma");
 
