@@ -249,7 +249,16 @@ exports = module.exports = function()
 
                 if (successUrl)
                 {
-                    res.redirect(successUrl + "?ticket=" + ticket);
+                    var config = process.configuration || {};
+                    config.auth = config.auth || {};
+                    if(!!config.auth.passTicket || process.env.CLOUDCMS_AUTH_PASS_TICKET === "true")
+                    {
+                        res.redirect(successUrl + "?ticket=" + ticket);
+                    }
+                    else
+                    {
+                        res.redirect(successUrl);
+                    }
                 }
                 else
                 {
@@ -1600,4 +1609,3 @@ exports = module.exports = function()
 
     return r;
 }();
-

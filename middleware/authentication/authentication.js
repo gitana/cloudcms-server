@@ -76,6 +76,12 @@ exports = module.exports = function()
             if (process.env.CLOUDCMS_AUTH_PROVIDERS_LINKEDIN_ENABLED === "true") {
                configuration.providers.linkedin.enabled = true;
             }
+            if (process.env.CLOUDCMS_AUTH_PASS_TICKET === "true") {
+               configuration.passTicket = true;
+               configuration.providers.facebook.passTicket = true;
+               configuration.providers.twitter.passTicket = true;
+               configuration.providers.linkedin.passTicket = true;
+            }
 
             // add in any libraries
             for (var providerId in configuration.providers)
