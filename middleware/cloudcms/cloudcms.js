@@ -264,11 +264,21 @@ exports = module.exports = function()
                 {
                     // otherwise, send JSON response
                     util.status(res, 200);
-                    res.send({
-                        "ok": true,
-                        "ticket": ticket,
-                        "user": user
-                    });
+                    if(!!config.auth.passTicket || process.env.CLOUDCMS_AUTH_PASS_TICKET === "true")
+                    {
+                        res.send({
+                            "ok": true,
+                            "user": user
+                        });
+                    }
+                    else
+                    {
+                        res.send({
+                            "ok": true,
+                            "ticket": ticket,
+                            "user": user
+                        });
+                    }
                     res.end();
                 }
             });
