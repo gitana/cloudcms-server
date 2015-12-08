@@ -247,10 +247,10 @@ exports = module.exports = function()
                     return handleErrorMessage(req, res, errorMessage);
                 }
 
+                var config = process.configuration || {};
+                config.auth = config.auth || {};
                 if (successUrl)
                 {
-                    var config = process.configuration || {};
-                    config.auth = config.auth || {};
                     if(!!config.auth.passTicket || process.env.CLOUDCMS_AUTH_PASS_TICKET === "true")
                     {
                         res.redirect(successUrl + "?ticket=" + ticket);
