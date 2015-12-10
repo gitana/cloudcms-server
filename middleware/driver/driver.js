@@ -263,6 +263,21 @@ exports = module.exports = function()
      */
     r.driverInterceptor = function()
     {
+        // allow custom configuration of Gitana driver
+        if (process.configuration)
+        {
+            if (process.configuration.gitana)
+            {
+                if (process.configuration.gitana.params)
+                {
+                    for (var k in process.configuration.gitana.params)
+                    {
+                        Gitana.HTTP_PARAMS[k] = process.configuration.gitana.params[k];
+                    }
+                }
+            }
+        }
+
         // the auto refresh runner ensures that the virtual driver gitana is always refreshed
         autoRefreshRunner();
 
