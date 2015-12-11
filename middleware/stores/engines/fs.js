@@ -314,7 +314,7 @@ exports = module.exports = function(engineConfig)
 
                 // if not a directory, we are done
                 if (err) {
-                    finish(null, matches);
+                    finish(null);
                     return;
                 }
 

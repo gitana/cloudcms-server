@@ -175,6 +175,9 @@ exports = module.exports = function()
 
                 // look for any module.json files in the modules store
                 // these indicate module mount points
+                // this is an expensive lookup in that it goes directory by directory looking for module.json files
+                // in production systems, code should go through a build step that removes extraneous files that were
+                // required in and are no longer needed.
                 stores.modules.matchFiles("/", "module.json", function(err, moduleJsonFilePaths) {
 
                     // collect matching paths
@@ -194,18 +197,21 @@ exports = module.exports = function()
                         //console.log("Adding modules:module.json for path: " + moduleDirectoryPath);
                     }
 
-                    // look for any module.json files in the web store
-                    // these indicate module mount points
-                    stores.web.matchFiles("/", "module.json", function(err, moduleJsonFilePaths) {
 
-                        // collect matching paths
+                    // add in any web store included modules that are provided as part of the configuration
+                    //   process.configuration.modules.includes = []
+                    // these paths are relative to the public directory of the web store
+                    if (process.configuration.modules && process.configuration.modules.includes)
+                    {
+                        var moduleJsonFilePaths = process.configuration.modules.includes;
+
                         for (var i = 0; i < moduleJsonFilePaths.length; i++)
                         {
-                            var moduleDirectoryPath = path.dirname(moduleJsonFilePaths[i]);
+                            var includePath = moduleJsonFilePaths[i];
 
                             if (stores.web.publicDir)
                             {
-                                moduleDirectoryPath = path.join(stores.web.publicDir, moduleDirectoryPath);
+                                moduleDirectoryPath = path.join(stores.web.publicDir, includePath);
                             }
 
                             var moduleId = moduleDirectoryPath.split("/");
@@ -223,9 +229,9 @@ exports = module.exports = function()
                                 //console.log("Adding web:module.json for path: " + moduleDirectoryPath);
                             }
                         }
+                    }
 
-                        callback(moduleDescriptors);
-                    });
+                    callback(moduleDescriptors);
                 });
             };
 
