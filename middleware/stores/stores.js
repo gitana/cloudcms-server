@@ -103,6 +103,33 @@ exports = module.exports = function()
         });
     };
 
+    var _cached_stores = function() {
+
+        var CACHED_STORES_BY_HOST = {};
+        var CACHED_STORES_EXPIRATION_MS_BY_HOST = {};
+        var TTL_MS = 1000 * 60; // one minute
+
+        return function(host, stores) {
+
+            if (stores) {
+                CACHED_STORES_BY_HOST[host] = stores;
+                CACHED_STORES_EXPIRATION_MS_BY_HOST[host] = new Date().getTime() + TTL_MS;
+            }
+
+            var val = CACHED_STORES_BY_HOST[host];
+
+            var expTime = CACHED_STORES_EXPIRATION_MS_BY_HOST[host];
+            if (expTime && new Date().getTime() > expTime)
+            {
+                delete CACHED_STORES_BY_HOST[host];
+                delete CACHED_STORES_EXPIRATION_MS_BY_HOST[host];
+                val = undefined;
+            }
+
+            return val;
+        }
+    }();
+
     var produce = r.produce = function(host, offsetPath, callback)
     {
         if (typeof(offsetPath) === "function")
@@ -111,7 +138,24 @@ exports = module.exports = function()
             offsetPath = null;
         }
 
-        var stores = {};
+        var stores = _cached_stores(host);
+        if (stores)
+        {
+            process.cache.read("module-descriptors-" + host, function(err, moduleDescriptorsForHost) {
+
+                if (!moduleDescriptorsForHost) {
+                    moduleDescriptorsForHost = [];
+                }
+
+                callback(null, stores, moduleDescriptorsForHost);
+
+            });
+
+            return;
+        }
+
+        // generate new stores
+        stores = {};
         stores["root"] = buildStore("root", host);
 
         // assume a few things...
@@ -391,6 +435,8 @@ exports = module.exports = function()
                 if (!moduleDescriptorsForHost) {
                     moduleDescriptorsForHost = [];
                 }
+
+                _cached_stores(host, stores);
 
                 callback(null, stores, moduleDescriptorsForHost);
 
