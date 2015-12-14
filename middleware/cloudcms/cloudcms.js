@@ -868,15 +868,14 @@ exports = module.exports = function()
                         useContentDispositionResponse = true;
                     }
 
-                    cloudcmsUtil.download(contentStore, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, function(err, filePath, cacheInfo) {
+                    cloudcmsUtil.download(contentStore, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, function(err, filePath, cacheInfo, releaseLock) {
 
                         // if the file was found on disk or was downloaded, then stream it back
                         if (!err && filePath && cacheInfo)
                         {
-                            var filename = resolveFilename(req, filePath, cacheInfo, requestedFilename);
-
                             if (useContentDispositionResponse)
                             {
+                                var filename = resolveFilename(req, filePath, cacheInfo, requestedFilename);
                                 contentStore.downloadFile(res, filePath, filename, function(err) {
 
                                     // something went wrong while streaming the content back...
@@ -887,6 +886,7 @@ exports = module.exports = function()
                                         res.end();
                                     }
 
+                                    releaseLock();
                                 });
                             }
                             else
@@ -899,6 +899,8 @@ exports = module.exports = function()
                                     {
                                         util.handleSendFileError(req, res, filePath, cacheInfo, req.log, err);
                                     }
+
+                                    releaseLock();
                                 });
                             }
                         }
@@ -908,11 +910,14 @@ exports = module.exports = function()
                             {
                                 // redirect to the fallback
                                 res.redirect(req.query["fallback"]);
-                                return;
+                            }
+                            else
+                            {
+                                // otherwise, allow other handlers to process this request
+                                next();
                             }
 
-                            // otherwise, allow other handlers to process this request
-                            next();
+                            releaseLock();
                         }
 
                     });
@@ -1007,7 +1012,7 @@ exports = module.exports = function()
                     // the range requested (for streaming)
                     var range = req.headers["range"];
 
-                    cloudcmsUtil.preview(contentStore, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, function(err, filePath, cacheInfo) {
+                    cloudcmsUtil.preview(contentStore, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, function(err, filePath, cacheInfo, releaseLock) {
 
                         if (err)
                         {
@@ -1017,13 +1022,12 @@ exports = module.exports = function()
                         // if the file was found on disk or was downloaded, then stream it back
                         if (!err && filePath && cacheInfo)
                         {
-                            var filename = resolveFilename(req, filePath, cacheInfo, requestedFilename);
-
                             // disable the accept-ranges header
                             res.setHeader("Accept-Ranges", "none");
 
                             if (useContentDispositionResponse)
                             {
+                                var filename = resolveFilename(req, filePath, cacheInfo, requestedFilename);
                                 contentStore.downloadFile(res, filePath, filename, function(err) {
 
                                     // something went wrong while streaming the content back...
@@ -1033,12 +1037,14 @@ exports = module.exports = function()
                                         res.end();
                                     }
 
+                                    releaseLock();
                                 });
                             }
                             else
                             {
                                 util.applyDefaultContentTypeCaching(res, cacheInfo);
 
+                                // UZI: file deleted by invalidate before this gets called
                                 contentStore.sendFile(res, filePath, cacheInfo, function(err) {
 
                                     if (err)
@@ -1046,6 +1052,7 @@ exports = module.exports = function()
                                         util.handleSendFileError(req, res, filePath, cacheInfo, req.log, err);
                                     }
 
+                                    releaseLock();
                                 });
                             }
                         }
@@ -1055,11 +1062,14 @@ exports = module.exports = function()
                             {
                                 // redirect to the fallback
                                 res.redirect(req.query["fallback"]);
-                                return;
+                            }
+                            else
+                            {
+                                // otherwise, allow other handlers to process this request
+                                next();
                             }
 
-                            // otherwise, allow other handlers to process this request
-                            next();
+                            releaseLock();
                         }
 
                     });
@@ -1286,15 +1296,14 @@ exports = module.exports = function()
                         useContentDispositionResponse = true;
                     }
 
-                    cloudcmsUtil.downloadAttachable(contentStore, gitana, "domain", domainId, "principal", principalId, attachmentId, locale, forceReload, function(err, filePath, cacheInfo) {
+                    cloudcmsUtil.downloadAttachable(contentStore, gitana, "domain", domainId, "principal", principalId, attachmentId, locale, forceReload, function(err, filePath, cacheInfo, releaseLock) {
 
                         // if the file was found on disk or was downloaded, then stream it back
                         if (!err && filePath && cacheInfo)
                         {
-                            var filename = resolveFilename(req, filePath, cacheInfo, requestedFilename);
-
                             if (useContentDispositionResponse)
                             {
+                                var filename = resolveFilename(req, filePath, cacheInfo, requestedFilename);
                                 contentStore.downloadFile(res, filePath, filename, function(err) {
 
                                     // something went wrong while streaming the content back...
@@ -1304,6 +1313,7 @@ exports = module.exports = function()
                                         res.end();
                                     }
 
+                                    releaseLock();
                                 });
                             }
                             else
@@ -1317,6 +1327,7 @@ exports = module.exports = function()
                                         util.handleSendFileError(req, res, filePath, cacheInfo, req.log, err);
                                     }
 
+                                    releaseLock();
                                 });
                             }
                         }
@@ -1326,11 +1337,14 @@ exports = module.exports = function()
                             {
                                 // redirect to the fallback
                                 res.redirect(req.query["fallback"]);
-                                return;
+                            }
+                            else
+                            {
+                                // otherwise, allow other handlers to process this request
+                                next();
                             }
 
-                            // otherwise, allow other handlers to process this request
-                            next();
+                            releaseLock();
                         }
 
                     });
@@ -1397,7 +1411,7 @@ exports = module.exports = function()
                         useContentDispositionResponse = true;
                     }
 
-                    cloudcmsUtil.previewAttachable(contentStore, gitana, "domain", domainId, "principal", principalId, attachmentId, locale, previewId, size, mimetype, forceReload, function(err, filePath, cacheInfo) {
+                    cloudcmsUtil.previewAttachable(contentStore, gitana, "domain", domainId, "principal", principalId, attachmentId, locale, previewId, size, mimetype, forceReload, function (err, filePath, cacheInfo, releaseLock) {
 
                         if (err)
                         {
@@ -1407,32 +1421,34 @@ exports = module.exports = function()
                         // if the file was found on disk or was downloaded, then stream it back
                         if (!err && filePath && cacheInfo)
                         {
-                            var filename = resolveFilename(req, filePath, cacheInfo, requestedFilename);
-
                             if (useContentDispositionResponse)
                             {
-                                contentStore.downloadFile(res, filePath, filename, function(err) {
+                                var filename = resolveFilename(req, filePath, cacheInfo, requestedFilename);
+                                contentStore.downloadFile(res, filePath, filename, function (err) {
 
                                     // something went wrong while streaming the content back...
-                                    if (err) {
+                                    if (err)
+                                    {
                                         util.status(res, 503);
                                         res.send(err);
                                         res.end();
                                     }
 
+                                    releaseLockFn();
                                 });
                             }
                             else
                             {
                                 util.applyDefaultContentTypeCaching(res, cacheInfo);
 
-                                contentStore.sendFile(res, filePath, cacheInfo, function(err) {
+                                contentStore.sendFile(res, filePath, cacheInfo, function (err) {
 
                                     if (err)
                                     {
                                         util.handleSendFileError(req, res, filePath, cacheInfo, req.log, err);
                                     }
 
+                                    releaseLock();
                                 });
                             }
                         }
@@ -1442,11 +1458,14 @@ exports = module.exports = function()
                             {
                                 // redirect to the fallback
                                 res.redirect(req.query["fallback"]);
-                                return;
+                            }
+                            else
+                            {
+                                // otherwise, allow other handlers to process this request
+                                next();
                             }
 
-                            // otherwise, allow other handlers to process this request
-                            next();
+                            releaseLock();
                         }
 
                     });
@@ -1599,16 +1618,7 @@ exports = module.exports = function()
                 var host = message.host;
 
                 self.invalidateNode(host, repositoryId, branchId, nodeId, function(err) {
-
-                    /*
-                    if (!err)
-                    {
-                        console.log("Cloud CMS Cache invalidated: " + ref);
-                    }
-                    */
-
                     done(err);
-
                 });
 
             });

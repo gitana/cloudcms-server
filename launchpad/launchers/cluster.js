@@ -7,6 +7,7 @@ var crypto = require("crypto");
 var async = require("async");
 
 var memored = require('../../temp/memored');
+var clusterlock = require("../../temp/clusterlock");
 
 var workers = [];
 var seed = crypto.randomBytes(4).readUInt32BE(0, true) % 0x80000000;
@@ -198,6 +199,9 @@ var setupMaster = function(connectionListener, completionCallback) {
 
         // start up shared memory
         memored.setup({purgeInterval: 500});
+
+        // start up cluster locks
+        clusterlock.setup();
 
         var server = net.createServer(connectionListener);
 

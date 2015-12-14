@@ -1,0 +1,24 @@
+{
+  "name": "clusterlock",
+  "version": "0.0.1",
+  "description": "A simple but cluster-friendly lock (built around rwlock)",
+  "main": "index.js",
+  "author": {
+    "name": "Michael Uzquiano"
+  },
+  "license": "MIT",
+  "keywords": [
+    "cache",
+    "memory",
+    "shared"
+  ],
+  "devDependencies": {
+    "rwlock": "^5.0.0"
+  },
+  "maintainers": [
+    {
+      "name": "uzquiano",
+      "email": "uzi@cloudcms.com"
+    }
+  ]
+}

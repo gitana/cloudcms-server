@@ -94,6 +94,7 @@ exports = module.exports = function()
     // services
     var notifications = require("./notifications/notifications");
     var broadcast = require("./broadcast/broadcast");
+    var locks = require("./locks/locks");
 
     // assume app-server base path if none provided
     if (!process.env.CLOUDCMS_APPSERVER_BASE_PATH) {
@@ -120,8 +121,10 @@ exports = module.exports = function()
     {
         process.cache = cache;
         process.broadcast = broadcast;
+        process.locks = locks;
 
         var fns = [
+            locks.init,
             broadcast.start,
             storeService.init,
             notifications.start,
@@ -160,7 +163,7 @@ exports = module.exports = function()
         app.use(driverConfig.interceptor());
 
         // binds "req.gitana" into the request for the loaded "req.gitanaConfig"
-        app.use(driver.driverInterceptor());
+        app.use(driver.driverInterceptor());// THIS TAKES A LONG TIME
 
         // puts req.descriptor into the request and req.virtualFiles = true
         app.use(virtualFiles.interceptor());

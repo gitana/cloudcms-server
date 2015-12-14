@@ -140,7 +140,6 @@ exports = module.exports = function()
     var readFromDisk = function(contentStore, filePath, callback)
     {
         // the cache file must exist on disk
-        //var cacheFilePath = "_" + filePath + ".cache";
         var cacheFilePath = toCacheFilePath(filePath);
 
         // read the cache file (if it exists)
@@ -343,7 +342,6 @@ exports = module.exports = function()
                     return;
                 }
 
-                //var cacheFilePath = filePath + ".cache";
                 var cacheFilePath = toCacheFilePath(filePath);
 
                 // headers
@@ -369,8 +367,6 @@ exports = module.exports = function()
                     {
                         response.pipe(tempStream).on("close", function (err) {
 
-                            //console.log("ERR: " + err);
-
                             if (err)
                             {
                                 // some went wrong at disk io level?
@@ -394,10 +390,12 @@ exports = module.exports = function()
 
                                                 if (err)
                                                 {
+                                                    process.exit();
+                                                    return;
+
                                                     // failed to write cache file, thus the whole thing is invalid
                                                     safeRemove(contentStore, cacheFilePath, function () {
                                                         safeRemove(contentStore, filePath, function () {
-                                                            console.log("o.4");
                                                             cb({
                                                                 "message": "Failed to write cache file: " + cacheFilePath
                                                             });
@@ -418,6 +416,8 @@ exports = module.exports = function()
                                     }
                                     else
                                     {
+                                        console.log("WARN: exists false, " + filePath);
+
                                         // for some reason, file wasn't found
                                         // roll back the whole thing
                                         safeRemove(contentStore, cacheFilePath, function () {
@@ -435,7 +435,8 @@ exports = module.exports = function()
                             console.log("Pipe error: " + err);
                         });
                     }
-                    else {
+                    else
+                    {
                         // some kind of http error (usually permission denied or invalid_token)
 
                         var body = "";
@@ -503,7 +504,10 @@ exports = module.exports = function()
 
         };
 
-        _writeToDisk(contentStore, gitana, uri, filePath, 0, 3, null, callback);
+        _writeToDisk(contentStore, gitana, uri, filePath, 0, 3, null, function(err, filePath, cacheInfo) {
+            callback(err, filePath, cacheInfo);
+        });
+
     };
 
     /**
@@ -543,13 +547,13 @@ exports = module.exports = function()
                 filePath = path.join(filePath, "attachments", attachmentId);
             }
 
-            var doWork = function () {
+            var doWork = function() {
 
                 // if the cached asset is on disk, we serve it back
                 readFromDisk(contentStore, filePath, function (err, cacheInfo) {
 
                     if (!err && cacheInfo) {
-                        callback(null, filePath, cacheInfo);
+                        callback(err, filePath, cacheInfo);
                         return;
                     }
 
@@ -591,10 +595,7 @@ exports = module.exports = function()
                     if (exists)
                     {
                         contentStore.removeFile(filePath, function (err) {
-
-                            var cacheFilePath = toCacheFilePath(filePath);
-
-                            contentStore.removeFile(cacheFilePath, function (err) {
+                            contentStore.removeFile(toCacheFilePath(filePath), function (err) {
                                 doWork();
                             });
                         });
@@ -609,28 +610,6 @@ exports = module.exports = function()
             {
                 doWork();
             }
-        });
-    };
-
-    var invalidateNode = function(contentStore, repositoryId, branchId, nodeId, callback)
-    {
-        // base storage directory
-        var contentDirectoryPath = path.join(repositoryId, branchId, nodeId);
-
-        //console.log("Considering: " + contentDirectoryPath);
-        contentStore.existsDirectory(contentDirectoryPath, function(exists) {
-
-            if (!exists)
-            {
-                callback();
-                return;
-            }
-
-            contentStore.removeDirectory(contentDirectoryPath, function(err) {
-                console.log("Invalidated [repository: " + repositoryId + ", branch: " + branchId + ", node: " + nodeId + "]");
-                callback(err, true);
-            });
-
         });
     };
 
@@ -673,7 +652,7 @@ exports = module.exports = function()
 
             var filePath = path.join(contentDirectoryPath, "previews", previewId);
 
-            var doWork = function () {
+            var doWork = function() {
 
                 // if the cached asset is on disk, we serve it back
                 readFromDisk(contentStore, filePath, function (err, cacheInfo) {
@@ -724,23 +703,55 @@ exports = module.exports = function()
                 });
             };
 
+            /////////////////////////////////
+
             // if force reload, delete from disk if exist
-            if (forceReload) {
+            if (forceReload)
+            {
                 contentStore.existsFile(filePath, function (exists) {
 
-                    if (exists) {
+                    if (exists)
+                    {
                         contentStore.removeFile(filePath, function (err) {
-                            doWork();
+                            contentStore.removeFile(toCacheFilePath(filePath), function (err) {
+                                doWork();
+                            });
                         });
                     }
-                    else {
+                    else
+                    {
                         doWork();
                     }
-                })
+                });
             }
-            else {
+            else
+            {
                 doWork();
             }
+        });
+    };
+
+    var invalidateNode = function(contentStore, repositoryId, branchId, nodeId, callback)
+    {
+        // base storage directory
+        var contentDirectoryPath = path.join(repositoryId, branchId, nodeId);
+
+        //console.log("Considering: " + contentDirectoryPath);
+        contentStore.existsDirectory(contentDirectoryPath, function(exists) {
+
+            if (!exists)
+            {
+                callback();
+                return;
+            }
+
+            contentStore.removeDirectory(contentDirectoryPath, function(err) {
+
+                console.log("Invalidated [repository: " + repositoryId + ", branch: " + branchId + ", node: " + nodeId + "]");
+
+                callback(err, true);
+            });
+
         });
     };
 
@@ -937,6 +948,21 @@ exports = module.exports = function()
         });
     };
 
+    // lock helpers
+
+    var _lock_identifier = function()
+    {
+        var args = Array.prototype.slice.call(arguments);
+
+        return args.join("_");
+    };
+
+    var _LOCK = function(store, lockIdentifier, workFunction)
+    {
+        process.locks.lock(store.id + "_" + lockIdentifier, workFunction);
+    };
+
+
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
     // RESULTING OBJECT
@@ -947,34 +973,82 @@ exports = module.exports = function()
 
     r.download = function(contentStore, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, callback)
     {
-        downloadNode(contentStore, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, callback);
+        // claim a lock around this node for this server
+        _LOCK(contentStore, _lock_identifier(repositoryId, branchId, nodeId), function(releaseLockFn) {
+
+            // workhorse - pass releaseLockFn back to callback
+            downloadNode(contentStore, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, function (err, filePath, cacheInfo) {
+                callback(err, filePath, cacheInfo, releaseLockFn);
+            });
+
+        });
     };
 
     r.preview = function(contentStore, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, callback)
     {
-        previewNode(contentStore, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, callback);
+        // claim a lock around this node for this server
+        _LOCK(contentStore, _lock_identifier(repositoryId, branchId, nodeId), function(releaseLockFn) {
+
+            // workhorse - pass releaseLockFn back to callback
+            previewNode(contentStore, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, function(err, filePath, cacheInfo) {
+                callback(err, filePath, cacheInfo, releaseLockFn);
+            });
+
+        });
     };
 
     r.invalidate = function(contentStore, repositoryId, branchId, nodeId, callback)
     {
-        invalidateNode(contentStore, repositoryId, branchId, nodeId, function() {
-            callback();
+        // claim a lock around this node for this server
+        _LOCK(contentStore, _lock_identifier(repositoryId, branchId, nodeId), function(releaseLockFn) {
+
+            invalidateNode(contentStore, repositoryId, branchId, nodeId, function () {
+
+                // release lock
+                releaseLockFn();
+
+                // all done
+                callback();
+            });
         });
     };
 
     r.downloadAttachable = function(contentStore, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, forceReload, callback)
     {
-        downloadAttachable(contentStore, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, forceReload, callback);
+        // claim a lock around this node for this server
+        _LOCK(contentStore, _lock_identifier(datastoreId, objectId), function(releaseLockFn) {
+
+            // workhorse - pass releaseLockFn back to callback
+            downloadAttachable(contentStore, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, forceReload, function(err, filePath, cacheInfo) {
+                callback(err, filePath, cacheInfo, releaseLockFn);
+            });
+
+        });
     };
 
     r.previewAttachable = function(contentStore, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, previewId, size, mimetype, forceReload, callback)
     {
-        previewAttachable(contentStore, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, previewId, size, mimetype, forceReload, callback);
+        // claim a lock around this node for this server
+        _LOCK(contentStore, _lock_identifier(datastoreId, objectId), function(releaseLockFn) {
+
+            // workhorse - pass releaseLockFn back to callback
+            previewAttachable(contentStore, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, previewId, size, mimetype, forceReload, function (err, filePath, cacheInfo) {
+                callback(err, filePath, cacheInfo, releaseLockFn);
+            });
+
+        });
     };
 
     r.invalidateAttachable = function(contentStore, datastoreTypeId, datastoreId, objectTypeId, objectId, callback)
     {
-        callback();
+        // claim a lock around this node for this server
+        _LOCK(contentStore, _lock_identifier(datastoreId, objectId), function(releaseLockFn) {
+
+            // TODO: not implemented
+            callback();
+
+            releaseLockFn();
+        });
     };
 
     return r;

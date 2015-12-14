@@ -900,6 +900,11 @@ var handleSendFileError = exports.handleSendFileError = function(req, res, fileP
             try { util.status(res, 503); } catch (e) { }
             res.end();
         }
+        else
+        {
+            try { util.status(res, 503); } catch (e) { }
+            res.end();
+        }
     }
 };
 
