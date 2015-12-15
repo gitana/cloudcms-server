@@ -36,16 +36,6 @@ var hash = function (ip, seed)
  * Access 'private' object _handle of file descriptor to republish the read
  * packet.
  *
- * Supports Node versions from 0.9.6 and up.
- */
-var node96RepublishPacket = function(fd, data) {
-    fd._handle.onread(new Buffer(data), 0, data.length);
-};
-
-/**
- * Access 'private' object _handle of file descriptor to republish the read
- * packet.
- *
  * Supports Node version from 0.12 and up.
  */
 var node012RepublishPacket = function(fd, data) {
@@ -82,15 +72,11 @@ var layer4HashBalancedConnectionListener = function(c)
 
     var index = random % workers.length;
 
-    var worker = workers[index]
+    var worker = workers[index];
     if (worker)
     {
         // pass connection to worker
         worker.send('launchpad:sync', c);
-    }
-    else
-    {
-        console.log("NO WORKER!");
     }
 };
 
@@ -106,7 +92,7 @@ var patchConnection = function(c, fd)
     var worker = workers[index];
     if (worker)
     {
-        console.log("Patch Connection identifier: " + c.identifier);
+        //console.log("Patch Connection identifier: " + c.identifier);
 
         // pass connection to worker
         worker.send({
@@ -132,13 +118,7 @@ module.exports = function(options)
         completionCallback = function () { };
     }
 
-    var republishPacket = node96RepublishPacket;
-
-    var version = process.version.substr(1);
-    var index = version.indexOf('.');
-    if (Number(version.substr(0, index)) >= 1 || Number(version.substr(index + 1)) >= 12) {
-        republishPacket = node012RepublishPacket;
-    }
+    var republishPacket = node012RepublishPacket;
 
     if (cluster.isMaster) {
         setupMaster(connectionListener, completionCallback);
@@ -224,8 +204,8 @@ var setupSlave = function(factoryCallback, reportCallback, republishPacket) {
     factoryCallback(function(server) {
 
         // Worker process
-        process.on("error", function() {
-            console.log("ERRRRR");
+        process.on("error", function(err) {
+            console.log("ERR: " + JSON.stringify(err));
         });
 
         process.on('message', function(msg, socket) {
@@ -238,14 +218,22 @@ var setupSlave = function(factoryCallback, reportCallback, republishPacket) {
                     return;
                 }
 
-                console.log("Missing Socket");
-                console.log(msg);
-                console.log(JSON.stringify(msg, null, "  "));
+                //console.log("Missing Socket");
+                //console.log(msg);
+                //console.log(JSON.stringify(msg, null, "  "));
                 return;
             }
 
             if (msg === "launchpad:sync")
             {
+                if (!socket)
+                {
+                    console.log("Missing Socket");
+                    console.log(msg);
+                    console.log(JSON.stringify(msg, null, "  "));
+                    return;
+                }
+
                 /**
                  * Reading data once from file descriptor and extract ip from the
                  * header.
@@ -289,7 +277,7 @@ var setupSlave = function(factoryCallback, reportCallback, republishPacket) {
                         // just keep the "unknown" default
                     }
 
-                    //Send acknowledge + data and identifier back to master
+                    // Send acknowledge + data and identifier back to master
                     process.send({
                         cmd: 'launchpad:sync-ack',
                         identifier: identifier,
