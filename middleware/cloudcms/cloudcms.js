@@ -379,6 +379,14 @@ exports = module.exports = function()
                 }
                 if (!branchId)
                 {
+                    // does the runtime tell us which branch to use?
+                    if (req.runtime && req.runtime.branchId)
+                    {
+                        branchId = req.runtime.branchId;
+                    }
+                }
+                if (!branchId)
+                {
                     // allow for the branch to specified via an environment parameter
                     if (process.env.CLOUDCMS_BRANCH_ID)
                     {
@@ -414,9 +422,15 @@ exports = module.exports = function()
 
                     req.repository(function(err, repository) {
                         Chain(repository).trap(function(e) {
-                            next();
+
+                            // unable to load branch!
+                            console.log("Unable to load branch: " + req.branchId);
+                            callback({
+                                "message": "Unable to load branch: " + req.branchId
+                            });
                             return false;
                         }).readBranch(req.branchId).then(function() {
+                            console.log("XXX");
                             req._branch = this;
                             callback(null, req._branch);
                         });

@@ -303,6 +303,10 @@ exports = module.exports = function()
                     // load all wcm pages from the server
                     req.branch(function(err, branch) {
 
+                        if (err) {
+                            return errorHandler(err);
+                        }
+
                         branch.trap(function(err) {
 
                             //  mark that we're finished preloading

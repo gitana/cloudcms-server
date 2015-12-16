@@ -279,6 +279,10 @@ module.exports = function(app, dust, callback)
                     var req = context.get("req");
                     req.branch(function(err, branch) {
 
+                        if (err) {
+                            return end(chunk, context);
+                        }
+
                         var handleResults = function()
                         {
                             var array = this.asArray();
@@ -477,6 +481,10 @@ module.exports = function(app, dust, callback)
                 var req = context.get("req");
                 req.branch(function(err, branch) {
 
+                    if (err) {
+                        return end(chunk, context);
+                    }
+
                     // TODO: use a "find" to limit to a range of nodes (for page scope)?
 
                     var pagination = {};
@@ -602,6 +610,11 @@ module.exports = function(app, dust, callback)
 
                 var req = context.get("req");
                 req.branch(function(err, branch) {
+
+                    if (err) {
+                        return end(chunk, context);
+                    }
+
                     branch.readNode(nodeId).then(function() {
 
                         var pagination = {};
@@ -798,6 +811,10 @@ module.exports = function(app, dust, callback)
                 var req = context.get("req");
                 req.branch(function(err, branch) {
 
+                    if (err) {
+                        return end(chunk, context);
+                    }
+
                     branch.readNode(fromNodeId).then(function() {
 
                         // first query for relatives
@@ -966,6 +983,10 @@ module.exports = function(app, dust, callback)
                 var req = context.get("req");
                 req.branch(function(err, branch) {
 
+                    if (err) {
+                        return end(chunk, context);
+                    }
+
                     // select by ID or select by Path
                     if (id)
                     {
@@ -1013,6 +1034,10 @@ module.exports = function(app, dust, callback)
 
                 var req = context.get("req");
                 req.branch(function(err, branch) {
+
+                    if (err) {
+                        return end(chunk, context);
+                    }
 
                     // read the definition
                     branch.readDefinition(definition).then(function() {
@@ -1558,48 +1583,37 @@ module.exports = function(app, dust, callback)
         return map(chunk, function(chunk) {
             setTimeout(function() {
 
-                var webStore = context.get("req").stores.web;
-
-                var newUri = uri;
-
-                var req = context.get("req");
-                if (req)
+                if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
                 {
-                    var filename = uri;
+                    var req = context.get("req");
+                    if (req)
+                    {
+                        var newUri = uri;
 
-                    // create md5 hash
-                    var md5sum = crypto.createHash('md5');
+                        var cacheBuster = req.runtime.cb;
 
-                    // read file and update hash
-                    webStore.readStream(filename, function(err, s) {
+                        var i = uri.lastIndexOf(".");
+                        if (i == -1)
+                        {
+                            newUri = uri + "." + cacheBuster;
+                        }
+                        else
+                        {
+                            newUri = uri.substring(0, i) + "-" + cacheBuster + uri.substring(i);
+                        }
 
-                        s.on('data', function (d) {
-                            md5sum.update(d);
-                        });
-                        s.on('err', function (err) {
-                            // something went wrong, couldn't read the file?
-                            chunk.write(uri);
-                            end(chunk, context);
-                        });
-                        s.on('end', function () {
-                            var hash = md5sum.digest('hex');
-
-                            var i = uri.lastIndexOf(".");
-                            if (i == -1) {
-                                newUri = uri + "." + hash;
-                            }
-                            else {
-                                newUri = uri.substring(0, i) + "-" + hash + uri.substring(i);
-                            }
-
-                            chunk.write(newUri);
-                            end(chunk, context);
-                        });
-                    });
+                        chunk.write(newUri);
+                        end(chunk, context);
+                    }
+                    else
+                    {
+                        chunk.write(uri);
+                        end(chunk, context);
+                    }
                 }
                 else
                 {
-                    chunk.write(newUri);
+                    chunk.write(uri);
                     end(chunk, context);
                 }
             });
@@ -1668,6 +1682,10 @@ module.exports = function(app, dust, callback)
 
                 var req = context.get("req");
                 req.branch(function(err, branch) {
+
+                    if (err) {
+                        return end(chunk, context);
+                    }
 
                     var repositoryId = branch.getRepositoryId();
                     var branchId = branch.getId();
@@ -1782,6 +1800,10 @@ module.exports = function(app, dust, callback)
                 var req = context.get("req");
                 req.branch(function(err, branch) {
 
+                    if (err) {
+                        return end(chunk, context);
+                    }
+
                     branch.readNode(nodeId).attachment(attachmentId).download(function(text) {
 
                         chunk.write(text);
@@ -1826,6 +1848,11 @@ module.exports = function(app, dust, callback)
                 {
                     var req = context.get("req");
                     req.branch(function(err, branch) {
+
+                        if (err) {
+                            return end(chunk, context);
+                        }
+
                         branch.readNode(nodeId).then(function() {
 
                             resolveVariables([this[propertyId]], context, function (err, resolutions) {
@@ -1842,6 +1869,11 @@ module.exports = function(app, dust, callback)
                 {
                     var req = context.get("req");
                     req.branch(function(err, branch) {
+
+                        if (err) {
+                            return end(chunk, context);
+                        }
+
                         branch.readNode(nodeId).attachment(attachmentId).download(function (text) {
 
                             resolveVariables([text], context, function (err, resolutions) {

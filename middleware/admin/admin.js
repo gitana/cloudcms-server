@@ -83,10 +83,7 @@ exports = module.exports = function()
     var r = {};
 
     /**
-     * Handles deployment commands.
-     *
-     * This handler looks for commands to the server and intercepts them.  These are handled through a separate
-     * codepath whose primary responsibility is to get the files down to disk so that they can be virtually hosted.
+     * Handles administrative commands.
      *
      * @return {Function}
      */

@@ -83,6 +83,7 @@ exports = module.exports = function()
     var perf = require("./middleware/perf/perf");
     var proxy = require("./middleware/proxy/proxy");
     var registration = require("./middleware/registration/registration");
+    var runtime = require("./middleware/runtime/runtime");
     var serverTags = require("./middleware/server-tags/server-tags");
     var storeService = require("./middleware/stores/stores");
     var templates = require("./middleware/templates/templates");
@@ -167,6 +168,9 @@ exports = module.exports = function()
 
         // puts req.descriptor into the request and req.virtualFiles = true
         app.use(virtualFiles.interceptor());
+
+        // puts req.runtime into the request
+        app.use(runtime.interceptor());
     };
 
     r.perf1 = function(app)
@@ -342,6 +346,9 @@ exports = module.exports = function()
 
         // handles calls to web flow controllers
         app.use(flow.handlers());
+
+        // handles runtime status calls
+        app.use(runtime.handler());
 
         // handles virtualized local content retrieval from disk
         app.use(local.webStoreHandler());
