@@ -430,7 +430,6 @@ exports = module.exports = function()
                             });
                             return false;
                         }).readBranch(req.branchId).then(function() {
-                            console.log("XXX");
                             req._branch = this;
                             callback(null, req._branch);
                         });
