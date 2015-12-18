@@ -251,7 +251,7 @@ exports = module.exports = function()
                 config.auth = config.auth || {};
                 if (successUrl)
                 {
-                    if(!!config.auth.passTicket || process.env.CLOUDCMS_AUTH_PASS_TICKET === "true")
+                    if(config.auth.passTicket)
                     {
                         res.redirect(successUrl + "?ticket=" + ticket);
                     }
@@ -264,21 +264,16 @@ exports = module.exports = function()
                 {
                     // otherwise, send JSON response
                     util.status(res, 200);
-                    if(!!config.auth.passTicket || process.env.CLOUDCMS_AUTH_PASS_TICKET === "true")
-                    {
-                        res.send({
-                            "ok": true,
-                            "user": user
-                        });
+                    var result = {
+                        "ok": true,
+                        "user": user
+                    };
+
+                    if (passTicket) {
+                        result.ticket = ticket;
                     }
-                    else
-                    {
-                        res.send({
-                            "ok": true,
-                            "ticket": ticket,
-                            "user": user
-                        });
-                    }
+
+                    res.send(result);
                     res.end();
                 }
             });
