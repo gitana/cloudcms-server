@@ -707,6 +707,11 @@ var startSlave = function(config, afterStartFn)
                 // welcome files
                 main.welcome(app);
 
+                // healthcheck
+                app.get("/healthcheck", function (req, res, next) {
+                    res.status(200).end();
+                });
+
                 // configure cloudcms app server command handing
                 main.interceptors(app, true);
 
