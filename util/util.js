@@ -1190,7 +1190,6 @@ var generateFragmentCacheKey = exports.generateFragmentCacheKey = function(fragm
 var enhanceNode = exports.enhanceNode = function(node)
 {
     var attachments = {};
-
     for (var id in node.getSystemMetadata()["attachments"])
     {
         var attachment = node.getSystemMetadata()["attachments"][id];
@@ -1204,6 +1203,7 @@ var enhanceNode = exports.enhanceNode = function(node)
     }
 
     node.attachments = attachments;
+    node._system = node.getSystemMetadata();
 };
 
 var status = exports.status = function(res, code)
