@@ -119,7 +119,7 @@ exports = module.exports = function()
                 }
                 else
                 {
-                    res.status(200).type("application/json").send(JSON.stringify({"success": false, "err": errors}));
+                    res.status(200).type("application/json").send(JSON.stringify({"ok": false, "err": errors}));
                 }
                 return;
             }
@@ -134,7 +134,7 @@ exports = module.exports = function()
                 }
                 else
                 {
-                    res.status(200).type("application/json").send(JSON.stringify({"success": false, "err": err}));
+                    res.status(200).type("application/json").send(JSON.stringify({"ok": false, "err": err}));
                 }
                 return;
             };
@@ -190,7 +190,7 @@ exports = module.exports = function()
                     }
                     else
                     {
-                        res.status(200).type("application/json").send(JSON.stringify({"success": true}));
+                        res.status(200).type("application/json").send(JSON.stringify({"ok": true}));
                     }
                 });
             };
@@ -224,7 +224,7 @@ exports = module.exports = function()
                             }
                             else
                             {
-                                res.status(200).type("application/json").send(JSON.stringify({"success": false, "err": err}));
+                                res.status(200).type("application/json").send(JSON.stringify({"ok": false, "err": err}));
                             }
                             return;
                         }
