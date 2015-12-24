@@ -1189,6 +1189,8 @@ var generateFragmentCacheKey = exports.generateFragmentCacheKey = function(fragm
 
 var enhanceNode = exports.enhanceNode = function(node)
 {
+    // add in the "attachments" as a top level property
+    // if "attachments" already exists, we'll set to "_attachments"
     var attachments = {};
     for (var id in node.getSystemMetadata()["attachments"])
     {
@@ -1202,8 +1204,17 @@ var enhanceNode = exports.enhanceNode = function(node)
         attachments[id]["preview256/"] = "/static/node/" + node.getId() + "/preview256/?attachment=" + id + "&size=256";
     }
 
-    node.attachments = attachments;
-    node._system = node.getSystemMetadata();
+    if (!node.attachments) {
+        node.attachments = attachments;
+    }
+    else if (!node._attachments) {
+        node._attachments = attachments;
+    }
+
+    // add in the "_system" block as a top level property
+    if (node.getSystemMetadata) {
+        node._system = node.getSystemMetadata();
+    }
 };
 
 var status = exports.status = function(res, code)
