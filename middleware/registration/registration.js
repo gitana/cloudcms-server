@@ -16,6 +16,11 @@ exports = module.exports = function()
     {
         var successUri = req.query.successUri  || req.query.successUrl || req.query.success || "/";
         var failureUri = req.query.failureUri || req.query.failureUrl || req.query.failure || "/";
+        var redirect = true;
+        if(req.query.redirect && req.query.redirect === "false")
+        {
+            redirect = false;
+        }
 
         // registration info
         var form = req.body;
@@ -108,7 +113,14 @@ exports = module.exports = function()
             {
                 req.flash("formErrors", errors);
 
-                res.redirect(failureUri);
+                if(redirect)
+                {
+                    res.redirect(failureUri);
+                }
+                else
+                {
+                    res.status(200).type("application/json").send(JSON.stringify({"success": false, "err": errors}));
+                }
                 return;
             }
 
@@ -116,7 +128,14 @@ exports = module.exports = function()
 
                 console.log("ERR: " + JSON.stringify(err));
 
-                res.redirect(failureUri);
+                if(redirect)
+                {
+                    res.redirect(failureUri);
+                }
+                else
+                {
+                    res.status(200).type("application/json").send(JSON.stringify({"success": false, "err": err}));
+                }
                 return;
             };
 
@@ -165,7 +184,14 @@ exports = module.exports = function()
                 // add the user to the "appusers" team for the stack
                 var teamKey = "appusers-" + gitana.application().getId();
                 Chain(gitana.stack()).trap(errHandler).readTeam(teamKey).addMember(principal).then(function() {
-                    res.redirect(successUri);
+                    if(redirect)
+                    {
+                        res.redirect(successUri);
+                    }
+                    else
+                    {
+                        res.status(200).type("application/json").send(JSON.stringify({"success": true}));
+                    }
                 });
             };
 
@@ -192,7 +218,14 @@ exports = module.exports = function()
                         {
                             console.log("Create User for Provider failed: " + JSON.stringify(err));
 
-                            res.redirect(failureUri);
+                            if(redirect)
+                            {
+                                res.redirect(failureUri);
+                            }
+                            else
+                            {
+                                res.status(200).type("application/json").send(JSON.stringify({"success": false, "err": err}));
+                            }
                             return;
                         }
 
@@ -262,4 +295,3 @@ exports = module.exports = function()
 
     return r;
 }();
-
