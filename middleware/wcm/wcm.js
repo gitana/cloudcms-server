@@ -259,118 +259,102 @@ exports = module.exports = function()
             req.cache.read(WCM_PAGES, function (err, pages) {
 
                 if (pages) {
-                    callback(null, pages);
-                    return;
+                    return callback(null, pages);
                 }
 
-                // are these pages already being preloaded by another thread
-                req.cache.read(WCM_PAGES_PRELOADING_FLAG, function(err, preloading) {
+                // take out a preloading lock so that only one thread proceeds at a time here
+                _LOCK(null, _lock_identifier(req.domainHost, "preloading"), function(releaseLockFn) {
 
-                    if (preloading)
-                    {
-                        req.log("Another thread is currently preloading pages, waiting " + WCM_PRELOAD_DEFER_WAIT_MS + " ms");
-                        // wait a while and try again
-                        setTimeout(function() {
-                            preloadPages(req, callback);
-                        }, WCM_PRELOAD_DEFER_WAIT_MS);
+                    // check again inside lock in case another request preloaded this before we arrived
+                    req.cache.read(WCM_PAGES, function (err, pages) {
 
-                        return;
-                    }
-
-
-                    // mark that we are preloading
-                    // this prevents other "threads" from entering here and preloading at the same time
-                    // we set this marker for 30 seconds max
-                    req.cache.write(WCM_PAGES_PRELOADING_FLAG, true, 30);
-
-                    req.log("Loading Web Pages into cache");
-
-                    // build out pages
-                    pages = {};
-
-                    var errorHandler = function (err) {
-
-                        //  mark that we're finished preloading
-                        req.cache.remove(WCM_PAGES_PRELOADING_FLAG, function() {
-                            // this eventually finishes but we don't care to wait
-                        });
-
-                        req.log("Error while loading web pages: " + JSON.stringify(err));
-
-                        callback(err);
-                    };
-
-                    // load all wcm pages from the server
-                    req.branch(function(err, branch) {
-
-                        if (err) {
-                            return errorHandler(err);
+                        if (pages)
+                        {
+                            releaseLockFn();
+                            return callback(null, pages);
                         }
 
-                        branch.trap(function(err) {
+                        req.log("Loading Web Pages into cache");
 
-                            //  mark that we're finished preloading
-                            req.cache.remove(WCM_PAGES_PRELOADING_FLAG, function() {
-                                // this eventually finishes but we don't care to wait
-                            });
+                        // build out pages
+                        pages = {};
 
-                            errorHandler(err);
-                            return false;
-                        }).then(function () {
+                        var errorHandler = function (err) {
 
-                            this.queryNodes({
-                                "_type": "wcm:page"
-                            }, {
-                                "limit": -1
-                            }).each(function () {
+                            req.log("Error while loading web pages: " + JSON.stringify(err));
 
-                                // THIS = wcm:page
-                                var page = this;
+                            releaseLockFn();
+                            callback(err);
+                        };
 
-                                // if page has a template
-                                if (page.template)
-                                {
-                                    if (page.uris)
-                                    {
-                                        // merge into our pages collection
-                                        for (var i = 0; i < page.uris.length; i++)
-                                        {
-                                            pages[page.uris[i]] = page;
-                                        }
-                                    }
+                        // load all wcm pages from the server
+                        req.branch(function (err, branch) {
 
-                                    // is the template a GUID or a path to the template file?
-                                    if (page.template.indexOf("/") > -1)
-                                    {
-                                        page.templatePath = page.template;
-                                    }
-                                    else
-                                    {
-                                        // load the template
-                                        this.subchain(branch).readNode(page.template).then(function () {
-
-                                            // THIS = wcm:template
-                                            var template = this;
-                                            page.templatePath = template.path;
-                                        });
-                                    }
-                                }
-                            })
-
-                        }).then(function () {
-
-                            for (var uri in pages) {
-                                req.log("Loaded Web Page -> " + uri);
+                            if (err)
+                            {
+                                releaseLockFn();
+                                return errorHandler(err);
                             }
 
-                            req.cache.write(WCM_PAGES, pages, WCM_CACHE_TIMEOUT_SECONDS);
+                            branch.trap(function (err) {
 
-                            //  mark that we're finished preloading
-                            req.cache.remove(WCM_PAGES_PRELOADING_FLAG, function() {
-                                // this eventually finishes but we don't care to wait
+                                errorHandler(err);
+                                releaseLockFn();
+                                return false;
+                            }).then(function () {
+
+                                this.queryNodes({
+                                    "_type": "wcm:page"
+                                }, {
+                                    "limit": -1
+                                }).each(function () {
+
+                                    // THIS = wcm:page
+                                    var page = this;
+
+                                    // if page has a template
+                                    if (page.template)
+                                    {
+                                        if (page.uris)
+                                        {
+                                            // merge into our pages collection
+                                            for (var i = 0; i < page.uris.length; i++)
+                                            {
+                                                pages[page.uris[i]] = page;
+                                            }
+                                        }
+
+                                        // is the template a GUID or a path to the template file?
+                                        if (page.template.indexOf("/") > -1)
+                                        {
+                                            page.templatePath = page.template;
+                                        }
+                                        else
+                                        {
+                                            // load the template
+                                            this.subchain(branch).readNode(page.template).then(function () {
+
+                                                // THIS = wcm:template
+                                                var template = this;
+                                                page.templatePath = template.path;
+                                            });
+                                        }
+                                    }
+                                })
+
+                            }).then(function () {
+
+                                for (var uri in pages)
+                                {
+                                    req.log("Loaded Web Page -> " + uri);
+                                }
+
+                                req.cache.write(WCM_PAGES, pages, WCM_CACHE_TIMEOUT_SECONDS);
+
+                                releaseLockFn();
+
+                                callback(null, pages);
                             });
-
-                            callback(null, pages);
                         });
                     });
                 });
@@ -426,32 +410,35 @@ exports = module.exports = function()
     {
         if (!isPageCacheEnabled())
         {
-            callback();
-            return;
+            return callback();
         }
 
         var contentStore = req.stores.content;
 
-        // write page cache entry
-        var pageFilePath = path.join(pageBasePath, "page.html");
-        contentStore.writeFile(pageFilePath, text, function(err) {
+        // take out a lock so that only one "request" can write to cache at a time for this path
+        _LOCK(contentStore, _lock_identifier(pageBasePath), function(releaseLockFn) {
 
-            if (err)
-            {
-                callback(err);
-                return;
-            }
+            var pageFilePath = path.join(pageBasePath, "page.html");
 
-            if (dependencies)
-            {
-                renditions.markRendition(req, descriptor, dependencies, function (err) {
-                    callback(err);
-                });
-            }
-            else
-            {
+            contentStore.writeFile(pageFilePath, text, function (err) {
+
+                if (err)
+                {
+                    releaseLockFn();
+                    return callback(err);
+                }
+
+                if (dependencies)
+                {
+                    // we let this run on it's own
+                    renditions.markRendition(req, descriptor, dependencies, function (err) {
+                        // all done, nothing to do
+                    });
+                }
+
+                releaseLockFn();
                 callback();
-            }
+            });
         });
     };
 
@@ -459,15 +446,20 @@ exports = module.exports = function()
     {
         if (!isPageCacheEnabled())
         {
-            callback();
-            return;
+            return callback();
         }
 
         var contentStore = req.stores.content;
 
-        var pageFilePath = path.join(pageBasePath, "page.html");
-        util.safeReadStream(contentStore, pageFilePath, function(err, stream) {
-            callback(err, stream);
+        // take out a lock so that only one "request" can read from cache at a time for this path
+        _LOCK(contentStore, _lock_identifier(pageBasePath), function(releaseLockFn) {
+
+            var pageFilePath = path.join(pageBasePath, "page.html");
+
+            util.safeReadStream(contentStore, pageFilePath, function (err, stream) {
+                releaseLockFn();
+                callback(err, stream);
+            });
         });
     };
 
@@ -475,7 +467,7 @@ exports = module.exports = function()
     {
         // this is the path to the page folder
         // if we blow away this folder, we blow away all page fragments as well
-        var pageFolderPath = path.join("wcm", "repositories", repositoryId, "branches", branchId, "pages", pageCacheKey);
+        var pageBasePath = path.join("wcm", "repositories", repositoryId, "branches", branchId, "pages", pageCacheKey);
 
         // list all of the hosts
         var stores = require("../stores/stores");
@@ -485,42 +477,59 @@ exports = module.exports = function()
                 return callback(err);
             }
 
-            stores.content.existsDirectory(pageFolderPath, function(exists) {
+            _LOCK(stores.content, _lock_identifier(pageBasePath), function(releaseLockFn) {
 
-                if (!exists) {
-                    return callback();
-                }
+                stores.content.existsDirectory(pageBasePath, function (exists) {
 
-                console.log("[Page Invalidation] removing " + host + ": " + pageFolderPath);
-                contentStore.removeDirectory(pageFolderPath, function() {
-                    callback();
+                    if (!exists)
+                    {
+                        releaseLockFn();
+                        return callback();
+                    }
+
+                    stores.content.removeDirectory(pageBasePath, function () {
+                        releaseLockFn();
+                        callback();
+                    });
                 });
             });
 
         });
     };
 
+    var _lock_identifier = function()
+    {
+        var args = Array.prototype.slice.call(arguments);
+
+        return args.join("_");
+    };
+
+    var _LOCK = function(store, lockIdentifier, workFunction)
+    {
+        var lockKeys = [];
+        if (store) {
+            lockKeys.push(store.id);
+        }
+        if (lockIdentifier) {
+            lockKeys.push(lockIdentifier);
+        }
+
+        process.locks.lock(lockKeys.join("_"), workFunction);
+    };
+
     var bindSubscriptions = function()
     {
         if (process.broadcast)
         {
-            // listen for node invalidation events
-            process.broadcast.subscribe("node_invalidation", function (message, done) {
-
-                var nodeId = message.nodeId;
-                var branchId = message.branchId;
-                var repositoryId = message.repositoryId;
-                var ref = message.ref;
-
-                //console.log("WCM middleware invalidated node: " + ref);
-
-                // TODO: nothing specific to do here...?
-
-                done();
-            });
+            // NOTE: all page rendition invalidation based on changes to nodes happens on the server side within the
+            // Cloud CMS API itself. Cloud CMS maintains a master record of how page renditions and nodes are related.
+            // When a node changes in Cloud CMS, the API finds any page renditions that need to invalidate and then
+            // sends those along as page rendition invalidation events.  These are handled here...
 
             // listen for page rendition invalidation events
             process.broadcast.subscribe("page_rendition_invalidation", function (message, done) {
+
+                // console.log("HEARD: page_rendition_invalidation");
 
                 var repositoryId = message.repositoryId;
                 var branchId = message.branchId;
@@ -529,6 +538,13 @@ exports = module.exports = function()
 
                 var host = message.host;
 
+                // at the moment, caching on disk uses "master" for the master branch instead of the actual branch id
+                var isMasterBranch = message.isMasterBranch;
+                if (isMasterBranch)
+                {
+                    branchId = "master";
+                }
+
                 if (scope === "PAGE")
                 {
                     if (isPageCacheEnabled())
@@ -536,7 +552,7 @@ exports = module.exports = function()
                         handleCachePageInvalidate(host, repositoryId, branchId, pageCacheKey, function(err) {
 
                             if (!err) {
-                                console.log("WCM invalidated page: " + repositoryId + "/" + branchId + "/" + pageCacheKey);
+                                console.log(" > Invalidated page [repository: " + repositoryId + ", branch: " + branchId + ", page: " + pageCacheKey + "]");
                             }
 
                             return done();
@@ -662,7 +678,7 @@ exports = module.exports = function()
                             if (!err && readStream)
                             {
                                 // yes, we found it in cache, so we'll simply pipe it back from disk
-                                req.log("WCM Page Cache Hit: " + offsetPath);
+                                //req.log("WCM Page Cache Hit: " + offsetPath);
                                 util.status(res, 200);
                                 readStream.pipe(res);
                                 return;

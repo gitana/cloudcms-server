@@ -7,31 +7,6 @@ var handleInvalidations = function(items, callback) {
         return callback();
     }
 
-    /*
-    // do a little trick here to merge identical items so that we have less to work on
-    //console.log("ITEMS SIZE WAS: " + items.length);
-    var map = {};
-    var i = 0;
-    while (i < items.length)
-    {
-        var item = items[i];
-
-        var key = item.type + "_" + item.ref + "_" + item.operation;
-
-        if (map[key])
-        {
-            items.splice(i, 1);
-        }
-        else
-        {
-            map[key] = true;
-            i++;
-        }
-    }
-    map = null;
-    //console.log("ITEMS SIZE IS: " + items.length);
-    */
-
     var fns = [];
 
     for (var i = 0; i < items.length; i++)
@@ -40,9 +15,20 @@ var handleInvalidations = function(items, callback) {
             return function(done) {
 
                 var host = item.host;
-                if (!host && item.tenantDnsSlug) {
-                    host = item.tenantDnsSlug + ".cloudcms.net";
+
+                // if virtual hosts not enabled, assume for localhost
+                if (!process.configuration.virtualHost || !process.configuration.virtualHost.enabled)
+                {
+                    host = "localhost";
                 }
+                else if (process.configuration.virtualHost && process.configuration.virtualHost.enabled)
+                {
+                    if (!host && item.tenantDnsSlug) {
+                        host = item.tenantDnsSlug + ".cloudcms.net";
+                    }
+                }
+
+                //console.log("Heard: " + host + ", item: " + JSON.stringify(item, null, "  "));
 
                 var type = item.type;
                 var ref = item.ref;
@@ -65,7 +51,8 @@ var handleInvalidations = function(items, callback) {
                             "nodeId": nodeId,
                             "branchId": branchId,
                             "repositoryId": repositoryId,
-                            "host": host
+                            "host": host,
+                            "isMasterBranch": item.isMasterBranch
                         }, function(err) {
                             done(err);
                         });
@@ -88,10 +75,8 @@ var handleInvalidations = function(items, callback) {
 
                     var repositoryId = item.repositoryId;
                     var branchId = item.branchId;
-                    if (item.isMasterBranch)
-                    {
-                        branchId = "master";
-                    }
+                    var isMasterBranch = item.isMasterBranch;
+
                     var scope = item.scope;
                     var key = item.key;
                     var pageCacheKey = item.pageCacheKey;
@@ -101,6 +86,7 @@ var handleInvalidations = function(items, callback) {
                         "scope": scope,
                         "pageCacheKey": pageCacheKey,
                         "branchId": branchId,
+                        "isMasterBranch": isMasterBranch,
                         "repositoryId": repositoryId,
                         "applicationId": applicationId,
                         "deploymentKey": deploymentKey,

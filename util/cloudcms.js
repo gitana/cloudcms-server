@@ -747,7 +747,7 @@ exports = module.exports = function()
 
             contentStore.removeDirectory(contentDirectoryPath, function(err) {
 
-                console.log("Invalidated [repository: " + repositoryId + ", branch: " + branchId + ", node: " + nodeId + "]");
+                console.log(" > Invalidated [repository: " + repositoryId + ", branch: " + branchId + ", node: " + nodeId + "]");
 
                 callback(err, true);
             });

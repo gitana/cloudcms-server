@@ -384,7 +384,8 @@ exports = module.exports = function()
                 {
                     findModuleDescriptors(function(moduleDescriptors) {
 
-                        process.cache.write("module-descriptors-" + host, moduleDescriptors);
+                        // cache the module descriptors for 60 seconds
+                        process.cache.write("module-descriptors-" + host, moduleDescriptors, 60);
 
                         bindConfigStores(moduleDescriptors, function () {
                             bindTemplateStores(moduleDescriptors, function() {
@@ -401,7 +402,6 @@ exports = module.exports = function()
                             done();
                         });
                     });
-
                 }
             });
         };

@@ -1,33 +1,11 @@
 var path = require('path');
 var fs = require('fs');
 var http = require('http');
-var crypto = require('crypto');
 var async = require("async");
 
 var tracker = require("../tracker");
 
 var util = require("../../util/util");
-
-/*
-// start up the dependency tracker
-tracker.start(context);
-// we are always dependent on the following
-if (req.repositoryId) {
-    tracker.track("repository", req.repositoryId);
-}
-if (req.branchId) {
-    tracker.track("branch", req.branchId);
-}
-
-// TODO: check - does a fragment exist for this?
-// if so, serve back from fragment cache
-
-var dependencies = tracker.get(context);
-
-// TODO: write to fragment cache
-*/
-
-
 
 /**
  * Default dust tags for Cloud CMS.

@@ -66,93 +66,97 @@ exports = module.exports = function()
             callback = function() { };
         }
 
-        req.application(function(err, application) {
+        req.branch(function(err, branch) {
 
-            if (err) {
-                callback(err);
-                return;
-            }
-
-            var applicationId = application._doc;
-
-            var deploymentKey = "default";
-            if (req.descriptor && req.descriptor.deploymentKey)
-            {
-                deploymentKey = req.descriptor.deploymentKey;
-            }
-
-            // the descriptor contains "path", "params" and "headers".  We use this to generate a unique key.
-            // essentially this is a hash and acts as the page cache key
-            var pageCacheKey = util.generatePageCacheKey(descriptor);
-
-            // headers
-            var headers = {};
-
-            // add "authorization" for OAuth2 bearer token
-            var headers2 = req.gitana.platform().getDriver().getHttpHeaders();
-            headers["Authorization"] = headers2["Authorization"];
-
-            var renditionObject = {
-                "deploymentKey": deploymentKey,
-                "key": pageCacheKey,
-                "page": {
-                    "id": descriptor.matchingPageId,
-                    "title": descriptor.matchingPageTitle,
-                    "url": descriptor.matchingUrl,
-                    "path": descriptor.matchingPath,
-                    "tokens": descriptor.tokens
-                },
-                "pageCacheKey": pageCacheKey,
-                "request": {
-                    "url": descriptor.url,
-                    "path": descriptor.path,
-                    "host": descriptor.host,
-                    "protocol": descriptor.protocol,
-                    "headers": descriptor.headers,
-                    "params": descriptor.params
-                },
-                "dependencies": dependencies,
-                "active": true,
-                "scope": "PAGE"
-            };
-
-            if (descriptor.scope) {
-                renditionObject.scope = descriptor.scope;
-            }
-            if (descriptor.fragmentId) {
-                renditionObject.fragmentId = descriptor.fragmentId;
-                renditionObject.fragmentCacheKey = descriptor.fragmentCacheKey;
-                renditionObject.key = descriptor.fragmentCacheKey;
-            }
-
-            //console.log("PAGE RENDITION OBJECT");
-            //console.log(JSON.stringify(pageRenditionObject, null, "  "));
-
-            var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT + "/applications/" + applicationId + "/deployments/" + deploymentKey + "/pagerenditions";
-
-            request({
-                "method": "POST",
-                "url": URL,
-                "qs": {},
-                "json": renditionObject,
-                "headers": headers
-            }, function(err, response, body) {
-
-                //console.log("Response error: " + JSON.stringify(err));
-                //console.log("Response: " + response);
-                //console.log("Body: " + body);
-                //console.log("Body2: " + JSON.stringify(body));
+            req.application(function (err, application) {
 
                 if (err)
                 {
-                    // failed to add the page rendition
                     callback(err);
                     return;
                 }
 
-                callback();
-            });
+                var applicationId = application._doc;
 
+                var deploymentKey = "default";
+                if (req.descriptor && req.descriptor.deploymentKey)
+                {
+                    deploymentKey = req.descriptor.deploymentKey;
+                }
+
+                // the descriptor contains "path", "params" and "headers".  We use this to generate a unique key.
+                // essentially this is a hash and acts as the page cache key
+                var pageCacheKey = util.generatePageCacheKey(descriptor);
+
+                // headers
+                var headers = {};
+
+                // add "authorization" for OAuth2 bearer token
+                var headers2 = req.gitana.platform().getDriver().getHttpHeaders();
+                headers["Authorization"] = headers2["Authorization"];
+
+                var renditionObject = {
+                    "deploymentKey": deploymentKey,
+                    "key": pageCacheKey,
+                    "repositoryId": branch.getRepositoryId(),
+                    "branchId": branch.getId(),
+                    "page": {
+                        "id": descriptor.matchingPageId,
+                        "title": descriptor.matchingPageTitle,
+                        "url": descriptor.matchingUrl,
+                        "path": descriptor.matchingPath,
+                        "tokens": descriptor.tokens
+                    },
+                    "pageCacheKey": pageCacheKey,
+                    "request": {
+                        "url": descriptor.url,
+                        "path": descriptor.path,
+                        "host": descriptor.host,
+                        "protocol": descriptor.protocol,
+                        "headers": descriptor.headers,
+                        "params": descriptor.params
+                    },
+                    "dependencies": dependencies,
+                    "active": true,
+                    "scope": "PAGE"
+                };
+
+                if (descriptor.scope)
+                {
+                    renditionObject.scope = descriptor.scope;
+                }
+                if (descriptor.fragmentId)
+                {
+                    renditionObject.fragmentId = descriptor.fragmentId;
+                    renditionObject.fragmentCacheKey = descriptor.fragmentCacheKey;
+                    renditionObject.key = descriptor.fragmentCacheKey;
+                }
+
+                //console.log("PAGE RENDITION OBJECT");
+                //console.log(JSON.stringify(pageRenditionObject, null, "  "));
+
+                var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT + "/applications/" + applicationId + "/deployments/" + deploymentKey + "/pagerenditions";
+
+                request({
+                    "method": "POST", "url": URL, "qs": {}, "json": renditionObject, "headers": headers
+                }, function (err, response, body) {
+
+                    //console.log("Response error: " + JSON.stringify(err));
+                    //console.log("Response: " + response);
+                    //console.log("Body: " + body);
+                    //console.log("Body2: " + JSON.stringify(body));
+
+                    if (err)
+                    {
+                        // failed to add the page rendition
+                        callback(err);
+                        return;
+                    }
+
+                    callback();
+                });
+
+            });
         });
     };
 
