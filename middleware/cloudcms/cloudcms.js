@@ -269,7 +269,7 @@ exports = module.exports = function()
                         "user": user
                     };
 
-                    if (passTicket) {
+                    if (config.auth.passTicket) {
                         result.ticket = ticket;
                     }
 
