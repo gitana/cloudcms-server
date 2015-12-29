@@ -185,12 +185,12 @@ exports = module.exports = function(engineConfig)
     {
         fileStats(filePath, function(err, stats) {
 
-            if (err) {
+            if (err)
+            {
                 // not found
-                callback({
+                return callback({
                     "message": "File not found: " + filePath
                 });
-                return;
             }
 
             if (!stats)

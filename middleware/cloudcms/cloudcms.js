@@ -1024,7 +1024,7 @@ exports = module.exports = function()
 
                         if (err)
                         {
-                            req.log("Error on preview node: " + err.message);
+                            req.log("Error on preview node: " + err.message + ", err: " + JSON.stringify(err));
                         }
 
                         // if the file was found on disk or was downloaded, then stream it back
@@ -1423,7 +1423,7 @@ exports = module.exports = function()
 
                         if (err)
                         {
-                            req.log("Error on preview attachable: " + err.message);
+                            req.log("Error on preview attachable: " + err.message + ", err: " + JSON.stringify(err));
                         }
 
                         // if the file was found on disk or was downloaded, then stream it back
@@ -1442,7 +1442,7 @@ exports = module.exports = function()
                                         res.end();
                                     }
 
-                                    releaseLockFn();
+                                    releaseLock();
                                 });
                             }
                             else

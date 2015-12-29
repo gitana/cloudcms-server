@@ -285,6 +285,16 @@ exports = module.exports = function()
     };
 
     /**
+     * Ensures that the write stream is closed.
+     *
+     * @param writeStream
+     */
+    var closeWriteStream = function(writeStream)
+    {
+        try { writeStream.end(); } catch(e) { }
+    };
+
+    /**
      * Downloads the asset from host:port/path and stores it on disk at filePath.
      *
      * @param contentStore
@@ -335,6 +345,9 @@ exports = module.exports = function()
 
                 if (err)
                 {
+                    // ensure stream is closed
+                    closeWriteStream(tempStream);
+
                     // ensure cleanup
                     safeRemove(contentStore, filePath, function () {
                         cb(err);
@@ -367,6 +380,10 @@ exports = module.exports = function()
                     {
                         response.pipe(tempStream).on("close", function (err) {
 
+                            // TODO: not needed here?
+                            // ensure stream is closed
+                            // closeWriteStream(tempStream);
+
                             if (err)
                             {
                                 // some went wrong at disk io level?
@@ -390,9 +407,6 @@ exports = module.exports = function()
 
                                                 if (err)
                                                 {
-                                                    process.exit();
-                                                    return;
-
                                                     // failed to write cache file, thus the whole thing is invalid
                                                     safeRemove(contentStore, cacheFilePath, function () {
                                                         safeRemove(contentStore, filePath, function () {
@@ -432,12 +446,19 @@ exports = module.exports = function()
                             }
 
                         }).on("error", function (err) {
+
+                            // ensure stream is closed
+                            closeWriteStream(tempStream);
+
                             console.log("Pipe error: " + err);
                         });
                     }
                     else
                     {
                         // some kind of http error (usually permission denied or invalid_token)
+
+                        // ensure stream is closed
+                        closeWriteStream(tempStream);
 
                         var body = "";
 
@@ -492,6 +513,10 @@ exports = module.exports = function()
                     }
 
                 }).on('error', function (e) {
+
+                    // ensure stream is closed
+                    closeWriteStream(tempStream);
+
                     console.log("_writeToDisk request timed out");
                     console.log(e)
                 }).end();
@@ -499,6 +524,10 @@ exports = module.exports = function()
                 tempStream.on("error", function (e) {
                     console.log("Temp stream errored out");
                     console.log(e);
+
+                    // ensure stream is closed
+                    closeWriteStream(tempStream);
+
                 });
             });
 
@@ -646,8 +675,7 @@ exports = module.exports = function()
         generateContentDirectoryPath(contentStore, repositoryId, branchId, nodeId, locale, function(err, contentDirectoryPath) {
 
             if (err) {
-                callback(err);
-                return;
+                return callback(err);
             }
 
             var filePath = path.join(contentDirectoryPath, "previews", previewId);
@@ -661,8 +689,7 @@ exports = module.exports = function()
 
                         // if no mimetype or mimetype matches, then hand back
                         if (!mimetype || (cacheInfo.mimetype === mimetype)) {
-                            callback(null, filePath, cacheInfo);
-                            return;
+                            return callback(null, filePath, cacheInfo);
                         }
                     }
 
