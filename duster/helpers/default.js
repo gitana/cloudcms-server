@@ -2016,6 +2016,24 @@ module.exports = function(app, dust, callback)
         return chunk.write(text);
     };
 
+    /*
+    dust.helpers.dependsOn = function(chunk, context, bodies, params) {
+
+        params = params || {};
+
+        var name = context.resolve(params.name);
+        var value = context.resolve(params.value);
+        if (name && value)
+        {
+            // TRACKER: START
+            tracker.start(context);
+            tracker.requires(context, name, value);
+        }
+
+        return chunk;
+    };
+    */
+
     callback();
 
 };

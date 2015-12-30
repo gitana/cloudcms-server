@@ -368,6 +368,18 @@ exports = module.exports = function()
     //
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    var isEnabled = function()
+    {
+        if (!process.configuration.wcm) {
+            process.configuration.wcm = {};
+        }
+
+        if (typeof(process.configuration.wcm.enabled) === "undefined") {
+            process.configuration.wcm.enabled = false;
+        }
+
+        return process.configuration.wcm.enabled;
+    };
 
     /**
      * Determines whether to use the page cache.  We use this cache if we're instructed to and if we're in
@@ -375,7 +387,7 @@ exports = module.exports = function()
      *
      * @returns {boolean}
      */
-    var isPageCacheEnabled = function()
+    var isPageCacheEnabled = function(req)
     {
         if (!process.configuration.wcm) {
             process.configuration.wcm = {};
@@ -403,12 +415,20 @@ exports = module.exports = function()
             process.configuration.wcm.cache = false;
         }
 
-        return (process.configuration.wcm.enabled && process.configuration.wcm.cache);
+        var enabled = (process.configuration.wcm.enabled && process.configuration.wcm.cache);
+
+        // is it disabled per request?
+        if (req && req.disablePageCache)
+        {
+            enabled = false;
+        }
+
+        return enabled;
     };
 
     var handleCachePageWrite = function(req, descriptor, pageBasePath, dependencies, text, callback)
     {
-        if (!isPageCacheEnabled())
+        if (!isPageCacheEnabled(req))
         {
             return callback();
         }
@@ -444,10 +464,11 @@ exports = module.exports = function()
 
     var handleCachePageRead = function(req, descriptor, pageBasePath, callback)
     {
-        if (!isPageCacheEnabled())
+        if (!isPageCacheEnabled(req))
         {
             return callback();
         }
+
 
         var contentStore = req.stores.content;
 
@@ -582,6 +603,81 @@ exports = module.exports = function()
 
     var r = {};
 
+    r.wcmInterceptor = function()
+    {
+        return util.createInterceptor("wcm", function(req, res, next, configuration, stores) {
+
+            if (!isEnabled())
+            {
+                return next();
+            }
+
+            if (!req.gitana)
+            {
+                return next();
+            }
+
+            // ensures that the WCM PAGES cache is preloaded for the current branch
+            // pages must be loaded ahead of time so that matching can be performed
+            preloadPages(req, function(err, pages) {
+
+                if (err)
+                {
+                    return next(err);
+                }
+
+                var offsetPath = req.path;
+
+                // find a page for this path
+                // this looks at wcm:page urls and finds a best fit, extracting tokens
+                findMatchingPage(pages, offsetPath, function(err, page, tokens, matchingPath) {
+
+                    if (err)
+                    {
+                        req.log("An error occurred while attempting to match path: " + offsetPath);
+
+                        return next();
+                    }
+
+                    // if we found a page, then store it on the request and adjust the request to reflect things we extract
+                    if (page)
+                    {
+                        req.page = page;
+
+                        // ensure empty set of page attributes
+                        if (!req.pageAttributes) {
+                            req.pageAttributes = {};
+                        }
+
+                        req.pageTokens = tokens ? tokens : {};
+                        req.pageMatchingPath = matchingPath;
+
+                        // override the param() method so that token values are handed back as well
+                        var _param = req.param;
+                        req.param = function(name) {
+
+                            var v = undefined;
+
+                            if (this.pageTokens)
+                            {
+                                v = this.pageTokens[name];
+                            }
+                            if (!v)
+                            {
+                                v = _param.call(this, name);
+                            }
+
+                            return v;
+                        };
+
+                    }
+
+                    next();
+                });
+            });
+        });
+    };
+
     /**
      * Provides WCM page retrieval from Cloud CMS.
      *
@@ -596,171 +692,149 @@ exports = module.exports = function()
         // wcm handler
         return util.createHandler("wcm", function(req, res, next, configuation, stores) {
 
+            if (!isEnabled())
+            {
+                return next();
+            }
+
             if (!req.gitana)
             {
-                next();
-                return;
+                return next();
             }
+
+            var page = req.page;
+            if (!page)
+            {
+                return next();
+            }
+
+            var offsetPath = req.path;
+
+            var tokens = req.pageTokens;
+            var matchingPath = req.pageMatchingPath;
 
             var webStore = stores.web;
 
-            // ensures that the WCM PAGES cache is preloaded for the current branch
-            // pages must be loaded ahead of time so that matching can be performed
-            preloadPages(req, function(err, pages) {
+            // either serve the page back from cache or run dust over it
+            // after dust is run over it, we can stuff it into cache for the next request to benefit from
+            var host = req.domainHost;
+            if ("localhost" === host) {
+                host = req.headers["host"];
+            }
 
-                if (err)
+            var descriptor = {
+                "url": req.protocol + "://" + host + offsetPath,
+                "host": host,
+                "protocol": req.protocol,
+                "path": offsetPath,
+                "params": req.query ? req.query : {},
+                "pageAttributes": req.pageAttributes ? req.pageAttributes : {},
+                "headers": req.headers,
+                "matchingTokens": tokens,
+                "matchingPath": matchingPath,
+                "matchingUrl": req.protocol + "://" + host + matchingPath,
+                "matchingPageId": page._doc,
+                "matchingPageTitle": page.title ? page.title : page._doc,
+                "scope": "PAGE"
+            };
+
+            if (req.repositoryId) {
+                descriptor.repositoryId = req.repositoryId;
+            }
+
+            if (req.branchId) {
+                descriptor.branchId = req.branchId;
+            }
+
+            // generate a page cache key from the descriptor (and store on the descriptor)
+            var pageCacheKey = util.generatePageCacheKey(descriptor);
+            descriptor.pageCacheKey = pageCacheKey;
+
+            // base path for storage
+            var pageBasePath = path.join("wcm", "repositories", req.repositoryId, "branches", req.branchId, "pages", pageCacheKey);
+
+            // is this already in cache?
+            handleCachePageRead(req, descriptor, pageBasePath, function(err, readStream) {
+
+                if (!err && readStream)
                 {
-                    next();
+                    // yes, we found it in cache, so we'll simply pipe it back from disk
+                    req.log("WCM Page Cache Hit: " + offsetPath);
+                    util.status(res, 200);
+                    readStream.pipe(res);
                     return;
                 }
 
-                var offsetPath = req.path;
+                // otherwise, we need to run dust...
 
-                // find a page for this path
-                // this looks at wcm:page urls and finds a best fit, extracting tokens
-                findMatchingPage(pages, offsetPath, function(err, page, tokens, matchingPath) {
+                var runDust = function()
+                {
+                    // TODO: block here in case another thread is trying to dust this page at the same time?
 
-                    if (err)
-                    {
-                        req.log("An error occurred while attempting to match path: " + offsetPath);
+                    if (!req.helpers) {
+                        req.helpers = {};
+                    }
+                    req.helpers.page = page;
 
-                        next();
-                        return;
+                    // build the model
+                    var model = {
+                        "page": {},
+                        "template": {
+                            "path": page.templatePath
+                        },
+                        "request": {
+                            "tokens": tokens,
+                            "matchingPath": matchingPath
+                        }
+                    };
+
+                    // model stores reference to page descriptor
+                    model._page_descriptor = descriptor;
+
+                    // model stores a base path that we'll use for storage of fragments
+                    model._fragments_base_path = path.join(pageBasePath, "fragments");
+
+                    // page keys to copy
+                    for (var k in page) {
+                        if (k == "templatePath") {
+                        } else if (k.indexOf("_") === 0) {
+                        } else {
+                            model.page[k] = page[k];
+                        }
                     }
 
-                    // if no extracted tokens, assume empty set
-                    if (!tokens) {
-                        tokens = {};
-                    }
+                    // set _doc and id (equivalent)
+                    model.page._doc = model.page.id = page._doc;
 
-                    // if we found a page, then we either need to serve back from cache or run dust over it
-                    // after dust is run over it, we can stuff it into cache for the next request to benefit from
-                    if (page)
-                    {
-                        var host = req.domainHost;
-                        if ("localhost" === host) {
-                            host = req.headers["host"];
+                    // dust it up
+                    duster.execute(req, webStore, page.templatePath, model, function (err, text, dependencies) {
+
+                        if (err)
+                        {
+                            // something screwed up during the dust execution
+                            // it might be a bad template
+                            req.log("Failed to process dust template: " + page.templatePath + " for model: " + JSON.stringify(model, null, "  "));
+
+                            util.status(res, 500);
+                            res.send(err);
+                            return;
                         }
 
-                        var descriptor = {
-                            "url": req.protocol + "://" + host + offsetPath,
-                            "host": host,
-                            "protocol": req.protocol,
-                            "path": offsetPath,
-                            "params": req.query,
-                            "headers": req.headers,
-                            "matchingTokens": tokens,
-                            "matchingPath": matchingPath,
-                            "matchingUrl": req.protocol + "://" + host + matchingPath,
-                            "matchingPageId": page._doc,
-                            "matchingPageTitle": page.title ? page.title : page._doc,
-                            "scope": "PAGE"
-                        };
-
-                        if (req.repositoryId) {
-                            descriptor.repositoryId = req.repositoryId;
-                        }
-
-                        if (req.branchId) {
-                            descriptor.branchId = req.branchId;
-                        }
-
-                        // generate a page cache key from the descriptor (and store on the descriptor)
-                        var pageCacheKey = util.generatePageCacheKey(descriptor);
-                        descriptor.pageCacheKey = pageCacheKey;
-
-                        // base path for storage
-                        var pageBasePath = path.join("wcm", "repositories", req.repositoryId, "branches", req.branchId, "pages", pageCacheKey);
-
-                        // is this already in cache?
-                        handleCachePageRead(req, descriptor, pageBasePath, function(err, readStream) {
-
-                            if (!err && readStream)
-                            {
-                                // yes, we found it in cache, so we'll simply pipe it back from disk
-                                //req.log("WCM Page Cache Hit: " + offsetPath);
-                                util.status(res, 200);
-                                readStream.pipe(res);
-                                return;
-                            }
-
-                            // otherwise, we need to run dust!
-
-                            var runDust = function()
-                            {
-                                // TODO: block here in case another thread is trying to dust this page at the same time?
-
-                                if (!req.helpers) {
-                                    req.helpers = {};
-                                }
-                                req.helpers.page = page;
-
-                                // build the model
-                                var model = {
-                                    "page": {},
-                                    "template": {
-                                        "path": page.templatePath
-                                    },
-                                    "request": {
-                                        "tokens": tokens,
-                                        "matchingPath": matchingPath
-                                    }
-                                };
-
-                                // model stores reference to page descriptor
-                                model._page_descriptor = descriptor;
-
-                                // model stores a base path that we'll use for storage of fragments
-                                model._fragments_base_path = path.join(pageBasePath, "fragments");
-
-                                // page keys to copy
-                                for (var k in page) {
-                                    if (k == "templatePath") {
-                                    } else if (k.indexOf("_") === 0) {
-                                    } else {
-                                        model.page[k] = page[k];
-                                    }
-                                }
-
-                                // set _doc and id (equivalent)
-                                model.page._doc = model.page.id = page._doc;
-
-                                // dust it up
-                                duster.execute(req, webStore, page.templatePath, model, function (err, text, dependencies) {
-
-                                    if (err)
-                                    {
-                                        // something screwed up during the dust execution
-                                        // it might be a bad template
-                                        req.log("Failed to process dust template: " + page.templatePath + " for model: " + JSON.stringify(model, null, "  "));
-
-                                        util.status(res, 500);
-                                        res.send(err);
-                                        return;
-                                    }
-
-                                    // we now have the result (text) and the dependencies that this page flagged (dependencies)
-                                    // use these to write to the page cache
-                                    handleCachePageWrite(req, descriptor, pageBasePath, dependencies, text, function(err) {
-                                        //res.status(200);
-                                        //res.send(text);
-                                    });
-
-                                    // slight improvement here, send back results right away
-                                    util.status(res, 200);
-                                    res.send(text);
-
-                                });
-                            };
-                            runDust();
+                        // we now have the result (text) and the dependencies that this page flagged (dependencies)
+                        // use these to write to the page cache
+                        // don't wait for this to complete, assume it finishes in background
+                        handleCachePageWrite(req, descriptor, pageBasePath, dependencies, text, function(err) {
+                            //res.status(200);
+                            //res.send(text);
                         });
-                    }
-                    else
-                    {
-                        next();
-                    }
 
-                });
+                        // send back results right away
+                        util.status(res, 200);
+                        res.send(text);
+
+                    });
+                };
+                runDust();
             });
         });
     };

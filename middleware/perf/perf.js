@@ -219,9 +219,14 @@ exports = module.exports = function()
                                     // html
                                     if (isHTML)
                                     {
-                                        cacheControl = "public, max-age=" + MAXAGE_ONE_HOUR_SECONDS;
+                                        // leave no-cache for HTML
+                                        /*
+                                        var MAXAGE_ZERO_SECONDS = 0;
+
+                                        cacheControl = "public, max-age=" + MAXAGE_ZERO_SECONDS;
                                         pragma = "public";
-                                        expires = new Date(Date.now() + (MAXAGE_ONE_HOUR_SECONDS * 1000)).toUTCString();
+                                        expires = new Date(Date.now() + (MAXAGE_ZERO_SECONDS * 1000)).toUTCString();
+                                        */
                                     }
 
                                     // css, images and js get 1 year

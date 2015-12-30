@@ -301,6 +301,13 @@ exports = module.exports = function()
 
         // tag processing, injection of scripts, etc, kind of a catch all at the moment
         app.use(serverTags.interceptor(configuration));
+
+        if (includeCloudCMS)
+        {
+            // handles retrieval of content from wcm
+            app.use(wcm.wcmInterceptor());
+        }
+
     };
 
     r.handlers = function(app, includeCloudCMS)

@@ -109,18 +109,22 @@ var finish = exports.finish = function(context)
  */
 var requires = exports.requires = function(context, key, value)
 {
-    var instance = trackerInstance(context);
-
-    var requires = instance["requires"];
-
-    var array = requires[key];
-    if (!array) {
-        requires[key] = array = [];
-    }
-
-    if (array.indexOf(value) === -1)
+    if (typeof(value) !== "undefined" && value !== null)
     {
-        array.push(value);
+        var instance = trackerInstance(context);
+
+        var requires = instance["requires"];
+
+        var array = requires[key];
+        if (!array)
+        {
+            requires[key] = array = [];
+        }
+
+        if (array.indexOf(value) === -1)
+        {
+            array.push(value);
+        }
     }
 };
 
@@ -133,19 +137,23 @@ var requires = exports.requires = function(context, key, value)
  */
 var produces = exports.produces = function(context, key, value)
 {
-    var instance = trackerInstance(context);
-
-    var produces = instance["produces"];
-
-    var array = produces[key];
-    if (!array) {
-        array = [];
-        produces[key] = array;
-    }
-
-    if (array.indexOf(value) === -1)
+    if (typeof(value) !== "undefined" && value !== null)
     {
-        array.push(value);
+        var instance = trackerInstance(context);
+
+        var produces = instance["produces"];
+
+        var array = produces[key];
+        if (!array)
+        {
+            array = [];
+            produces[key] = array;
+        }
+
+        if (array.indexOf(value) === -1)
+        {
+            array.push(value);
+        }
     }
 };
 

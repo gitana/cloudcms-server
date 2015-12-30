@@ -96,6 +96,8 @@ var populateContext = function(req, context, model, templateFilePath)
     if (req.user)
     {
         context.user = req.user;
+        context.userId = req.user.id;
+        context.userName = req.user.name;
     }
 
     // populate request information
@@ -144,6 +146,11 @@ var populateContext = function(req, context, model, templateFilePath)
         "requires": {},
         "produces": {}
     };
+
+    // TODO: add user information?
+    // this isn't clear... not all pages in a user authenticated web site will require per-user page caching...
+    // if we were to do it, we'd do it manually like this
+    //context["__tracker"]["requires"]["userId"] = [req.userId];
 };
 
 exports.invalidateCacheForApp = function(applicationId)

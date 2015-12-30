@@ -24,6 +24,8 @@ var util = require("../util/util");
 var launchPad = require("../launchpad/index");
 var cluster = require("cluster");
 
+var requestParam = require("request-param")();
+
 var app = express();
 app.disable('x-powered-by');
 
@@ -565,6 +567,9 @@ var startSlave = function(config, afterStartFn)
                     req.originalPath = req.path;
                     next();
                 });
+
+                // req.param method
+                app.use(requestParam);
 
                 // add req.log function
                 app.use(function (req, res, next) {

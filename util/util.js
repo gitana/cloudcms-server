@@ -966,20 +966,17 @@ var safeReadStream = exports.safeReadStream = function(contentStore, filePath, c
     contentStore.existsFile(filePath, function(exists) {
 
         if (!exists) {
-            callback();
-            return;
+            return callback();
         }
 
         contentStore.fileStats(filePath, function (err, stats) {
 
             if (err) {
-                callback();
-                return;
+                return callback();
             }
 
             if (stats.size === 0) {
-                callback();
-                return;
+                return callback();
             }
 
             contentStore.readStream(filePath, function (err, readStream) {
@@ -1119,6 +1116,13 @@ var generatePageCacheKey = exports.generatePageCacheKey = function(descriptor) {
     }
     paramNames.sort();
 
+    // sort page attributes alphabetically
+    var pageAttributeNames = [];
+    for (var pageAttributeName in descriptor.pageAttributes) {
+        pageAttributeNames.push(pageAttributeName);
+    }
+    pageAttributeNames.sort();
+
     /*
     // sort headers alphabetically
     var headerNames = [];
@@ -1135,7 +1139,23 @@ var generatePageCacheKey = exports.generatePageCacheKey = function(descriptor) {
     {
         var paramName = paramNames[i];
         var paramValue = descriptor.params[paramName];
-        str += "&param_" + paramName + "=" + paramValue;
+
+        if (typeof(paramValue) !== "undefined" && paramValue !== null)
+        {
+            str += "&param_" + paramName + "=" + paramValue;
+        }
+    }
+
+    // add in page attribute names
+    for (var i = 0; i < pageAttributeNames.length; i++)
+    {
+        var pageAttributeName = pageAttributeNames[i];
+        var pageAttributeValue = descriptor.pageAttributes[pageAttributeName];
+
+        if (typeof(pageAttributeValue) !== "undefined" && pageAttributeValue !== null)
+        {
+            str += "&attr_" + pageAttributeName + "=" + pageAttributeValue;
+        }
     }
 
     /*
@@ -1151,9 +1171,7 @@ var generatePageCacheKey = exports.generatePageCacheKey = function(descriptor) {
     // calculate a hashcode
     var hash = hashcode(str);
 
-    var pageCacheKey = "p-" + hash;
-
-    return pageCacheKey;
+    return "pc" + hash;
 };
 
 /**
@@ -1274,4 +1292,9 @@ var countOpenHandles = exports.countOpenHandles = function(callback)
 
         callback(null, list.length);
     });
+};
+
+var guid = exports.guid = function()
+{
+    return uuid.v4();
 };
