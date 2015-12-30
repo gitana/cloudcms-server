@@ -179,13 +179,6 @@ module.exports = function(app, dust, callback)
                     // TRACKER: START
                     tracker.start(context, fragmentId, requirements);
 
-                    var gitana = context.get("gitana");
-
-                    var errHandler = function(err) {
-                        console.log("ERROR: " + err);
-                        end(chunk, context);
-                    };
-
                     var query = {};
                     if (isDefined(type))
                     {
@@ -251,6 +244,7 @@ module.exports = function(app, dust, callback)
 
                     if (locale)
                     {
+                        var gitana = context.get("gitana");
                         gitana.getDriver().setLocale(locale);
                     }
 
@@ -444,15 +438,9 @@ module.exports = function(app, dust, callback)
         return map(chunk, function(chunk) {
             setTimeout(function() {
 
-                var gitana = context.get("gitana");
-
-                var errHandler = function(err) {
-                    console.log("ERROR: " + err);
-                    end(chunk, context);
-                };
-
                 if (locale)
                 {
+                    var gitana = context.get("gitana");
                     gitana.getDriver().setLocale(locale);
                 }
 
@@ -574,15 +562,9 @@ module.exports = function(app, dust, callback)
         return map(chunk, function(chunk) {
             setTimeout(function() {
 
-                var gitana = context.get("gitana");
-
-                var errHandler = function(err) {
-                    console.log("ERROR: " + err);
-                    end(chunk, context);
-                };
-
                 if (locale)
                 {
+                    var gitana = context.get("gitana");
                     gitana.getDriver().setLocale(locale);
                 }
 
@@ -781,11 +763,6 @@ module.exports = function(app, dust, callback)
 
                 var gitana = context.get("gitana");
 
-                var errHandler = function(err) {
-                    console.log("ERROR: " + err);
-                    end(chunk, context);
-                };
-
                 var req = context.get("req");
                 req.branch(function(err, branch) {
 
@@ -918,15 +895,9 @@ module.exports = function(app, dust, callback)
         return map(chunk, function(chunk) {
             setTimeout(function() {
 
-                var gitana = context.get("gitana");
-
-                var errHandler = function(err) {
-                    console.log("ERROR: " + err);
-                    end(chunk, context);
-                };
-
                 if (locale)
                 {
+                    var gitana = context.get("gitana");
                     gitana.getDriver().setLocale(locale);
                 }
 
@@ -1003,12 +974,6 @@ module.exports = function(app, dust, callback)
             setTimeout(function() {
 
                 var gitana = context.get("gitana");
-
-                var errHandler = function(err) {
-
-                    console.log("ERROR: " + err);
-                    end(chunk, context);
-                };
 
                 var req = context.get("req");
                 req.branch(function(err, branch) {
@@ -1650,14 +1615,6 @@ module.exports = function(app, dust, callback)
         return map(chunk, function(chunk) {
             setTimeout(function() {
 
-                var gitana = context.get("gitana");
-
-                var errHandler = function(err) {
-
-                    console.log("ERROR: " + err);
-                    end(chunk, context);
-                };
-
                 var req = context.get("req");
                 req.branch(function(err, branch) {
 
@@ -1767,14 +1724,6 @@ module.exports = function(app, dust, callback)
         return map(chunk, function(chunk) {
             setTimeout(function() {
 
-                var gitana = context.get("gitana");
-
-                var errHandler = function(err) {
-
-                    console.log("ERROR: " + err);
-                    end(chunk, context);
-                };
-
                 var req = context.get("req");
                 req.branch(function(err, branch) {
 
@@ -1809,16 +1758,9 @@ module.exports = function(app, dust, callback)
         return map(chunk, function(chunk) {
             setTimeout(function() {
 
-                var gitana = context.get("gitana");
-
-                var errHandler = function(err) {
-
-                    console.log("ERROR: " + err);
-                    end(chunk, context);
-                };
-
                 if (locale)
                 {
+                    var gitana = context.get("gitana");
                     gitana.getDriver().setLocale(locale);
                 }
 
