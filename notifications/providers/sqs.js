@@ -34,7 +34,8 @@ module.exports.start = function(configuration, callback)
         holder.sqs = new AWS.SQS({
             "accessKeyId": accessKey,
             "secretAccessKey": secretKey,
-            "region": region
+            "region": region//,
+            //"sslEnabled": false // to protect against possible memory leak?
         });
 
         holder.sqsParams = {
@@ -44,7 +45,7 @@ module.exports.start = function(configuration, callback)
             ],
             MaxNumberOfMessages: 10,
             VisibilityTimeout: 1,
-            WaitTimeSeconds: 20 // long polling
+            WaitTimeSeconds: 5 // long polling
         };
 
         callback();
