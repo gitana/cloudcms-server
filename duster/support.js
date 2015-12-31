@@ -253,13 +253,11 @@ exports = module.exports = function(dust)
     {
         if (!isFragmentCacheEnabled())
         {
-            callback(null, true);
-            return;
+            return callback(null, true);
         }
 
         if (!fragmentId) {
-            callback(null, true);
-            return;
+            return callback(null, true);
         }
 
         var req = context.get("req");
@@ -305,8 +303,7 @@ exports = module.exports = function(dust)
             chunk.render(bodies.block, context);
             end(chunk, context);
 
-            callback();
-            return;
+            return callback();
         }
 
         // otherwise, trap the output stream so that we can cache to disk

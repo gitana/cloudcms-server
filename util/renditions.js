@@ -105,7 +105,8 @@ exports = module.exports = function()
                         "title": descriptor.matchingPageTitle,
                         "url": descriptor.matchingUrl,
                         "path": descriptor.matchingPath,
-                        "tokens": descriptor.tokens
+                        "tokens": descriptor.tokens,
+                        "attributes": descriptor.pageAttributes ? descriptor.pageAttributes : {}
                     },
                     "pageCacheKey": pageCacheKey,
                     "request": {

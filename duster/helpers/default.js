@@ -160,227 +160,230 @@ module.exports = function(app, dust, callback)
             "locale": locale
         });
 
+        var finishHandler = function(context, err)
+        {
+            tracker.finish(context);
+        };
+
         // identifier for this fragment
         var fragmentId = context.resolve(params.fragment);
 
         return map(chunk, function(chunk) {
-            setTimeout(function() {
 
-                // if we can serve this from the fragment cache, we do so
-                support.serveFragment(context, chunk, fragmentId, requirements, function(err, disabled) {
+            // if we can serve this from the fragment cache, we do so
+            support.serveFragment(context, chunk, fragmentId, requirements, function(err, disabled) {
 
-                    // if active and no error, then asset was served back, so simply return
-                    if (!err && !disabled) {
-                        return;
-                    }
+                // if no error and fragments were not disabled, then asset was served back, so simply return
+                if (!err && !disabled) {
+                    return;
+                }
 
-                    // not cached, so run this puppy
+                // not cached, so run this puppy...
 
-                    // TRACKER: START
-                    tracker.start(context, fragmentId, requirements);
+                // TRACKER: START
+                tracker.start(context, fragmentId, requirements);
 
-                    var query = {};
-                    if (isDefined(type))
+                var query = {};
+                if (isDefined(type))
+                {
+                    query._type = type;
+                }
+                if (isDefined(field))
+                {
+                    if (isDefined(fieldRegex))
                     {
-                        query._type = type;
-                    }
-                    if (isDefined(field))
-                    {
-                        if (isDefined(fieldRegex))
-                        {
-                            query[field] = {
-                                $regex: fieldRegex,
-                                $options: "i"
-                            };
-                        }
-                        else if (isDefined(fieldValue))
-                        {
-                            query[field] = fieldValue;
-                        }
-                    }
-
-                    if (near)
-                    {
-                        var nearArray = near.split(",");
-                        nearArray[0] = parseFloat(nearArray[0]);
-                        nearArray[1] = parseFloat(nearArray[1]);
-
-                        query["loc"] = {
-                            "$near" : {
-                                "lat": nearArray[0],
-                                "long": nearArray[1]
-                            }
+                        query[field] = {
+                            $regex: fieldRegex,
+                            $options: "i"
                         };
                     }
+                    else if (isDefined(fieldValue))
+                    {
+                        query[field] = fieldValue;
+                    }
+                }
 
-                    // strip out translations
-                    query["_features.f:translation"] = {
-                        "$exists": false
+                if (near)
+                {
+                    var nearArray = near.split(",");
+                    nearArray[0] = parseFloat(nearArray[0]);
+                    nearArray[1] = parseFloat(nearArray[1]);
+
+                    query["loc"] = {
+                        "$near" : {
+                            "lat": nearArray[0],
+                            "long": nearArray[1]
+                        }
                     };
+                }
 
-                    var pagination = {};
-                    if (!isDefined(limit)) {
-                        limit = -1;
-                    }
-                    pagination.limit = limit;
-                    if (isDefined(sort))
+                // strip out translations
+                query["_features.f:translation"] = {
+                    "$exists": false
+                };
+
+                var pagination = {};
+                if (!isDefined(limit)) {
+                    limit = -1;
+                }
+                pagination.limit = limit;
+                if (isDefined(sort))
+                {
+                    if (typeof(sortDirection) !== "undefined")
                     {
-                        if (typeof(sortDirection) !== "undefined")
-                        {
-                            sortDirection = parseInt(sortDirection, 10);
-                        }
-                        else
-                        {
-                            sortDirection = 1;
-                        }
-
-                        pagination.sort = {};
-                        pagination.sort[sort] = sortDirection;
+                        sortDirection = parseInt(sortDirection, 10);
                     }
-                    if (isDefined(skip))
+                    else
                     {
-                        pagination.skip = skip;
+                        sortDirection = 1;
                     }
 
-                    if (locale)
+                    pagination.sort = {};
+                    pagination.sort[sort] = sortDirection;
+                }
+                if (isDefined(skip))
+                {
+                    pagination.skip = skip;
+                }
+
+                if (locale)
+                {
+                    var gitana = context.get("gitana");
+                    gitana.getDriver().setLocale(locale);
+                }
+
+                var req = context.get("req");
+                req.branch(function(err, branch) {
+
+                    if (err) {
+                        return end(chunk, context);
+                    }
+
+                    var handleResults = function()
                     {
-                        var gitana = context.get("gitana");
-                        gitana.getDriver().setLocale(locale);
-                    }
-
-                    var req = context.get("req");
-                    req.branch(function(err, branch) {
-
-                        if (err) {
-                            return end(chunk, context);
-                        }
-
-                        var handleResults = function()
+                        var array = this.asArray();
+                        if (array.length > 0)
                         {
-                            var array = this.asArray();
-                            if (array.length > 0)
+                            for (var i = 0; i < array.length; i++)
                             {
-                                for (var i = 0; i < array.length; i++)
-                                {
-                                    array[i]._statistics = array[i].__stats();
-                                }
+                                array[i]._statistics = array[i].__stats();
                             }
+                        }
 
-                            if (keepOne)
+                        if (keepOne)
+                        {
+                            var newContext = null;
+                            if (this.totalRows() > 0)
                             {
-                                var newContext = null;
-                                if (this.totalRows() > 0)
-                                {
-                                    var result = array[0];
-
-                                    var resultObject = null;
-                                    if (as)
-                                    {
-                                        resultObject = {};
-                                        resultObject[as] = JSON.parse(JSON.stringify(result));
-
-                                        _MARK_INSIGHT(result, resultObject[as]);
-                                    }
-                                    else
-                                    {
-                                        resultObject = JSON.parse(JSON.stringify(result));
-
-                                        _MARK_INSIGHT(result, resultObject);
-                                    }
-
-                                    newContext = context.push(resultObject);
-                                }
-                                else
-                                {
-                                    newContext = context.push({});
-                                }
-
-                                support.renderFragment(newContext, fragmentId, requirements, chunk, bodies, function(err) {
-
-                                });
-
-                                //chunk.render(bodies.block, newContext);
-                                //end(chunk, context);
-                            }
-                            else
-                            {
-                                for (var a = 0; a < array.length; a++)
-                                {
-                                    _MARK_INSIGHT(array[a], array[a]);
-                                }
+                                var result = array[0];
 
                                 var resultObject = null;
                                 if (as)
                                 {
-                                    resultObject = {
-                                        "offset": this.offset(),
-                                        "total": this.totalRows()
-                                    };
-                                    resultObject[as] = array;
+                                    resultObject = {};
+                                    resultObject[as] = JSON.parse(JSON.stringify(result));
+
+                                    _MARK_INSIGHT(result, resultObject[as]);
                                 }
                                 else
                                 {
-                                    resultObject = {
-                                        "rows": array,
-                                        "offset": this.offset(),
-                                        "total": this.totalRows()
-                                    };
+                                    resultObject = JSON.parse(JSON.stringify(result));
+
+                                    _MARK_INSIGHT(result, resultObject);
                                 }
 
-                                var newContext = context.push(resultObject);
-
-                                //chunk.render(bodies.block, newContext);
-                                //end(chunk, context);
-
-                                support.renderFragment(newContext, fragmentId, requirements, chunk, bodies, function(err) {
-
-                                });
+                                newContext = context.push(resultObject);
                             }
-                        };
+                            else
+                            {
+                                newContext = context.push({});
+                            }
 
-                        var doQuery = function(branch, query, pagination)
-                        {
-                            Chain(branch).queryNodes(query, pagination).each(function() {
-
-                                // enhance node information
-                                enhanceNode(this);
-
-                                // TRACKER - PRODUCES "node"
-                                tracker.produces(context, "node", this._doc);
-
-                            }).then(function() {
-                                handleResults.call(this);
+                            support.renderFragment(newContext, fragmentId, requirements, chunk, bodies, function(err) {
+                                finishHandler(newContext, err);
                             });
-                        };
 
-                        var doQueryPageHasContents = function(branch, query, pagination)
-                        {
-                            var page = context.get("helpers")["page"];
-
-                            Chain(page).trap(function(err) {
-                                console.log("ERR: " + JSON.stringify(err));
-                            }).queryRelatives(query, {
-                                "type": "wcm:page_has_content"
-                            }, pagination).each(function(){
-
-                                // TRACKER - PRODUCES "node"
-                                tracker.produces(context, "node", this._doc);
-
-                            }).then(function() {
-                                handleResults.call(this);
-                            });
-                        };
-
-                        if (isDefined(scope))
-                        {
-                            doQueryPageHasContents(branch, query, pagination);
+                            //chunk.render(bodies.block, newContext);
+                            //end(chunk, context);
                         }
                         else
                         {
-                            doQuery(branch, query, pagination);
-                        }
+                            for (var a = 0; a < array.length; a++)
+                            {
+                                _MARK_INSIGHT(array[a], array[a]);
+                            }
 
-                    });
+                            var resultObject = null;
+                            if (as)
+                            {
+                                resultObject = {
+                                    "offset": this.offset(),
+                                    "total": this.totalRows()
+                                };
+                                resultObject[as] = array;
+                            }
+                            else
+                            {
+                                resultObject = {
+                                    "rows": array,
+                                    "offset": this.offset(),
+                                    "total": this.totalRows()
+                                };
+                            }
+
+                            var newContext = context.push(resultObject);
+
+                            //chunk.render(bodies.block, newContext);
+                            //end(chunk, context);
+
+                            support.renderFragment(newContext, fragmentId, requirements, chunk, bodies, function(err) {
+                                finishHandler(newContext, err);
+                            });
+                        }
+                    };
+
+                    var doQuery = function(branch, query, pagination)
+                    {
+                        Chain(branch).queryNodes(query, pagination).each(function() {
+
+                            // enhance node information
+                            enhanceNode(this);
+
+                            // TRACKER - PRODUCES "node"
+                            tracker.produces(context, "node", this._doc);
+
+                        }).then(function() {
+                            handleResults.call(this);
+                        });
+                    };
+
+                    var doQueryPageHasContents = function(branch, query, pagination)
+                    {
+                        var page = context.get("helpers")["page"];
+
+                        Chain(page).trap(function(err) {
+                            console.log("ERR: " + JSON.stringify(err));
+                        }).queryRelatives(query, {
+                            "type": "wcm:page_has_content"
+                        }, pagination).each(function(){
+
+                            // TRACKER - PRODUCES "node"
+                            tracker.produces(context, "node", this._doc);
+
+                        }).then(function() {
+                            handleResults.call(this);
+                        });
+                    };
+
+                    if (isDefined(scope))
+                    {
+                        doQueryPageHasContents(branch, query, pagination);
+                    }
+                    else
+                    {
+                        doQuery(branch, query, pagination);
+                    }
+
                 });
             });
         });
@@ -430,94 +433,92 @@ module.exports = function(app, dust, callback)
         }
 
         // TRACKER: START
-        tracker.start(context);
+        context = tracker.start(context);
+
         if (locale) {
             tracker.requires(context, "locale", locale);
         }
 
         return map(chunk, function(chunk) {
-            setTimeout(function() {
 
-                if (locale)
-                {
-                    var gitana = context.get("gitana");
-                    gitana.getDriver().setLocale(locale);
+            if (locale)
+            {
+                var gitana = context.get("gitana");
+                gitana.getDriver().setLocale(locale);
+            }
+
+            var req = context.get("req");
+            req.branch(function(err, branch) {
+
+                if (err) {
+                    return end(chunk, context);
                 }
 
-                var req = context.get("req");
-                req.branch(function(err, branch) {
+                // TODO: use a "find" to limit to a range of nodes (for page scope)?
 
-                    if (err) {
-                        return end(chunk, context);
-                    }
-
-                    // TODO: use a "find" to limit to a range of nodes (for page scope)?
-
-                    var pagination = {};
-                    if (!isDefined(limit)) {
-                        limit = -1;
-                    }
-                    pagination.limit = limit;
-                    if (sort)
+                var pagination = {};
+                if (!isDefined(limit)) {
+                    limit = -1;
+                }
+                pagination.limit = limit;
+                if (sort)
+                {
+                    if (typeof(sortDirection) !== "undefined")
                     {
-                        if (typeof(sortDirection) !== "undefined")
-                        {
-                            sortDirection = parseInt(sortDirection, 10);
-                        }
-                        else
-                        {
-                            sortDirection = 1;
-                        }
-
-                        pagination.sort = {};
-                        pagination.sort[sort] = sortDirection;
+                        sortDirection = parseInt(sortDirection, 10);
                     }
-                    if (skip)
+                    else
                     {
-                        pagination.skip = skip;
+                        sortDirection = 1;
                     }
 
-                    branch.searchNodes(text, pagination).each(function() {
+                    pagination.sort = {};
+                    pagination.sort[sort] = sortDirection;
+                }
+                if (skip)
+                {
+                    pagination.skip = skip;
+                }
 
-                        // enhance node information
-                        enhanceNode(this);
+                branch.searchNodes(text, pagination).each(function() {
 
-                        // TRACKER - PRODUCES "node"
-                        tracker.produces(context, "node", this._doc);
+                    // enhance node information
+                    enhanceNode(this);
 
-                    }).then(function() {
+                    // TRACKER - PRODUCES "node"
+                    tracker.produces(context, "node", this._doc);
 
-                        var array = this.asArray();
-                        for (var a = 0; a < array.length; a++)
-                        {
-                            _MARK_INSIGHT(array[a], array[a]);
-                        }
+                }).then(function() {
 
-                        var resultObject = null;
-                        if (as)
-                        {
-                            resultObject = {
-                                "offset": this.offset(),
-                                "total": this.totalRows()
-                            };
-                            resultObject[as] = array;
-                        }
-                        else
-                        {
-                            resultObject = {
-                                "rows": array,
-                                "offset": this.offset(),
-                                "total": this.totalRows()
-                            };
-                        }
+                    var array = this.asArray();
+                    for (var a = 0; a < array.length; a++)
+                    {
+                        _MARK_INSIGHT(array[a], array[a]);
+                    }
 
-                        var newContext = context.push(resultObject);
+                    var resultObject = null;
+                    if (as)
+                    {
+                        resultObject = {
+                            "offset": this.offset(),
+                            "total": this.totalRows()
+                        };
+                        resultObject[as] = array;
+                    }
+                    else
+                    {
+                        resultObject = {
+                            "rows": array,
+                            "offset": this.offset(),
+                            "total": this.totalRows()
+                        };
+                    }
 
-                        chunk.render(bodies.block, newContext);
-                        end(chunk, context);
-                    });
+                    var newContext = context.push(resultObject);
+
+                    chunk.render(bodies.block, newContext);
+                    end(chunk, context);
                 });
-
             });
         });
     };
@@ -560,156 +561,153 @@ module.exports = function(app, dust, callback)
         }
 
         return map(chunk, function(chunk) {
-            setTimeout(function() {
 
-                if (locale)
-                {
-                    var gitana = context.get("gitana");
-                    gitana.getDriver().setLocale(locale);
+            if (locale)
+            {
+                var gitana = context.get("gitana");
+                gitana.getDriver().setLocale(locale);
+            }
+
+            var req = context.get("req");
+            req.branch(function(err, branch) {
+
+                if (err) {
+                    return end(chunk, context);
                 }
 
-                var req = context.get("req");
-                req.branch(function(err, branch) {
+                branch.readNode(nodeId).then(function() {
 
-                    if (err) {
-                        return end(chunk, context);
+                    var pagination = {};
+                    if (!isDefined(limit)) {
+                        limit = -1;
+                    }
+                    pagination.limit = limit;
+                    if (sort)
+                    {
+                        if (typeof(sortDirection) !== "undefined")
+                        {
+                            sortDirection = parseInt(sortDirection, 10);
+                        }
+                        else
+                        {
+                            sortDirection = 1;
+                        }
+
+                        pagination.sort = {};
+                        pagination.sort[sort] = sortDirection;
+                    }
+                    if (skip)
+                    {
+                        pagination.skip = skip;
                     }
 
-                    branch.readNode(nodeId).then(function() {
+                    var config = {};
+                    if (associationType)
+                    {
+                        config.type = associationType;
+                    }
+                    if (associationDirection)
+                    {
+                        config.direction = associationDirection;
+                    }
 
-                        var pagination = {};
-                        if (!isDefined(limit)) {
-                            limit = -1;
-                        }
-                        pagination.limit = limit;
-                        if (sort)
+                    var node = this;
+
+                    this.associations(config, pagination).each(function() {
+
+                        // TRACKER - PRODUCES "node"
+                        tracker.produces(context, "node", this._doc);
+
+                    }).then(function() {
+
+                        var array = this.asArray();
+                        for (var a = 0; a < array.length; a++)
                         {
-                            if (typeof(sortDirection) !== "undefined")
-                            {
-                                sortDirection = parseInt(sortDirection, 10);
+                            _MARK_INSIGHT(array[a], array[a]);
+                        }
+
+                        var resultObject = null;
+                        if (as)
+                        {
+                            resultObject = {
+                                "offset": this.offset(),
+                                "total": this.totalRows()
+                            };
+                            resultObject[as] = array;
+                        }
+                        else
+                        {
+                            resultObject = {
+                                "rows": array,
+                                "offset": this.offset(),
+                                "total": this.totalRows()
+                            };
+                        }
+
+                        var cf = function()
+                        {
+                            var newContext = context.push(resultObject);
+
+                            chunk.render(bodies.block, newContext);
+                            end(chunk, context);
+                        };
+
+                        if (array.length == 0)
+                        {
+                            cf();
+                            return;
+                        }
+
+                        // load target node data for each association
+                        var otherNodeIdsMap = {};
+                        var otherNodeIds = [];
+                        var otherNodeIdToAssociations = {};
+                        for (var z = 0; z < array.length; z++)
+                        {
+                            var otherNodeId = null;
+                            if (array[z].source == node._doc) {
+                                otherNodeId = array[z].target;
+                            } else {
+                                otherNodeId = array[z].source;
                             }
-                            else
+
+                            if (!otherNodeIdsMap[otherNodeId])
                             {
-                                sortDirection = 1;
+                                otherNodeIdsMap[otherNodeId] = true;
+                                otherNodeIds.push(otherNodeId);
                             }
 
-                            pagination.sort = {};
-                            pagination.sort[sort] = sortDirection;
-                        }
-                        if (skip)
-                        {
-                            pagination.skip = skip;
-                        }
+                            if (!otherNodeIdToAssociations[otherNodeId])
+                            {
+                                otherNodeIdToAssociations[otherNodeId] = [];
+                            }
 
-                        var config = {};
-                        if (associationType)
-                        {
-                            config.type = associationType;
+                            otherNodeIdToAssociations[otherNodeId].push(array[z]);
                         }
-                        if (associationDirection)
-                        {
-                            config.direction = associationDirection;
-                        }
+                        Chain(node.getBranch()).queryNodes({
+                            "_doc": {
+                                "$in": otherNodeIds
+                            }
+                        }).each(function() {
 
-                        var node = this;
+                            var associations_array = otherNodeIdToAssociations[this._doc];
+                            for (var z = 0; z < associations_array.length; z++)
+                            {
+                                associations_array[z].other = JSON.parse(JSON.stringify(this));
+                            }
 
-                        this.associations(config, pagination).each(function() {
+                            // enhance node information
+                            enhanceNode(this);
 
                             // TRACKER - PRODUCES "node"
                             tracker.produces(context, "node", this._doc);
 
                         }).then(function() {
 
-                            var array = this.asArray();
-                            for (var a = 0; a < array.length; a++)
-                            {
-                                _MARK_INSIGHT(array[a], array[a]);
-                            }
-
-                            var resultObject = null;
-                            if (as)
-                            {
-                                resultObject = {
-                                    "offset": this.offset(),
-                                    "total": this.totalRows()
-                                };
-                                resultObject[as] = array;
-                            }
-                            else
-                            {
-                                resultObject = {
-                                    "rows": array,
-                                    "offset": this.offset(),
-                                    "total": this.totalRows()
-                                };
-                            }
-
-                            var cf = function()
-                            {
-                                var newContext = context.push(resultObject);
-
-                                chunk.render(bodies.block, newContext);
-                                end(chunk, context);
-                            };
-
-                            if (array.length == 0)
-                            {
-                                cf();
-                                return;
-                            }
-
-                            // load target node data for each association
-                            var otherNodeIdsMap = {};
-                            var otherNodeIds = [];
-                            var otherNodeIdToAssociations = {};
-                            for (var z = 0; z < array.length; z++)
-                            {
-                                var otherNodeId = null;
-                                if (array[z].source == node._doc) {
-                                    otherNodeId = array[z].target;
-                                } else {
-                                    otherNodeId = array[z].source;
-                                }
-
-                                if (!otherNodeIdsMap[otherNodeId])
-                                {
-                                    otherNodeIdsMap[otherNodeId] = true;
-                                    otherNodeIds.push(otherNodeId);
-                                }
-
-                                if (!otherNodeIdToAssociations[otherNodeId])
-                                {
-                                    otherNodeIdToAssociations[otherNodeId] = [];
-                                }
-
-                                otherNodeIdToAssociations[otherNodeId].push(array[z]);
-                            }
-                            Chain(node.getBranch()).queryNodes({
-                                "_doc": {
-                                    "$in": otherNodeIds
-                                }
-                            }).each(function() {
-
-                                var associations_array = otherNodeIdToAssociations[this._doc];
-                                for (var z = 0; z < associations_array.length; z++)
-                                {
-                                    associations_array[z].other = JSON.parse(JSON.stringify(this));
-                                }
-
-                                // enhance node information
-                                enhanceNode(this);
-
-                                // TRACKER - PRODUCES "node"
-                                tracker.produces(context, "node", this._doc);
-
-                            }).then(function() {
-
-                                cf();
-                            });
+                            cf();
                         });
                     });
                 });
-
             });
         });
     };
@@ -759,114 +757,112 @@ module.exports = function(app, dust, callback)
         }
 
         return map(chunk, function(chunk) {
-            setTimeout(function() {
 
-                var gitana = context.get("gitana");
+            var gitana = context.get("gitana");
 
-                var req = context.get("req");
-                req.branch(function(err, branch) {
+            var req = context.get("req");
+            req.branch(function(err, branch) {
 
-                    if (err) {
-                        return end(chunk, context);
+                if (err) {
+                    return end(chunk, context);
+                }
+
+                branch.readNode(fromNodeId).then(function() {
+
+                    // first query for relatives
+                    var query = {};
+                    if (isDefined(type))
+                    {
+                        query._type = type;
+                    }
+                    if (isDefined(field))
+                    {
+                        if (isDefined(fieldRegex))
+                        {
+                            query[field] = {
+                                $regex: fieldRegex,
+                                $options: "i"
+                            };
+                        }
+                        else if (isDefined(fieldValue))
+                        {
+                            query[field] = fieldValue;
+                        }
                     }
 
-                    branch.readNode(fromNodeId).then(function() {
-
-                        // first query for relatives
-                        var query = {};
-                        if (isDefined(type))
+                    // pagination
+                    var pagination = {};
+                    if (!isDefined(limit)) {
+                        limit = -1;
+                    }
+                    pagination.limit = limit;
+                    if (sort)
+                    {
+                        if (typeof(sortDirection) !== "undefined")
                         {
-                            query._type = type;
+                            sortDirection = parseInt(sortDirection, 10);
                         }
-                        if (isDefined(field))
+                        else
                         {
-                            if (isDefined(fieldRegex))
-                            {
-                                query[field] = {
-                                    $regex: fieldRegex,
-                                    $options: "i"
-                                };
-                            }
-                            else if (isDefined(fieldValue))
-                            {
-                                query[field] = fieldValue;
-                            }
+                            sortDirection = 1;
                         }
 
-                        // pagination
-                        var pagination = {};
-                        if (!isDefined(limit)) {
-                            limit = -1;
-                        }
-                        pagination.limit = limit;
-                        if (sort)
+                        pagination.sort = {};
+                        pagination.sort[sort] = sortDirection;
+                    }
+                    if (skip)
+                    {
+                        pagination.skip = skip;
+                    }
+
+                    var config = {};
+                    if (associationType)
+                    {
+                        config.type = associationType;
+                    }
+                    if (associationDirection)
+                    {
+                        config.direction = associationDirection;
+                    }
+
+                    this.queryRelatives(query, config, pagination).each(function() {
+
+                        // enhance node information
+                        enhanceNode(this);
+
+                        // TRACKER - PRODUCES "node"
+                        tracker.produces(context, "node", this._doc);
+
+                    }).then(function() {
+
+                        var array = this.asArray();
+                        for (var a = 0; a < array.length; a++)
                         {
-                            if (typeof(sortDirection) !== "undefined")
-                            {
-                                sortDirection = parseInt(sortDirection, 10);
-                            }
-                            else
-                            {
-                                sortDirection = 1;
-                            }
-
-                            pagination.sort = {};
-                            pagination.sort[sort] = sortDirection;
+                            _MARK_INSIGHT(array[a], array[a]);
                         }
-                        if (skip)
+
+                        var resultObject = null;
+                        if (as)
                         {
-                            pagination.skip = skip;
+                            resultObject = {
+                                "offset": this.offset(),
+                                "total": this.totalRows()
+                            };
+                            resultObject[as] = array;
                         }
-
-                        var config = {};
-                        if (associationType)
+                        else
                         {
-                            config.type = associationType;
+                            resultObject = {
+                                "rows": array,
+                                "offset": this.offset(),
+                                "total": this.totalRows()
+                            };
                         }
-                        if (associationDirection)
-                        {
-                            config.direction = associationDirection;
-                        }
 
-                        this.queryRelatives(query, config, pagination).each(function() {
+                        var newContext = context.push(resultObject);
 
-                            // enhance node information
-                            enhanceNode(this);
-
-                            // TRACKER - PRODUCES "node"
-                            tracker.produces(context, "node", this._doc);
-
-                        }).then(function() {
-
-                            var array = this.asArray();
-                            for (var a = 0; a < array.length; a++)
-                            {
-                                _MARK_INSIGHT(array[a], array[a]);
-                            }
-
-                            var resultObject = null;
-                            if (as)
-                            {
-                                resultObject = {
-                                    "offset": this.offset(),
-                                    "total": this.totalRows()
-                                };
-                                resultObject[as] = array;
-                            }
-                            else
-                            {
-                                resultObject = {
-                                    "rows": array,
-                                    "offset": this.offset(),
-                                    "total": this.totalRows()
-                                };
-                            }
-
-                            var newContext = context.push(resultObject);
-
-                            chunk.render(bodies.block, newContext);
-                            end(chunk, context);
-                        });
+                        chunk.render(bodies.block, newContext);
+                        end(chunk, context);
                     });
                 });
             });
@@ -893,69 +889,66 @@ module.exports = function(app, dust, callback)
         }
 
         return map(chunk, function(chunk) {
-            setTimeout(function() {
 
-                if (locale)
+            if (locale)
+            {
+                var gitana = context.get("gitana");
+                gitana.getDriver().setLocale(locale);
+            }
+
+            var f = function(node)
+            {
+                // enhance node information
+                enhanceNode(node);
+
+                // TRACKER - PRODUCES "node"
+                tracker.produces(context, "node", this._doc);
+
+                var newContextObject = {};
+                if (as)
                 {
-                    var gitana = context.get("gitana");
-                    gitana.getDriver().setLocale(locale);
+                    newContextObject[as] = JSON.parse(JSON.stringify(node));
+
+                    _MARK_INSIGHT(node, newContextObject[as].content);
+                }
+                else
+                {
+                    newContextObject["content"] = JSON.parse(JSON.stringify(node));
+
+                    _MARK_INSIGHT(node, newContextObject.content);
                 }
 
-                var f = function(node)
+                var newContext = context.push(newContextObject);
+                //newContext.get("content").attachments = attachments;
+                chunk.render(bodies.block, newContext);
+                end(chunk, context);
+            };
+
+            var req = context.get("req");
+            req.branch(function(err, branch) {
+
+                if (err) {
+                    return end(chunk, context);
+                }
+
+                // select by ID or select by Path
+                if (id)
                 {
-                    // enhance node information
-                    enhanceNode(node);
-
-                    // TRACKER - PRODUCES "node"
-                    tracker.produces(context, "node", this._doc);
-
-                    var newContextObject = {};
-                    if (as)
-                    {
-                        newContextObject[as] = JSON.parse(JSON.stringify(node));
-
-                        _MARK_INSIGHT(node, newContextObject[as].content);
-                    }
-                    else
-                    {
-                        newContextObject["content"] = JSON.parse(JSON.stringify(node));
-
-                        _MARK_INSIGHT(node, newContextObject.content);
-                    }
-
-                    var newContext = context.push(newContextObject);
-                    //newContext.get("content").attachments = attachments;
-                    chunk.render(bodies.block, newContext);
-                    end(chunk, context);
-                };
-
-                var req = context.get("req");
-                req.branch(function(err, branch) {
-
-                    if (err) {
-                        return end(chunk, context);
-                    }
-
-                    // select by ID or select by Path
-                    if (id)
-                    {
-                        branch.readNode(id).then(function() {
-                            f(this);
-                        });
-                    }
-                    else if (contentPath)
-                    {
-                        branch.readNode("root", contentPath).then(function() {
-                            f(this);
-                        });
-                    }
-                    else
-                    {
-                        // missing both ID and Path?
-                        console.log("Missing ID and PATH! {@content} helper must have either a path or an id");
-                    }
-                });
-
+                    branch.readNode(id).then(function() {
+                        f(this);
+                    });
+                }
+                else if (contentPath)
+                {
+                    branch.readNode("root", contentPath).then(function() {
+                        f(this);
+                    });
+                }
+                else
+                {
+                    // missing both ID and Path?
+                    console.log("Missing ID and PATH! {@content} helper must have either a path or an id");
+                }
             });
         });
     };
@@ -971,74 +964,71 @@ module.exports = function(app, dust, callback)
         var errorUrl = context.resolve(params.error);
 
         return map(chunk, function(chunk) {
-            setTimeout(function() {
 
-                var gitana = context.get("gitana");
+            var gitana = context.get("gitana");
 
-                var req = context.get("req");
-                req.branch(function(err, branch) {
+            var req = context.get("req");
+            req.branch(function(err, branch) {
 
-                    if (err) {
-                        return end(chunk, context);
-                    }
+                if (err) {
+                    return end(chunk, context);
+                }
 
-                    // read the definition
-                    branch.readDefinition(definition).then(function() {
-                        var schema = this;
+                // read the definition
+                branch.readDefinition(definition).then(function() {
+                    var schema = this;
 
-                        // if a form is specified, read the form
-                        var options = null;
-                        this.readForm(form).then(function() {
-                            options = this;
-                        });
+                    // if a form is specified, read the form
+                    var options = null;
+                    this.readForm(form).then(function() {
+                        options = this;
+                    });
 
-                        this.then(function() {
+                    this.then(function() {
 
-                            if (!options)
+                        if (!options)
+                        {
+                            options = {};
+                        }
+
+                        var config = {
+                            "schema": schema,
+                            "options": options
+                        };
+                        if (list)
+                        {
+                            var action = "/form/" + list + "?a=1";
+                            if (successUrl)
                             {
-                                options = {};
+                                action += "&successUrl=" + successUrl;
                             }
-
-                            var config = {
-                                "schema": schema,
-                                "options": options
-                            };
-                            if (list)
+                            if (errorUrl)
                             {
-                                var action = "/form/" + list + "?a=1";
-                                if (successUrl)
-                                {
-                                    action += "&successUrl=" + successUrl;
-                                }
-                                if (errorUrl)
-                                {
-                                    action += "&errorUrl=" + errorUrl;
-                                }
-                                options.renderForm = true;
-                                options.form = {
-                                    "attributes": {
-                                        "method": "POST",
-                                        "action": action,
-                                        "enctype": "multipart/form-data",
-                                        "data-ajax": "false"
-                                    },
-                                    "buttons": {
-                                        "submit": {
-                                            "value": "Submit"
-                                        }
+                                action += "&errorUrl=" + errorUrl;
+                            }
+                            options.renderForm = true;
+                            options.form = {
+                                "attributes": {
+                                    "method": "POST",
+                                    "action": action,
+                                    "enctype": "multipart/form-data",
+                                    "data-ajax": "false"
+                                },
+                                "buttons": {
+                                    "submit": {
+                                        "value": "Submit"
                                     }
-                                };
-                            }
+                                }
+                            };
+                        }
 
-                            var divId = "form" + new Date().getTime();
+                        var divId = "form" + new Date().getTime();
 
-                            chunk.write("<div id='" + divId + "'></div>");
-                            chunk.write("<script>\r\n$('#" + divId + "').alpaca(" + JSON.stringify(config) + ");</script>\r\n");
-                            end(chunk, context);
-                        });
+                        chunk.write("<div id='" + divId + "'></div>");
+                        chunk.write("<script>\r\n$('#" + divId + "').alpaca(" + JSON.stringify(config) + ");</script>\r\n");
+                        end(chunk, context);
                     });
                 });
-
             });
         });
     };
@@ -1061,125 +1051,123 @@ module.exports = function(app, dust, callback)
         var log = context.options.log;
 
         return map(chunk, function(chunk) {
-            setTimeout(function() {
 
-                var store = context.options.store;
+            var store = context.options.store;
 
-                // the stack of executing template file paths
-                var currentTemplateFilePaths = context.get("templateFilePaths").reverse();
+            // the stack of executing template file paths
+            var currentTemplateFilePaths = context.get("templateFilePaths").reverse();
 
-                var resolveMatchingFilePath = function(callback)
+            var resolveMatchingFilePath = function(callback)
+            {
+                // absolute path
+                if (targetPath.indexOf("/") === 0)
                 {
-                    // absolute path
-                    if (targetPath.indexOf("/") === 0)
+                    currentTemplateFilePaths = currentTemplateFilePaths.reverse();
+
+                    // absolute path, always relative to the first element in the template file paths list
+                    var filePath = path.resolve(currentTemplateFilePaths[0], "..", "." + targetPath);
+
+                    // if the file path does not end with ".html", we append
+                    if (filePath.indexOf(".html") == -1)
                     {
-                        currentTemplateFilePaths = currentTemplateFilePaths.reverse();
-
-                        // absolute path, always relative to the first element in the template file paths list
-                        var filePath = path.resolve(currentTemplateFilePaths[0], "..", "." + targetPath);
-
-                        // if the file path does not end with ".html", we append
-                        if (filePath.indexOf(".html") == -1)
-                        {
-                            filePath += ".html";
-                        }
-
-                        store.existsFile(filePath, function(exists) {
-
-                            if (exists) {
-                                callback(null, filePath);
-                            } else {
-                                callback();
-                            }
-                        });
+                        filePath += ".html";
                     }
-                    else
+
+                    store.existsFile(filePath, function(exists) {
+
+                        if (exists) {
+                            callback(null, filePath);
+                        } else {
+                            callback();
+                        }
+                    });
+                }
+                else
+                {
+                    var fns = [];
+
+                    // relative path, walk the template file paths list backwards
+                    var filePaths = [];
+                    for (var a = 0; a < currentTemplateFilePaths.length; a++)
                     {
-                        var fns = [];
+                        var fn = function(currentTemplateFilePath) {
+                            return function(done) {
 
-                        // relative path, walk the template file paths list backwards
-                        var filePaths = [];
-                        for (var a = 0; a < currentTemplateFilePaths.length; a++)
-                        {
-                            var fn = function(currentTemplateFilePath) {
-                                return function(done) {
+                                // target template path
+                                var filePath = path.resolve(currentTemplateFilePath, "..", targetPath);
 
-                                    // target template path
-                                    var filePath = path.resolve(currentTemplateFilePath, "..", targetPath);
+                                // if the file path does not end with ".html", we append
+                                if (filePath.indexOf(".html") == -1)
+                                {
+                                    filePath += ".html";
+                                }
 
-                                    // if the file path does not end with ".html", we append
-                                    if (filePath.indexOf(".html") == -1)
-                                    {
-                                        filePath += ".html";
+                                store.existsFile(filePath, function(exists) {
+
+                                    if (exists) {
+                                        filePaths.push(filePath);
                                     }
 
-                                    store.existsFile(filePath, function(exists) {
-
-                                        if (exists) {
-                                            filePaths.push(filePath);
-                                        }
-
-                                        done();
-                                    });
-                                }
-                            };
-                            fns.push(fn);
-                        }
-
-                        async.series(fns, function() {
-
-                            for (var i = 0; i < filePaths.length; i++) {
-                                if (filePaths[i]) {
-                                    callback(null, filePaths[i]);
-                                    break;
-                                }
+                                    done();
+                                });
                             }
-                        })
-
-                    }
-                };
-
-                resolveMatchingFilePath(function(err, matchingFilePath) {
-
-                    // if no match...
-                    if (!matchingFilePath) {
-                        console.log("Unable to find included file for path: " + targetPath);
-                        end(chunk, context);
-                        return;
+                        };
+                        fns.push(fn);
                     }
 
-                    var filePath = matchingFilePath;
+                    async.series(fns, function() {
 
-                    var templatePath = filePath.split(path.sep).join("/");
-
-                    var includeContextObject = {};
-                    for (var k in params) {
-                        var value = context.resolve(params[k]);
-                        if (value) {
-                            includeContextObject[k] = value;
+                        for (var i = 0; i < filePaths.length; i++) {
+                            if (filePaths[i]) {
+                                callback(null, filePaths[i]);
+                                break;
+                            }
                         }
+                    })
+
+                }
+            };
+
+            resolveMatchingFilePath(function(err, matchingFilePath) {
+
+                // if no match...
+                if (!matchingFilePath) {
+                    console.log("Unable to find included file for path: " + targetPath);
+                    end(chunk, context);
+                    return;
+                }
+
+                var filePath = matchingFilePath;
+
+                var templatePath = filePath.split(path.sep).join("/");
+
+                var includeContextObject = {};
+                for (var k in params) {
+                    var value = context.resolve(params[k]);
+                    if (value) {
+                        includeContextObject[k] = value;
                     }
-                    // push down new file path
-                    var templateFilePaths = context.get("templateFilePaths");
-                    var newTemplateFilePaths = [];
-                    for (var r = 0; r < templateFilePaths.length; r++) {
-                        newTemplateFilePaths.push(templateFilePaths[r]);
+                }
+                // push down new file path
+                var templateFilePaths = context.get("templateFilePaths");
+                var newTemplateFilePaths = [];
+                for (var r = 0; r < templateFilePaths.length; r++) {
+                    newTemplateFilePaths.push(templateFilePaths[r]);
+                }
+                newTemplateFilePaths.push(filePath);
+                includeContextObject["templateFilePaths"] = newTemplateFilePaths;
+                var subContext = context.push(includeContextObject);
+
+                dust.render(templatePath, subContext, function (err, out) {
+
+                    if (err) {
+                        log("Error while rendering include for: " + templatePath);
+                        log(err);
                     }
-                    newTemplateFilePaths.push(filePath);
-                    includeContextObject["templateFilePaths"] = newTemplateFilePaths;
-                    var subContext = context.push(includeContextObject);
 
-                    dust.render(templatePath, subContext, function (err, out) {
+                    chunk.write(out);
 
-                        if (err) {
-                            log("Error while rendering include for: " + templatePath);
-                            log(err);
-                        }
-
-                        chunk.write(out);
-
-                        end(chunk, context);
-                    });
+                    end(chunk, context);
                 });
             });
         });
@@ -1524,42 +1512,40 @@ module.exports = function(app, dust, callback)
         var uri = context.resolve(params.uri);
 
         return map(chunk, function(chunk) {
-            setTimeout(function() {
 
-                if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
+            if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
+            {
+                var req = context.get("req");
+                if (req)
                 {
-                    var req = context.get("req");
-                    if (req)
+                    var newUri = uri;
+
+                    var cacheBuster = req.runtime.cb;
+
+                    var i = uri.lastIndexOf(".");
+                    if (i == -1)
                     {
-                        var newUri = uri;
-
-                        var cacheBuster = req.runtime.cb;
-
-                        var i = uri.lastIndexOf(".");
-                        if (i == -1)
-                        {
-                            newUri = uri + "." + cacheBuster;
-                        }
-                        else
-                        {
-                            newUri = uri.substring(0, i) + "-" + cacheBuster + uri.substring(i);
-                        }
-
-                        chunk.write(newUri);
-                        end(chunk, context);
+                        newUri = uri + "." + cacheBuster;
                     }
                     else
                     {
-                        chunk.write(uri);
-                        end(chunk, context);
+                        newUri = uri.substring(0, i) + "-" + cacheBuster + uri.substring(i);
                     }
+
+                    chunk.write(newUri);
+                    end(chunk, context);
                 }
                 else
                 {
                     chunk.write(uri);
                     end(chunk, context);
                 }
-            });
+            }
+            else
+            {
+                chunk.write(uri);
+                end(chunk, context);
+            }
         });
     };
 
@@ -1580,14 +1566,12 @@ module.exports = function(app, dust, callback)
         params = params || {};
 
         return map(chunk, function(chunk) {
-            setTimeout(function() {
 
-                var json = JSON.stringify(context.stack.head, null, "  ");
-                var html = "<textarea>" + json + "</textarea>"
-                chunk.write(html);
+            var json = JSON.stringify(context.stack.head, null, "  ");
+            var html = "<textarea>" + json + "</textarea>"
+            chunk.write(html);
 
-                end(chunk, context);
-            });
+            end(chunk, context);
         });
     };
 
@@ -1613,32 +1597,30 @@ module.exports = function(app, dust, callback)
         var propertyId = context.resolve(params.property);
 
         return map(chunk, function(chunk) {
-            setTimeout(function() {
 
-                var req = context.get("req");
-                req.branch(function(err, branch) {
+            var req = context.get("req");
+            req.branch(function(err, branch) {
 
-                    if (err) {
-                        return end(chunk, context);
-                    }
+                if (err) {
+                    return end(chunk, context);
+                }
 
-                    var repositoryId = branch.getRepositoryId();
-                    var branchId = branch.getId();
+                var repositoryId = branch.getRepositoryId();
+                var branchId = branch.getId();
 
-                    var wrapperStart = "<div class='cloudcms-value' data-repository-id='" + repositoryId + "' data-branch-id='" + branchId + "' data-node-id='" + nodeId + "'";
-                    if (propertyId) {
-                        wrapperStart += " data-property-id='" + propertyId + "'";
-                    }
-                    wrapperStart += ">";
-                    var wrapperEnd = "</div>";
+                var wrapperStart = "<div class='cloudcms-value' data-repository-id='" + repositoryId + "' data-branch-id='" + branchId + "' data-node-id='" + nodeId + "'";
+                if (propertyId) {
+                    wrapperStart += " data-property-id='" + propertyId + "'";
+                }
+                wrapperStart += ">";
+                var wrapperEnd = "</div>";
 
-                    chunk.write(wrapperStart);
-                    chunk.render(bodies.block, context);
-                    chunk.write(wrapperEnd);
+                chunk.write(wrapperStart);
+                chunk.render(bodies.block, context);
+                chunk.write(wrapperEnd);
 
-                    end(chunk, context);
+                end(chunk, context);
 
-                });
             });
         });
     };
@@ -1684,29 +1666,27 @@ module.exports = function(app, dust, callback)
         }
 
         return map(chunk, function(chunk) {
-            setTimeout(function() {
 
-                // ensure uri is resolved
-                resolveVariables([uri], context, function(err, results) {
+            // ensure uri is resolved
+            resolveVariables([uri], context, function(err, results) {
 
-                    var uri = results[0];
+                var uri = results[0];
 
-                    chunk.write("<a href='" + uri + "'");
+                chunk.write("<a href='" + uri + "'");
 
-                    if (classParam)
-                    {
-                        chunk.write(" class='" + classParam + "'");
-                    }
+                if (classParam)
+                {
+                    chunk.write(" class='" + classParam + "'");
+                }
 
-                    chunk.write(">");
-                    chunk.render(bodies.block, context);
-                    chunk.write("</a>");
+                chunk.write(">");
+                chunk.render(bodies.block, context);
+                chunk.write("</a>");
 
-                    end(chunk, context);
-
-                });
+                end(chunk, context);
 
             });
+
         });
     };
 
@@ -1722,21 +1702,19 @@ module.exports = function(app, dust, callback)
         }
 
         return map(chunk, function(chunk) {
-            setTimeout(function() {
 
-                var req = context.get("req");
-                req.branch(function(err, branch) {
+            var req = context.get("req");
+            req.branch(function(err, branch) {
 
-                    if (err) {
-                        return end(chunk, context);
-                    }
+                if (err) {
+                    return end(chunk, context);
+                }
 
-                    branch.readNode(nodeId).attachment(attachmentId).download(function(text) {
+                branch.readNode(nodeId).attachment(attachmentId).download(function(text) {
 
-                        chunk.write(text);
+                    chunk.write(text);
 
-                        end(chunk, context);
-                    });
+                    end(chunk, context);
                 });
             });
         });
@@ -1756,57 +1734,55 @@ module.exports = function(app, dust, callback)
         var locale = context.resolve(params.locale);
 
         return map(chunk, function(chunk) {
-            setTimeout(function() {
 
-                if (locale)
-                {
-                    var gitana = context.get("gitana");
-                    gitana.getDriver().setLocale(locale);
-                }
+            if (locale)
+            {
+                var gitana = context.get("gitana");
+                gitana.getDriver().setLocale(locale);
+            }
 
-                if (propertyId)
-                {
-                    var req = context.get("req");
-                    req.branch(function(err, branch) {
+            if (propertyId)
+            {
+                var req = context.get("req");
+                req.branch(function(err, branch) {
 
-                        if (err) {
-                            return end(chunk, context);
-                        }
+                    if (err) {
+                        return end(chunk, context);
+                    }
 
-                        branch.readNode(nodeId).then(function() {
+                    branch.readNode(nodeId).then(function() {
 
-                            resolveVariables([this[propertyId]], context, function (err, resolutions) {
+                        resolveVariables([this[propertyId]], context, function (err, resolutions) {
 
-                                chunk.write(resolutions[0]);
+                            chunk.write(resolutions[0]);
 
-                                end(chunk, context);
+                            end(chunk, context);
 
-                            });
                         });
                     });
-                }
-                else
-                {
-                    var req = context.get("req");
-                    req.branch(function(err, branch) {
+                });
+            }
+            else
+            {
+                var req = context.get("req");
+                req.branch(function(err, branch) {
 
-                        if (err) {
-                            return end(chunk, context);
-                        }
+                    if (err) {
+                        return end(chunk, context);
+                    }
 
-                        branch.readNode(nodeId).attachment(attachmentId).download(function (text) {
+                    branch.readNode(nodeId).attachment(attachmentId).download(function (text) {
 
-                            resolveVariables([text], context, function (err, resolutions) {
+                        resolveVariables([text], context, function (err, resolutions) {
 
-                                chunk.write(resolutions[0]);
+                            chunk.write(resolutions[0]);
 
-                                end(chunk, context);
+                            end(chunk, context);
 
-                            });
                         });
                     });
-                }
-            });
+                });
+            }
         });
     };
 
@@ -1957,24 +1933,6 @@ module.exports = function(app, dust, callback)
 
         return chunk.write(text);
     };
-
-    /*
-    dust.helpers.dependsOn = function(chunk, context, bodies, params) {
-
-        params = params || {};
-
-        var name = context.resolve(params.name);
-        var value = context.resolve(params.value);
-        if (name && value)
-        {
-            // TRACKER: START
-            tracker.start(context);
-            tracker.requires(context, name, value);
-        }
-
-        return chunk;
-    };
-    */
 
     callback();
 

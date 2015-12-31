@@ -469,7 +469,6 @@ exports = module.exports = function()
             return callback();
         }
 
-
         var contentStore = req.stores.content;
 
         // take out a lock so that only one "request" can read from cache at a time for this path
@@ -822,7 +821,7 @@ exports = module.exports = function()
 
                         // we now have the result (text) and the dependencies that this page flagged (dependencies)
                         // use these to write to the page cache
-                        // don't wait for this to complete, assume it finishes in background
+                        // don't wait for this to complete, assume it completes in background
                         handleCachePageWrite(req, descriptor, pageBasePath, dependencies, text, function(err) {
                             //res.status(200);
                             //res.send(text);
