@@ -311,6 +311,42 @@ exports = module.exports = function()
         // used to auto-assign the client header for /oauth/token requests
         oauth2.autoProxy(req);
 
+        // copy domain host into "x-cloudcms-domainhost"
+        if (req.domainHost)
+        {
+            req.headers["x-cloudcms-domainhost"] = req.domainHost;
+        }
+
+        // copy deployment descriptor info
+        if (req.descriptor)
+        {
+            if (req.descriptor.tenant)
+            {
+                if (req.descriptor.tenant.id)
+                {
+                    req.headers["x-cloudcms-tenant-id"] = req.descriptor.tenant.id;
+                }
+
+                if (req.descriptor.tenant.title)
+                {
+                    req.headers["x-cloudcms-tenant-title"] = req.descriptor.tenant.title;
+                }
+            }
+
+            if (req.descriptor.application)
+            {
+                if (req.descriptor.application.id)
+                {
+                    req.headers["x-cloudcms-application-id"] = req.descriptor.application.id;
+                }
+
+                if (req.descriptor.application.title)
+                {
+                    req.headers["x-cloudcms-application-title"] = req.descriptor.application.title;
+                }
+            }
+        }
+
         var updateSetCookieValue = function(value)
         {
             var newDomain = req.domainHost;

@@ -111,7 +111,13 @@ exports = module.exports = function()
 
         return function(host, stores) {
 
-            if (stores) {
+            if (stores === null)
+            {
+                delete CACHED_STORES_BY_HOST[host];
+                delete CACHED_STORES_EXPIRATION_MS_BY_HOST[host];
+            }
+            else if (stores)
+            {
                 CACHED_STORES_BY_HOST[host] = stores;
                 CACHED_STORES_EXPIRATION_MS_BY_HOST[host] = new Date().getTime() + TTL_MS;
             }
@@ -446,7 +452,11 @@ exports = module.exports = function()
 
     r.invalidate = function(host)
     {
+        // remove cached descriptors
         process.cache.remove("module-descriptors-" + host);
+
+        // remove cached stores
+        _cached_stores(host, null);
     };
 
 
