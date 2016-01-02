@@ -215,6 +215,7 @@ exports = module.exports = function()
                                     var isImage = (mimetype.indexOf("image/") > -1);
                                     var isJS = ("text/javascript" == mimetype) || ("application/javascript" == mimetype);
                                     var isHTML = ("text/html" == mimetype);
+                                    var isFont = ("application/font-woff" == mimetype);
 
                                     // html
                                     if (isHTML)
@@ -230,7 +231,7 @@ exports = module.exports = function()
                                     }
 
                                     // css, images and js get 1 year
-                                    if (isCSS || isImage || isJS)
+                                    if (isCSS || isImage || isJS || isFont)
                                     {
                                         cacheControl = "public, max-age=" + MAXAGE_ONE_YEAR_SECONDS;
                                         pragma = "public";
