@@ -885,20 +885,15 @@ after(function (app, callback) {
 
 
 
+// NOTE: this doesn't run on Linux
+// Failed at the memwatch-next@0.2.10 install script 'node-gyp rebuild'
+// "memwatch-next": "^0.2.10"
+/*
 // MEM WATCH
 if (process.env.CLOUDCMS_APPSERVER_MODE !== "production" || process.env.CLOUDCMS_MEMWATCH === true || process.env.CLOUDCMS_MEMWATCH === "true")
 {
     var memwatch = require('memwatch-next');
 
-    /*
-     Example:
-     {
-     start: Fri, 29 Jun 2012 14:12:13 GMT,
-     end: Fri, 29 Jun 2012 14:12:33 GMT,
-     growth: 67984,
-     reason: 'heap growth over 5 consecutive GCs (20s) - 11.67 mb/hr'
-     }
-     */
     memwatch.on('leak', function (info) {
 
         var start = info.start;
@@ -909,19 +904,6 @@ if (process.env.CLOUDCMS_APPSERVER_MODE !== "production" || process.env.CLOUDCMS
         console.warn("[*** memory leak detected - start: " + start + ", growth; " + growth + ", reason: " + reason + "]");
     });
 
-    /*
-     Example:
-     {
-     "num_full_gc": 17,
-     "num_inc_gc": 8,
-     "heap_compactions": 8,
-     "estimated_base": 2592568,
-     "current_base": 2592568,
-     "min": 2499912,
-     "max": 2592568,
-     "usage_trend": 0
-     }
-     */
     memwatch.on('stats', function (stats) {
 
         // var num_full_gc = stats.num_full_gc;
@@ -936,3 +918,4 @@ if (process.env.CLOUDCMS_APPSERVER_MODE !== "production" || process.env.CLOUDCMS
         console.log("[*** gc event - current_base: " + util.bytesToSize(current_base) + "]")
     });
 }
+*/

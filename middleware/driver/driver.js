@@ -68,7 +68,12 @@ exports = module.exports = function()
                         var fn = function (driverConfigs, key) {
                             return function (done) {
                                 process.driverConfigCache.read(key, function (err, c) {
-                                    driverConfigs[key] = c.config;
+
+                                    if (!err && c)
+                                    {
+                                        driverConfigs[key] = c.config;
+                                    }
+
                                     done();
                                 });
                             };
