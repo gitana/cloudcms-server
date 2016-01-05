@@ -72,8 +72,8 @@ exports = module.exports = function(cache, basePrefix)
 
         var prefixedKey = _toPrefixedKey(prefix);
 
-        cache.keys(prefixedKey, function(err) {
-            callback(err);
+        cache.keys(prefixedKey, function(err, keys) {
+            callback(err, keys);
         });
     };
 
