@@ -17,11 +17,7 @@ var renditions = require("../../util/renditions");
 exports = module.exports = function()
 {
     // cache keys
-    var WCM_PAGES_PRELOADING_FLAG = "wcmPagesPreloadingFlag";
     var WCM_PAGES = "wcmPages";
-
-    // thread wait time if other thread preloading
-    var WCM_PRELOAD_DEFER_WAIT_MS = 500;
 
     var isEmpty = function(thing)
     {
@@ -487,7 +483,15 @@ exports = module.exports = function()
     {
         // this is the path to the page folder
         // if we blow away this folder, we blow away all page fragments as well
-        var pageBasePath = path.join("wcm", "repositories", repositoryId, "branches", branchId, "pages", pageCacheKey);
+        var pageBasePath = path.join("wcm", "repositories", repositoryId);
+        if (branchId)
+        {
+            pageBasePath = path.join(pageBasePath, "branches", branchId);
+        }
+        if (pageCacheKey)
+        {
+            pageBasePath = path.join(pageBasePath, "pages", pageCacheKey);
+        }
 
         // list all of the hosts
         var stores = require("../stores/stores");
@@ -590,7 +594,6 @@ exports = module.exports = function()
                 }
 
             });
-
         }
     };
 
@@ -836,6 +839,20 @@ exports = module.exports = function()
                 runDust();
             });
         });
+    };
+
+    /**
+     * Manual method for resetting cache.
+     *
+     * @param host
+     * @param repositoryId
+     * @param branchId
+     * @param pageCacheKey
+     * @param callback
+     */
+    r.resetCache = function(host, repositoryId, branchId, pageCacheKey, callback)
+    {
+        handleCachePageInvalidate(host, repositoryId, branchId, pageCacheKey, callback);
     };
 
     return r;

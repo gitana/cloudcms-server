@@ -13,7 +13,6 @@ module.exports = function()
             process.env.CLOUDCMS_BROADCAST_TYPE = "local";
         }
 
-
         var config = process.configuration;
         if (!config["broadcast"] || !config["broadcast"].type)
         {
