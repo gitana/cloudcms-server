@@ -443,7 +443,7 @@ exports = module.exports = function()
             // res.set('Access-Control-Allow-Max-Age', 3600);
 
             if ('OPTIONS' === req.method) {
-                return res.send(200);
+                return res.sendStatus(200);
             }
 
             next();
@@ -529,4 +529,3 @@ exports = module.exports = function()
 
     return r;
 }();
-
