@@ -98,8 +98,6 @@ exports = module.exports = function()
                 var renditionObject = {
                     "deploymentKey": deploymentKey,
                     "key": pageCacheKey,
-                    "repositoryId": branch.getRepositoryId(),
-                    "branchId": branch.getId(),
                     "page": {
                         "id": descriptor.matchingPageId,
                         "title": descriptor.matchingPageTitle,

@@ -550,48 +550,149 @@ exports = module.exports = function()
             // When a node changes in Cloud CMS, the API finds any page renditions that need to invalidate and then
             // sends those along as page rendition invalidation events.  These are handled here...
 
-            // listen for page rendition invalidation events
-            process.broadcast.subscribe("page_rendition_invalidation", function (message, done) {
+            // LISTEN: "invalidate_page_rendition"
+            process.broadcast.subscribe("invalidate_page_rendition", function (message, invalidationDone) {
 
-                // console.log("HEARD: page_rendition_invalidation");
+                // console.log("HEARD: invalidate_page_rendition");
 
-                var repositoryId = message.repositoryId;
-                var branchId = message.branchId;
-                var pageCacheKey = message.pageCacheKey;
-                var scope = message.scope;
-
-                var host = message.host;
-
-                // at the moment, caching on disk uses "master" for the master branch instead of the actual branch id
-                var isMasterBranch = message.isMasterBranch;
-                if (isMasterBranch)
+                var clearFragmentCacheFn = function(message)
                 {
-                    branchId = "master";
-                }
+                    //var repositoryId = message.repositoryId;
+                    //var branchId = message.branchId;
+                    //var pageCacheKey = message.pageCacheKey;
+                    var scope = message.scope;
 
-                if (scope === "PAGE")
-                {
-                    if (isPageCacheEnabled())
+                    //var host = message.host;
+
+                    // at the moment, caching on disk uses "master" for the master branch instead of the actual branch id
+                    //var isMasterBranch = message.isMasterBranch;
+                    //if (isMasterBranch)
+                    //{
+                    //    branchId = "master";
+                    //}
+
+                    return function(done2)
                     {
-                        handleCachePageInvalidate(host, repositoryId, branchId, pageCacheKey, function(err) {
+                        if (scope === "FRAGMENT" || scope === "ALL")
+                        {
+                            // TODO: fragment level invalidation
+                            return done2();
+                        }
+                        else
+                        {
+                            done2();
+                        }
+                    }
+                }(message);
 
-                            if (!err) {
-                                console.log(" > Invalidated page [repository: " + repositoryId + ", branch: " + branchId + ", page: " + pageCacheKey + "]");
+                var clearPageCacheFn = function(message)
+                {
+                    var repositoryId = message.repositoryId;
+                    var branchId = message.branchId;
+                    var pageCacheKey = message.pageCacheKey;
+                    var scope = message.scope;
+
+                    var host = message.host;
+
+                    // at the moment, caching on disk uses "master" for the master branch instead of the actual branch id
+                    var isMasterBranch = message.isMasterBranch;
+                    if (isMasterBranch)
+                    {
+                        branchId = "master";
+                    }
+
+                    return function(done2)
+                    {
+                        if (scope === "PAGE" || scope === "ALL")
+                        {
+                            if (isPageCacheEnabled())
+                            {
+                                handleCachePageInvalidate(host, repositoryId, branchId, pageCacheKey, function(err) {
+
+                                    if (!err) {
+                                        console.log(" > Invalidated page [host: " + host + ", repository: " + repositoryId + ", branch: " + branchId + ", page: " + pageCacheKey + "]");
+                                    }
+
+                                    return done();
+                                });
                             }
+                            else
+                            {
+                                return done2();
+                            }
+                        }
 
-                            return done();
-                        });
                     }
-                    else
-                    {
-                        return done();
-                    }
-                }
-                else if (scope === "FRAGMENT")
+                }(message);
+
+                async.waterfall([
+                    clearFragmentCacheFn,
+                    clearPageCacheFn
+                ], function() {
+                    invalidationDone();
+                });
+
+            });
+
+            // LISTEN: "invalidate_all_page_renditions"
+            process.broadcast.subscribe("invalidate_all_page_renditions", function (message, invalidationDone) {
+
+                // console.log("HEARD: invalidate_all_page_renditions");
+
+                var clearFragmentCacheFn = function(message)
                 {
-                    // TODO: fragment level invalidation
-                    return done();
-                }
+                    //var host = message.host;
+                    var scope = message.scope;
+
+                    return function(done2)
+                    {
+                        if (scope === "FRAGMENT" || scope === "ALL")
+                        {
+                            // TODO: fragment level invalidation
+                            return done2();
+                        }
+                        else
+                        {
+                            done2();
+                        }
+                    }
+                }(message);
+
+                var clearPageCacheFn = function(message)
+                {
+                    var host = message.host;
+                    var scope = message.scope;
+
+                    return function(done2)
+                    {
+                        if (scope === "PAGE" || scope === "ALL")
+                        {
+                            if (isPageCacheEnabled())
+                            {
+                                handleCachePageInvalidate(host, null, null, null, function(err) {
+
+                                    if (!err) {
+                                        console.log(" > Invalidated all pages [host: " + host + "]");
+                                    }
+
+                                    return done2();
+                                });
+                            }
+                            else
+                            {
+                                return done2();
+                            }
+                        }
+
+                    }
+                }(message);
+
+                async.waterfall([
+                    clearFragmentCacheFn,
+                    clearPageCacheFn
+                ], function() {
+                    invalidationDone();
+                });
 
             });
         }

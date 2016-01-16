@@ -30,20 +30,28 @@ var handleInvalidations = function(items, callback) {
 
                 //console.log("Heard: " + host + ", item: " + JSON.stringify(item, null, "  "));
 
-                var type = item.type;
-                var ref = item.ref;
                 var operation = item.operation;
-
-                var identifier = ref.substring(ref.indexOf("://") + 3);
-                var parts = identifier.split("/").reverse();
-
                 if (operation === "invalidate_object")
                 {
+                    var type = item.type;
+
                     if (type === "node")
                     {
-                        var nodeId = parts[0];
-                        var branchId = parts[1];
-                        var repositoryId = parts[2];
+                        var ref = item.ref;
+                        var nodeId = item.id;
+                        var branchId = item.branchId;
+                        var repositoryId = item.repositoryId;
+
+                        // TEMP: some legacy support to aid in transition
+                        if (!repositoryId || !branchId || !nodeId)
+                        {
+                            var identifier = ref.substring(ref.indexOf("://") + 3);
+                            var parts = identifier.split("/").reverse();
+
+                            nodeId = parts[0];
+                            branchId = parts[1];
+                            repositoryId = parts[2];
+                        }
 
                         // broadcast invalidation
                         process.broadcast.publish("node_invalidation", {
@@ -51,8 +59,8 @@ var handleInvalidations = function(items, callback) {
                             "nodeId": nodeId,
                             "branchId": branchId,
                             "repositoryId": repositoryId,
-                            "host": host,
-                            "isMasterBranch": item.isMasterBranch
+                            "isMasterBranch": item.isMasterBranch,
+                            "host": host
                         }, function(err) {
                             done(err);
                         });
@@ -69,9 +77,11 @@ var handleInvalidations = function(items, callback) {
                 }
                 else if (operation === "invalidate_application_page_rendition")
                 {
+                    //var type = item.type; // "pageRendition"
+
                     //var pageRenditionId = parts[0];
-                    var deploymentKey = parts[1];
-                    var applicationId = parts[2];
+                    var deploymentKey = item.deploymentKey;
+                    var applicationId = item.applicationId;
 
                     var repositoryId = item.repositoryId;
                     var branchId = item.branchId;
@@ -99,7 +109,30 @@ var handleInvalidations = function(items, callback) {
                     }
 
                     // broadcast invalidation
-                    process.broadcast.publish("page_rendition_invalidation", message, function(err) {
+                    process.broadcast.publish("invalidate_pagerendition", message, function(err) {
+                        done(err);
+                    });
+                }
+                else if (operation === "invalidate_application_all_page_renditions")
+                {
+                    var deploymentKey = item.deploymentKey;
+                    var applicationId = item.applicationId;
+
+                    var repositoryId = item.repositoryId;
+                    var branchId = item.branchId;
+                    var isMasterBranch = item.isMasterBranch;
+
+                    var message = {
+                        "branchId": branchId,
+                        "isMasterBranch": isMasterBranch,
+                        "repositoryId": repositoryId,
+                        "applicationId": applicationId,
+                        "deploymentKey": deploymentKey,
+                        "host": host
+                    };
+
+                    // broadcast invalidation
+                    process.broadcast.publish("invalidate_all_pagerenditions", message, function(err) {
                         done(err);
                     });
                 }
