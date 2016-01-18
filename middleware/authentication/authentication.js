@@ -56,6 +56,13 @@ exports = module.exports = function()
                 configuration.providers = {};
             }
 
+            if (!configuration.providers.google) {
+               configuration.providers.google = {};
+            }
+            if (process.env.CLOUDCMS_AUTH_PROVIDERS_GOOGLE_ENABLED === "true") {
+               configuration.providers.google.enabled = true;
+            }
+
             if (!configuration.providers.facebook) {
                configuration.providers.facebook = {};
             }
@@ -78,6 +85,7 @@ exports = module.exports = function()
             }
             if (process.env.CLOUDCMS_AUTH_PASS_TICKET === "true") {
                configuration.passTicket = true;
+               configuration.providers.google.passTicket = true;
                configuration.providers.facebook.passTicket = true;
                configuration.providers.twitter.passTicket = true;
                configuration.providers.linkedin.passTicket = true;
@@ -119,6 +127,7 @@ exports = module.exports = function()
                                     req.session.lastProviderInfo = info;
 
                                     if (err) {
+                                        console.log(err);
                                         return res.redirect(config.failureRedirect);
                                     }
 
