@@ -456,9 +456,18 @@ var startSlave = function(config, afterStartFn)
 
             if (process.configuration.session.type === "file")
             {
+                var options = {};
+                if(process.configuration.session.ttl)
+                {
+                    options.ttl = process.configuration.session.ttl;
+                }
+                if(process.configuration.session.reapInterval)
+                {
+                    options.reapInterval = process.configuration.session.reapInterval;
+                }
                 // session file store
                 var SessionFileStore = require('session-file-store')(session);
-                sessionConfig.store = new SessionFileStore();
+                sessionConfig.store = new SessionFileStore(options);
             }
 
             initializedSession = session(sessionConfig);
