@@ -2,20 +2,20 @@ var path = require('path');
 var fs = require('fs');
 var http = require('http');
 
-var GoogleStrategy = require('passport-google-oauth').OAuth2Strategy;
+var GithubStrategy = require('passport-github').Strategy;
 
 /**
- * Handles Google authentication.
+ * Handles github authentication.
  *
  * Configuration
  *
- *    "google": {
+ *    "github": {
  *       "enabled": true,
  *       "successRedirect": "/",
  *       "failureRedirect": "/",
+ *       "callbackUrl": "/auth/github/callback",
  *       "clientID": "[OAuth2 Client ID]",
  *       "clientSecret": "[OAuth2 Client Secret]",
- *       "callbackURL": "/auth/google/callback"
  *    }
  * }
  *
@@ -23,17 +23,17 @@ var GoogleStrategy = require('passport-google-oauth').OAuth2Strategy;
  */
 exports = module.exports = function(passport, config)
 {
-    var PROVIDER_ID = "google";
-    var PROVIDER_TITLE = "Google";
+    var PROVIDER_ID = "github";
+    var PROVIDER_TITLE = "Github";
 
     var r = {};
 
     var adapter = require("../adapter")(PROVIDER_ID, r, config);
 
-    passport.use(new GoogleStrategy({
+    passport.use(new GithubStrategy({
             clientID: config.clientID,
             clientSecret: config.clientSecret,
-            callbackURL: config.callbackURL,
+            callbackURL: config.callbackUrl,
             passReqToCallback: true
         },
         adapter.verifyCallback
@@ -51,18 +51,14 @@ exports = module.exports = function(passport, config)
 
     r.handleLogin = function(req, res, next)
     {
+        passport.authenticate(PROVIDER_ID)(req, res, next);
         passport.authenticate(PROVIDER_ID,{
-            scope:
-                [
-                    'profile',
-                    'email'
-                ]
+            scope: ['user']
         })(req, res, next);
     };
 
     r.handleCallback = function(req, res, next, cb)
     {
-        console.log("handleCallback " + JSON.stringify(req.query));
         passport.authenticate(PROVIDER_ID, {
             successRedirect: config.successRedirect,
             failureRedirect: config.failureRedirect//,
