@@ -28,7 +28,7 @@ var handleInvalidations = function(items, callback) {
                     }
                 }
 
-                //console.log("Heard: " + host + ", item: " + JSON.stringify(item, null, "  "));
+                console.log("Heard: " + host + ", item: " + JSON.stringify(item, null, "  "));
 
                 var operation = item.operation;
                 if (operation === "invalidate_object")
@@ -77,15 +77,18 @@ var handleInvalidations = function(items, callback) {
                 }
                 else if (operation === "invalidate_application_page_rendition")
                 {
-                    //var type = item.type; // "pageRendition"
-
-                    //var pageRenditionId = parts[0];
                     var deploymentKey = item.deploymentKey;
                     var applicationId = item.applicationId;
 
                     var repositoryId = item.repositoryId;
                     var branchId = item.branchId;
                     var isMasterBranch = item.isMasterBranch;
+
+                    // SAFETY CHECK: if no repository and/or branch, just bail
+                    if (!repositoryId || !branchId) {
+                        console.log("Missing repositoryId or branchId, skipping WCM page invalidation (1)");
+                        return done();
+                    }
 
                     var scope = item.scope;
                     var key = item.key;
@@ -95,12 +98,12 @@ var handleInvalidations = function(items, callback) {
                         "key": key,
                         "scope": scope,
                         "pageCacheKey": pageCacheKey,
-                        "branchId": branchId,
-                        "isMasterBranch": isMasterBranch,
-                        "repositoryId": repositoryId,
                         "applicationId": applicationId,
                         "deploymentKey": deploymentKey,
-                        "host": host
+                        "host": host,
+                        "repositoryId": repositoryId,
+                        "branchId": branchId,
+                        "isMasterBranch": isMasterBranch
                     };
 
                     var fragmentCacheKey = item.fragmentCacheKey;
@@ -109,30 +112,85 @@ var handleInvalidations = function(items, callback) {
                     }
 
                     // broadcast invalidation
-                    process.broadcast.publish("invalidate_pagerendition", message, function(err) {
+                    process.broadcast.publish("invalidate_page_rendition", message, function(err) {
                         done(err);
                     });
+                }
+                else if (operation === "invalidate_application_page_renditions")
+                {
+                    var invalidations = item.invalidations;
+                    if (invalidations && invalidations.length > 0)
+                    {
+                        var z_fns = [];
+                        for (var z = 0; z < invalidations.length; z++)
+                        {
+                            var z_fn = function(obj) {
+                                return function(z_done) {
+
+                                    var deploymentKey = obj.deploymentKey;
+                                    var applicationId = obj.applicationId;
+
+                                    var repositoryId = obj.repositoryId;
+                                    var branchId = obj.branchId;
+                                    var isMasterBranch = obj.isMasterBranch;
+
+                                    // SAFETY CHECK: if no repository and/or branch, just bail
+                                    if (!repositoryId || !branchId) {
+                                        console.log("Missing repositoryId or branchId, skipping WCM page invalidation (2)");
+                                        return z_done();
+                                    }
+
+                                    var scope = obj.scope;
+                                    var key = obj.key;
+                                    var pageCacheKey = obj.pageCacheKey;
+
+                                    var message = {
+                                        "key": key,
+                                        "scope": scope,
+                                        "pageCacheKey": pageCacheKey,
+                                        "applicationId": applicationId,
+                                        "deploymentKey": deploymentKey,
+                                        "host": host,
+                                        "repositoryId": repositoryId,
+                                        "branchId": branchId,
+                                        "isMasterBranch": isMasterBranch
+                                    };
+
+                                    var fragmentCacheKey = obj.fragmentCacheKey;
+                                    if (fragmentCacheKey) {
+                                        message.fragmentCacheKey = fragmentCacheKey;
+                                    }
+
+                                    // broadcast invalidation
+                                    process.broadcast.publish("invalidate_page_rendition", message, function(err) {
+                                        z_done(err);
+                                    });
+
+                                }
+                            }(invalidations[z]);
+                            z_fns.push(z_fn);
+                        }
+
+                        async.series(z_fns, function(err) {
+                            done(err);
+                        });
+                    }
                 }
                 else if (operation === "invalidate_application_all_page_renditions")
                 {
                     var deploymentKey = item.deploymentKey;
                     var applicationId = item.applicationId;
-
-                    var repositoryId = item.repositoryId;
-                    var branchId = item.branchId;
-                    var isMasterBranch = item.isMasterBranch;
+                    var scope = item.scope;
 
                     var message = {
-                        "branchId": branchId,
-                        "isMasterBranch": isMasterBranch,
-                        "repositoryId": repositoryId,
                         "applicationId": applicationId,
                         "deploymentKey": deploymentKey,
+                        "scope": scope,
                         "host": host
                     };
 
                     // broadcast invalidation
-                    process.broadcast.publish("invalidate_all_pagerenditions", message, function(err) {
+                    process.broadcast.publish("invalidate_all_page_renditions", message, function(err) {
                         done(err);
                     });
                 }

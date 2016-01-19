@@ -587,13 +587,12 @@ exports = module.exports = function()
 
                 var clearPageCacheFn = function(message)
                 {
-                    var repositoryId = message.repositoryId;
-                    var branchId = message.branchId;
                     var pageCacheKey = message.pageCacheKey;
                     var scope = message.scope;
-
                     var host = message.host;
 
+                    var repositoryId = message.repositoryId;
+                    var branchId = message.branchId;
                     // at the moment, caching on disk uses "master" for the master branch instead of the actual branch id
                     var isMasterBranch = message.isMasterBranch;
                     if (isMasterBranch)
@@ -613,7 +612,7 @@ exports = module.exports = function()
                                         console.log(" > Invalidated page [host: " + host + ", repository: " + repositoryId + ", branch: " + branchId + ", page: " + pageCacheKey + "]");
                                     }
 
-                                    return done();
+                                    return done2();
                                 });
                             }
                             else
