@@ -120,6 +120,9 @@ exports = module.exports = function()
                     "scope": "PAGE"
                 };
 
+                renditionObject.repositoryId = branch.getRepositoryId();
+                renditionObject.branchId = branch.getId();
+
                 if (descriptor.scope)
                 {
                     renditionObject.scope = descriptor.scope;
