@@ -28,7 +28,7 @@ var handleInvalidations = function(items, callback) {
                     }
                 }
 
-                console.log("Heard: " + host + ", item: " + JSON.stringify(item, null, "  "));
+                // console.log("Heard: " + host + ", item: " + JSON.stringify(item, null, "  "));
 
                 var operation = item.operation;
                 if (operation === "invalidate_object")
