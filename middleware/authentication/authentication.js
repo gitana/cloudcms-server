@@ -56,6 +56,13 @@ exports = module.exports = function()
                 configuration.providers = {};
             }
 
+            if (!configuration.providers.github) {
+               configuration.providers.github = {};
+            }
+            if (process.env.CLOUDCMS_AUTH_PROVIDERS_GITHUB_ENABLED === "true") {
+               configuration.providers.github.enabled = true;
+            }
+
             if (!configuration.providers.google) {
                configuration.providers.google = {};
             }
@@ -85,6 +92,7 @@ exports = module.exports = function()
             }
             if (process.env.CLOUDCMS_AUTH_PASS_TICKET === "true") {
                configuration.passTicket = true;
+               configuration.providers.github.passTicket = true;
                configuration.providers.google.passTicket = true;
                configuration.providers.facebook.passTicket = true;
                configuration.providers.twitter.passTicket = true;
