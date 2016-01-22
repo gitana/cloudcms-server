@@ -314,7 +314,8 @@ exports = module.exports = function()
                 {
                     cb({
                         "message": "Failed to refresh authentication token: " + JSON.stringify(err),
-                        "err": previousError
+                        "err": previousError,
+                        "invalidateGitanaDriver": true
                     });
 
                     return;
