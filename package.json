@@ -2,11 +2,11 @@
   "author": {
     "name": "Gitana Software, Inc.",
     "email": "info@cloudcms.com",
-    "url": "http://www.cloudcms.com"
+    "url": "https://www.cloudcms.com"
   },
   "name": "cloudcms-server",
   "description": "Cloud CMS Application Server Module",
-  "version": "0.8.206",
+  "version": "0.8.207",
   "repository": {
     "type": "git",
     "url": "git://github.com/gitana/cloudcms-server.git"
@@ -86,7 +86,12 @@
     "mobile",
     "content management",
     "javascript",
-    "nodejs"
+    "nodejs",
+    "api",
+    "jsoncms",
+    "baas",
+    "caching",
+    "renditions"
   ],
   "main": "index"
 }
