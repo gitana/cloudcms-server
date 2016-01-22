@@ -37,6 +37,10 @@ var duster = require("../duster/index");
 
 var defaultHelpers = require("../duster/helpers/default");
 
+var toobusy = require("toobusy-js");
+//toobusy.maxLag(10);
+//toobusy.interval(250);
+
 var requestCounter = 0;
 
 // holds configuration settings
@@ -564,6 +568,15 @@ var startSlave = function(config, afterStartFn)
                 });
                 */
 
+                // middleware which blocks requests when we're too busy
+                app.use(function(req, res, next) {
+                    if (toobusy()) {
+                        res.status(503).send("The web application is too busy to serve this request.  Please try again.");
+                    } else {
+                        next();
+                    }
+                });
+
                 // add req.id  re
                 app.use(function (req, res, next) {
                     requestCounter++;
@@ -721,16 +734,24 @@ var startSlave = function(config, afterStartFn)
                 // welcome files
                 main.welcome(app);
 
-                // healthcheck
-                app.get("/healthcheck", function (req, res, next) {
-                    res.status(200).end();
-                });
-
                 // configure cloudcms app server command handing
                 main.interceptors(app, true);
 
                 //app.use(app.router);
                 app.use(errorHandler());
+
+                // used to test the busy handling of toobusy module
+                /*
+                app.get('/busy', function(req, res) {
+                    // processing the request requires some work!
+                    var i = 0;
+                    while (i < 1e9) i++;
+                    res.send("I counted to " + i);
+                });
+                */
+
+                // healthcheck middleware
+                main.healthcheck(app);
 
                 // APPLY CUSTOM ROUTES
                 runFunctions(config.routeFunctions, [app], function (err) {
@@ -854,6 +875,27 @@ var startSlave = function(config, afterStartFn)
 
                                 // AFTER SERVER START
                                 runFunctions(config.afterFunctions, [app], function (err) {
+
+                                    // listen for kill or interrupt so that we can shut down cleanly
+                                    process.on('SIGINT', function() {
+
+                                        console.log("");
+                                        console.log("");
+
+                                        console.log("Cloud CMS Module shutting down");
+                                        // close server connections as cleanly as we can
+                                        console.log(" -> Closing server connections");
+                                        try { server.close(); } catch (e) { console.log("Server.close produced error: " + JSON.stringify(e)); }
+
+                                        // ask toobusy to shut down as cleanly as we can
+                                        console.log(" -> Closing toobusy monitor");
+                                        try { toobusy.shutdown(); } catch (e) { console.log("toobusy.shutdown produced error: " + JSON.stringify(e)); }
+
+                                        console.log("");
+
+                                        // tell the process to exit
+                                        process.exit();
+                                    });
 
                                     // if we are on a worker process, then inform the master that we completed
                                     if (process.send)

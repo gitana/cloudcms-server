@@ -75,6 +75,7 @@ exports = module.exports = function()
     var final = require("./middleware/final/final");
     var flow = require("./middleware/flow/flow");
     //var hashlessRouting = require("./middleware/hashless-routing/hashless-routing");
+    var healthcheck = require("./middleware/healthcheck/healthcheck");
     var host = require("./middleware/host/host");
     var libraries = require("./middleware/libraries/libraries");
     var local = require("./middleware/local/local");
@@ -262,6 +263,12 @@ exports = module.exports = function()
     {
         // support for "welcome" files (i.e. index.html)
         app.use(welcome.welcomeInterceptor());
+    };
+
+    r.healthcheck = function(app)
+    {
+        // support for healthcheck urls
+        app.use(healthcheck.handler());
     };
 
     r.interceptors = function(app, includeCloudCMS)
