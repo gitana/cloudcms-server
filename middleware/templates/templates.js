@@ -18,7 +18,7 @@ exports = module.exports = function()
      */
     r.handler = function()
     {
-        return util.createHandler("templates", function(req, res, next, configuration, stores) {
+        return util.createHandler("templates", function(req, res, next, stores, cache, configuration) {
 
             var templateStore = stores.templates;
 

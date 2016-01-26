@@ -108,7 +108,7 @@ exports = module.exports = function()
 
     r.interceptor = function()
     {
-        return util.createInterceptor("driverConfig", function(req, res, next, configuration, stores) {
+        return util.createInterceptor("driverConfig", function(req, res, next, stores, cache, configuration) {
 
             // if we already found req.gitanaConfig in the virtual driver, skip this step
             if (req.gitanaConfig)

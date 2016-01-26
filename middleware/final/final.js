@@ -28,10 +28,9 @@ exports = module.exports = function()
      */
     r.finalHandler = function()
     {
-        return function(req, res, next)
-        {
+        return util.createHandler("final", function(req, res, next, stores, cache, configuration) {
             util.status(res, 404).end();
-        };
+        });
     };
 
     return r;

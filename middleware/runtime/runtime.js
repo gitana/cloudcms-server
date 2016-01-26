@@ -113,8 +113,8 @@ exports = module.exports = function()
      */
     r.interceptor = function()
     {
-        return function(req, res, next)
-        {
+        return util.createInterceptor("runtime", function(req, res, next, stores, cache, configuration) {
+
             var store = req.stores.content;
 
             store.existsFile("runtime.json", function(exists) {
@@ -151,7 +151,7 @@ exports = module.exports = function()
                     });
                 }
             })
-        }
+        });
     };
 
     /**
@@ -161,8 +161,8 @@ exports = module.exports = function()
      */
     r.handler = function()
     {
-        return function(req, res, next)
-        {
+        return util.createHandler("runtime", function(req, res, next, stores, cache, configuration) {
+
             var handled = false;
 
             if (req.method.toLowerCase() === "get") {
@@ -210,7 +210,7 @@ exports = module.exports = function()
             {
                 next();
             }
-        }
+        });
     };
 
     return r;

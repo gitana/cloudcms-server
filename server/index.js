@@ -38,8 +38,10 @@ var duster = require("../duster/index");
 var defaultHelpers = require("../duster/helpers/default");
 
 var toobusy = require("toobusy-js");
-//toobusy.maxLag(10);
-//toobusy.interval(250);
+toobusy.maxLag(500); // 500 ms lag in event queue, quite high but usable for now
+toobusy.interval(250);
+
+var responseTime = require("response-time");
 
 var requestCounter = 0;
 
@@ -224,6 +226,10 @@ var SETTINGS = {
     },
     "modules": {
         "enabled": true
+    },
+    "debug": {
+        "enabled": false,
+        "logGlobalTimings": false
     }
 };
 
@@ -577,6 +583,17 @@ var startSlave = function(config, afterStartFn)
                     }
                 });
 
+                // gather statistics on response time
+                app.use(responseTime(function(req, res, time) {
+
+                    var warn = false;
+                    if (time > 250) {
+                        warn = true;
+                    }
+
+                    req.log(req.method + " " + req.originalPath + " [" + res.statusCode + "] (" + time.toFixed(2) + " ms)", warn);
+                }));
+
                 // add req.id  re
                 app.use(function (req, res, next) {
                     requestCounter++;
@@ -584,6 +601,7 @@ var startSlave = function(config, afterStartFn)
                     next();
                 });
 
+                // retain originalUrl and originalPath since these can get modified along the way
                 app.use(function (req, res, next) {
                     req.originalUrl = req.url;
                     req.originalPath = req.path;
@@ -596,7 +614,7 @@ var startSlave = function(config, afterStartFn)
                 // add req.log function
                 app.use(function (req, res, next) {
 
-                    req.log = function (text) {
+                    req._log = req.log = function(text, warn) {
 
                         var host = req.domainHost;
                         if (!host)
@@ -626,10 +644,13 @@ var startSlave = function(config, afterStartFn)
                         message += grayColor + text + '';
                         message += finalColor;
 
+                        if (warn)
+                        {
+                            message = "\r\n**** WARNING ****\r\n" + message + "\r\n";
+                        }
+
                         console.log(message);
                     };
-
-                    req._log = req.log;
 
                     next();
                 });
@@ -643,11 +664,13 @@ var startSlave = function(config, afterStartFn)
                 // common interceptors and config
                 main.common1(app);
 
+                /*
                 // initial log
                 app.use(function (req, res, next) {
-                    req.log(req.method + " " + req.url);
+                    req.log("<req> " + req.method + " " + req.url);
                     next();
                 });
+                */
 
                 // set up CORS allowances
                 // this lets CORS requests float through the proxy
@@ -739,16 +762,6 @@ var startSlave = function(config, afterStartFn)
 
                 //app.use(app.router);
                 app.use(errorHandler());
-
-                // used to test the busy handling of toobusy module
-                /*
-                app.get('/busy', function(req, res) {
-                    // processing the request requires some work!
-                    var i = 0;
-                    while (i < 1e9) i++;
-                    res.send("I counted to " + i);
-                });
-                */
 
                 // healthcheck middleware
                 main.healthcheck(app);

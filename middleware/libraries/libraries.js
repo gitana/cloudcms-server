@@ -33,14 +33,13 @@ exports = module.exports = function()
      */
     r.handler = function()
     {
-        return function(req, res, next)
-        {
+        return util.createHandler("lib", function(req, res, next, stores, cache, configuration) {
+
             var uri = req.path;
 
             if (uri.indexOf("/_lib/") !== 0)
             {
-                next();
-                return;
+                return next();
             }
 
             // otherwise, it's a library file
@@ -91,7 +90,7 @@ exports = module.exports = function()
                 }
 
             });
-        };
+        });
     };
 
     var wrapWithGitanaInjection = function(req, res, next)

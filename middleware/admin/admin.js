@@ -2,8 +2,6 @@ var path = require('path');
 var fs = require('fs');
 var http = require('http');
 var util = require("../../util/util");
-var Gitana = require("gitana");
-var duster = require("../../duster/index");
 
 /**
  * Admin middleware.
@@ -89,8 +87,8 @@ exports = module.exports = function()
      */
     r.handler = function()
     {
-        return function(req, res, next)
-        {
+        return util.createHandler("admin", function(req, res, next, stores, cache, configuration) {
+
             var handled = false;
 
             var completionFn = function(res, err)
@@ -133,7 +131,7 @@ exports = module.exports = function()
             {
                 next();
             }
-        }
+        });
     };
 
     return r;

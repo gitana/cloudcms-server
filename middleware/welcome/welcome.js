@@ -30,7 +30,7 @@ exports = module.exports = function()
      */
     r.welcomeInterceptor = function()
     {
-        return util.createInterceptor("welcome", function(req, res, next, configuration) {
+        return util.createInterceptor("welcome", function(req, res, next, stores, cache, configuration) {
 
             if (configuration.file)
             {

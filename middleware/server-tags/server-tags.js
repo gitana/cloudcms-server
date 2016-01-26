@@ -25,7 +25,7 @@ exports = module.exports = function()
 
     r.interceptor = function()
     {
-        return util.createInterceptor("serverTags", function(req, res, next, configuration, stores) {
+        return util.createInterceptor("serverTags", function(req, res, next, stores, cache, configuration) {
 
             var webStore = stores.web;
 

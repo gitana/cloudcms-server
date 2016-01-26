@@ -262,7 +262,7 @@ exports = module.exports = function()
 
     r.interceptor = function()
     {
-        return util.createInterceptor("virtualDriver", function(req, res, next, configuration) {
+        return util.createInterceptor("virtualDriver", function(req, res, next, stores, cache, configuration) {
 
             // safety check: if we're running locally, then we disable virtual hosts
             if (req.gitanaLocal) {

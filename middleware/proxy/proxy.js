@@ -180,15 +180,13 @@ exports = module.exports = function()
         var cacheTTL = _cacheTTL(req);
         if (cacheTTL <= 0)
         {
-            callback();
-            return;
+            return callback();
         }
 
         var contentStore = req.stores.content;
         if (!contentStore)
         {
-            callback(false);
-            return;
+            return callback(false);
         }
 
         var filePath = path.join("proxy", req.path);
@@ -255,24 +253,33 @@ exports = module.exports = function()
     if (proxyScheme.toLowerCase() === "https")
     {
         proxyConfig.agent = new ForeverAgent.SSL({
-            //maxSockets: 500,
-            //maxFreeSockets: 100,
+            maxSockets: Infinity,
+            maxFreeSockets: 256,
             keepAlive: true,
-            keepAliveMsecs: 1000 * 60 * 5
+            keepAliveMsecs: 5000
         });
     }
     else if (proxyScheme.toLowerCase() === "http")
     {
         proxyConfig.agent = new ForeverAgent({
-            //maxSockets: 500,
-            //maxFreeSockets: 100,
+            maxSockets: Infinity,
+            maxFreeSockets: 256,
             keepAlive: true,
-            keepAliveMsecs: 1000 * 60 * 5
+            keepAliveMsecs: 5000
         });
     }
 
+    /*
+    proxyConfig.maxSockets = Infinity;
     proxyConfig.keepAlive = true;
-    proxyConfig.keepAliveMsecs = 1000 * 60 * 5;
+    proxyConfig.keepAliveMsecs = 5000;
+    proxyConfig.agent = new http.Agent({
+        maxSockets: Infinity,
+        maxFreeSockets: 256,
+        keepAlive: true,
+        keepAliveMsecs: 5000
+    });
+    */
 
     var proxyServer = new httpProxy.createProxyServer(proxyConfig);
 
@@ -462,8 +469,8 @@ exports = module.exports = function()
         // bind listeners for broadcast events
         bindSubscriptions.call(this);
 
-        return function(req, res, next)
-        {
+        return util.createHandler("proxy", function(req, res, next, stores, cache, configuration) {
+
             if (req.url.indexOf("/proxy") === 0)
             {
                 req.url = req.url.substring(6); // to strip off /proxy
@@ -494,7 +501,7 @@ exports = module.exports = function()
             {
                 next();
             }
-        };
+        });
     };
 
     var bound = false;

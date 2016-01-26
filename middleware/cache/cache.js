@@ -1,6 +1,8 @@
 var path = require("path");
 var async = require("async");
 
+var util = require("../../util/util");
+
 /**
  * Cache middleware.
  *
@@ -191,15 +193,15 @@ exports = module.exports = function()
     {
         var self = this;
 
-        return function(req, res, next)
-        {
+        return util.createInterceptor("cache", function(req, res, next, stores, cache, configuration) {
+
             if (req.applicationId)
             {
                 req.cache = createNamespacedCache.call(self, req.applicationId);
             }
 
             next();
-        }
+        });
     };
 
     r.deploymentDescriptorCache = function()

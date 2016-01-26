@@ -286,8 +286,8 @@ exports = module.exports = function()
         // the auto refresh runner ensures that the virtual driver gitana is always refreshed
         autoRefreshRunner();
 
-        return function(req, res, next)
-        {
+        return util.createInterceptor("driver", function(req, res, next, stores, cache, configuration) {
+
             resolveGitanaConfig(req, function(err, gitanaConfig) {
 
                 if (err) {
@@ -335,7 +335,7 @@ exports = module.exports = function()
                 });
 
             });
-        }
+        });
     };
 
     return r;

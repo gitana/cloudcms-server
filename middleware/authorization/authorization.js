@@ -30,7 +30,7 @@ exports = module.exports = function()
      */
     r.authorizationInterceptor = function()
     {
-        return util.createInterceptor("authorization", function(req, res, next, configuration) {
+        return util.createInterceptor("authorization", "auth", function(req, res, next, stores, cache, configuration) {
 
             var pathRequiresAuthorization = false;
 

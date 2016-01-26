@@ -35,7 +35,7 @@ exports = module.exports = function()
 
     r.authenticationInterceptor = function(app)
     {
-        return util.createInterceptor("authentication", function(req, res, next, configuration) {
+        return util.createInterceptor("authentication", "auth", function(req, res, next, stores, cache, configuration) {
             next();
         });
     };
@@ -47,7 +47,7 @@ exports = module.exports = function()
      */
     r.handler = function(app)
     {
-        return util.createHandler("auth", function(req, res, next, configuration) {
+        return util.createHandler("authentication", "auth", function(req, res, next, stores, cache, configuration) {
 
             var handled = false;
 

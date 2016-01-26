@@ -7,6 +7,7 @@ var uuid = require("node-uuid");
 var os = require("os");
 var async = require("async");
 var temp = require('temp');
+var onHeaders = require('on-headers')
 
 var VALID_IP_ADDRESS_REGEX_STRING = "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$";
 
@@ -650,47 +651,153 @@ var merge = exports.merge = function(source, target)
     }
 };
 
-var createHandler = exports.createHandler = function(name, fn)
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+//
+// TIMING
+//
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+// global pool of interceptor timings
+process.timings = {};
+var incrementTimings = function(req, family, id, time)
 {
+    var increment = function(map, family, id, time)
+    {
+        var key = family + ":" + id;
+
+        // interceptor timings
+        if (!map[key]) {
+            map[key] = {
+                count: 0,
+                total: 0,
+                avg: 0
+            };
+        }
+
+        map[key].count++;
+        map[key].total += time;
+        map[key].avg = map[key].total / map[key].count;
+        map[key].avg = map[key].avg.toFixed(2);
+    };
+
+    // increment global timings
+    increment(process.timings, family, id, time);
+
+    // increment request timings
+    if (!req.timings) {
+        req.timings = {};
+    }
+    increment(req.timings, family, id, time);
+};
+
+var getGlobalTimings = exports.getGlobalTimings = function()
+{
+    return process.timings;
+};
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+//
+// CREATE INTERCEPTOR / HANDLER
+//
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+
+var createHandler = exports.createHandler = function(id, configName, fn)
+{
+    if (typeof(configName) === "function") {
+        fn = configName;
+        configName = id;
+    }
+
     return function(req, res, next) {
 
-        req.configuration(name, function(err, handleConfiguration) {
+        var startAt = process.hrtime();
+
+        // override next so that we can capture completion of interceptor
+        var _next = next;
+        next = function(err) {
+            if (startAt)
+            {
+                var diff = process.hrtime(startAt);
+                var time = diff[0] * 1e3 + diff[1] * 1e-6;
+                incrementTimings(req, "handler", id, time);
+                startAt = null;
+            }
+            return _next.call(_next, err);
+        };
+        onHeaders(res, function() {
+            if (startAt)
+            {
+                var diff = process.hrtime(startAt);
+                var time = diff[0] * 1e3 + diff[1] * 1e-6;
+                incrementTimings(req, "handler", id, time);
+                startAt = null;
+            }
+        });
+
+        req.configuration(configName, function(err, handlerConfiguration) {
 
             if (err) {
-                next(err);
-                return;
+                return next(err);
             }
 
-            if (!handleConfiguration.enabled)
+            if (handlerConfiguration && !handlerConfiguration.enabled)
             {
-                next();
-                return;
+                return next();
             }
 
-            fn(req, res, next, handleConfiguration, req.stores, req.cache);
-
+            fn(req, res, next, req.stores, req.cache, handlerConfiguration);
         });
     };
 };
 
-var createInterceptor = exports.createInterceptor = function(name, fn)
+var createInterceptor = exports.createInterceptor = function(id, configName, fn)
 {
+    if (typeof(configName) === "function") {
+        fn = configName;
+        configName = id;
+    }
+
     return function(req, res, next) {
 
-        req.configuration(name, function(err, handleConfiguration) {
+        var startAt = process.hrtime();
+
+        // override next so that we can capture completion of interceptor
+        var _next = next;
+        next = function(err) {
+            if (startAt > -1)
+            {
+                var diff = process.hrtime(startAt);
+                var time = diff[0] * 1e3 + diff[1] * 1e-6;
+                incrementTimings(req, "interceptor", id, time);
+                startAt = -1;
+            }
+            return _next.call(_next, err);
+        };
+        onHeaders(res, function() {
+            if (startAt > -1)
+            {
+                var diff = process.hrtime(startAt);
+                var time = diff[0] * 1e3 + diff[1] * 1e-6;
+                incrementTimings(req, "interceptor", id, time);
+                startAt = -1;
+            }
+        });
+
+        req.configuration(configName, function(err, interceptorConfiguration) {
 
             if (err) {
-                next(err);
-                return;
+                return next(err);
             }
 
-            if (!handleConfiguration.enabled)
+            if (interceptorConfiguration && !interceptorConfiguration.enabled)
             {
-                next();
-                return;
+                return next();
             }
 
-            fn(req, res, next, handleConfiguration, req.stores, req.cache);
+            fn(req, res, next, req.stores, req.cache, interceptorConfiguration);
         });
     };
 };

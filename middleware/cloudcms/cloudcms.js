@@ -319,8 +319,8 @@ exports = module.exports = function()
      */
     r.repositoryInterceptor = function()
     {
-        return function(req, res, next)
-        {
+        return util.createInterceptor("repository", function(req, res, next, stores, cache, configuration) {
+
             if (req.gitana && req.gitana.datastore)
             {
                 var repository = req.gitana.datastore("content");
@@ -346,7 +346,7 @@ exports = module.exports = function()
             }
 
             next();
-        }
+        });
     };
 
     /**
@@ -356,8 +356,8 @@ exports = module.exports = function()
      */
     r.branchInterceptor = function()
     {
-        return function(req, res, next)
-        {
+        return util.createInterceptor("branch", function(req, res, next, stores, cache, configuration) {
+
             if (req.gitana)
             {
                 var cookieBranchId = req.cookies["cloudcms-server-branch-id"];
@@ -433,7 +433,7 @@ exports = module.exports = function()
             }
 
             next();
-        }
+        });
     };
 
     /**
@@ -443,8 +443,8 @@ exports = module.exports = function()
      */
     r.domainInterceptor = function()
     {
-        return function(req, res, next)
-        {
+        return util.createInterceptor("domain", function(req, res, next, stores, cache, configuration) {
+
             if (req.gitana && req.gitana.datastore)
             {
                 var domain = req.gitana.datastore("principals");
@@ -463,7 +463,7 @@ exports = module.exports = function()
             }
 
             next();
-        }
+        });
     };
 
     /**
@@ -473,8 +473,8 @@ exports = module.exports = function()
      */
     r.applicationInterceptor = function()
     {
-        return function(req, res, next)
-        {
+        return util.createInterceptor("application", function(req, res, next, stores, cache, configuration) {
+
             if (req.gitana && req.gitana.datastore)
             {
                 var application = req.gitana.application();
@@ -490,7 +490,7 @@ exports = module.exports = function()
             }
 
             next();
-        }
+        });
     };
 
     /**
@@ -517,7 +517,8 @@ exports = module.exports = function()
      * @return {Function}
      */
     r.cmsLogInterceptor = function() {
-        return function (req, res, next) {
+
+        return util.createInterceptor("cmslog", function(req, res, next, stores, cache, configuration) {
 
             // define function
             req.cmsLog = function (message, level, data, callback) {
@@ -552,7 +553,7 @@ exports = module.exports = function()
             };
 
             next();
-        };
+        });
     };
 
     /**
@@ -604,7 +605,7 @@ exports = module.exports = function()
         // bind listeners for broadcast events
         bindSubscriptions.call(this);
 
-        return util.createHandler("virtualContent", function(req, res, next, configuration, stores) {
+        return util.createHandler("virtualNode", null, function(req, res, next, stores, cache, configuration) {
 
             var contentStore = stores.content;
 
@@ -1166,7 +1167,7 @@ exports = module.exports = function()
         // bind listeners for broadcast events
         bindSubscriptions.call(this);
 
-        return util.createHandler("virtualContent", function(req, res, next, configuration, stores) {
+        return util.createHandler("virtualPrincipal", null, function(req, res, next, stores, cache, configuration) {
 
             var contentStore = stores.content;
 

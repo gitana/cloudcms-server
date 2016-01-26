@@ -15,7 +15,7 @@ exports = module.exports = function()
     var r = {};
 
     r.interceptor = function() {
-        return util.createInterceptor("virtualHost", function (req, res, next, configuration, stores) {
+        return util.createInterceptor("virtualHost", function (req, res, next, stores, cache, configuration) {
 
             var completionFunction = function (err, descriptor) {
 

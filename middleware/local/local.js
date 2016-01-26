@@ -33,7 +33,7 @@ exports = module.exports = function()
      */
     r.webStoreHandler = function()
     {
-        return util.createHandler("local", function(req, res, next, configuration, stores) {
+        return util.createHandler("webStore", function(req, res, next, stores, cache, configuration) {
 
             if (req.virtualFiles)
             {
@@ -83,7 +83,7 @@ exports = module.exports = function()
      */
     r.defaultHandler = function()
     {
-        return util.createHandler("local", function(req, res, next, configuration, stores) {
+        return util.createHandler("localStore", function(req, res, next, stores, cache, configuration) {
 
             var webStore = stores.web;
 

@@ -142,7 +142,7 @@ exports = module.exports = function()
 
     r.handler = function()
     {
-        return util.createHandler("modules", function(req, res, next, configuration, stores) {
+        return util.createHandler("modules", function(req, res, next, stores, cache, configuration) {
 
             var handled = false;
 

@@ -50,7 +50,7 @@ exports = module.exports = function()
      */
     r.pathPerformanceInterceptor = function()
     {
-        return util.createInterceptor("perf", function(req, res, next, configuration, stores) {
+        return util.createInterceptor("perf", function(req, res, next, stores, cache, configuration) {
 
             // NOTE: if we're not in production mode, we don't do any of this
             if (process.env.CLOUDCMS_APPSERVER_MODE === "production" || TEST_MODE)
@@ -133,7 +133,7 @@ exports = module.exports = function()
      */
     r.mimeTypePerformanceInterceptor = function()
     {
-        return util.createInterceptor("perf", function(req, res, next, configuration, stores) {
+        return util.createInterceptor("perf", function(req, res, next, stores, cache, configuration) {
 
             // NOTE: if we're not in production mode, we don't do any of this
             if (process.env.CLOUDCMS_APPSERVER_MODE == "production" || TEST_MODE)

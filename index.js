@@ -69,12 +69,12 @@ exports = module.exports = function()
     var cache = require("./middleware/cache/cache");
     var cloudcms = require("./middleware/cloudcms/cloudcms");
     var config = require("./middleware/config/config");
+    var debug = require("./middleware/debug/debug");
     var deployment = require("./middleware/deployment/deployment");
     var driver = require("./middleware/driver/driver");
     var driverConfig = require("./middleware/driver-config/driver-config");
     var final = require("./middleware/final/final");
     var flow = require("./middleware/flow/flow");
-    //var hashlessRouting = require("./middleware/hashless-routing/hashless-routing");
     var healthcheck = require("./middleware/healthcheck/healthcheck");
     var host = require("./middleware/host/host");
     var libraries = require("./middleware/libraries/libraries");
@@ -200,23 +200,15 @@ exports = module.exports = function()
                 {
                     if (typeof(name) === "function")
                     {
-                        callback(null, configuration);
-                        return;
+                        return callback(null, configuration);
                     }
 
                     if (!name)
                     {
-                        callback(null, configuration);
+                        return callback();
                     }
-                    else
-                    {
-                        var c = configuration[name];
-                        if (!c) {
-                            c = {};
-                        }
 
-                        callback(null, c);
-                    }
+                    callback(null, configuration[name]);
                 };
 
                 req.isEnabled = function(name)
@@ -327,6 +319,9 @@ exports = module.exports = function()
 
         // handles admin commands
         app.use(admin.handler());
+
+        // handles debug commands
+        app.use(debug.handler());
 
         // handles deploy/undeploy commands
         app.use(deployment.handler());

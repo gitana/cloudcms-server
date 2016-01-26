@@ -273,8 +273,8 @@ exports = module.exports = function()
      */
     r.handler = function()
     {
-        return function(req, res, next)
-        {
+        return util.createHandler("registration", function(req, res, next, stores, cache, configuration) {
+
             var handled = false;
 
             if (req.method.toLowerCase() === "post") {
@@ -290,7 +290,7 @@ exports = module.exports = function()
             {
                 next();
             }
-        }
+        });
     };
 
     return r;

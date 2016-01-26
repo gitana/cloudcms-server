@@ -186,7 +186,7 @@ exports = module.exports = function()
         bindSubscriptions();
 
         // config handler
-        return util.createHandler("config", function(req, res, next, configuration, stores) {
+        return util.createHandler("config", function(req, res, next, stores, cache, configuration) {
 
             var configStore = stores.config;
 

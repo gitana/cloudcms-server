@@ -707,7 +707,7 @@ exports = module.exports = function()
 
     r.wcmInterceptor = function()
     {
-        return util.createInterceptor("wcm", function(req, res, next, configuration, stores) {
+        return util.createInterceptor("wcm", function(req, res, next, stores, cache, configuration) {
 
             if (!isEnabled())
             {
@@ -792,7 +792,7 @@ exports = module.exports = function()
         bindSubscriptions();
 
         // wcm handler
-        return util.createHandler("wcm", function(req, res, next, configuation, stores) {
+        return util.createHandler("wcm", function(req, res, next, stores, cache, configuration) {
 
             if (!isEnabled())
             {
