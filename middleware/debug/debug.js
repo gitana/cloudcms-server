@@ -62,15 +62,11 @@ exports = module.exports = function()
 
             var handled = false;
 
-            console.log("a1: " + req.method);
             if (req.method.toLowerCase() === "get") {
 
-                console.log("a2: " + req.url);
                 if (req.url.indexOf("/_debug/timings") === 0)
                 {
-                    console.log("a3");
                     var timings = util.getGlobalTimings();
-                    console.log("a4: " + timings);
 
                     res.status(200).json({
                         "ok": true,
