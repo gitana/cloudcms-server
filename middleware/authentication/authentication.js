@@ -56,6 +56,13 @@ exports = module.exports = function()
                 configuration.providers = {};
             }
 
+            if (!configuration.providers.cas) {
+               configuration.providers.cas = {};
+            }
+            if (process.env.CLOUDCMS_AUTH_PROVIDERS_CAS_ENABLED === "true") {
+               configuration.providers.cas.enabled = true;
+            }
+
             if (!configuration.providers.github) {
                configuration.providers.github = {};
             }
