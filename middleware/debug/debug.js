@@ -34,6 +34,43 @@ exports = module.exports = function()
     };
     logGlobalTimingsFn();
 
+    var logMemory = true;
+
+    var MB = 1024*1024;
+    var oldHeapTotal = 0;
+    var shuttingDown = false;
+
+    var logMemoryFn = function() {
+        setTimeout(function() {
+
+            if (shuttingDown)
+            {
+                return;
+            }
+
+            var memUsage = process.memoryUsage();
+
+            var newRss = (memUsage.rss / MB).toFixed(2);
+            var newHeap = (memUsage.heapUsed / MB).toFixed(2);
+            var newHeapTotal = (memUsage.heapTotal / MB).toFixed(2);
+            var deltaHeapTotal = (newHeapTotal - oldHeapTotal).toFixed(2);
+
+            console.log('RSS: ' + newRss + ' MB, Heap Used: ' + newHeap + ' MB, Heap Total: ' + newHeapTotal + ' MB, Heap Total Change: ' + deltaHeapTotal + ' MB');
+
+            oldHeapTotal = newHeapTotal;
+
+            logMemoryFn();
+        }, 15000);
+    };
+    logMemoryFn();
+
+    // listen for kill or interrupt so that we can shut down cleanly
+    process.on('SIGINT', function() {
+        shuttingDown = true;
+    });
+
+
+
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
@@ -54,7 +91,15 @@ exports = module.exports = function()
         {
             if (process.configuration.debug)
             {
-                logGlobalTimings = process.configuration.debug.logGlobalTimings;
+                if (typeof(process.configuration.debug.logGlobalTimings) !== "undefined")
+                {
+                    logGlobalTimings = process.configuration.debug.logGlobalTimings;
+                }
+
+                if (typeof(process.configuration.debug.logMemory) !== "undefined")
+                {
+                    logMemory = process.configuration.debug.logMemory;
+                }
             }
         }
 

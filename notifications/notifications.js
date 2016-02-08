@@ -70,6 +70,63 @@ var handleInvalidations = function(items, callback) {
                         done();
                     }
                 }
+                else if (operation === "invalidate_objects")
+                {
+                    var invalidations = item.invalidations;
+                    if (invalidations && invalidations.length > 0)
+                    {
+                        var z_fns = [];
+                        for (var z = 0; z < invalidations.length; z++)
+                        {
+                            var z_fn = function(obj) {
+                                return function(z_done) {
+
+                                    var type = obj.type;
+
+                                    if (type === "node")
+                                    {
+                                        var ref = obj.ref;
+                                        var nodeId = obj.id;
+                                        var branchId = obj.branchId;
+                                        var repositoryId = obj.repositoryId;
+
+                                        // TEMP: some legacy support to aid in transition
+                                        if (!repositoryId || !branchId || !nodeId)
+                                        {
+                                            var identifier = ref.substring(ref.indexOf("://") + 3);
+                                            var parts = identifier.split("/").reverse();
+
+                                            nodeId = parts[0];
+                                            branchId = parts[1];
+                                            repositoryId = parts[2];
+                                        }
+
+                                        // broadcast invalidation
+                                        process.broadcast.publish("node_invalidation", {
+                                            "ref": ref,
+                                            "nodeId": nodeId,
+                                            "branchId": branchId,
+                                            "repositoryId": repositoryId,
+                                            "isMasterBranch": obj.isMasterBranch,
+                                            "host": host
+                                        }, function(err) {
+                                            z_done(err);
+                                        });
+                                    }
+                                    else
+                                    {
+                                        z_done();
+                                    }
+                                }
+                            }(invalidations[z]);
+                            z_fns.push(z_fn);
+                        }
+
+                        async.series(z_fns, function(err) {
+                            done(err);
+                        });
+                    }
+                }
                 else if (operation === "invalidate_application")
                 {
                     // TODO: invalidate any cache dependent on application
