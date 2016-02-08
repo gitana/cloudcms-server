@@ -190,7 +190,7 @@ exports = module.exports = function()
                     }
                     else
                     {
-                        res.status(200).type("application/json").send(JSON.stringify({"ok": true}));
+                        res.status(200).type("application/json").send(JSON.stringify({"ok": true, "userId": principal._doc}));
                     }
                 });
             };
