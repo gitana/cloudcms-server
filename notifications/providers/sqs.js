@@ -61,13 +61,13 @@ module.exports.process = function(callback)
     var sqs = holder.sqs;
     if (!sqs)
     {
-        return;
+        return callback();
     }
 
     var sqsParams = holder.sqsParams;
     if (!sqsParams)
     {
-        return;
+        return callback();
     }
 
     sqs.receiveMessage(sqsParams, function (err, data) {
@@ -138,27 +138,25 @@ module.exports.process = function(callback)
             {
                 deletionEntries.push(items[i]._deletionEntry);
             }
-            if (deletionEntries.length > 0)
+            if (deletionEntries.length === 0)
             {
-                var params = {
-                    Entries: deletionEntries,
-                    QueueUrl: holder.sqsParams.QueueUrl
-                };
-                sqs.deleteMessageBatch(params, function(err2, data) {
-
-                    if (err2)
-                    {
-                        console.log("Error while deleting deletionEntries");
-                        console.log(err2, err.stack);
-                    }
-
-                    done(err, items, items);
-                });
+                return done(null, items, []);
             }
-            else
-            {
-                done(null, items, items);
-            }
+
+            var params = {
+                Entries: deletionEntries,
+                QueueUrl: holder.sqsParams.QueueUrl
+            };
+            sqs.deleteMessageBatch(params, function(err2, data) {
+
+                if (err2)
+                {
+                    console.log("Error while deleting deletionEntries");
+                    console.log(err2, err.stack);
+                }
+
+                done(err, items, items);
+            });
 
         });
 

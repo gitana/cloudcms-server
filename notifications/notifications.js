@@ -272,9 +272,10 @@ var handleNotificationMessages = function(items, callback) {
 var runnerCount = 0;
 var runnerFn = function(provider)
 {
+    runnerCount++;
+    console.log("Scheduling runner: " + runnerCount);
     setTimeout(function() {
-
-        runnerCount++;
+        console.log("Running: " + runnerCount);
 
         var wid = "main";
         if (cluster && cluster.worker)
@@ -282,7 +283,7 @@ var runnerFn = function(provider)
             wid = cluster.worker.id;
         }
 
-        provider.process(function (err, items, postHandleCallback) {
+        provider.process(function(err, items, postHandleCallback) {
 
             if (err)
             {
