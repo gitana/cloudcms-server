@@ -1,7 +1,7 @@
 var async = require("async");
 var cluster = require("cluster");
 
-var handleInvalidations = function(items, callback) {
+var handleNotificationMessages = function(items, callback) {
 
     if (!items) {
         return callback();
@@ -31,6 +31,14 @@ var handleInvalidations = function(items, callback) {
                 // console.log("Heard: " + host + ", item: " + JSON.stringify(item, null, "  "));
 
                 var operation = item.operation;
+
+                /**
+                 * @deprecated support for "invalidate_object"
+                 * This is left in to support legacy installations of the API that are still doing things object-by-object.
+                 * Newer API versions do bulk operations and use the "invalidate_objects" notification event.
+                 *
+                 * This will be removed at some point in the future.  Please upgrade to the latest Cloud CMS API.
+                 */
                 if (operation === "invalidate_object")
                 {
                     var type = item.type;
@@ -261,45 +269,57 @@ var handleInvalidations = function(items, callback) {
     }
 };
 
+var runnerCount = 0;
 var runnerFn = function(provider)
 {
-    var wid = "main";
-    if (cluster && cluster.worker) {
-        wid = cluster.worker.id;
-    }
+    setTimeout(function() {
 
-    provider.process(function(err, items) {
+        runnerCount++;
 
-        if (err)
+        var wid = "main";
+        if (cluster && cluster.worker)
         {
-            console.log("[" + wid + "] Broadcast Runner error: " + err, err.stack);
-
-            // start it up again
-            runnerFn(provider);
-
-            return;
+            wid = cluster.worker.id;
         }
 
-        if (items && items.length > 0)
-        {
-            //console.log("[" + wid + "] Broadcast Runner found: " + items.length + " items to work on");
+        provider.process(function (err, items, postHandleCallback) {
 
-            handleInvalidations(items, function(err) {
-
-                // TODO: what do we do about errors that come back?
-
-                //console.log("[" + wid + "] Broadcast Runner completed work");
+            if (err)
+            {
+                console.log("[" + wid + "][" + runnerCount + "] Notification Provider error: " + err, err.stack);
 
                 // start it up again
-                runnerFn(provider);
+                return runnerFn(provider);
+            }
+
+            if (!items) {
+                items = [];
+            }
+
+            console.log("[" + wid + "][" + runnerCount + "] Notification Provider found: " + items.length + " notification items");
+
+            if (items.length === 0)
+            {
+                // start it up again
+                return runnerFn(provider);
+            }
+
+            handleNotificationMessages(items, function (err) {
+
+                console.log("[" + wid + "][" + runnerCount + "] Notification Provider handled: " + items.length + " items");
+
+                postHandleCallback(err, items, function (err, items, deletedItems) {
+
+                    console.log("[" + wid + "][" + runnerCount + "] Notification Provider completed - handled: " + items.length + ", deleted: " + deletedItems.length);
+
+                    // start it up again
+                    runnerFn(provider);
+
+                });
             });
-        }
-        else
-        {
-            // start it up again
-            runnerFn(provider);
-        }
-    });
+        });
+
+    }, 500);
 };
 
 
@@ -352,6 +372,7 @@ module.exports = function()
                     return;
                 }
 
+                // this starts the "thread" for the provider listener
                 runnerFn(provider);
 
                 callback();
