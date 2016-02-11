@@ -7,8 +7,8 @@ var handleNotificationMessages = function(items, callback) {
         return callback();
     }
 
+    // wrap the processing of each item into a series function
     var fns = [];
-
     for (var i = 0; i < items.length; i++)
     {
         var fn = function(item, i) {
@@ -70,12 +70,12 @@ var handleNotificationMessages = function(items, callback) {
                             "isMasterBranch": item.isMasterBranch,
                             "host": host
                         }, function(err) {
-                            done(err);
+                            return done(err);
                         });
                     }
                     else
                     {
-                        done();
+                        return done();
                     }
                 }
                 else if (operation === "invalidate_objects")
@@ -86,7 +86,7 @@ var handleNotificationMessages = function(items, callback) {
                         var z_fns = [];
                         for (var z = 0; z < invalidations.length; z++)
                         {
-                            var z_fn = function(obj) {
+                            var z_fn = function(obj, z) {
                                 return function(z_done) {
 
                                     var type = obj.type;
@@ -117,28 +117,30 @@ var handleNotificationMessages = function(items, callback) {
                                             "repositoryId": repositoryId,
                                             "isMasterBranch": obj.isMasterBranch,
                                             "host": host
-                                        }, function(err) {
-                                            z_done(err);
-                                        });
+                                        }, z_done);
                                     }
                                     else
                                     {
                                         z_done();
                                     }
                                 }
-                            }(invalidations[z]);
+                            }(invalidations[z], z);
                             z_fns.push(z_fn);
                         }
 
                         async.series(z_fns, function(err) {
-                            done(err);
+                            return done(err);
                         });
+                    }
+                    else
+                    {
+                        return done();
                     }
                 }
                 else if (operation === "invalidate_application")
                 {
                     // TODO: invalidate any cache dependent on application
-                    done();
+                    return done();
                 }
                 else if (operation === "invalidate_application_page_rendition")
                 {
@@ -178,7 +180,7 @@ var handleNotificationMessages = function(items, callback) {
 
                     // broadcast invalidation
                     process.broadcast.publish("invalidate_page_rendition", message, function(err) {
-                        done(err);
+                        return done(err);
                     });
                 }
                 else if (operation === "invalidate_application_page_renditions")
@@ -237,7 +239,7 @@ var handleNotificationMessages = function(items, callback) {
                         }
 
                         async.series(z_fns, function(err) {
-                            done(err);
+                            return done(err);
                         });
                     }
                 }
@@ -256,71 +258,79 @@ var handleNotificationMessages = function(items, callback) {
 
                     // broadcast invalidation
                     process.broadcast.publish("invalidate_all_page_renditions", message, function(err) {
-                        done(err);
+                        return done(err);
                     });
                 }
             }
         }(items[i], i);
         fns.push(fn);
-
-        async.series(fns, function(err) {
-            callback();
-        });
     }
+
+    // run all of the functions in series
+    async.series(fns, function(err) {
+        callback(err);
+    });
+};
+
+var completeRunnerFn = function(provider)
+{
+    return runnerFn(provider);
 };
 
 var runnerCount = 0;
 var runnerFn = function(provider)
 {
-    runnerCount++;
-    console.log("Scheduling runner: " + runnerCount);
-    setTimeout(function() {
-        console.log("Running: " + runnerCount);
+    var wid = "main";
+    if (cluster && cluster.worker)
+    {
+        wid = cluster.worker.id;
+    }
 
-        var wid = "main";
-        if (cluster && cluster.worker)
-        {
-            wid = cluster.worker.id;
-        }
+    var runner = function(provider, runnerCount, wid)
+    {
+        return function() {
+            console.log("[" + wid + "][" + runnerCount + "] Starting notifications loop");
 
-        provider.process(function(err, items, postHandleCallback) {
+            provider.process(function(err, items, postHandleCallback) {
 
-            if (err)
-            {
-                console.log("[" + wid + "][" + runnerCount + "] Notification Provider error: " + err, err.stack);
-
-                // start it up again
-                return runnerFn(provider);
-            }
-
-            if (!items) {
-                items = [];
-            }
-
-            console.log("[" + wid + "][" + runnerCount + "] Notification Provider found: " + items.length + " notification items");
-
-            if (items.length === 0)
-            {
-                // start it up again
-                return runnerFn(provider);
-            }
-
-            handleNotificationMessages(items, function (err) {
-
-                console.log("[" + wid + "][" + runnerCount + "] Notification Provider handled: " + items.length + " items");
-
-                postHandleCallback(err, items, function (err, items, deletedItems) {
-
-                    console.log("[" + wid + "][" + runnerCount + "] Notification Provider completed - handled: " + items.length + ", deleted: " + deletedItems.length);
+                if (err)
+                {
+                    console.log("[" + wid + "][" + runnerCount + "] Notification Provider error: " + err, err.stack);
 
                     // start it up again
-                    runnerFn(provider);
+                    return completeRunnerFn(provider);
+                }
 
+                if (!items) {
+                    items = [];
+                }
+
+                console.log("[" + wid + "][" + runnerCount + "] Notification Provider found: " + items.length + " notification items");
+
+                if (items.length === 0)
+                {
+                    // start it up again
+                    return completeRunnerFn(provider);
+                }
+
+                handleNotificationMessages(items, function (err) {
+
+                    console.log("[" + wid + "][" + runnerCount + "] Notification Provider handled: " + items.length + " items");
+
+                    postHandleCallback(err, items, function (err, items, deletedItems) {
+
+                        console.log("[" + wid + "][" + runnerCount + "] Notification Provider completed - handled: " + items.length + ", deleted: " + deletedItems.length);
+
+                        // start it up again
+                        return completeRunnerFn(provider);
+
+                    });
                 });
             });
-        });
+        }  ;
+    }(provider, runnerCount++, wid);
 
-    }, 500);
+    setTimeout(runner, 500);
 };
 
 
@@ -369,8 +379,7 @@ module.exports = function()
 
                 if (err)
                 {
-                    callback(err);
-                    return;
+                    return callback(err);
                 }
 
                 // this starts the "thread" for the provider listener
