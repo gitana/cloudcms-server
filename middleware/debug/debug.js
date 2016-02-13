@@ -3,6 +3,8 @@ var fs = require('fs');
 var http = require('http');
 var util = require("../../util/util");
 
+var heapdump = require('heapdump');
+
 /**
  * Debug middleware.
  *
@@ -120,6 +122,46 @@ exports = module.exports = function()
 
                     handled = true;
                 }
+
+                // captures and downloads a snapshot file
+                if (req.url.indexOf("/_debug/heap/snapshot") === 0)
+                {
+                    // writes a snapshot
+                    var filename = Date.now() + ".heapsnapshot";
+                    var filepath = "/tmp/" + filename;
+                    heapdump.writeSnapshot(filepath);
+
+                    res.setHeader("Content-disposition", "attachment; filename=" + filename);
+                    res.setHeader("Content-Type", "text/heapsnapshot");
+
+                    var filestream = fs.createReadStream(filepath);
+                    filestream.pipe(res);
+
+                    handled = true;
+                }
+
+
+            }
+
+            if (req.method.toLowerCase() === "post") {
+
+                // captures a heap snapshot file
+                // or do this: kill -USR2 <pid>
+                if (req.url.indexOf("/_debug/heap/snapshot") === 0)
+                {
+                    // writes a snapshot
+                    var filename = Date.now() + ".heapsnapshot";
+                    var filepath = "/tmp/" + filename;
+                    heapdump.writeSnapshot(filepath);
+
+                    res.status(200).json({
+                        "ok": true,
+                        "snapshot": filepath
+                    });
+
+                    handled = true;
+                }
+
             }
 
             if (!handled)
