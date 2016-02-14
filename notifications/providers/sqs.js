@@ -27,6 +27,12 @@ module.exports.start = function(configuration, callback)
     var secretKey = configuration.secretKey;
     var region = configuration.region;
 
+    // adjust queueUrl to http for now since there are memory issues with https, node and the AWS SQS driver
+    if (queueUrl && queueUrl.indexOf("https:") === 0)
+    {
+        queueUrl = "http:" + queueUrl.substring(6);
+    }
+
     console.log("Connecting to queue: " + queueUrl);
 
     if (!holder.sqs)
