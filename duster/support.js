@@ -349,5 +349,28 @@ exports = module.exports = function(dust)
         });
     };
 
+    var addHelpers = r.addHelpers = function(app, dust, filepaths, callback) {
+
+        var fns = [];
+        for (var i = 0; i < filepaths.length; i++)
+        {
+            var fn = function(filepath, app, dust) {
+                return function(done) {
+
+                    require(filepath)(app, dust, function() {
+                        console.log("Loaded dust helper: " + filepath);
+                        done();
+                    });
+                }
+            }(filepaths[i], app, dust);
+            fns.push(fn);
+        }
+
+        async.series(fns, function() {
+            callback();
+        });
+
+    };
+
     return r;
 };

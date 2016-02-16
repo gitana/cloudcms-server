@@ -3,18 +3,12 @@ var fs = require('fs');
 var http = require('http');
 var async = require("async");
 
-var tracker = require("../tracker");
+var tracker = require("../../tracker");
+var util = require("../../../util/util");
 
-var util = require("../../util/util");
-
-/**
- * Default dust tags for Cloud CMS.
- *
- * @type {Function}
- */
-module.exports = function(app, dust, callback)
+module.exports = function(app, dust)
 {
-    var support = require("../support")(dust);
+    var support = require("../../support")(dust);
 
     var enhanceNode = util.enhanceNode;
 
@@ -25,74 +19,8 @@ module.exports = function(app, dust, callback)
     var end = support.end;
     var _MARK_INSIGHT = support._MARK_INSIGHT;
 
-    /**
-     * if
-     *
-     * It seems ridiculous to me that we should have to add this back in.  But it was deprecated in newer versions of
-     * dust.js.  Logic is sound but frankly, I expect most of our users will want to use @if.
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     * @returns {*}
-     */
-    dust.helpers.if = function( chunk, context, bodies, params ){
-        var body = bodies.block,
-            skip = bodies['else'];
-        if( params && params.cond){
-            var cond = params.cond;
-            cond = context.resolve(cond);
-            // eval expressions with given dust references
-            if(eval(cond)){
-                if(body) {
-                    return chunk.render( bodies.block, context );
-                }
-                else {
-                    _console.log( "Missing body block in the if helper!" );
-                    return chunk;
-                }
-            }
-            if(skip){
-                return chunk.render( bodies['else'], context );
-            }
-        }
-        // no condition
-        else {
-            _console.log( "No condition given in the if helper!" );
-        }
-        return chunk;
-    };
-
-    /**
-     * iterates over keys of an object. Something that Dust apparently is not capable of.
-     *
-     * Syntax:
-     *
-     *    {@iter obj=jsonObject}
-     *       type: {$key}
-     *       value: {$value}
-     *       type: {$type}
-     *    {/iter}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.iter = function(chunk, context, bodies, params) {
-
-        // TODO: there is already an @iterate helper defined in this helper file
-        // TODO: do we need another?
-        // TODO: {@iterate over=obj}{$key}-{$value} of type {$type}{~n}{/iterate}
-
-        var obj = context.resolve(params.obj);
-
-        var params2 = {};
-        params2.over = obj;
-
-        return dust.helpers.iterate(chunk, context, bodies, params2);
-    };
+    // return value
+    var r = {};
 
     /**
      * Handles behavior for @query and @queryOne.
@@ -105,7 +33,7 @@ module.exports = function(app, dust, callback)
      * @returns {*}
      * @private
      */
-    var _handleQuery = function(chunk, context, bodies, params, keepOne)
+    r.handleQuery = function(chunk, context, bodies, params, keepOne)
     {
         params = params || {};
 
@@ -128,6 +56,9 @@ module.exports = function(app, dust, callback)
         var field = context.resolve(params.field);
         var fieldRegex = context.resolve(params.fieldRegex);
         var fieldValue = context.resolve(params.fieldValue);
+
+        // role
+        var role = context.resolve(params.role);
 
         // geolocation (near)
         var near = context.resolve(params.near);
@@ -157,7 +88,8 @@ module.exports = function(app, dust, callback)
             "fieldRegex": fieldRegex,
             "fieldValue": fieldValue,
             "near": near,
-            "locale": locale
+            "locale": locale,
+            "role": role
         });
 
         var finishHandler = function(context, err)
@@ -259,9 +191,8 @@ module.exports = function(app, dust, callback)
                         return end(chunk, context);
                     }
 
-                    var handleResults = function()
+                    var handleResults = function(array)
                     {
-                        var array = this.asArray();
                         if (array.length > 0)
                         {
                             for (var i = 0; i < array.length; i++)
@@ -273,7 +204,7 @@ module.exports = function(app, dust, callback)
                         if (keepOne)
                         {
                             var newContext = null;
-                            if (this.totalRows() > 0)
+                            if (array.length > 0)
                             {
                                 var result = array[0];
 
@@ -317,8 +248,8 @@ module.exports = function(app, dust, callback)
                             if (as)
                             {
                                 resultObject = {
-                                    "offset": this.offset(),
-                                    "total": this.totalRows()
+                                    "offset": array._offset,
+                                    "total": array._totalRows
                                 };
                                 resultObject[as] = array;
                             }
@@ -326,8 +257,8 @@ module.exports = function(app, dust, callback)
                             {
                                 resultObject = {
                                     "rows": array,
-                                    "offset": this.offset(),
-                                    "total": this.totalRows()
+                                    "offset": array._offset,
+                                    "total": array._totalRows
                                 };
                             }
 
@@ -344,16 +275,18 @@ module.exports = function(app, dust, callback)
 
                     var doQuery = function(branch, query, pagination)
                     {
-                        Chain(branch).queryNodes(query, pagination).each(function() {
+                        Chain(branch).queryNodes(query, pagination).then(function() {
 
-                            // enhance node information
-                            enhanceNode(this);
+                            _convertToArray(this, function(array) {
+                                _filterWithAuthorityChecks(array, context, branch, role, function(array) {
+                                    _enhanceQueryResults(array, function(array) {
+                                        _trackQueryResults(array, context, function(array) {
+                                            handleResults(array);
+                                        });
+                                    });
+                                });
+                            });
 
-                            // TRACKER - PRODUCES "node"
-                            tracker.produces(context, "node", this._doc);
-
-                        }).then(function() {
-                            handleResults.call(this);
                         });
                     };
 
@@ -365,13 +298,18 @@ module.exports = function(app, dust, callback)
                             console.log("ERR: " + JSON.stringify(err));
                         }).queryRelatives(query, {
                             "type": "wcm:page_has_content"
-                        }, pagination).each(function(){
+                        }, pagination).then(function() {
 
-                            // TRACKER - PRODUCES "node"
-                            tracker.produces(context, "node", this._doc);
+                            _convertToArray(this, function(array) {
+                                _filterWithAuthorityChecks(array, context, branch, role, function(array) {
+                                    _enhanceQueryResults(array, function(array) {
+                                        _trackQueryResults(array, context, function(array) {
+                                            handleResults(array);
+                                        });
+                                    });
+                                });
+                            });
 
-                        }).then(function() {
-                            handleResults.call(this);
                         });
                     };
 
@@ -400,7 +338,7 @@ module.exports = function(app, dust, callback)
      * @returns {*}
      * @private
      */
-    var _handleSearch = function(chunk, context, bodies, params, keepOne)
+    r.handleSearch = function(chunk, context, bodies, params, keepOne)
     {
         params = params || {};
 
@@ -523,7 +461,7 @@ module.exports = function(app, dust, callback)
         });
     };
 
-    var _handleAssociations = function(chunk, context, bodies, params)
+    r.handleAssociations = function(chunk, context, bodies, params)
     {
         params = params || {};
 
@@ -712,7 +650,7 @@ module.exports = function(app, dust, callback)
         });
     };
 
-    var _handleRelatives = function(chunk, context, bodies, params)
+    r.handleRelatives = function(chunk, context, bodies, params)
     {
         params = params || {};
 
@@ -739,6 +677,9 @@ module.exports = function(app, dust, callback)
 
         // locale
         var locale = context.resolve(params.locale);
+
+        // role
+        var role = context.resolve(params.role);
 
         // ensure limit and skip are numerical
         if (isDefined(limit))
@@ -825,17 +766,8 @@ module.exports = function(app, dust, callback)
                         config.direction = associationDirection;
                     }
 
-                    this.queryRelatives(query, config, pagination).each(function() {
+                    var handleResults = function(array) {
 
-                        // enhance node information
-                        enhanceNode(this);
-
-                        // TRACKER - PRODUCES "node"
-                        tracker.produces(context, "node", this._doc);
-
-                    }).then(function() {
-
-                        var array = this.asArray();
                         for (var a = 0; a < array.length; a++)
                         {
                             _MARK_INSIGHT(array[a], array[a]);
@@ -845,8 +777,8 @@ module.exports = function(app, dust, callback)
                         if (as)
                         {
                             resultObject = {
-                                "offset": this.offset(),
-                                "total": this.totalRows()
+                                "offset": array._offset,
+                                "total": array._totalRows
                             };
                             resultObject[as] = array;
                         }
@@ -854,8 +786,8 @@ module.exports = function(app, dust, callback)
                         {
                             resultObject = {
                                 "rows": array,
-                                "offset": this.offset(),
-                                "total": this.totalRows()
+                                "offset": array._offset,
+                                "total": array._totalRows
                             };
                         }
 
@@ -863,13 +795,29 @@ module.exports = function(app, dust, callback)
 
                         chunk.render(bodies.block, newContext);
                         end(chunk, context);
+
+                    };
+
+                    this.queryRelatives(query, config, pagination).then(function() {
+
+                        _convertToArray(this, function(array) {
+                            _filterWithAuthorityChecks(array, context, branch, role, function(array) {
+                                _enhanceQueryResults(array, function(array) {
+                                    _trackQueryResults(array, context, function(array) {
+                                        handleResults(array);
+                                    });
+                                });
+                            });
+                        });
+
                     });
+
                 });
             });
         });
     };
 
-    var _handleContent = function(chunk, context, bodies, params)
+    r.handleContent = function(chunk, context, bodies, params)
     {
         params = params || {};
 
@@ -1044,7 +992,7 @@ module.exports = function(app, dust, callback)
      * @returns {*}
      * @private
      */
-    var _handleInclude = function(chunk, context, bodies, params, targetPath)
+    r.handleInclude = function(chunk, context, bodies, params, targetPath)
     {
         params = params || {};
 
@@ -1173,767 +1121,116 @@ module.exports = function(app, dust, callback)
         });
     };
 
-    /**
-     * QUERY
-     *
-     * Queries for content from the content repository and renders.
-     *
-     * Syntax:
-     *
-     *    {@query sort="title" scope="page" type="custom:type" limit="" skip="" as=""}
-     *       {+templateIdentifier/}
-     *    {/query}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.query = function(chunk, context, bodies, params)
+    r.util = util;
+    r.map = support.map;
+    r.end = support.end;
+    r.resolveVariables = support.resolveVariables;
+
+
+    // pipeline
+
+    var _convertToArray = function(map, _done)
     {
-        return _handleQuery(chunk, context, bodies, params, false);
-    };
+        var array = [];
 
-    /**
-     * QUERY AND KEEP ONE
-     *
-     * Queries for content from the content repository and renders.
-     *
-     * Syntax:
-     *
-     *    {@queryOne sort="title" scope="page" type="custom:type" limit="" skip="" as=""}
-     *       {+templateIdentifier/}
-     *    {/queryOne}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.queryOne = function(chunk, context, bodies, params)
-    {
-        return _handleQuery(chunk, context, bodies, params, true);
-    };
-
-    /**
-     * SEARCH
-     *
-     * Runs a search and passes the rows to a rendering template.
-     *
-     * Syntax:
-     *
-     *    {@search sort="title" scope="page" text="something" limit="" skip="" as=""}
-     *       {+templateIdentifier/}
-     *    {/search}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.search = function(chunk, context, bodies, params)
-    {
-        return _handleSearch(chunk, context, bodies, params, false);
-    };
-
-    /**
-     * SEARCH
-     *
-     * Runs a search and keeps one of the result items.  Passes the result to the rendering template.
-     *
-     * Syntax:
-     *
-     *    {@searchOne sort="title" scope="page" text="something" limit="" skip="" as=""}
-     *       {+templateIdentifier/}
-     *    {/searchOne}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.searchOne = function(chunk, context, bodies, params)
-    {
-        return _handleSearch(chunk, context, bodies, params, true);
-    };
-
-    /**
-     * ASSOCIATIONS
-     *
-     * Finds associations around a node.
-     *
-     * Syntax:
-     *
-     *    {@associations node="<nodeId>" type="<association_type>" limit="" skip="" as=""}
-     *       {+templateIdentifier/}
-     *    {/associations}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.associations = function(chunk, context, bodies, params)
-    {
-        return _handleAssociations(chunk, context, bodies, params);
-    };
-
-    /**
-     * RELATIVES
-     *
-     * Finds relatives around a node.
-     *
-     * Syntax:
-     *
-     *    {@relatives node="<nodeId>" type="<association_type>" limit="" skip="" as=""}
-     *       {+templateIdentifier/}
-     *    {/relatives}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.relatives = function(chunk, context, bodies, params)
-    {
-        return _handleRelatives(chunk, context, bodies, params);
-    };
-
-    /**
-     * CONTENT
-     *
-     * Selects a single content item.
-     *
-     * Syntax:
-     *
-     *    {@content id="GUID" path="/a/b/c" as=""}
-     *       {+templateIdentifier/}
-     *    {/content}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.content = function(chunk, context, bodies, params) {
-        return _handleContent(chunk, context, bodies, params);
-    };
-
-    /**
-     * FORM
-     *
-     * Renders a form.
-     *
-     * Syntax:
-     *
-     *    {@form definition="custom:type" form="formKey" list="listKeyOrId" successUrl="" errorUrl=""}
-     *       {+templateIdentifier/}
-     *    {/form}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.form = function(chunk, context, bodies, params)
-    {
-        return _handleForm(chunk, context, bodies, params);
-    };
-
-    /**
-     * INCLUDE TEMPLATE
-     *
-     * Includes another dust template into this one and passes any context forward.
-     *
-     * Syntax:
-     *
-     *    {@include path="../template.html" ...args/}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.include = function(chunk, context, bodies, params)
-    {
-        params = params || {};
-
-        var targetPath = context.resolve(params.path);
-
-        return _handleInclude(chunk, context, bodies, params, targetPath);
-    };
-
-    /**
-     * INCLUDE BLOCK
-     *
-     * Includes a block dust template into this one and passes any context forward.
-     *
-     * Syntax:
-     *
-     *    {@block path="path" ...args/}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.block = function(chunk, context, bodies, params)
-    {
-        params = params || {};
-
-        var targetPath = context.resolve(params.path);
-
-        if (targetPath.indexOf("/blocks") === 0)
+        for (var i = 0; i < map.__keys().length; i++)
         {
-            // we're ok
-        }
-        else
-        {
-            targetPath = "/" + path.join("blocks", targetPath);
+            array.push(map[map.__keys()[i]]);
         }
 
-        return _handleInclude(chunk, context, bodies, params, targetPath);
+        // additional values
+        array._totalRows = map.totalRows();
+        array._offset = map.offset();
+
+        _done(array);
     };
 
-    /**
-     * INCLUDE LAYOUT
-     *
-     * Includes a layout dust template into this one and passes any context forward.
-     *
-     * Syntax:
-     *
-     *    {@layout path="path" ...args/}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.layout = function(chunk, context, bodies, params)
+    var _filterWithAuthorityChecks = function(array, context, branch, role, _done)
     {
-        params = params || {};
-
-        var targetPath = context.resolve(params.path);
-
-        if (targetPath.indexOf("/layouts") === 0)
-        {
-            // we're ok
-        }
-        else
-        {
-            targetPath = "/" + path.join("layouts", targetPath);
+        if (!role) {
+            return _done(array);
         }
 
-        return _handleInclude(chunk, context, bodies, params, targetPath);
-    };
+        var req = context.get("req");
+        if (!req) {
+            return _done(array);
+        }
 
-    /**
-     * BLOCK
-     *
-     * Declares a block.
-     *
-     * Syntax:
-     *
-     *    {@block name="abc"}
-     *       ...default markup
-     *    {/@block}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    /*
-    dust.helpers.block = function(chunk, context, bodies, params)
-    {
-        params = params || {};
+        var user = req.user;
+        if (!user) {
+            return _done(array);
+        }
+        if (!user.domainId || !user.id) {
+            return _done(array);
+        }
 
-        var name = context.resolve(params.name);
+        var principalId = user.domainId + "/" + user.id;
 
-        return chunk.capture(bodies.block, context, function(text, chunk) {
-
-            var f = dust.load(name, chunk, context);
-            var markup = "{+" + name + "}" + text + "{/" + name + "}";
-            chunk.render(f, context)
-
-            end(chunk, context);
-        });
-    };
-    */
-
-
-
-    /**
-     * Allows parameters to be passed into blocks or partials
-     */
-    dust.helpers.params = function( chunk, context, bodies, params ){
-
-        var partial = {};
-        if( params)
+        // filter via authority checks
+        var checks = [];
+        for (var i = 0; i < array.length; i++)
         {
-            for (var key in params)
+            checks.push({
+                "permissionedId": array[i]._doc,
+                "authorityId": role,
+                "principalId": principalId
+            });
+        }
+
+        Chain(branch).checkNodeAuthorities(checks, function(results) {
+
+            // create a quick lookup map
+            var resultsMap = {};
+            for (var i = 0; i < results.length; i++)
             {
-                partial[key] = params[key];
+                resultsMap[results[i].permissionedId] = results[i].result;
             }
-        }
 
-        // render
-        var newContext = context.push(partial);
-
-        //return bodies.block(chunk, dust.makeBase(partial))
-        return bodies.block(chunk, newContext);
-    };
-    dust.helpers.parameters = dust.helpers.params;
-
-
-
-    /**
-     * Constructs a resource uri that is cache aware.
-     *
-     * Syntax:
-     *
-     *    {@resource uri="/images/logo.svg"/}
-     *    {@res uri="/images/logo.svg"/}
-     *    {@r uri="/images/logo.svg"/}
-     *
-     * Example:
-     *
-     *    <img src="{@resource uri="/images/logo.svg"/}">
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.r = dust.helpers.res = dust.helpers.resource = function(chunk, context, bodies, params)
-    {
-        params = params || {};
-
-        var uri = context.resolve(params.uri);
-
-        return map(chunk, function(chunk) {
-
-            if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
+            // now filter the array
+            var i = 0;
+            do
             {
-                var req = context.get("req");
-                if (req)
+                if (i < array.length)
                 {
-                    var newUri = uri;
+                    var permissionedId = array[i]._doc;
 
-                    var cacheBuster = req.runtime.cb;
-
-                    var i = uri.lastIndexOf(".");
-                    if (i == -1)
+                    if (resultsMap[permissionedId])
                     {
-                        newUri = uri + "." + cacheBuster;
+                        i++;
                     }
                     else
                     {
-                        newUri = uri.substring(0, i) + "-" + cacheBuster + uri.substring(i);
-                    }
-
-                    chunk.write(newUri);
-                    end(chunk, context);
-                }
-                else
-                {
-                    chunk.write(uri);
-                    end(chunk, context);
-                }
-            }
-            else
-            {
-                chunk.write(uri);
-                end(chunk, context);
-            }
-        });
-    };
-
-    /**
-     * Shows debug information about the current context
-     *
-     * Syntax:
-     *
-     *    {@debug/}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.debug = function(chunk, context, bodies, params)
-    {
-        params = params || {};
-
-        return map(chunk, function(chunk) {
-
-            var json = JSON.stringify(context.stack.head, null, "  ");
-            var html = "<textarea>" + json + "</textarea>"
-            chunk.write(html);
-
-            end(chunk, context);
-        });
-    };
-
-    /**
-     * Displays a value and allows for optional in-context editing.
-     *
-     * Syntax:
-     *
-     *    {@value node="_doc" property="propertyName"}
-     *       {propertyValue}
-     *    {/value}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.value = function(chunk, context, bodies, params)
-    {
-        params = params || {};
-
-        var nodeId = context.resolve(params.node);
-        var propertyId = context.resolve(params.property);
-
-        return map(chunk, function(chunk) {
-
-            var req = context.get("req");
-            req.branch(function(err, branch) {
-
-                if (err) {
-                    return end(chunk, context);
-                }
-
-                var repositoryId = branch.getRepositoryId();
-                var branchId = branch.getId();
-
-                var wrapperStart = "<div class='cloudcms-value' data-repository-id='" + repositoryId + "' data-branch-id='" + branchId + "' data-node-id='" + nodeId + "'";
-                if (propertyId) {
-                    wrapperStart += " data-property-id='" + propertyId + "'";
-                }
-                wrapperStart += ">";
-                var wrapperEnd = "</div>";
-
-                chunk.write(wrapperStart);
-                chunk.render(bodies.block, context);
-                chunk.write(wrapperEnd);
-
-                end(chunk, context);
-
-            });
-        });
-    };
-
-    /**
-     * Produces an anchor link.
-     *
-     * Syntax:
-     *
-     *    {@link [uri="uri"] [other token values]}
-     *      Click me to go to the next page!
-     *    {/link}
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     */
-    dust.helpers.link = function(chunk, context, bodies, params)
-    {
-        var classParam = context.resolve(params.class);
-
-        // push tokens into context
-        var tokens = context.get("request").tokens;
-        context = context.push(tokens);
-
-        // push params into context
-        var paramsObject = {};
-        for (var name in params)
-        {
-            if (name !== "uri")
-            {
-                paramsObject[name] = context.resolve(params[name]);
-            }
-        }
-        context = context.push(paramsObject);
-
-        // use uri from params or fallback to request uri
-        var uri = context.resolve(params.uri);
-        if (!uri)
-        {
-            uri = context.get("request").matchingPath;
-        }
-
-        return map(chunk, function(chunk) {
-
-            // ensure uri is resolved
-            resolveVariables([uri], context, function(err, results) {
-
-                var uri = results[0];
-
-                chunk.write("<a href='" + uri + "'");
-
-                if (classParam)
-                {
-                    chunk.write(" class='" + classParam + "'");
-                }
-
-                chunk.write(">");
-                chunk.render(bodies.block, context);
-                chunk.write("</a>");
-
-                end(chunk, context);
-
-            });
-
-        });
-    };
-
-    dust.helpers.nodeAttachmentValue = function(chunk, context, bodies, params)
-    {
-        params = params || {};
-
-        var nodeId = context.resolve(params.node);
-        var attachmentId = context.resolve(params.attachment);
-        if (!attachmentId)
-        {
-            attachmentId = "default";
-        }
-
-        return map(chunk, function(chunk) {
-
-            var req = context.get("req");
-            req.branch(function(err, branch) {
-
-                if (err) {
-                    return end(chunk, context);
-                }
-
-                branch.readNode(nodeId).attachment(attachmentId).download(function(text) {
-
-                    chunk.write(text);
-
-                    end(chunk, context);
-                });
-            });
-        });
-    };
-
-    dust.helpers.processTemplate = function(chunk, context, bodies, params)
-    {
-        params = params || {};
-
-        var nodeId = context.resolve(params.node);
-        var attachmentId = context.resolve(params.attachment);
-        if (!attachmentId)
-        {
-            attachmentId = "default";
-        }
-        var propertyId = context.resolve(params.property);
-        var locale = context.resolve(params.locale);
-
-        return map(chunk, function(chunk) {
-
-            if (locale)
-            {
-                var gitana = context.get("gitana");
-                gitana.getDriver().setLocale(locale);
-            }
-
-            if (propertyId)
-            {
-                var req = context.get("req");
-                req.branch(function(err, branch) {
-
-                    if (err) {
-                        return end(chunk, context);
-                    }
-
-                    branch.readNode(nodeId).then(function() {
-
-                        resolveVariables([this[propertyId]], context, function (err, resolutions) {
-
-                            chunk.write(resolutions[0]);
-
-                            end(chunk, context);
-
-                        });
-                    });
-                });
-            }
-            else
-            {
-                var req = context.get("req");
-                req.branch(function(err, branch) {
-
-                    if (err) {
-                        return end(chunk, context);
-                    }
-
-                    branch.readNode(nodeId).attachment(attachmentId).download(function (text) {
-
-                        resolveVariables([text], context, function (err, resolutions) {
-
-                            chunk.write(resolutions[0]);
-
-                            end(chunk, context);
-
-                        });
-                    });
-                });
-            }
-        });
-    };
-
-    /**
-     * Iterate helper, looks over a given object.
-     *
-     * Example:
-     *    {@iterate over=obj}{$key}-{$value} of type {$type}{~n}{/iterate}
-     *
-     * @param key - object of the iteration - Mandatory parameter
-     * @param sort - Optional. If omitted, no sort is done. Values allowed:
-     *  sort="1" - sort ascending (per JavaScript array sort rules)
-     *  sort="-1" - sort descending
-     */
-    dust.helpers.iterate = dust.helpers.it = function(chunk, context, bodies, params)
-    {
-        params = params || {};
-
-        var over = context.resolve(params.over);
-        if (!over) {
-            console.log("Missing over");
-            return chunk;
-        }
-
-        var sort = context.resolve(params.sort);
-        if (typeof(sort) === "undefined") {
-            sort = "asc";
-        }
-
-        var body = bodies.block;
-        if (!body)
-        {
-            console.log('Missing body block in the iterate helper.');
-            return chunk;
-        }
-
-        var asc = function(a, b) {
-            return desc(a, b) * -1;
-        };
-
-        var desc = function(a, b) {
-            if (a.sortable < b.sortable) {
-                return 1;
-            } else if (a.sortable > b.sortable) {
-                return -1;
-            }
-            return 0;
-        };
-
-        var processBody = function(key, value) {
-            return body(chunk, context.push({
-                $key: key,
-                $value: value,
-                $type: typeof(value)
-            }));
-        };
-
-        if (util.isObject(over) || util.isArray(over))
-        {
-            if (typeof(params.sort) !== "undefined")
-            {
-                // construct sort elements
-                var elements = [];
-                for (var k in over)
-                {
-                    if (over.hasOwnProperty(k))
-                    {
-                        var element = {};
-                        element.key = k;
-                        element.value = over[k];
-
-                        if (util.isObject(over))
-                        {
-                            element.sortable = k;
-                        }
-                        else if (util.isArray(over))
-                        {
-                            element.sortable = over[k];
-                        }
-
-                        elements.push(element);
-                    }
-                }
-
-                // run the sort
-                if (sort === "-1" || sort === "desc")
-                {
-                    elements.sort(desc);
-                }
-                else if (sort === "1" || sort === "asc")
-                {
-                    elements.sort(asc);
-                }
-
-                // process in order
-                for (var i = 0; i < elements.length; i++)
-                {
-                    chunk = processBody(elements[i].key, elements[i].value);
-                }
-            }
-            else
-            {
-                // just do the natural order
-                for (var k in over)
-                {
-                    if (over.hasOwnProperty(k))
-                    {
-                        chunk = processBody(k, over[k]);
+                        array.splice(i, 1);
                     }
                 }
             }
-        }
+            while (i < array.length);
 
-        return chunk;
+            _done(array);
+        });
     };
 
-    var marked = require('marked');
-    marked.setOptions({
-        renderer: new marked.Renderer(),
-        gfm: true,
-        tables: true,
-        breaks: false,
-        pedantic: false,
-        sanitize: true,
-        smartLists: true,
-        smartypants: false
-    });
-
-    /**
-     * Renders markdown into the Dust template.
-     *
-     * @param chunk
-     * @param context
-     * @param bodies
-     * @param params
-     * @returns {*}
-     */
-    dust.helpers.markdown = function(chunk, context, bodies, params) {
-
-        params = params || {};
-
-        var text = context.resolve(params.text);
-        if (!text) {
-            return chunk;
+    var _enhanceQueryResults = function(array, _done)
+    {
+        for (var i = 0; i < array.length; i++)
+        {
+            // enhance node information
+            enhanceNode(array[i]);
         }
 
-        text = marked(text);
-
-        return chunk.write(text);
+        _done(array);
     };
 
-    callback();
+    var _trackQueryResults = function(array, context, _done)
+    {
+        for (var i = 0; i < array.length; i++)
+        {
+            // TRACKER - PRODUCES "node"
+            tracker.produces(context, "node", array[i]._doc);
+        }
 
+        _done(array);
+    };
+
+    return r;
 };

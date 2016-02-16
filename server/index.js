@@ -35,7 +35,7 @@ var main = require("../index");
 // duster service
 var duster = require("../duster/index");
 
-var defaultHelpers = require("../duster/helpers/default");
+var coreHelpers = require("../duster/helpers/core/index");
 
 var toobusy = require("toobusy-js");
 toobusy.maxLag(500); // 500 ms lag in event queue, quite high but usable for now
@@ -384,13 +384,8 @@ exports.start = function(overrides, callback) {
     if (!SETTINGS.dustFunctions) {
         SETTINGS.dustFunctions = [];
     }
-    // always push default tags to the front
-    SETTINGS.dustFunctions.unshift(defaultHelpers);
-    // if no other custom dust tags are configured, we include NYT example by default
-    if (SETTINGS.dustFunctions.length === 1)
-    {
-        dust(require("../duster/helpers/nyt"));
-    }
+    // always push core tag helpers to the front
+    SETTINGS.dustFunctions.unshift(coreHelpers);
 
     // create our master config
     var config = clone(SETTINGS);
