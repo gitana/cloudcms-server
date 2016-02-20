@@ -6,6 +6,8 @@ var async = require("async");
 var tracker = require("../../tracker");
 var util = require("../../../util/util");
 
+var DEFAULT_PAGINATION_LIMIT = 25;
+
 module.exports = function(app, dust)
 {
     var support = require("../../support")(dust);
@@ -156,7 +158,7 @@ module.exports = function(app, dust)
 
                 var pagination = {};
                 if (!isDefined(limit)) {
-                    limit = -1;
+                    limit = DEFAULT_PAGINATION_LIMIT;
                 }
                 pagination.limit = limit;
                 if (isDefined(sort))
@@ -396,7 +398,7 @@ module.exports = function(app, dust)
 
                 var pagination = {};
                 if (!isDefined(limit)) {
-                    limit = -1;
+                    limit = DEFAULT_PAGINATION_LIMIT;
                 }
                 pagination.limit = limit;
                 if (sort)
@@ -517,7 +519,7 @@ module.exports = function(app, dust)
 
                     var pagination = {};
                     if (!isDefined(limit)) {
-                        limit = -1;
+                        limit = DEFAULT_PAGINATION_LIMIT;
                     }
                     pagination.limit = limit;
                     if (sort)
@@ -734,7 +736,7 @@ module.exports = function(app, dust)
                     // pagination
                     var pagination = {};
                     if (!isDefined(limit)) {
-                        limit = -1;
+                        limit = DEFAULT_PAGINATION_LIMIT;
                     }
                     pagination.limit = limit;
                     if (sort)

@@ -302,7 +302,7 @@ exports = module.exports = function()
                                 this.queryNodes({
                                     "_type": "wcm:page"
                                 }, {
-                                    "limit": -1
+                                    "limit": 9999 // essentially, unlimited
                                 }).each(function () {
 
                                     // THIS = wcm:page

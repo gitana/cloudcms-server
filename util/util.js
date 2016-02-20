@@ -143,7 +143,7 @@ var rmdirRecursiveSync = function(directoryOrFilePath)
     }
 };
 
-var executeCommands = function(commands, logMethod, callback)
+var executeCommands = exports.executeCommands = function(commands, logMethod, callback)
 {
     var terminal = require('child_process').spawn('bash');
 
