@@ -274,7 +274,6 @@ exports = module.exports = function()
                     }
 
                     res.send(result);
-                    res.end();
                 }
             });
 
