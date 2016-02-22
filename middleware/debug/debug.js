@@ -3,7 +3,9 @@ var fs = require('fs');
 var http = require('http');
 var util = require("../../util/util");
 
-var heapdump = require('heapdump');
+// REMOVE HEAPDUMP UNTIL BETTER SUPPORTED
+//     //"heapdump": "^0.3.7",
+//var heapdump = require('heapdump');
 
 /**
  * Debug middleware.
@@ -123,6 +125,8 @@ exports = module.exports = function()
                     handled = true;
                 }
 
+                // REMOVE HEAPDUMP UNTIL BETTER SUPPORTED
+                /*
                 // captures and downloads a snapshot file
                 if (req.url.indexOf("/_debug/heap/snapshot") === 0)
                 {
@@ -139,10 +143,12 @@ exports = module.exports = function()
 
                     handled = true;
                 }
-
+                */
 
             }
 
+            // REMOVE HEAPDUMP UNTIL BETTER SUPPORTED
+            /*
             if (req.method.toLowerCase() === "post") {
 
                 // captures a heap snapshot file
@@ -161,8 +167,8 @@ exports = module.exports = function()
 
                     handled = true;
                 }
-
             }
+            */
 
             if (!handled)
             {
