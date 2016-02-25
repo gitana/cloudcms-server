@@ -44,7 +44,7 @@ exports = module.exports = function()
     var oldHeapTotal = 0;
     var shuttingDown = false;
 
-    var logMemoryFn = function() {
+    var logFn = function() {
         setTimeout(function() {
 
             if (shuttingDown)
@@ -52,21 +52,30 @@ exports = module.exports = function()
                 return;
             }
 
-            var memUsage = process.memoryUsage();
+            util.countOpenHandles(function(err, openHandleCount) {
 
-            var newRss = (memUsage.rss / MB).toFixed(2);
-            var newHeap = (memUsage.heapUsed / MB).toFixed(2);
-            var newHeapTotal = (memUsage.heapTotal / MB).toFixed(2);
-            var deltaHeapTotal = (newHeapTotal - oldHeapTotal).toFixed(2);
+                if (!err || !openHandleCount)
+                {
+                    openHandleCount = "unknown";
+                }
 
-            console.log('RSS: ' + newRss + ' MB, Heap Used: ' + newHeap + ' MB, Heap Total: ' + newHeapTotal + ' MB, Heap Total Change: ' + deltaHeapTotal + ' MB');
+                var memUsage = process.memoryUsage();
 
-            oldHeapTotal = newHeapTotal;
+                var newRss = (memUsage.rss / MB).toFixed(2);
+                var newHeap = (memUsage.heapUsed / MB).toFixed(2);
+                var newHeapTotal = (memUsage.heapTotal / MB).toFixed(2);
+                var deltaHeapTotal = (newHeapTotal - oldHeapTotal).toFixed(2);
 
-            logMemoryFn();
+                console.log('Open Files: ' + openHandleCount + ', RSS: ' + newRss + ' MB, Heap Used: ' + newHeap + ' MB, Heap Total: ' + newHeapTotal + ' MB, Heap Total Change: ' + deltaHeapTotal + ' MB');
+
+                oldHeapTotal = newHeapTotal;
+
+                logFn();
+            });
+
         }, 15000);
     };
-    logMemoryFn();
+    logFn();
 
     // listen for kill or interrupt so that we can shut down cleanly
     process.on('SIGINT', function() {
