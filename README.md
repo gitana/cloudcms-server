@@ -189,11 +189,31 @@ either <code>memory</code> or <code>redis</code>.
 - CLOUDCMS_CACHE_REDIS_PORT
 - CLOUDCMS_CACHE_REDIS_ENDPOINT
 
-### Virtual Hosting
-Virtual hosting allows the application server to discover incoming host names and map them to gitana credentials.
-You must provide the base domain to virtualize against (i.e. http(s)://*.<domain>).
+### Virtual Host (single-tenant)
+If running in a non-virtualized host mode, you must specify the host name being served.  The host name corresponds
+to the tenant slug that identifies the Cloud CMS tenant being served.
 
-- CLOUDCMS_DOMAIN
+- CLOUDCMS_VIRTUAL_HOST
+
+Suppose you set CLOUDCMS_VIRTUAL_HOST to "customer1.cloudcms.net".  You can then run your application on localhost:3000
+and any incoming requests will be handled for the tenant identified by <customer1>.
+
+This approach constrains your application to a single tenant.  For multi-tenant support, see virtual hosting.
+
+### Virtual Hosting (multi-tenant)
+Virtual hosting allows the application server to discover incoming host names and map them to gitana credentials.
+You must provide the base domain to virtualize against (i.e. http(s)://<tenantSlug>.<domain>).
+
+- CLOUDCMS_VIRTUAL_HOST_DOMAIN
+
+For example, if you set CLOUDCMS_VIRTUAL_HOST_DOMAIN to "cloudcms.net", then hosts will be resolved and handled for
+incoming requests like:
+
+    customer1.cloudcms.net
+    customer2.cloudcms.net
+    
+Cloud CMS will connect to the API using the virtual driver credentials to retrieve the proper gitana.json file.
+Assets are cached on disk per virtual host and reused on subsequent requests.
 
 ### Stores
 For every request, underlying persistence stores are applied that automatically configure to read and write objects

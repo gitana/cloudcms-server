@@ -47,7 +47,19 @@ server.report(function(callback) {
     console.log("Gitana Host: " + process.env.GITANA_PROXY_HOST);
     console.log("Gitana Port: " + process.env.GITANA_PROXY_PORT);
     console.log("CPU Count: " + cpuCount);
-    console.log("Virtual Hosting domain: " + process.env.CLOUDCMS_DOMAIN);
+
+    var virtualHost = null;
+    if (process.env.CLOUDCMS_VIRTUAL_HOST) {
+        virtualHost = process.env.CLOUDCMS_VIRTUAL_HOST;
+    }
+    if (!virtualHost && process.env.CLOUDCMS_VIRTUAL_HOST_DOMAIN) {
+        virtualHost = "*." + process.env.CLOUDCMS_VIRTUAL_HOST_DOMAIN;
+    }
+    if (virtualHost)
+    {
+        console.log("Virtual Host: " + virtualHost);
+    }
+
     console.log("Store Configuration: " + process.env.CLOUDCMS_STORE_CONFIGURATION);
     console.log("Broadcast Provider: " + process.env.CLOUDCMS_BROADCAST_TYPE);
     console.log("Cache Provider: " + process.env.CLOUDCMS_CACHE_TYPE);
