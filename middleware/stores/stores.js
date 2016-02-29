@@ -1,6 +1,7 @@
 var path = require('path');
 var util = require("../../util/util");
 var async = require("async");
+var hash = require("object-hash");
 
 /**
  * Binds the following stores into place:
@@ -221,8 +222,6 @@ exports = module.exports = function()
         {
             var findModuleDescriptors = function(callback)
             {
-                var moduleDescriptors = [];
-
                 // look for any module.json files in the modules store
                 // these indicate module mount points
                 // this is an expensive lookup in that it goes directory by directory looking for module.json files
@@ -230,58 +229,79 @@ exports = module.exports = function()
                 // required in and are no longer needed.
                 stores.modules.matchFiles("/", "module.json", function(err, moduleJsonFilePaths) {
 
-                    // collect matching paths
+                    // build out module descriptors
+                    var moduleDescriptors = [];
+                    // functions to run
+                    var fns = [];
                     for (var i = 0; i < moduleJsonFilePaths.length; i++)
                     {
-                        var moduleDirectoryPath = path.dirname(moduleJsonFilePaths[i]);
+                        var fn = function(moduleJsonFilePath) {
+                            return function(done) {
+                                stores.modules.readFile(moduleJsonFilePath, function(err, data) {
+                                    var moduleJson = JSON.parse("" + data);
 
-                        var moduleId = moduleDirectoryPath.split("/");
-                        moduleId = moduleId[moduleId.length - 1];
+                                    var moduleDirectoryPath = path.dirname(moduleJsonFilePath);
+                                    var moduleVersion = null;
+                                    if (moduleJson.version) {
+                                        moduleVersion = moduleJson.version;
+                                    }
 
-                        moduleDescriptors.push({
-                            "path": path.join("modules", moduleDirectoryPath),
-                            "store": "modules",
-                            "id": moduleId
-                        });
+                                    var moduleDescriptor = {
+                                        "path": path.join("modules", moduleDirectoryPath),
+                                        "store": "modules",
+                                        "id": moduleJson.name
+                                    };
 
-                        //console.log("Adding modules:module.json for path: " + moduleDirectoryPath);
-                    }
+                                    if (moduleVersion) {
+                                        moduleDescriptor.version = moduleVersion;
+                                    }
 
+                                    moduleDescriptors.push(moduleDescriptor);
 
-                    // add in any web store included modules that are provided as part of the configuration
-                    //   process.configuration.modules.includes = []
-                    // these paths are relative to the public directory of the web store
-                    if (process.configuration.modules && process.configuration.modules.includes)
-                    {
-                        var moduleJsonFilePaths = process.configuration.modules.includes;
-
-                        for (var i = 0; i < moduleJsonFilePaths.length; i++)
-                        {
-                            var includePath = moduleJsonFilePaths[i];
-
-                            if (stores.web.publicDir)
-                            {
-                                moduleDirectoryPath = path.join(stores.web.publicDir, includePath);
-                            }
-
-                            var moduleId = moduleDirectoryPath.split("/");
-                            moduleId = moduleId[moduleId.length - 1];
-
-                            var include = process.includeWebModule(host, moduleId);
-                            if (include)
-                            {
-                                moduleDescriptors.push({
-                                    "path": moduleDirectoryPath,
-                                    "store": "web",
-                                    "id": moduleId
+                                    done();
                                 });
+                            };
+                        }(moduleJsonFilePaths[i]);
+                        fns.push(fn);
+                    }
+                    async.series(fns, function() {
 
-                                //console.log("Adding web:module.json for path: " + moduleDirectoryPath);
+                        // add in any web store included modules that are provided as part of the configuration
+                        //   process.configuration.modules.includes = []
+                        // these paths are relative to the public directory of the web store
+                        if (process.configuration.modules && process.configuration.modules.includes)
+                        {
+                            var moduleJsonFilePaths = process.configuration.modules.includes;
+
+                            for (var i = 0; i < moduleJsonFilePaths.length; i++)
+                            {
+                                var includePath = moduleJsonFilePaths[i];
+
+                                if (stores.web.publicDir)
+                                {
+                                    var moduleDirectoryPath = path.join(stores.web.publicDir, includePath);
+                                    var moduleId = moduleDirectoryPath.split("/");
+                                    moduleId = moduleId[moduleId.length - 1];
+
+                                    var include = process.includeWebModule(host, moduleId);
+                                    if (include)
+                                    {
+                                        // NOTE: we don't add version information here
+                                        // default is to assume same version as app
+                                        moduleDescriptors.push({
+                                            "path": moduleDirectoryPath,
+                                            "store": "web",
+                                            "id": moduleId
+                                        });
+
+                                        //console.log("Adding web:module.json for path: " + moduleDirectoryPath);
+                                    }
+                                }
                             }
                         }
-                    }
 
-                    callback(moduleDescriptors);
+                        callback(moduleDescriptors);
+                    });
                 });
             };
 
@@ -478,25 +498,61 @@ exports = module.exports = function()
                 req.templatesStore = stores["templates"];
                 req.modulesStore = stores["modules"];
 
-                // write a cookie with module identifiers
-                var moduleIdentifiers = "";
+                // sort the module descriptors by id
+                // this ensures they're always in an ascending order (a,b,c,d)
+                if (moduleDescriptors) {
+                    moduleDescriptors.sort(function(a, b) {
+                        if (a.id > b.id) {
+                            return -1;
+                        }
+                        if (b.id < a.id) {
+                            return 1;
+                        }
+                        return 0;
+                    });
+                }
+
+                // collect the module ids [<id>]
+                // construct a huge cache key
+                var moduleIdArray = [];
+                var moduleKeys = [];
                 if (moduleDescriptors)
                 {
                     for (var i = 0; i < moduleDescriptors.length; i++)
                     {
                         if (moduleDescriptors[i].store === "modules")
                         {
-                            if (moduleIdentifiers.length > 0) {
-                                moduleIdentifiers += ",";
+                            var moduleId = moduleDescriptors[i].id;
+                            var moduleVersion = moduleDescriptors[i].version;
+                            if (!moduleVersion) {
+                                moduleVersion = "unknown";
                             }
-                            moduleIdentifiers += moduleDescriptors[i].id;
+
+                            moduleIdArray.push(moduleId);
+                            moduleKeys.push(moduleId + ":" + moduleVersion);
                         }
                     }
                 }
 
+                // if we're rendering out the index.html top-most page, then we write down a cookie
                 if (req.path === "/" || req.path.indexOf(".html") > -1)
                 {
-                    res.cookie('cloudcmsModuleIdentifiers', moduleIdentifiers);
+                    if (moduleKeys.length > 0)
+                    {
+                        // compute a hash for the installed modules based on keys
+                        var hugeKey = "modules-" + moduleKeys.join("-");
+                        var stateKey = hash(hugeKey, {
+                            "algorithm": "md5"
+                        });
+                        res.cookie("cloudcmsModuleStateKey", stateKey);
+                    }
+                    else
+                    {
+                        res.clearCookie("cloudcmsModuleStateKey");
+                    }
+
+                    // always set cookie for module identifiers
+                    res.cookie("cloudcmsModuleIdentifiers", "" + moduleIdArray.join(","));
                 }
 
                 next();

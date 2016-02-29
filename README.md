@@ -235,3 +235,12 @@ The following environments are computed automatically and available to services:
 
 
 
+# node switches
+node --max_old_space_size=3000 --prof nodemem.js
+	# --trace_incremental_marking=true --incremental_marking_steps=false
+	node --max_old_space_size=3000 --max_new_space_size=3000 --max_executable_size=1000 --gc_global --prof nodemem.js
+	# --noincremental_marking
+	# --nolazy_sweeping
+	# --never_compact
+	# --gc_global
+	# --gc_interval=100000000
