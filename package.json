@@ -64,7 +64,8 @@
     "temp": "0.8.1",
     "toobusy-js": "^0.4.3",
     "watch": "0.16.0",
-    "wrench": "1.5.8"
+    "wrench": "1.5.8",
+    "express-useragent": "0.2.4"
   },
   "devDependencies": {},
   "optionalDependencies": {},

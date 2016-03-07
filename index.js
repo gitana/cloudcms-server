@@ -92,6 +92,7 @@ exports = module.exports = function()
     var virtualFiles = require("./middleware/virtual-files/virtual-files");
     var wcm = require("./middleware/wcm/wcm");
     var welcome = require("./middleware/welcome/welcome");
+    var userAgent = require('express-useragent');
 
     // services
     var notifications = require("./notifications/notifications");
@@ -364,6 +365,9 @@ exports = module.exports = function()
 
         // handles default content retrieval from disk
         app.use(local.defaultHandler());
+
+        // add User-Agent device info to req
+        app.use(userAgent.express());
 
         if (includeCloudCMS)
         {
