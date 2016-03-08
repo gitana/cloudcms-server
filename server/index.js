@@ -427,8 +427,12 @@ var startSlave = function(config, afterStartFn)
 
     // set up domain hosting
     // if not otherwise specified, we assume hosting at *.cloudcms.net
-    if (!process.env.CLOUDCMS_VIRTUAL_HOST_DOMAIN) {
-        process.env.CLOUDCMS_VIRTUAL_HOST_DOMAIN = "cloudcms.net";
+    if (!process.env.CLOUDCMS_VIRTUAL_HOST) {
+
+        if (!process.env.CLOUDCMS_VIRTUAL_HOST_DOMAIN) {
+            process.env.CLOUDCMS_VIRTUAL_HOST_DOMAIN = "cloudcms.net";
+        }
+
     }
 
 
@@ -438,8 +442,10 @@ var startSlave = function(config, afterStartFn)
     // some config overrides can come in through process.configuration
     if (process.configuration) {
         if (process.configuration.virtualHost && process.configuration.virtualHost.domain) {
-            if (!process.env.CLOUDCMS_VIRTUAL_HOST_DOMAIN) {
-                process.env.CLOUDCMS_VIRTUAL_HOST_DOMAIN = process.configuration.virtualHost.domain;
+            if (!process.env.CLOUDCMS_VIRTUAL_HOST) {
+                if (!process.env.CLOUDCMS_VIRTUAL_HOST_DOMAIN) {
+                    process.env.CLOUDCMS_VIRTUAL_HOST_DOMAIN = process.configuration.virtualHost.domain;
+                }
             }
         }
     }

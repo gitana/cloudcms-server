@@ -358,7 +358,7 @@ exports = module.exports = function(dust)
                 return function(done) {
 
                     require(filepath)(app, dust, function() {
-                        console.log("Loaded dust helper: " + filepath);
+                        //console.log("Loaded dust helper: " + filepath);
                         done();
                     });
                 }
