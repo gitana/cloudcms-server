@@ -1648,7 +1648,7 @@ exports = module.exports = function()
             process.broadcast.subscribe("node_invalidation", function (message, done) {
 
                 var nodeId = message.nodeId;
-                var branchId = message.branchId;
+                var branchId = message.isMasterBranch ? "master" : message.branchId;
                 var repositoryId = message.repositoryId;
                 var ref = message.ref;
 
