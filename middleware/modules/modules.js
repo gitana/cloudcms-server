@@ -163,7 +163,7 @@ exports = module.exports = function()
                 {
                     var moduleId = req.query["id"];
 
-                    doDeploy(req, req.domainHost, moduleId, stores.modules, req.body, function(err, host) {
+                    doDeploy(req, req.virtualHost, moduleId, stores.modules, req.body, function(err, host) {
 
                         if (err) {
                             res.send({
@@ -190,7 +190,7 @@ exports = module.exports = function()
                 {
                     var moduleId = req.query["id"];
 
-                    doUndeploy(req, req.domainHost, moduleId, stores.modules, function(err) {
+                    doUndeploy(req, req.virtualHost, moduleId, stores.modules, function(err) {
 
                         if (err) {
                             res.send({
@@ -215,7 +215,7 @@ exports = module.exports = function()
                 {
                     var moduleId = req.query["id"];
 
-                    doUndeploy(req, req.domainHost, moduleId, stores.modules, function(err) {
+                    doUndeploy(req, req.virtualHost, moduleId, stores.modules, function(err) {
 
                         if (err) {
                             res.send({
@@ -227,7 +227,7 @@ exports = module.exports = function()
                             return;
                         }
 
-                        doDeploy(req, req.domainHost, moduleId, stores.modules, req.body, function(err, host) {
+                        doDeploy(req, req.virtualHost, moduleId, stores.modules, req.body, function(err, host) {
 
                             if (err) {
                                 res.send({
@@ -256,7 +256,7 @@ exports = module.exports = function()
                 else if (req.url.indexOf("/_modules/_refresh") === 0)
                 {
                     var moduleId = req.query["id"];
-                    doRefresh(req, req.domainHost, moduleId, stores.modules, function(err) {
+                    doRefresh(req, req.virtualHost, moduleId, stores.modules, function(err) {
 
                         if (err) {
                             res.send({

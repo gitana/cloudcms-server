@@ -487,7 +487,7 @@ exports = module.exports = function()
     {
         return function(req, res, next)
         {
-            produce(req.domainHost, function(err, stores, moduleDescriptors) {
+            produce(req.virtualHost, function(err, stores, moduleDescriptors) {
 
                 req.stores = stores;
 

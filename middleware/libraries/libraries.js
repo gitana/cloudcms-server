@@ -65,11 +65,11 @@ exports = module.exports = function()
             {
                 wrapWithGitanaInjection(req, res);
 
-                util.setHeader(res, "Content-Type", "text/javascript");
+                util.setHeaderOnce(res, "Content-Type", "text/javascript");
             }
 
-            util.setHeader(res, "Pragma", "no-cache");
-            util.setHeader(res, "Cache-Control", "no-cache");
+            util.setHeaderOnce(res, "Pragma", "no-cache");
+            util.setHeaderOnce(res, "Cache-Control", "no-cache");
 
             res.sendFile(uri, {
                 "root": path.join(__dirname, dirPath)

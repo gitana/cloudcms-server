@@ -116,10 +116,7 @@ exports = module.exports = function()
 
                 if (req.url.indexOf("/_admin/cache/reset") === 0)
                 {
-                    var host = req.domainHost;
-                    var ref = req.ref;
-
-                    doResetCache(host, ref, function(err) {
+                    doResetCache(req.virtualHost, req.ref, function(err) {
                         completionFn(res, err);
                     });
 

@@ -16,16 +16,15 @@ exports.bindGitana = function(socket, callback)
     var host = hosts.determineHostForSocket(socket);
     if (!host)
     {
-        callback({
+        return callback({
             "message": "Unable to determine host from socket headers"
         });
-
-        return;
     }
 
     // retain host on the socket instance
     socket.host = host;
     socket.domainHost = host;
+    socket.virtualHost = host;
 
     // find the stores for this host
     stores.produce(host, function(err, stores) {

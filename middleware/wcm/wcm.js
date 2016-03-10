@@ -259,7 +259,7 @@ exports = module.exports = function()
                 }
 
                 // take out a preloading lock so that only one thread proceeds at a time here
-                _LOCK(null, _lock_identifier(req.domainHost, "preloading"), function(releaseLockFn) {
+                _LOCK(null, _lock_identifier(req.virtualHost, "preloading"), function(releaseLockFn) {
 
                     // check again inside lock in case another request preloaded this before we arrived
                     req.cache.read(WCM_PAGES, function (err, pages) {
@@ -819,14 +819,9 @@ exports = module.exports = function()
 
             // either serve the page back from cache or run dust over it
             // after dust is run over it, we can stuff it into cache for the next request to benefit from
-            var host = req.domainHost;
-            if ("localhost" === host) {
-                host = req.headers["host"];
-            }
-
             var descriptor = {
-                "url": req.protocol + "://" + host + offsetPath,
-                "host": host,
+                "url": req.protocol + "://" + req.domainHost + offsetPath,
+                "host": req.domainHost,
                 "protocol": req.protocol,
                 "path": offsetPath,
                 "params": req.query ? req.query : {},
@@ -834,7 +829,7 @@ exports = module.exports = function()
                 "headers": req.headers,
                 "matchingTokens": tokens,
                 "matchingPath": matchingPath,
-                "matchingUrl": req.protocol + "://" + host + matchingPath,
+                "matchingUrl": req.protocol + "://" + req.domainHost + matchingPath,
                 "matchingPageId": page._doc,
                 "matchingPageTitle": page.title ? page.title : page._doc,
                 "scope": "PAGE"

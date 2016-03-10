@@ -189,31 +189,46 @@ either <code>memory</code> or <code>redis</code>.
 - CLOUDCMS_CACHE_REDIS_PORT
 - CLOUDCMS_CACHE_REDIS_ENDPOINT
 
-### Virtual Host (single-tenant)
-If running in a non-virtualized host mode, you must specify the host name being served.  The host name corresponds
-to the tenant slug that identifies the Cloud CMS tenant being served.
+### Hosting Modes
 
-- CLOUDCMS_VIRTUAL_HOST
+The server supports three hosting modes: standalone, single virtual tenant, multiple virtual tenants
 
-Suppose you set CLOUDCMS_VIRTUAL_HOST to "customer1.cloudcms.net".  You can then run your application on localhost:3000
-and any incoming requests will be handled for the tenant identified by <customer1>.
+#### Standalone
 
-This approach constrains your application to a single tenant.  For multi-tenant support, see virtual hosting.
+By default, the server will start up in standalone hosting mode.  This is intended for a standalone web application
+with a local gitana.json file.  The incoming host name is considered to be irrelevant and all on-disk caching is done
+against a "local" virtual host.  In essence, no matter what the host name is, the same virtual host is considered.
 
-### Virtual Hosting (multi-tenant)
-Virtual hosting allows the application server to discover incoming host names and map them to gitana credentials.
-You must provide the base domain to virtualize against (i.e. http(s)://<tenantSlug>.<domain>).
+In this mode, there is no support for virtual driver retrieval.  You must supply the gitana.json locally.
 
-- CLOUDCMS_VIRTUAL_HOST_DOMAIN
+#### Single Virtual Tenant
 
-For example, if you set CLOUDCMS_VIRTUAL_HOST_DOMAIN to "cloudcms.net", then hosts will be resolved and handled for
-incoming requests like:
+In single virtual tenant mode, all incoming request, no matter the host, are mapped to a single Cloud CMS tenant's
+application deployment.
 
-    customer1.cloudcms.net
-    customer2.cloudcms.net
+The virtual driver will retrieve the gitana.json for this tenant and maintain it over time.  If the gitana.json
+API keys change on the server, they will be retrieved and used by the app server automatically.
+
+To use this mode, set the following:
+
+    CLOUDCMS_VIRTUAL_HOST
     
-Cloud CMS will connect to the API using the virtual driver credentials to retrieve the proper gitana.json file.
-Assets are cached on disk per virtual host and reused on subsequent requests.
+This should be set to the host of the Cloud CMS application deployment.
+
+#### Multiple Virtual Tenants
+
+In multiple virtual tenants mode, all incoming requests have their incoming hosts considered.  Each host may describe
+a different Cloud CMS application deployment.  For N hosts, there will be N Cloud CMS application instances.  This mode
+is intended for cases where you wish to have a single application support N customers.
+
+To use this mode, set the following
+
+    CLOUDCMS_VIRTUAL_HOST_DOMAIN
+    
+This should be set to a suffix domain that is wildcarded against.  For example, if you set it to "company.com", then
+any incoming requests for "<subdomain>.company.com" will be served.  Each request will check with Cloud CMS to make
+sure it has the proper gitana.json pulled down for the Cloud CMS application deployment with that host.  Each host
+maintains it's own location on disk and is served back via virtual hosting.
 
 ### Stores
 For every request, underlying persistence stores are applied that automatically configure to read and write objects

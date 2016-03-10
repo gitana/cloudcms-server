@@ -193,9 +193,6 @@ exports = module.exports = function()
                 if (req.url.indexOf("/_runtime/migrate") === 0)
                 {
                     var host = req.query["host"];
-                    if (!host) {
-                        host = "localhost";
-                    }
 
                     doMigrate(req, host, req.body, function(err) {
                         completionFn(err, res);

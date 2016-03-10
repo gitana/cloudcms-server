@@ -425,6 +425,7 @@ var startSlave = function(config, afterStartFn)
         process.env.CLOUDCMS_APPSERVER_MODE = "production";
     }
 
+    /*
     // set up domain hosting
     // if not otherwise specified, we assume hosting at *.cloudcms.net
     if (!process.env.CLOUDCMS_VIRTUAL_HOST) {
@@ -432,9 +433,8 @@ var startSlave = function(config, afterStartFn)
         if (!process.env.CLOUDCMS_VIRTUAL_HOST_DOMAIN) {
             process.env.CLOUDCMS_VIRTUAL_HOST_DOMAIN = "cloudcms.net";
         }
-
     }
-
+    */
 
     // store config on process instance
     process.configuration = config;
@@ -518,10 +518,7 @@ var startSlave = function(config, afterStartFn)
                     var status = res.statusCode;
                     var len = parseInt(res.getHeader('Content-Length'), 10);
                     var host = req.domainHost;
-                    if (!host)
-                    {
-                        host = req.hostname;
-                    }
+
                     len = isNaN(len) ? '0b' : len = bytes(len);
 
                     var d = new Date();
@@ -618,10 +615,6 @@ var startSlave = function(config, afterStartFn)
                     req._log = req.log = function(text, warn) {
 
                         var host = req.domainHost;
-                        if (!host)
-                        {
-                            host = req.hostname;
-                        }
 
                         var timestamp = moment(new Date()).format("MM/DD/YYYY HH:mm:ss Z");
                         var grayColor = "\x1b[90m";

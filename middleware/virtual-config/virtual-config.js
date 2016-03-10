@@ -300,7 +300,7 @@ exports = module.exports = function()
                 next();
             };
 
-            process.driverConfigCache.read(req.domainHost, function(err, cachedValue)
+            process.driverConfigCache.read(req.virtualHost, function(err, cachedValue)
             {
 
                 if (cachedValue)
@@ -319,7 +319,7 @@ exports = module.exports = function()
                 else
                 {
                     // try to load from disk
-                    acquireGitanaJson(req.domainHost, req.rootStore, req.log, function (err, gitanaConfig)
+                    acquireGitanaJson(req.virtualHost, req.rootStore, req.log, function (err, gitanaConfig)
                     {
 
                         if (err)
@@ -330,7 +330,7 @@ exports = module.exports = function()
 
                         if (gitanaConfig)
                         {
-                            process.driverConfigCache.write(req.domainHost, {
+                            process.driverConfigCache.write(req.virtualHost, {
                                 "config": gitanaConfig
                             }, function (err)
                             {
@@ -340,7 +340,7 @@ exports = module.exports = function()
                         else
                         {
                             // mark with sentinel
-                            process.driverConfigCache.write(req.domainHost, "null", function (err)
+                            process.driverConfigCache.write(req.virtualHost, "null", function (err)
                             {
                                 completionFunction();
                             });

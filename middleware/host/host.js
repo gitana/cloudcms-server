@@ -2,7 +2,8 @@ var path = require('path');
 var util = require('../../util/util');
 
 /**
- * Sets host onto request.
+ * Sets req.domainHost onto request.
+ * Sets req.virtualHost onto request.
  *
  * @type {Function}
  */
@@ -36,6 +37,8 @@ exports = module.exports = function()
     r.hostInterceptor = function() {
 
         return function(req, res, next) {
+
+            var resolvedVirtual = false;
 
             var host = process.env.CLOUDCMS_VIRTUAL_HOST;
             if (!host)
@@ -110,6 +113,11 @@ exports = module.exports = function()
                     {
                         host = host.substring(0, host.indexOf(":"));
                     }
+
+                    if (host)
+                    {
+                        resolvedVirtual = true;
+                    }
                 }
             }
 
@@ -117,11 +125,17 @@ exports = module.exports = function()
                 host = req.hostname;
             }
 
-            if (!host) {
-                host = "localhost";
-            }
-
+            // domainHost is the domain as seen in the URL
             req.domainHost = host;
+
+            // virtualHost is the host that we manage on disk
+            // multiple real-world hosts might map into the same virtual host
+            // for example, "abc.cloudcms.net and "def.cloudcms.net" could connect to Cloud CMS as a different tenant
+            // "local" means that gitana.json is provided manually, no virtualized connections
+            req.virtualHost = "local";
+            if (resolvedVirtual) {
+                req.virtualHost = host;
+            }
 
             next();
         };

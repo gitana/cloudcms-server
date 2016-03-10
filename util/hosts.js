@@ -7,6 +7,8 @@ exports = module.exports;
 
 exports.determineHostForSocket = function(socket)
 {
+    var resolvedVirtual = false;
+
     var host = process.env.CLOUDCMS_VIRTUAL_HOST;
     if (!host)
     {
@@ -52,6 +54,11 @@ exports.determineHostForSocket = function(socket)
                 if (x > -1)
                 {
                     host = host.substring(0, x);
+                }
+
+                if (host)
+                {
+                    resolvedVirtual = true;
                 }
             }
         }

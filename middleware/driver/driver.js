@@ -242,7 +242,7 @@ exports = module.exports = function()
                         rootStore.removeFile(originalFilename, function(err) {
 
                             // remove from cache
-                            process.driverConfigCache.invalidate(req.domainHost, function() {
+                            process.driverConfigCache.invalidate(req.virtualHost, function() {
                                 completionFn();
                             });
 

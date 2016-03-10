@@ -1353,9 +1353,9 @@ var status = exports.status = function(res, code)
     else
     {
         // don't include cache headers
-        setHeader(res, "Cache-Control", "no-cache,no-store");
-        setHeader(res, "Pragma", "no-cache");
-        setHeader(res, "Expires", "Mon, 7 Apr 2012, 16:00:00 GMT"); // already expired
+        setHeaderOnce(res, "Cache-Control", "no-cache,no-store");
+        setHeaderOnce(res, "Pragma", "no-cache");
+        setHeaderOnce(res, "Expires", "Mon, 7 Apr 2012, 16:00:00 GMT"); // already expired
         //removeHeader(res, "Cache-Control");
         //removeHeader(res, "Pragma");
         //removeHeader(res, "Expires");

@@ -17,7 +17,7 @@ exports = module.exports = function()
 
     var resolveConfig = r.resolveConfig = function(holder, rootStore, callback)
     {
-        if (!holder.domainHost)
+        if (!holder.virtualHost)
         {
             callback({
                 "message": "Missing host"
@@ -46,7 +46,7 @@ exports = module.exports = function()
         };
 
 
-        process.driverConfigCache.read(holder.domainHost, function(err, cachedValue) {
+        process.driverConfigCache.read(holder.virtualHost, function(err, cachedValue) {
 
             if (cachedValue)
             {
@@ -87,7 +87,7 @@ exports = module.exports = function()
                                 return;
                             }
 
-                            process.driverConfigCache.write(holder.domainHost, {
+                            process.driverConfigCache.write(holder.virtualHost, {
                                 "config": gitanaConfig
                             }, function(err) {
                                 completionFunction(null, gitanaConfig);
@@ -97,7 +97,7 @@ exports = module.exports = function()
                     else
                     {
                         // mark with sentinel
-                        process.driverConfigCache.write(holder.domainHost, "null", function(err) {
+                        process.driverConfigCache.write(holder.virtualHost, "null", function(err) {
                             completionFunction();
                         });
                     }

@@ -37,10 +37,9 @@ exports = module.exports = function()
         bindConfigAdapter(configStore, function(err, adapter) {
 
             if (err) {
-                callback({
-                    "message": "Unable to bind config adapter for host: " + host + ", err: " + JSON.stringify(err)
+                return callback({
+                    "message": "Unable to bind config adapter, err: " + JSON.stringify(err)
                 });
-                return;
             }
 
             adapter.loadApplication(function(appConfig) {

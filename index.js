@@ -229,18 +229,17 @@ exports = module.exports = function()
                     if (application)
                     {
                         var applicationConfiguration = application.runtime;
-                        if (!applicationConfiguration) {
-                            applicationConfiguration = {};
+                        if (applicationConfiguration)
+                        {
+                            // merge configs
+                            util.merge(applicationConfiguration, configuration);
                         }
 
-                        // merge configs
-                        util.merge(applicationConfiguration, configuration);
-
-                        finish();
+                        finish(configuration);
                     }
                     else
                     {
-                        finish();
+                        finish(configuration);
                     }
 
                 });

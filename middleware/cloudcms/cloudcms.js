@@ -917,7 +917,7 @@ exports = module.exports = function()
                             if (err && err.invalidateGitanaDriver)
                             {
                                 console.log("Found err.invalidateGitanaDriver true");
-                                if (req.gitanaConfig && req.domainHost)
+                                if (req.gitanaConfig && req.domainKey)
                                 {
                                     // at this point, our gitana driver's auth token was pronounced dead and we need to invalidate
                                     // to get a new one, so blow things away here
@@ -932,10 +932,10 @@ exports = module.exports = function()
                                     catch (e) { }
 
                                     // remove from cache
-                                    console.log("Remove from cache: " + req.domainHost);
+                                    console.log("Remove from cache: " + req.virtualHost);
                                     try
                                     {
-                                        process.driverConfigCache.invalidate(req.domainHost, function () {
+                                        process.driverConfigCache.invalidate(req.virtualHost, function () {
                                             // all done
                                         });
                                     }
@@ -1653,6 +1653,13 @@ exports = module.exports = function()
                 var ref = message.ref;
 
                 var host = message.host;
+
+                // at the moment, caching on disk uses "master" for the master branch instead of the actual branch id
+                var isMasterBranch = message.isMasterBranch;
+                if (isMasterBranch)
+                {
+                    branchId = "master";
+                }
 
                 self.invalidateNode(host, repositoryId, branchId, nodeId, function(err) {
                     done(err);

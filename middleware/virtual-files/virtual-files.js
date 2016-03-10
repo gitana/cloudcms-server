@@ -55,7 +55,7 @@ exports = module.exports = function()
 
             // CACHE: is there a cached descriptor for this host?
             // NOTE: null is a valid sentinel value (meaning none)
-            process.deploymentDescriptorCache.read(req.domainHost, function(err, descriptor) {
+            process.deploymentDescriptorCache.read(req.virtualHost, function(err, descriptor) {
 
                 if (typeof(descriptor) !== "undefined" || descriptor === null) {
                     // all done
@@ -85,7 +85,7 @@ exports = module.exports = function()
                                 descriptor = JSON.parse(descriptor);
 
                                 // CACHE: write
-                                process.deploymentDescriptorCache.write(req.domainHost, descriptor, function() {
+                                process.deploymentDescriptorCache.write(req.virtualHost, descriptor, function() {
 
                                     // all done
                                     completionFunction(null, descriptor);

@@ -324,6 +324,12 @@ exports = module.exports = function()
             req.headers["x-cloudcms-domainhost"] = req.domainHost;
         }
 
+        // copy virtual host into "x-cloudcms-virtualhost"
+        if (req.virtualHost)
+        {
+            req.headers["x-cloudcms-virtualhost"] = req.virtualHost;
+        }
+
         // copy deployment descriptor info
         if (req.descriptor)
         {
@@ -388,10 +394,17 @@ exports = module.exports = function()
 
             // allow forced cookie domains
             var forcedCookieDomain = req.headers["cloudcmscookiedomain"];
+            if (!forcedCookieDomain) {
+                if (process.env.CLOUDCMS_FORCE_COOKIE_DOMAIN) {
+                    forcedCookieDomain = process.env.CLOUDCMS_FORCE_COOKIE_DOMAIN;
+                }
+            }
             if (forcedCookieDomain)
             {
                 newDomain = forcedCookieDomain;
             }
+
+            console.log("Write to")
 
             // now proceed
 
