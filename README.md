@@ -201,6 +201,9 @@ against a "local" virtual host.  In essence, no matter what the host name is, th
 
 In this mode, there is no support for virtual driver retrieval.  You must supply the gitana.json locally.
 
+To change the name of the "local" virtual host name, set CLOUDCMS_STANDALONE_HOST environment variable.
+The default is "local".
+
 #### Single Virtual Tenant
 
 In single virtual tenant mode, all incoming request, no matter the host, are mapped to a single Cloud CMS tenant's

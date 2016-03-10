@@ -131,8 +131,8 @@ exports = module.exports = function()
             // virtualHost is the host that we manage on disk
             // multiple real-world hosts might map into the same virtual host
             // for example, "abc.cloudcms.net and "def.cloudcms.net" could connect to Cloud CMS as a different tenant
-            // "local" means that gitana.json is provided manually, no virtualized connections
-            req.virtualHost = "local";
+            // process.env.CLOUDCMS_STANDALONE_HOST means that gitana.json is provided manually, no virtualized connections
+            req.virtualHost = process.env.CLOUDCMS_STANDALONE_HOST;
             if (resolvedVirtual) {
                 req.virtualHost = host;
             }

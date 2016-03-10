@@ -453,6 +453,10 @@ var startSlave = function(config, afterStartFn)
         process.env.CLOUDCMS_VIRTUAL_HOST_DOMAIN = process.env.CLOUDCMS_VIRTUAL_HOST_DOMAIN.toLowerCase();
     }
 
+    if (!process.env.CLOUDCMS_STANDALONE_HOST) {
+        process.env.CLOUDCMS_STANDALONE_HOST = "local";
+    }
+
     // session store
     var initializedSession = null;
     if (process.configuration.session)

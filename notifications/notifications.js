@@ -16,10 +16,10 @@ var handleNotificationMessages = function(items, callback) {
 
                 var host = item.host;
 
-                // if virtual hosts not enabled, assume for "local"
+                // if virtual hosts not enabled, assume for process.env.CLOUDCMS_STANDALONE_HOST ("local")
                 if (!process.configuration.virtualHost || !process.configuration.virtualHost.enabled)
                 {
-                    host = "local";
+                    host = process.env.CLOUDCMS_STANDALONE_HOST;
                 }
                 else if (process.configuration.virtualHost && process.configuration.virtualHost.enabled)
                 {
