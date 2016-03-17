@@ -127,17 +127,23 @@ exports = module.exports = function()
         }
 
         keys(prefix, function(err, badKeys) {
-
-            var fns = [];
-            for (var i = 0; i < badKeys.length; i++) {
+            var createRemoveTask = function(key) {
                 var fn = function(done) {
-                    remove(badKeys[i], function() {
+                    remove(key, function() {
                         done();
                     });
                 };
-                fns.push(fn);
+
+                return fn;
+            };
+
+            var fns = [];
+            for (var i = 0; i < badKeys.length; i++)
+            {
+                fns.push(createRemoveTask(badKeys[i]));
             }
-            async.parallel(fns, function() {
+            async.parallel(fns, function()
+            {
                 if (callback)
                 {
                     callback();
