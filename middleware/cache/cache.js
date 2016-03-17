@@ -128,13 +128,11 @@ exports = module.exports = function()
 
         keys(prefix, function(err, badKeys) {
             var createRemoveTask = function(key) {
-                var fn = function(done) {
+                return function(done) {
                     remove(key, function() {
                         done();
                     });
                 };
-
-                return fn;
             };
 
             var fns = [];
