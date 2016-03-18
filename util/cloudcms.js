@@ -569,12 +569,13 @@ exports = module.exports = function()
                 return;
             }
 
-            var filePath = path.join(contentDirectoryPath, "metadata.json");
+            var filePath = contentDirectoryPath;
             if (nodePath) {
                 filePath = path.join(contentDirectoryPath, "paths", nodePath);
-            }
-            if (attachmentId) {
+            } else if (attachmentId) {
                 filePath = path.join(filePath, "attachments", attachmentId);
+            } else {
+                filePath = path.join(contentDirectoryPath, "metadata.json");
             }
 
             var doWork = function() {
@@ -1080,4 +1081,3 @@ exports = module.exports = function()
 
     return r;
 }();
-
