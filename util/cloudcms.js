@@ -572,7 +572,9 @@ exports = module.exports = function()
             var filePath = contentDirectoryPath;
             if (nodePath) {
                 filePath = path.join(contentDirectoryPath, "paths", nodePath);
-            } else if (attachmentId) {
+            }
+
+            if (attachmentId) {
                 filePath = path.join(filePath, "attachments", attachmentId);
             } else {
                 filePath = path.join(contentDirectoryPath, "metadata.json");
