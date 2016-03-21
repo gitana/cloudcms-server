@@ -113,8 +113,7 @@ exports = module.exports = function()
             // if we already found req.gitanaConfig in the virtual driver, skip this step
             if (req.gitanaConfig)
             {
-                next();
-                return;
+                return next();
             }
 
             var rootStore = stores.root;

@@ -38,10 +38,8 @@ exports = module.exports = function()
 
         return function(req, res, next) {
 
-            var resolvedVirtual = false;
-
-            var host = process.env.CLOUDCMS_VIRTUAL_HOST;
-            if (!host)
+            var _virtualHost = process.env.CLOUDCMS_VIRTUAL_HOST;
+            if (!_virtualHost)
             {
                 // see if we can process for a virtual host domain
                 var virtualHostDomain = process.env.CLOUDCMS_VIRTUAL_HOST_DOMAIN;
@@ -80,20 +78,19 @@ exports = module.exports = function()
                     push(candidates, req.hostname);
 
                     // find the one that is for our virtualHostDomain
-                    var host = null;
                     for (var x = 0; x < candidates.length; x++)
                     {
                         // keep only those that are subdomains of our intended parent virtualHostDomain (i.e. "cloudcms.net")
                         if (candidates[x].toLowerCase().indexOf(virtualHostDomain) > -1)
                         {
-                            host = candidates[x];
+                            _virtualHost = candidates[x];
                             break;
                         }
                     }
                     //console.log("Resolved host: " + host);
 
                     // if none, take first one that is not an IP address
-                    if (!host)
+                    if (!_virtualHost)
                     {
                         if (candidates.length > 0)
                         {
@@ -101,7 +98,7 @@ exports = module.exports = function()
                             {
                                 if (!util.isIPAddress(candidates[i]))
                                 {
-                                    host = candidates[i];
+                                    _virtualHost = candidates[i];
                                     break;
                                 }
                             }
@@ -109,33 +106,27 @@ exports = module.exports = function()
                     }
 
                     // strip out port if it's somehow on host
-                    if (host && host.indexOf(":") > -1)
+                    if (_virtualHost && _virtualHost.indexOf(":") > -1)
                     {
-                        host = host.substring(0, host.indexOf(":"));
-                    }
-
-                    if (host)
-                    {
-                        resolvedVirtual = true;
+                        _virtualHost = _virtualHost.substring(0, _virtualHost.indexOf(":"));
                     }
                 }
             }
 
-            if (!host) {
-                host = req.hostname;
-            }
+            // base case
+            req.domainHost = req.hostname;
+            req.virtualHost = process.env.CLOUDCMS_STANDALONE_HOST;
 
-            // domainHost is the domain as seen in the URL
-            req.domainHost = host;
+            // virtual mode
+            if (_virtualHost)
+            {
+                req.virtualHost = _virtualHost;
+            }
 
             // virtualHost is the host that we manage on disk
             // multiple real-world hosts might map into the same virtual host
             // for example, "abc.cloudcms.net and "def.cloudcms.net" could connect to Cloud CMS as a different tenant
             // process.env.CLOUDCMS_STANDALONE_HOST means that gitana.json is provided manually, no virtualized connections
-            req.virtualHost = process.env.CLOUDCMS_STANDALONE_HOST;
-            if (resolvedVirtual) {
-                req.virtualHost = host;
-            }
 
             next();
         };

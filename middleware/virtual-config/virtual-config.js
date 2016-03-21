@@ -158,8 +158,7 @@ exports = module.exports = function()
                         {
                             // something failed, perhaps a network issue
                             // don't store anything
-                            callback(err);
-                            return;
+                            return callback(err);
                         }
 
                         if (!virtualConfig)
@@ -210,8 +209,7 @@ exports = module.exports = function()
 
                     if (err)
                     {
-                        callback(err);
-                        return;
+                        return callback(err);
                     }
 
                     var gitanaJson = JSON.parse(data.toString());
@@ -225,10 +223,9 @@ exports = module.exports = function()
                         if (baseURL && baseURL.indexOf("localhost") > -1)
                         {
                             // bad - kill it off and then load from remote
-                            rootStore.deleteFile("gitana.json", function() {
+                            return rootStore.deleteFile("gitana.json", function() {
                                 loadFromRemote();
                             });
-                            return;
                         }
                     }
                     else
