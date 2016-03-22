@@ -404,8 +404,6 @@ exports = module.exports = function()
                 newDomain = forcedCookieDomain;
             }
 
-            console.log("Write to")
-
             // now proceed
 
             // replace the domain with the host
