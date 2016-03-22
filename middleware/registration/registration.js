@@ -111,7 +111,10 @@ exports = module.exports = function()
         {
             if (errors && errors.length > 0)
             {
-                req.flash("formErrors", errors);
+                if(req.flash)
+                {
+                    req.flash("formErrors", errors);
+                }
 
                 if(redirect)
                 {
