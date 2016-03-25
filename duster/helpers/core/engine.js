@@ -832,73 +832,102 @@ module.exports = function(app, dust)
         // locale
         var locale = context.resolve(params.locale);
 
-        // TRACKER: START
-        tracker.start(context);
-        if (locale) {
-            tracker.requires(context, "locale", locale);
-        }
+        var requirements = support.buildRequirements(context, {
+            "as": as,
+            "id": id,
+            "contentPath": contentPath,
+            "locale": locale
+        });
+
+        var finishHandler = function(context, err)
+        {
+            tracker.finish(context);
+        };
+
+        // identifier for this fragment
+        var fragmentId = context.resolve(params.fragment);
 
         return map(chunk, function(chunk) {
 
-            if (locale)
-            {
-                var gitana = context.get("gitana");
-                gitana.getDriver().setLocale(locale);
-            }
+            // if we can serve this from the fragment cache, we do so
+            support.serveFragment(context, chunk, fragmentId, requirements, function(err, disabled) {
 
-            var f = function(node)
-            {
-                // enhance node information
-                enhanceNode(node);
-
-                // TRACKER - PRODUCES "node"
-                tracker.produces(context, "node", this._doc);
-
-                var newContextObject = {};
-                if (as)
-                {
-                    newContextObject[as] = JSON.parse(JSON.stringify(node));
-
-                    _MARK_INSIGHT(node, newContextObject[as].content);
-                }
-                else
-                {
-                    newContextObject["content"] = JSON.parse(JSON.stringify(node));
-
-                    _MARK_INSIGHT(node, newContextObject.content);
+                // if no error and fragments were not disabled, then asset was served back, so simply return
+                if (!err && !disabled) {
+                    return;
                 }
 
-                var newContext = context.push(newContextObject);
-                //newContext.get("content").attachments = attachments;
-                chunk.render(bodies.block, newContext);
-                end(chunk, context);
-            };
-
-            var req = context.get("req");
-            req.branch(function(err, branch) {
-
-                if (err) {
-                    return end(chunk, context);
+                // TRACKER: START
+                tracker.start(context);
+                if (locale) {
+                    tracker.requires(context, "locale", locale);
                 }
 
-                // select by ID or select by Path
-                if (id)
+                if (locale)
                 {
-                    branch.readNode(id).then(function() {
-                        f(this);
+                    var gitana = context.get("gitana");
+                    gitana.getDriver().setLocale(locale);
+                }
+
+                var f = function(node)
+                {
+                    // enhance node information
+                    enhanceNode(node);
+
+                    // TRACKER - PRODUCES "node"
+                    tracker.produces(context, "node", node._doc);
+
+                    var newContextObject = {};
+                    if (as)
+                    {
+                        newContextObject[as] = JSON.parse(JSON.stringify(node));
+
+                        _MARK_INSIGHT(node, newContextObject[as].content);
+                    }
+                    else
+                    {
+                        newContextObject["content"] = JSON.parse(JSON.stringify(node));
+
+                        _MARK_INSIGHT(node, newContextObject.content);
+                    }
+
+                    var newContext = context.push(newContextObject);
+                    //newContext.get("content").attachments = attachments;
+
+                    support.renderFragment(newContext, fragmentId, requirements, chunk, bodies, function(err) {
+                        finishHandler(newContext, err);
                     });
-                }
-                else if (contentPath)
-                {
-                    branch.readNode("root", contentPath).then(function() {
-                        f(this);
-                    });
-                }
-                else
-                {
-                    // missing both ID and Path?
-                    console.log("Missing ID and PATH! {@content} helper must have either a path or an id");
-                }
+
+                    // chunk.render(bodies.block, newContext);
+                    // end(chunk, context);
+                };
+
+                var req = context.get("req");
+                req.branch(function(err, branch) {
+
+                    if (err) {
+                        return end(chunk, context);
+                    }
+
+                    // select by ID or select by Path
+                    if (id)
+                    {
+                        branch.readNode(id).then(function() {
+                            f(this);
+                        });
+                    }
+                    else if (contentPath)
+                    {
+                        branch.readNode("root", contentPath).then(function() {
+                            f(this);
+                        });
+                    }
+                    else
+                    {
+                        // missing both ID and Path?
+                        console.log("Missing ID and PATH! {@content} helper must have either a path or an id");
+                    }
+                });
             });
         });
     };
