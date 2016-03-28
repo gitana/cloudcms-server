@@ -36,12 +36,12 @@ exports = module.exports = function()
     r.finalHandler = function()
     {
         var config = {"enabled": false};
-        if(process.configuration.final)
+        if (process.configuration.final)
         {
             config = process.configuration.final || {"enabled": false};
         }
         
-        if(config.enabled)
+        if (config.enabled)
         {
             var redirectUrl = config.redirectUrl || "/index.html";
             var prefixList = config.prefixList || ["/"];
@@ -49,17 +49,16 @@ exports = module.exports = function()
             
             return util.createHandler("final", function(req, res, next, stores, cache, configuration) {
                 var targetUrl = redirectUrl;
-                if(includeUrlHash)
+                if (includeUrlHash)
                 {
                     targetUrl += "/#" + req.path;
                 }
                 
-                for(var i=0; i<prefixList.length; i++)
+                for(var i = 0; i < prefixList.length; i++)
                 {
-                    if(req.path.startsWith(prefixList[i]))
+                    if (req.path.startsWith(prefixList[i]))
                     {
-                        res.redirect(targetUrl);
-                        return;
+                        return res.redirect(targetUrl);
                     }
                 }
 
