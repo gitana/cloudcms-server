@@ -10,6 +10,7 @@ module.exports = function(app, dust, callback)
         "./helpers/core/cloudcms/beta/nodeAttachmentText",
         "./helpers/core/cloudcms/beta/processTemplate",
         "./helpers/core/cloudcms/beta/markdown",
+        "./helpers/core/cloudcms/beta/params",
 
         "./helpers/core/cloudcms/associations",
         "./helpers/core/cloudcms/content",
