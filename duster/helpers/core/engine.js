@@ -1012,6 +1012,23 @@ module.exports = function(app, dust)
         });
     };
 
+    // NOTE: this can also be done like this:
+    // NOTE: as per source dust.js line 521
+    /*
+     Context.prototype.resolve = function(body) {
+     var chunk;
+
+     if(typeof body !== 'function') {
+     return body;
+     }
+     chunk = new Chunk().render(body, this);
+     if(chunk instanceof Chunk) {
+     return chunk.data.join(''); // ie7 perf
+     }
+     return chunk;
+     };
+     */
+
     /**
      * Handles include behavior for @include and @module
      *
@@ -1121,13 +1138,16 @@ module.exports = function(app, dust)
                 var templatePath = filePath.split(path.sep).join("/");
 
                 var includeContextObject = {};
+
+                // override with any params
                 for (var k in params) {
                     var value = context.resolve(params[k]);
                     if (value) {
                         includeContextObject[k] = value;
                     }
                 }
-                // push down new file path
+
+                // some additional overrides that we enforce
                 var templateFilePaths = context.get("templateFilePaths");
                 var newTemplateFilePaths = [];
                 for (var r = 0; r < templateFilePaths.length; r++) {
@@ -1135,6 +1155,8 @@ module.exports = function(app, dust)
                 }
                 newTemplateFilePaths.push(filePath);
                 includeContextObject["templateFilePaths"] = newTemplateFilePaths;
+
+                // include the subcontext
                 var subContext = context.push(includeContextObject);
 
                 dust.render(templatePath, subContext, function (err, out) {
