@@ -154,20 +154,20 @@ var SETTINGS = {
         }
     },
     "virtualHost": {
-        "enabled": false // true
+        "enabled": false
     },
     "wcm": {
-        "enabled": false, // true
+        "enabled": false,
         "cache": false
     },
     "serverTags": {
-        "enabled": false // true
+        "enabled": false
     },
     "insight": {
-        "enabled": false // true
+        "enabled": false
     },
     "perf": {
-        "enabled": true // true
+        "enabled": true
     },
     "driverConfig": {
         "enabled": true

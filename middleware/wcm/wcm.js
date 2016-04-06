@@ -453,6 +453,7 @@ exports = module.exports = function()
                 }
 
                 releaseLockFn();
+
                 callback();
             });
         });
@@ -511,6 +512,7 @@ exports = module.exports = function()
                         return callback();
                     }
 
+                    console.log("6: " + pageBasePath);
                     stores.content.removeDirectory(pageBasePath, function () {
                         releaseLockFn();
                         callback();
@@ -553,7 +555,7 @@ exports = module.exports = function()
             // LISTEN: "invalidate_page_rendition"
             process.broadcast.subscribe("invalidate_page_rendition", function (message, invalidationDone) {
 
-                // console.log("HEARD: invalidate_page_rendition");
+                console.log("HEARD: invalidate_page_rendition");
 
                 var clearFragmentCacheFn = function(message)
                 {

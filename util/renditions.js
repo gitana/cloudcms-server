@@ -72,8 +72,7 @@ exports = module.exports = function()
 
                 if (err)
                 {
-                    callback(err);
-                    return;
+                    return callback(err);
                 }
 
                 var applicationId = application._doc;
@@ -134,8 +133,8 @@ exports = module.exports = function()
                     renditionObject.key = descriptor.fragmentCacheKey;
                 }
 
-                //console.log("PAGE RENDITION OBJECT");
-                //console.log(JSON.stringify(pageRenditionObject, null, "  "));
+                // console.log("PAGE RENDITION OBJECT");
+                // console.log(JSON.stringify(renditionObject, null, "  "));
 
                 var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT + "/applications/" + applicationId + "/deployments/" + deploymentKey + "/pagerenditions";
 

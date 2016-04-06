@@ -260,7 +260,32 @@ GITANA_PROXY_PORT
 GITANA_PROXY_SCHEME
 
 
+### Runtime
 
+The module supports dynamic switching of the branch being served from.  It also allows for the runtime cache buster
+value to be migrated at any time to allow for cache regeneration.
+
+The following environment variables can be used to set up the initial state:
+
+CLOUDCMS_RUNTIME_CB
+CLOUDCMS_RUNTIME_RELEASE_ID
+CLOUDCMS_RUNTIME_BRANCH_ID
+
+A runtime.json file is written into each virtual host's content directory.  It can be adjusted at runtime via an API
+call to:
+
+    /_runtime/migrate?host=<hostName>
+    
+And the POST payload should be:
+
+    {
+        "branchId": "<newBranchId>",
+        "releaseId": "<newReleaseId>",
+        "cb": "<newCacheBusterValue>"
+    }
+
+
+### Other Environment Variables
 
 The following environments are computed automatically and available to services:
 
@@ -274,11 +299,8 @@ The following environments are computed automatically and available to services:
 
 
 # node switches
-node --max_old_space_size=3000 --prof nodemem.js
-	# --trace_incremental_marking=true --incremental_marking_steps=false
-	node --max_old_space_size=3000 --max_new_space_size=3000 --max_executable_size=1000 --gc_global --prof nodemem.js
-	# --noincremental_marking
-	# --nolazy_sweeping
-	# --never_compact
-	# --gc_global
-	# --gc_interval=100000000
+Examples of Node switches:
+
+    node --max_old_space_size=3000 --prof nodemem.js --trace_incremental_marking=true --incremental_marking_steps=false
+    
+    node --max_old_space_size=3000 --max_new_space_size=3000 --max_executable_size=1000 --gc_global --prof nodemem.js --noincremental_marking --nolazy_sweeping --never_compact --gc_global --gc_interval=100000000

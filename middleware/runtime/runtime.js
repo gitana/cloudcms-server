@@ -39,9 +39,9 @@ exports = module.exports = function()
      * JSON should look like:
      *
      *  {
-      *      "branchId": "ASD",
-      *      "releaseId": "ASD",
-      *      "cb": "ASD"
+     *      "branchId": "ASD",
+     *      "releaseId": "ASD",
+     *      "cb": "ASD"
      *  }
      *
      * @param req
@@ -134,16 +134,29 @@ exports = module.exports = function()
                 }
                 else
                 {
+                    // write initial file
+
                     var data = {};
 
-                    // generate a cache buster (in case we're in production mode)
+                    // cache buster (cb)
                     data.cb = new Date().getTime();
+                    if (process.env.CLOUDCMS_RUNTIME_CB) {
+                        data.cb = process.env.CLOUDCMS_RUNTIME_CB;
+                    }
 
-                    // release id and branch id are unknown
+                    // release id
                     data.releaseId = null;
-                    data.branchId = null;
+                    if (process.env.CLOUDCMS_RUNTIME_RELEASE_ID) {
+                        data.releaseId = process.env.CLOUDCMS_RUNTIME_RELEASE_ID;
+                    }
 
-                    // create runtime
+                    // branch id
+                    data.branchId = null;
+                    if (process.env.CLOUDCMS_RUNTIME_BRANCH_ID) {
+                        data.branchId = process.env.CLOUDCMS_RUNTIME_BRANCH_ID;
+                    }
+
+                    // create runtime file
                     store.writeFile("runtime.json", JSON.stringify(data, null, "  "), function(err) {
 
                         req.runtime = data;

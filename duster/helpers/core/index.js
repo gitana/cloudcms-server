@@ -21,6 +21,8 @@ module.exports = function(app, dust, callback)
         "./helpers/core/cloudcms/search",
         "./helpers/core/cloudcms/searchOne",
 
+        "./helpers/core/cloudcms/wcm/dependency",
+
         "./helpers/core/dev/debug",
 
         "./helpers/core/dom/block",
