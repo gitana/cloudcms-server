@@ -98,6 +98,65 @@ exports = module.exports = function()
         });
     };
 
+    var TEMPLATE_RUNTIME_BRANCHES = "" + fs.readFileSync(path.join(__dirname, "../../templates/runtime_branches.html"));
+    var TEMPLATE_RUNTIME_RELEASES = "" + fs.readFileSync(path.join(__dirname, "../../templates/runtime_releases.html"));
+
+    var renderBranchesMenu = function(req, res, next)
+    {
+        req.branch(function(err, branch) {
+
+            var repository = branch.getRepository();
+
+            Chain(repository).listBranches({
+                "limit": -1
+            }).each(function() {
+                this._active = (this.getId() === branch.getId());
+            }).then(function() {
+
+                var branches = this.asArray();
+
+                var handlebars = require("handlebars");
+                var template = handlebars.compile(TEMPLATE_RUNTIME_BRANCHES);
+
+                var data = {
+                    "branches": branches
+                };
+                var result = template(data);
+
+                res.type("text/html").send(result);
+            });
+        });
+    };
+
+    var renderReleasesMenu = function(req, res, next)
+    {
+        req.branch(function(err, branch) {
+
+            var repository = branch.getRepository();
+
+            Chain(repository).listReleases({
+                "limit": -1
+            }).each(function() {
+                this._active = (this.branchId === branch.getId());
+            }).then(function() {
+
+                var releases = this.asArray();
+
+                var handlebars = require("handlebars");
+                var template = handlebars.compile(TEMPLATE_RUNTIME_RELEASES);
+
+                var data = {
+                    "releases": releases
+                };
+                var result = template(data);
+
+                res.type("text/html").send(result);
+            });
+        });
+
+    };
+
+
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
     // RESULTING OBJECT
@@ -200,6 +259,19 @@ exports = module.exports = function()
 
                     handled = true;
                 }
+                else if (req.url.indexOf("/_runtime/branches") === 0)
+                {
+                    renderBranchesMenu(req, res, next);
+
+                    handled = true;
+                }
+                else if (req.url.indexOf("/_runtime/releases") === 0)
+                {
+                    renderReleasesMenu(req, res, next);
+
+                    handled = true;
+                }
+
             }
             else if (req.method.toLowerCase() === "post") {
 

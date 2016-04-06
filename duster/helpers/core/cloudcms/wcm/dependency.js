@@ -1,4 +1,4 @@
-var tracker = require("../../../tracker");
+var tracker = require("../../../../tracker");
 
 /**
  * @dependency

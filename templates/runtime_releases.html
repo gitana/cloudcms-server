@@ -1,0 +1,59 @@
+<html>
+    <head>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+    </head>
+    <body>
+        <table class="table table-striped table-hover">
+            <thead>
+            <tr>
+                <th>Release ID</th>
+                <th>Release Title</th>
+                <th>Released</th>
+                <th>Release Date</th>
+                <th>Branch ID</th>
+                <th>Active</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {{#each releases}}
+            <tr>
+                <td>{{_doc}}</td>
+                <td>{{title}}</td>
+                <td>{{released}}</td>
+                <td>{{releaseDate.timestamp}}</td>
+                <td>{{branchId}}</td>
+                <td>{{#if _active}}Active{{/if}}</td>
+                <td>
+                    <button class="btn btn-link btn-action" data-branch-id="{{releaseId}}" data-release-id="{{_doc}}">Make Active</button>
+                </td>
+            </tr>
+            {{/each}}
+            </tbody>
+        </table>
+        <script>
+            $(".btn-action").off().click(function(e) {
+                e.preventDefault();
+                var branchId = $(this).attr("data-branch-id");
+                var releaseId = $(this).attr("data-release-id");
+                var data = {};
+                if (branchId) {
+                    data.branchId = branchId;
+                }
+                if (releaseId) {
+                    data.releaseId = releaseId;
+                }
+                $.ajax({
+                    "type": "POST",
+                    "url": "/_runtime/migrate",
+                    "data": data
+                }).always(function() {
+                    window.location.reload();
+                });
+            })
+        </script>
+    </body>
+</html>
