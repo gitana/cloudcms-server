@@ -271,18 +271,20 @@ CLOUDCMS_RUNTIME_CB
 CLOUDCMS_RUNTIME_RELEASE_ID
 CLOUDCMS_RUNTIME_BRANCH_ID
 
-A runtime.json file is written into each virtual host's content directory.  It can be adjusted at runtime via an API
-call to:
+A runtime.json file is written into each virtual host's content directory.  It can be adjusted at runtime via a
+POST call to:
 
-    /_runtime/migrate?host=<hostName>
+    /_runtime/migrate
     
-And the POST payload should be:
+And the JSON payload should be:
 
     {
         "branchId": "<newBranchId>",
         "releaseId": "<newReleaseId>",
         "cb": "<newCacheBusterValue>"
     }
+
+Only `branchId` is truly required.  If `cb` is specified, it will be used, otherwise a new ID will be auto-generated.
 
 
 ### Other Environment Variables
