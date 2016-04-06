@@ -36,6 +36,8 @@ exports = module.exports = function()
     };
 
     /**
+     * Migrates the current host to the given branch/release.
+     *
      * JSON should look like:
      *
      *  {
@@ -49,52 +51,31 @@ exports = module.exports = function()
      * @param json
      * @param callback
      */
-    var doMigrate = function(req, host, json, callback)
+    var doMigrate = function(req, json, callback)
     {
-        // construct a "root" store for this host
-        var storeService = require("../stores/stores");
-        storeService.produce(host, function(err, stores) {
+        var data = {};
 
-            if (err)
-            {
-                return callback(err);
-            }
+        // generate a cache buster (in case we're in production mode)
+        data.cb = new Date().getTime();
+        if (json.cb) {
+            data.cb = json.cb;
+        }
 
-            var store = stores.content;
-            store.allocated(function(allocated) {
+        // pick up release id
+        data.releaseId = null;
+        if (json.releaseId) {
+            data.releaseId = json.releaseId;
+        }
 
-                if (!allocated)
-                {
-                    return callback({
-                        "message": "No content store allocated for host: " + host
-                    });
-                }
+        // pick up branch id
+        data.branchId = null;
+        if (json.branchId) {
+            data.branchId = json.branchId;
+        }
 
-                var data = {};
-
-                // generate a cache buster (in case we're in production mode)
-                data.cb = new Date().getTime();
-                if (json.cb) {
-                    data.cb = json.cb;
-                }
-
-                // pick up release id
-                data.releaseId = null;
-                if (json.releaseId) {
-                    data.releaseId = json.releaseId;
-                }
-
-                // pick up branch id
-                data.branchId = null;
-                if (json.branchId) {
-                    data.branchId = json.branchId;
-                }
-
-                // create runtime
-                store.writeFile("runtime.json", JSON.stringify(data, null, "  "), function(err) {
-                    callback(err);
-                });
-            });
+        // write a new runtime file
+        req.stores.content.writeFile("runtime.json", JSON.stringify(data, null, "  "), function(err) {
+            callback(err);
         });
     };
 
@@ -141,6 +122,15 @@ exports = module.exports = function()
             }).then(function() {
 
                 var releases = this.asArray();
+
+                // splice in MASTER
+                releases.unshift({
+                    "_doc": "master",
+                    "title": "Master",
+                    "released": "",
+                    "branchId": "master",
+                    "_active": branch.type === "MASTER"
+                });
 
                 var handlebars = require("handlebars");
                 var template = handlebars.compile(TEMPLATE_RUNTIME_RELEASES);
@@ -277,9 +267,7 @@ exports = module.exports = function()
 
                 if (req.url.indexOf("/_runtime/migrate") === 0)
                 {
-                    var host = req.query["host"];
-
-                    doMigrate(req, host, req.body, function(err) {
+                    doMigrate(req, req.body, function(err) {
                         completionFn(err, res);
                     });
 

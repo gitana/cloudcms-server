@@ -24,11 +24,11 @@
                 <td>{{_doc}}</td>
                 <td>{{title}}</td>
                 <td>{{released}}</td>
-                <td>{{releaseDate.timestamp}}</td>
+                <td>{{#if releaseDate}}{{releaseDate.timestamp}}{{/if}}</td>
                 <td>{{branchId}}</td>
                 <td>{{#if _active}}Active{{/if}}</td>
                 <td>
-                    <button class="btn btn-link btn-action" data-branch-id="{{releaseId}}" data-release-id="{{_doc}}">Make Active</button>
+                    <button class="btn btn-link btn-action" data-branch-id="{{branchId}}" data-release-id="{{_doc}}">Make Active</button>
                 </td>
             </tr>
             {{/each}}
