@@ -6,11 +6,12 @@ var hash = require("object-hash");
 /**
  * Binds the following stores into place:
  *
- *   "root"         the file system root for the deployed or local application
- *   "cache"        the root of the cache
- *   "config"       the configuration storage location
- *   "public"       the web host root (this might be public_build too)
- *   "templates"    the templates storage location (for client-side templates)
+ *   "root"             the file system root for the deployed or local application
+ *   "cache"            the root of the cache
+ *   "public"           the web host root (this might be public_build too)
+ *   "templates"        the templates storage location (for client-side templates)
+ *   "modules"          the deployed modules storage location (for client-side modules)
+ *   "config"           the configuration storage location for static config (for client-side config)
  *
  * @type {Function}
  */
@@ -434,17 +435,6 @@ exports = module.exports = function()
 
         var bindContentStore = function(done)
         {
-            /*
-            rootStore.existsFile("content", function(exists) {
-
-                if (exists) {
-                    stores["content"] = rootStore.mount("content");
-                }
-
-                done();
-            });
-            */
-
             stores["content"] = buildStore("content", host, "content");
             done();
         };

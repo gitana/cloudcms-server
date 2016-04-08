@@ -332,8 +332,7 @@ exports = module.exports = function()
                     {
                         if (req._repository)
                         {
-                            callback(null, req._repository);
-                            return;
+                            return callback(null, req._repository);
                         }
 
                         req.gitana.datastore("content").then(function() {
@@ -410,8 +409,7 @@ exports = module.exports = function()
                 {
                     if (req._branch)
                     {
-                        callback(null, Chain(req._branch));
-                        return;
+                        return callback(null, Chain(req._branch));
                     }
 
                     req.repository(function(err, repository) {

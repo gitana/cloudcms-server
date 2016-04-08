@@ -1020,8 +1020,7 @@ var createDirectory = exports.createDirectory = function(directoryPath, callback
     mkdirp(directoryPath, function(err) {
 
         if (err) {
-            callback(err);
-            return;
+            return callback(err);
         }
 
         callback(null, directoryPath);

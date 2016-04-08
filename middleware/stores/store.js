@@ -288,6 +288,21 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
         });
     };
 
+    /**
+     * Mounts a new store at a path within a current store.
+     *
+     * @param mountPath
+     */
+    r.mount = function(mountPath)
+    {
+        var newOffsetPath = mountPath;
+        if (offsetPath) {
+            newOffsetPath = path.join(offsetPath, mountPath);
+        }
+
+        return require("./store")(engine, engineType, engineId, engineConfiguration, host, newOffsetPath);
+    };
+
     return r;
 };
 
