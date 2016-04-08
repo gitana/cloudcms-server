@@ -523,6 +523,28 @@ exports = module.exports = function()
                     done(err);
                 });
             });
+
+            // listen for dynamic-config invalidation events
+            process.broadcast.subscribe("dynamic-config-invalidation-topic", function (message, done) {
+
+                //var command = message.command;
+                var host = message.host;
+                var dynamicId = message.dynamicId;
+
+                if (!dynamicId) {
+                    return done();
+                }
+
+                handleDynamicConfigInvalidation(host, dynamicId, function(err) {
+
+                    if (!err) {
+                        console.log("ConfigService invalidated host: " + host);
+                    }
+
+                    done(err);
+                });
+
+            });
         }
     };
 
@@ -532,8 +554,7 @@ exports = module.exports = function()
         stores.produce(host, function (err, stores) {
 
             if (err) {
-                done(err);
-                return;
+                return callback(err);
             }
 
             var configStore = stores.config;
@@ -541,6 +562,33 @@ exports = module.exports = function()
             delete CACHED_ADAPTERS[configStore.id];
 
             callback();
+        });
+    };
+
+    var handleDynamicConfigInvalidation = function(host, dynamicId, callback)
+    {
+        invalidateDynamicConfig(host, dynamicId, function(err) {
+            // swallow error
+            callback();
+        });
+    };
+
+    var invalidateDynamicConfig = r.invalidateDynamicConfig = function(host, dynamicId, callback)
+    {
+        var stores = require("../stores/stores");
+        stores.produce(host, function (err, stores) {
+
+            if (err) {
+                return callback(err);
+            }
+
+            var rootStore = stores.root;
+            var directoryPath = "dynamic-config/" + dynamicId;
+
+            rootStore.removeDirectory(directoryPath, function(err) {
+                callback(err);
+            });
+
         });
     };
 
