@@ -298,8 +298,11 @@ exports = module.exports = function()
         // authorization interceptor
         app.use(authorization.authorizationInterceptor());
 
+        // supports user-configured dynamic configuration
+        app.use(config.overlayUserConfigurationInterceptor());
+
         // supports dynamic configuration
-        app.use(config.dynamicConfigurationInterceptor());
+        app.use(config.overlayConfigurationInterceptor());
 
         // tag processing, injection of scripts, etc, kind of a catch all at the moment
         app.use(serverTags.interceptor(configuration));

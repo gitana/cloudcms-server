@@ -116,7 +116,21 @@ var handleNotificationMessages = function(items, callback) {
                                             "branchId": branchId,
                                             "repositoryId": repositoryId,
                                             "isMasterBranch": obj.isMasterBranch,
-                                            "host": host
+                                            "host": host || obj.host
+                                        }, z_done);
+                                    }
+                                    else if (type === "settings")
+                                    {
+                                        var ref = obj.ref;
+                                        var settingsKey = obj.settingsKey;
+                                        var settingsScope = obj.settingsScope;
+
+                                        // broadcast invalidation
+                                        process.broadcast.publish("settings_invalidation", {
+                                            "ref": ref,
+                                            "settingsKey": settingsKey,
+                                            "settingsScope": settingsScope,
+                                            "host": host || obj.host
                                         }, z_done);
                                     }
                                     else

@@ -387,6 +387,13 @@ exports = module.exports = function(originalStores)
         });
     };
 
+    // specific to multistore
+
+    r.getOriginalStores = function()
+    {
+        return originalStores;
+    };
+
     return r;
 };
 
