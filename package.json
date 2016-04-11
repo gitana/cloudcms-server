@@ -30,7 +30,7 @@
     "express-session": "1.11.1",
     "express-useragent": "0.2.4",
     "forever-agent": "0.6.1",
-    "gitana": "1.0.208",
+    "gitana": "1.0.210",
     "handlebars": "^4.0.5",
     "hbs": "2.7.0",
     "http-proxy": "1.12.1",
