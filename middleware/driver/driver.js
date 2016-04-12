@@ -286,6 +286,9 @@ exports = module.exports = function()
         // the auto refresh runner ensures that the virtual driver gitana is always refreshed
         autoRefreshRunner();
 
+        // bind listeners for broadcast events
+        bindSubscriptions();
+
         return util.createInterceptor("driver", function(req, res, next, stores, cache, configuration) {
 
             resolveGitanaConfig(req, function(err, gitanaConfig) {
@@ -336,6 +339,29 @@ exports = module.exports = function()
 
             });
         });
+    };
+
+    var bindSubscriptions = function()
+    {
+        if (process.broadcast)
+        {
+            // when an application invalidates, tear down any drivers cached for this app
+            process.broadcast.subscribe("application_invalidation", function (message, invalidationDone) {
+
+                var applicationId = message.applicationId;
+                var host = message.host;
+
+                Gitana.disconnect(applicationId);
+                console.log("Invalidated application: " + applicationId + ", disconnected driver");
+
+                // remove from cache
+                process.driverConfigCache.invalidate(host, function() {
+                    console.log("Invalidated application: " + applicationId + ", invalidated driver config for host: " + host);
+                    invalidationDone();
+                });
+
+            });
+        }
     };
 
     return r;

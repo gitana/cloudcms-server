@@ -108,29 +108,30 @@ module.exports.process = function(callback)
                 catch (e)
                 {
                     // oh well, not something we can deal with
-                    console.log("Heard message but can't make sense of it: " + body.Message);
-                    item = null;
                 }
 
-                // if we got something
-                if (item)
-                {
-                    // unique message id
-                    item._id = messageId;
-
-                    // keep this around so that we can delete later
-                    item._deletionEntry = {
-                        "Id": "message" + i,
-                        "ReceiptHandle": message.ReceiptHandle
-                    };
-
-                    // other properties
-                    item.timestamp = timestamp;
-                    item.sentTimestamp = sentTimestamp;
-                    item.subject = subject;
-
-                    items.push(item);
+                if (!item) {
+                    item = {};
                 }
+
+                // unique message id
+                item._id = messageId;
+
+                // keep this around so that we can delete later
+                item._deletionEntry = {
+                    "Id": "message" + i,
+                    "ReceiptHandle": message.ReceiptHandle
+                };
+
+                // other properties
+                item.timestamp = timestamp;
+                item.sentTimestamp = sentTimestamp;
+                item.subject = subject;
+
+                // raw message
+                item.rawMessage = body.Message;
+
+                items.push(item);
             }
         }
 

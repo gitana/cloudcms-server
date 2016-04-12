@@ -133,6 +133,22 @@ var handleNotificationMessages = function(items, callback) {
                                             "host": host || obj.host
                                         }, z_done);
                                     }
+                                    else if (type === "application")
+                                    {
+                                        var ref = obj.ref;
+                                        var applicationId = obj.applicationId;
+                                        var deploymentKey = obj.deploymentKey;
+                                        var host = obj.host;
+
+                                        process.broadcast.publish("application_invalidation", {
+                                            "ref": ref,
+                                            "applicationId": applicationId,
+                                            "deploymentKey": deploymentKey,
+                                            "host": host
+                                        });
+
+                                        z_done();
+                                    }
                                     else
                                     {
                                         z_done();
@@ -273,6 +289,15 @@ var handleNotificationMessages = function(items, callback) {
                     // broadcast invalidation
                     process.broadcast.publish("invalidate_all_page_renditions", message, function(err) {
                         return done(err);
+                    });
+                }
+                else
+                {
+                    console.log("Unknown notification item: " + item.rawMessage);
+
+                    // just assume it's something we can't deal with
+                    return done({
+                        "message": "Unknown notification item: " + item.rawMessage
                     });
                 }
             }
