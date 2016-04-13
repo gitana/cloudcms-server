@@ -43,12 +43,13 @@ exports = module.exports = function()
         
         if (config.enabled)
         {
-            var redirectUrl = config.redirectUrl || "/index.html";
+            var configTargetUrl = config.targetUrl || "/index.html";
             var prefixList = config.prefixList || ["/"];
             var includeUrlHash = !!config.includeUrlHash;
+            var useRedirect = !!config.useRedirect;
             
             return util.createHandler("final", function(req, res, next, stores, cache, configuration) {
-                var targetUrl = redirectUrl;
+                var targetUrl = configTargetUrl;
                 if (includeUrlHash)
                 {
                     targetUrl += "/#" + req.path;
@@ -56,9 +57,13 @@ exports = module.exports = function()
                 
                 for(var i = 0; i < prefixList.length; i++)
                 {
-                    if (req.path.startsWith(prefixList[i]))
+                    if (req.path.indexOf(prefixList[i]) === 0)
                     {
-                        return res.redirect(targetUrl);
+                        if (useRedirect) {
+                            return res.redirect(targetUrl);
+                        } else {
+                            return res.sendFile(targetUrl, {root: './public/'});
+                        }
                     }
                 }
 
