@@ -26,9 +26,10 @@ exports = module.exports = function()
      * 
      *     "final": {
      *         "enabled": true,
-     *         "redirectUrl": "/404.html",
+     *         "targetUrl": "/404.html",
      *         "includeUrlHash": true,
-     *         "prefixList": ["/path1/", "/path2/"]
+     *         "prefixList": ["/path1/", "/path2/"],
+     *         "useRedirect": true
      *     }
      * 
      * @return {Function}
