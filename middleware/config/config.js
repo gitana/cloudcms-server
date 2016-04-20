@@ -607,16 +607,17 @@ exports = module.exports = function()
         // config handler
         return util.createHandler("remoteConfig", "config", function(req, res, next, stores, cache, configuration) {
 
-            if (!req._remote_config_store) {
-                return next();
-            }
-
             var handled = false;
 
             if (req.method.toLowerCase() === "get") {
 
                 if (req.url.indexOf("/_config/remote") === 0)
                 {
+                    if (!req._remote_config_store) {
+                        res.send([]);
+                        return res.end();
+                    }
+
                     console.log("z1: " + req._remote_config_store);
                     console.log("z2: " + req._remote_config_store.debug());
 
