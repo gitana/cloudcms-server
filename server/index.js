@@ -589,7 +589,7 @@ var startSlave = function(config, afterStartFn)
                 app.use(responseTime(function(req, res, time) {
 
                     var warn = false;
-                    if (time > 250) {
+                    if (time > 1000) {
                         warn = true;
                     }
 
@@ -644,7 +644,7 @@ var startSlave = function(config, afterStartFn)
 
                         if (warn)
                         {
-                            message = "\r\n**** WARNING ****\r\n" + message + "\r\n";
+                            message = "\r\n**** SLOW RESPONSE ****\r\n" + message + "\r\n";
                         }
 
                         console.log(message);

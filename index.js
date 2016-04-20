@@ -298,11 +298,11 @@ exports = module.exports = function()
         // authorization interceptor
         app.use(authorization.authorizationInterceptor());
 
-        // supports user-configured dynamic configuration
-        app.use(config.overlayUserConfigurationInterceptor());
+        // supports lookup of remote UI Config by user id + project
+        app.use(config.userRemoteConfigInterceptor());
 
-        // supports dynamic configuration
-        app.use(config.overlayConfigurationInterceptor());
+        // supports user-configured dynamic configuration
+        app.use(config.remoteConfigInterceptor());
 
         // tag processing, injection of scripts, etc, kind of a catch all at the moment
         app.use(serverTags.interceptor(configuration));
@@ -332,8 +332,11 @@ exports = module.exports = function()
         // handles deploy/undeploy commands
         app.use(deployment.handler());
 
-        // handles calls to the configuration service
-        app.use(config.handler());
+        // serve back static configuration
+        app.use(config.staticConfigHandler());
+
+        // serve back dynamic configuration
+        app.use(config.remoteConfigHandler());
 
         // handles calls to the templates service
         app.use(templates.handler());

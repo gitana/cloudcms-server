@@ -303,6 +303,11 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
         return require("./store")(engine, engineType, engineId, engineConfiguration, host, newOffsetPath);
     };
 
+    r.debug = function()
+    {
+        console.log("Engine Path: " + _enginePath("/"));
+    };
+
     return r;
 };
 

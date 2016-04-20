@@ -32,31 +32,31 @@ exports = module.exports = function()
         }
     };
 
-    var retrieveOverlayConfigApplication = function(req, configuration, callback) {
+    var retrieveConfigApplication = function(req, configuration, callback) {
 
-        if (req._overlay_config_application) {
-            return callback(null, Chain(req._overlay_config_application));
+        if (req._config_application) {
+            return callback(null, Chain(req._config_application));
         }
 
         // if not told otherwise, assume "oneteam"
         var appKey = "oneteam";
-        if (configuration.overlay && configuration.overlay.appKey) {
-            appKey = configuration.overlay.appKey;
+        if (configuration.remote && configuration.remote.appKey) {
+            appKey = configuration.remote.appKey;
         }
 
         Chain(req.gitana.platform()).readApplication(appKey).then(function() {
-            req._overlay_config_application = this;
+            req._config_application = this;
             callback(null, this);
         });
 
     };
 
-    var bindOverlayConfigStore = function(req, configuration, overlayId, callback)
+    var bindUIConfigStore = function(req, configuration, uiConfigId, callback)
     {
         /**
-         * Indicates whether the overlay config for a given ID has already been faulted from Cloud CMS.
+         * Indicates whether the ui config for a given ID has already been faulted from Cloud CMS.
          *
-         * This simply looks at the disk and sees whether a overlay.json file exists.
+         * This simply looks at the disk and sees whether a uiconfig.json file exists.
          *
          * If it does, then we do not bother.
          * If the file does not exist, then we signal that we need to pull stuff down.
@@ -64,47 +64,47 @@ exports = module.exports = function()
          * @param req
          * @param rootStore
          * @param directoryPath
-         * @param overlayId
+         * @param uiConfigId
          * @param callback
          */
-        var isOverlayConfigFaulted = function(req, rootStore, directoryPath, overlayId, callback)
+        var isUIConfigAlreadyFaulted = function(req, rootStore, directoryPath, uiConfigId, callback)
         {
-            var overlayJsonPath = path.join(directoryPath, "/overlay.json");
+            var uiConfigJsonPath = path.join(directoryPath, "/uiconfig.json");
 
-            rootStore.existsFile(overlayJsonPath, function (exists) {
+            rootStore.existsFile(uiConfigJsonPath, function (exists) {
                 callback(null, exists);
             });
         };
 
         /**
-         * Indicates whether the overlay.json file on disk claims that YES there are overlay config elements on disk
+         * Indicates whether the uiconfig.json file on disk claims that YES there are ui config elements on disk
          * or NO, nothing was found on a previous check.
          *
          * @param req
          * @param rootStore
          * @param directoryPath
-         * @param overlayId
+         * @param uiConfigId
          * @param callback
          */
-        var isOverlayConfigAvailable = function(req, rootStore, directoryPath, overlayId, callback)
+        var isUIConfigAvailable = function(req, rootStore, directoryPath, uiConfigId, callback)
         {
-            var overlayJsonPath = path.join(directoryPath, "/overlay.json");
+            var uiConfigJsonPath = path.join(directoryPath, "/uiconfig.json");
 
-            rootStore.readFile(overlayJsonPath, function(err, data) {
+            rootStore.readFile(uiConfigJsonPath, function(err, data) {
 
                 if (err) {
                     return callback({
-                        "message": "Error loading overlay.json from disk"
+                        "message": "Error loading uiconfig.json from disk"
                     });
                 }
 
-                var overlayJson = JSON.parse("" + data);
+                var uiConfigJson = JSON.parse("" + data);
 
-                callback(null, overlayJson.exists);
+                callback(null, uiConfigJson.exists);
             });
         };
 
-        var removeOldOverlayConfigDirectory = function(req, rootStore, directoryPath, done)
+        var removeOldUIConfigDirectory = function(req, rootStore, directoryPath, done)
         {
             // remove and/or re-create the directory
             rootStore.existsDirectory(directoryPath, function(exists) {
@@ -119,57 +119,40 @@ exports = module.exports = function()
             });
         };
 
-        var faultOverlayConfig = function(req, rootStore, directoryPath, overlayId, done) {
+        var faultUIConfig = function(req, rootStore, directoryPath, uiConfigId, done) {
 
-            // if there is an old overlay config directory sitting around, we remove it
-            removeOldOverlayConfigDirectory(req, rootStore, directoryPath, function(err) {
+            // if there is an old ui config directory sitting around, we remove it
+            removeOldUIConfigDirectory(req, rootStore, directoryPath, function(err) {
 
-                // query to see if there are any overlay config for this
-                retrieveOverlayConfigApplication(req, configuration, function(err, application) {
+                // query to see if there are any ui config for this
+                Chain(req.gitana.platform()).readUIConfig(uiConfigId).then(function() {
 
-                    if (err) {
-                        return done();
-                    }
+                    var uiConfig = this;
 
-                    if (!application) {
-                        return done();
-                    }
+                    var uiConfigJson = {
+                        "exists": (uiConfig ? true : false)
+                    };
 
-                    var overlayConfig = null;
+                    console.log("DOWNLOADED: " + JSON.stringify(uiConfig, null, "  "));
 
-                    Chain(application).querySettings({
-                        "key": overlayId,
-                        "scope": "overlay"
-                    }, {
-                        "limit": -1
-                    }).each(function() {
-                        overlayConfig = this;
-                    }).then(function() {
+                    // write ui config
+                    var uiConfigJsonPath = path.join(directoryPath, "/uiconfig.json");
+                    rootStore.writeFile(uiConfigJsonPath, JSON.stringify(uiConfigJson, null, "  "), function(err) {
 
-                        var overlayJson = {
-                            "exists": (overlayConfig ? true : false)
-                        };
+                        if (!uiConfigJson)
+                        {
+                            return done();
+                        }
 
-                        // write overlay config
-                        var overlayJsonPath = path.join(directoryPath, "/overlay.json");
-                        rootStore.writeFile(overlayJsonPath, JSON.stringify(overlayJson, null, "  "), function(err) {
+                        writeUIConfigToDisk(req, rootStore, directoryPath, uiConfigId, uiConfig, function(err) {
 
-                            if (!overlayJson)
-                            {
-                                return done();
+                            if (err) {
+                                return done(err, false);
                             }
 
-                            writeOverlayConfig(req, rootStore, directoryPath, overlayId, overlayConfig, function(err) {
-
-                                if (err) {
-                                    return done(err, false);
-                                }
-
-                                // available!
-                                done(null, true);
-                            });
+                            // available!
+                            done(null, true);
                         });
-
                     });
 
                 });
@@ -177,11 +160,15 @@ exports = module.exports = function()
             });
         };
 
-        var writeOverlayConfig = function(req, rootStore, directoryPath, overlayId, config, finished)
+        var writeUIConfigToDisk = function(req, rootStore, directoryPath, uiConfigId, uiConfig, finished)
         {
             var fns = [];
 
-            var blocks = config.settings.config.blocks;
+            var blocks = null;
+            if (uiConfig.config)
+            {
+                blocks = uiConfig.config.blocks;
+            }
 
             if (blocks)
             {
@@ -192,7 +179,8 @@ exports = module.exports = function()
                     var fn = function(rootStore, directoryPath, blockId, block) {
                         return function(done) {
 
-                            var blockFilePath = path.join(directoryPath, "config", overlayId, "blocks", blockId, blockId + ".json");
+                            var blockFilePath = path.join(directoryPath, "config", uiConfigId, "blocks", blockId, blockId + ".json");
+
                             //console.log("Writing block: " + blockFilePath);
                             rootStore.writeFile(blockFilePath, JSON.stringify(block, null, "  "), function(err) {
                                 done(err);
@@ -209,14 +197,14 @@ exports = module.exports = function()
         };
 
         var rootStore = req.stores.root;
-        var directoryPath = "overlays/" + overlayId;
+        var directoryPath = "uiconfigs/" + uiConfigId;
 
-        isOverlayConfigFaulted(req, rootStore, directoryPath, overlayId, function(err, faulted) {
+        isUIConfigAlreadyFaulted(req, rootStore, directoryPath, uiConfigId, function(err, faulted) {
 
             if (!faulted)
             {
                 // we've made no attempt to load to disk, so let's go for it
-                faultOverlayConfig(req, rootStore, directoryPath, overlayId, function(err, available) {
+                faultUIConfig(req, rootStore, directoryPath, uiConfigId, function(err, available) {
 
                     if (err) {
                         return callback(err);
@@ -226,7 +214,7 @@ exports = module.exports = function()
                         return callback();
                     }
 
-                    // it's available on disk, so let's hand back the mounted overlay config store
+                    // it's available on disk, so let's hand back the mounted ui config store
                     callback(null, rootStore.mount(path.join(directoryPath, "config")));
                 });
 
@@ -235,7 +223,7 @@ exports = module.exports = function()
 
             // check whether the stuff loaded down to disk is available, meaning that we found something worth
             // mounting in the first place
-            isOverlayConfigAvailable(req, rootStore, directoryPath, overlayId, function(err, available) {
+            isUIConfigAvailable(req, rootStore, directoryPath, uiConfigId, function(err, available) {
 
                 if (err) {
                     return callback(err);
@@ -245,7 +233,7 @@ exports = module.exports = function()
                     return callback();
                 }
 
-                // yes it's available on disk, so let's hand back the mounted overlay config store
+                // yes it's available on disk, so let's hand back the mounted ui config store
                 callback(null, rootStore.mount(path.join(directoryPath, "config")));
             });
 
@@ -396,17 +384,17 @@ exports = module.exports = function()
     var r = {};
 
     /**
-     * Overlay Configuration Interceptor for Users
+     * UI Configuration Interceptor for Users
      *
-     * Given a user ID, looks up their application user settings and figures out which overlay-config to use.
-     * Substitutes req.query.overlayId into the request.
+     * Given a user ID, looks up their application user settings and figures out which ui config to use.
+     * Substitutes req.query.id into the request.
      */
-    r.overlayUserConfigurationInterceptor = function()
+    r.userRemoteConfigInterceptor = function()
     {
-        return util.createInterceptor("config", "config", function(req, res, next, stores, cache, configuration) {
+        return util.createInterceptor("userRemoteConfig", "config", function(req, res, next, stores, cache, configuration) {
 
             var handle = false;
-            if (configuration.overlay && configuration.overlay.enabled)
+            if (configuration.remote && configuration.remote.enabled)
             {
                 handle = true;
             }
@@ -417,7 +405,7 @@ exports = module.exports = function()
             }
 
             handle = false;
-            if (req.url.indexOf("/_config") === 0)
+            if (req.url.indexOf("/_config/remote") === 0)
             {
                 handle = true;
             }
@@ -439,7 +427,8 @@ exports = module.exports = function()
 
             var projectId = req.query["projectId"];
 
-            retrieveOverlayConfigApplication(req, configuration, function(err, application) {
+            // get the cloud cms application
+            retrieveConfigApplication(req, configuration, function(err, application) {
 
                 var userSettings = null;
 
@@ -457,20 +446,16 @@ exports = module.exports = function()
                         return next();
                     }
 
-                    var overlays = userSettings.settings.overlays;
-                    if (!overlays) {
+                    var uiconfigs = userSettings.settings.uiconfigs;
+                    if (!uiconfigs) {
                         return next();
                     }
 
-                    var id = null;
+                    var id = uiconfigs["platform"];
 
                     if (projectId)
                     {
-                        id = overlays["project-" + projectId];
-                    }
-                    else
-                    {
-                        id = overlays["platform"];
+                        id = uiconfigs["project-" + projectId];
                     }
 
                     if (!id) {
@@ -489,35 +474,17 @@ exports = module.exports = function()
     };
 
     /**
-     * Overlay Configuration Interceptor
+     * Remote Configuration Interceptor
      *
-     * Checks to see if there is any overlay config to be loaded and if so, makes sure the overlay config
-     * is loaded down to disk.  Once on disk, a overlay config store is mounted and the req.stores.config store
-     * is replaced with a multistore that layers the overlay config on top.
+     * If a remote configuration ID is provided (req.query.id), this will fault that configuration to disk
+     * (unless it is already faulted) and mount a store.  The store is kept around as req._remote_config_store.
      */
-    r.overlayConfigurationInterceptor = function()
+    r.remoteConfigInterceptor = function()
     {
-        if (!process.configuration.config) {
-            process.configuration.config = {};
-        }
-
-        if (typeof(process.configuration.config.overlay) === "undefined") {
-            process.configuration.config.overlay = {};
-        }
-
-        if (typeof(process.configuration.config.overlay.enabled) === "undefined") {
-            process.configuration.config.overlay.enabled = false;
-        }
-
-        if (process.env.CLOUDCMS_CONFIG_OVERLAY_ENABLE === "true")
-        {
-            process.configuration.config.overlay.enabled = true;
-        }
-
-        return util.createInterceptor("config", "config", function(req, res, next, stores, cache, configuration) {
+        return util.createInterceptor("remoteConfig", "config", function(req, res, next, stores, cache, configuration) {
 
             var handle = false;
-            if (configuration.overlay && configuration.overlay.enabled)
+            if (configuration.remote && configuration.remote.enabled)
             {
                 handle = true;
             }
@@ -527,49 +494,24 @@ exports = module.exports = function()
                 return next();
             }
 
-            handle = false;
-            if (req.url.indexOf("/_config") === 0)
-            {
-                handle = true;
-            }
-
-            if (!handle)
-            {
+            var uiConfigId = req.query["id"];
+            if (!uiConfigId) {
                 return next();
             }
 
-            var overlayId = req.query["id"];
-            if (!overlayId) {
-                return next();
-            }
-
-            bindOverlayConfigStore(req, configuration, overlayId, function(err, overlayConfigStore) {
+            bindUIConfigStore(req, configuration, uiConfigId, function(err, uiConfigStore) {
 
                 if (err) {
                     return next();
                 }
 
-                if (!overlayConfigStore) {
+                if (!uiConfigStore) {
                     return next();
                 }
 
-                var newStores = [];
+                console.log("a3");
 
-                // assume req.stores.config is a multistore already
-                var originalStores = req.stores.config.getOriginalStores();
-                for (var i = 0; i < originalStores.length; i++)
-                {
-                    newStores.push(originalStores[i]);
-                }
-
-                if (overlayConfigStore)
-                {
-                    newStores.push(overlayConfigStore);
-                }
-
-                // re-wrap the config store with these new stores
-                // they include the overlay config store at the end
-                req.stores.config = multistoreFactory(newStores);
+                req._remote_config_store = uiConfigStore;
 
                 next();
 
@@ -579,17 +521,44 @@ exports = module.exports = function()
     };
 
     /**
-     * Retrieves configuration for the application.
+     * Retrieves static configuration.
+     *
+     * This serves back using the mounted config store (which is a multistore).
      *
      * @return {Function}
      */
-    r.handler = function()
+    r.staticConfigHandler = function()
     {
+        if (!process.configuration.config) {
+            process.configuration.config = {};
+        }
+
+        if (typeof(process.configuration.config.remote) === "undefined") {
+            process.configuration.config.remote = {};
+        }
+
+        if (typeof(process.configuration.config.remote.enabled) === "undefined") {
+            process.configuration.config.remote.enabled = false;
+        }
+
+        if (process.env.CLOUDCMS_CONFIG_REMOTE_ENABLED === "true")
+        {
+            process.configuration.config.remote.enabled = true;
+        }
+
+        if (typeof(process.configuration.config.remote.appKey) === "undefined")
+        {
+            if (process.env.CLOUDCMS_CONFIG_REMOTE_APPKEY)
+            {
+                process.configuration.config.remote.appKey = process.env.CLOUDCMS_CONFIG_REMOTE_APPKEY;
+            }
+        }
+
         // bind listeners for broadcast events
         bindSubscriptions();
 
         // config handler
-        return util.createHandler("config", function(req, res, next, stores, cache, configuration) {
+        return util.createHandler("staticConfig", "config", function(req, res, next, stores, cache, configuration) {
 
             var configStore = stores.config;
 
@@ -597,7 +566,7 @@ exports = module.exports = function()
 
             if (req.method.toLowerCase() === "get") {
 
-                if (req.url.indexOf("/_config") === 0)
+                if (req.url.indexOf("/_config/static") === 0)
                 {
                     handleConfigRequest(req, configStore, function(err, configArray) {
 
@@ -625,6 +594,59 @@ exports = module.exports = function()
             }
         });
     };
+
+    /**
+     * Retrieves remote configuration.
+     *
+     * This serves back using the user configuration store (which is per user).
+     *
+     * @return {Function}
+     */
+    r.remoteConfigHandler = function()
+    {
+        // config handler
+        return util.createHandler("remoteConfig", "config", function(req, res, next, stores, cache, configuration) {
+
+            if (!req._remote_config_store) {
+                return next();
+            }
+
+            var handled = false;
+
+            if (req.method.toLowerCase() === "get") {
+
+                if (req.url.indexOf("/_config/remote") === 0)
+                {
+                    console.log("z1: " + req._remote_config_store);
+                    console.log("z2: " + req._remote_config_store.debug());
+
+                    handleConfigRequest(req, req._remote_config_store, function(err, configArray) {
+
+                        if (err) {
+                            res.send({
+                                "ok": false,
+                                "message": err.message
+                            });
+                            res.end();
+                            return;
+                        }
+
+                        // respond with the json array
+                        res.send(configArray);
+                        res.end();
+                    });
+
+                    handled = true;
+                }
+            }
+
+            if (!handled)
+            {
+                next();
+            }
+        });
+    };
+
 
     r.invalidateAdapter = function(configStore)
     {
@@ -655,27 +677,17 @@ exports = module.exports = function()
                 });
             });
 
-            // list for settings being invalidated
-            process.broadcast.subscribe("settings_invalidation", function (message, done) {
+            // listen for uiconfig being invalidated
+            process.broadcast.subscribe("uiconfig_invalidation", function (message, done) {
 
                 //var command = message.command;
                 var host = message.host;
-                var applicationId = message.applicationId;
-                var settingsKey = message.settingsKey;
-                var settingsScope = message.settingsScope;
+                var id = message.id;
 
-                if (!settingsKey || !settingsScope) {
-                    return done();
-                }
-
-                if (settingsScope !== "overlay") {
-                    return done();
-                }
-
-                handleOverlayConfigInvalidation(host, settingsKey, function(err) {
+                handleUIConfigInvalidation(host, id, function(err) {
 
                     if (!err) {
-                        console.log("Invalidated overlay, host: " + host + ", key: " + settingsKey);
+                        console.log("Invalidated remote ui config, host: " + host + ", id: " + id);
                     }
 
                     done(err);
@@ -702,9 +714,9 @@ exports = module.exports = function()
         });
     };
 
-    var handleOverlayConfigInvalidation = function(host, overlayId, callback)
+    var handleUIConfigInvalidation = function(host, uiConfigId, callback)
     {
-        invalidateOverlayConfig(host, overlayId, function(err) {
+        invalidateUIConfig(host, uiConfigId, function(err) {
 
             if (err) {
                 console.log(err);
@@ -715,7 +727,7 @@ exports = module.exports = function()
         });
     };
 
-    var invalidateOverlayConfig = r.invalidateOverlayConfig = function(host, overlayId, callback)
+    var invalidateUIConfig = r.invalidateUIConfig = function(host, uiConfigId, callback)
     {
         if (!host) {
             return callback({
@@ -731,7 +743,7 @@ exports = module.exports = function()
             }
 
             var rootStore = stores.root;
-            var directoryPath = "overlays/" + overlayId;
+            var directoryPath = "uiconfigs/" + uiConfigId;
 
             rootStore.removeDirectory(directoryPath, function(err) {
                 callback(err);

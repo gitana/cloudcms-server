@@ -149,6 +149,19 @@ var handleNotificationMessages = function(items, callback) {
 
                                         z_done();
                                     }
+                                    else if (type === "uiconfig")
+                                    {
+                                        var ref = obj.ref;
+                                        var id = obj.id;
+
+                                        // broadcast invalidation
+                                        process.broadcast.publish("uiconfig_invalidation", {
+                                            "ref": ref,
+                                            "id": id,
+                                            "host": host || obj.host
+                                        }, z_done);
+                                    }
+
                                     else
                                     {
                                         z_done();
