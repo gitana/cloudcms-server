@@ -144,6 +144,7 @@ exports = module.exports = function(dust)
         else
         {
             console.log("WARN: result node should not be null");
+            console.trace();
         }
     };
 

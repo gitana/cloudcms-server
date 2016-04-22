@@ -279,7 +279,6 @@ exports = module.exports = function()
 
                             req.log("Error while loading web pages: " + JSON.stringify(err));
 
-                            releaseLockFn();
                             callback(err);
                         };
 
@@ -288,14 +287,21 @@ exports = module.exports = function()
 
                             if (err)
                             {
+                                // release the lock
                                 releaseLockFn();
+
+                                // fire the error handler
                                 return errorHandler(err);
                             }
 
                             branch.trap(function (err) {
 
-                                errorHandler(err);
+                                // release the lock
                                 releaseLockFn();
+
+                                // fire the error handler
+                                errorHandler(err);
+
                                 return false;
                             }).then(function () {
 
@@ -311,19 +317,26 @@ exports = module.exports = function()
                                     // if page has a template
                                     if (page.template)
                                     {
-                                        if (page.uris)
-                                        {
-                                            // merge into our pages collection
-                                            for (var i = 0; i < page.uris.length; i++)
+                                        var fn_x = function(page) {
+
+                                            if (page.templatePath)
                                             {
-                                                pages[page.uris[i]] = page;
+                                                if (page.uris)
+                                                {
+                                                    // merge into our pages collection
+                                                    for (var i = 0; i < page.uris.length; i++)
+                                                    {
+                                                        pages[page.uris[i]] = page;
+                                                    }
+                                                }
                                             }
-                                        }
+                                        };
 
                                         // is the template a GUID or a path to the template file?
-                                        if (page.template.indexOf("/") > -1)
+                                        if ((page.template.indexOf("/") > -1) || (page.template.indexOf(".") > -1))
                                         {
                                             page.templatePath = page.template;
+                                            fn_x(page);
                                         }
                                         else
                                         {
@@ -332,11 +345,28 @@ exports = module.exports = function()
 
                                                 // THIS = wcm:template
                                                 var template = this;
-                                                page.templatePath = template.path;
+
+                                                if (template.path)
+                                                {
+                                                    page.templatePath = template.path;
+                                                }
+
+                                                /*
+                                                // try to download the "default" attachment if it exists
+                                                this.trap(function() {
+                                                    return false;
+                                                }).attachment("default").download(function(text) {
+                                                    console.log("DOWNLOADED TEXT: " + text);
+                                                    page.tempateText = text;
+                                                });
+                                                */
+
+                                                fn_x(page);
+
                                             });
                                         }
                                     }
-                                })
+                                });
 
                             }).then(function () {
 
@@ -895,8 +925,7 @@ exports = module.exports = function()
 
                     // page keys to copy
                     for (var k in page) {
-                        if (k == "templatePath") {
-                        } else if (k.indexOf("_") === 0) {
+                        if (k.indexOf("_") === 0) {
                         } else {
                             model.page[k] = page[k];
                         }

@@ -882,7 +882,7 @@ module.exports = function(app, dust)
                     {
                         newContextObject[as] = JSON.parse(JSON.stringify(node));
 
-                        _MARK_INSIGHT(node, newContextObject[as].content);
+                        _MARK_INSIGHT(node, newContextObject[as]);
                     }
                     else
                     {

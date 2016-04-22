@@ -403,16 +403,18 @@ module.exports = function()
         }
 
         var notifications = config["notifications"];
-
-        if (typeof(process.env.CLOUDCMS_NOTIFICATIONS_ENABLED) !== "undefined")
+        if (typeof(notifications.enabled) === "undefined")
         {
-            if (!process.env.CLOUDCMS_NOTIFICATIONS_ENABLED || process.env.CLOUDCMS_NOTIFICATIONS_ENABLED === "false")
+            if (typeof(process.env.CLOUDCMS_NOTIFICATIONS_ENABLED) !== "undefined")
             {
-                notifications.enabled = false;
-            }
-            else if (process.env.CLOUDCMS_NOTIFICATIONS_ENABLED || process.env.CLOUDCMS_NOTIFICATIONS_ENABLED === "true")
-            {
-                notifications.enabled = true;
+                if (!process.env.CLOUDCMS_NOTIFICATIONS_ENABLED || process.env.CLOUDCMS_NOTIFICATIONS_ENABLED === "false")
+                {
+                    notifications.enabled = false;
+                }
+                else if (process.env.CLOUDCMS_NOTIFICATIONS_ENABLED || process.env.CLOUDCMS_NOTIFICATIONS_ENABLED === "true")
+                {
+                    notifications.enabled = true;
+                }
             }
         }
 

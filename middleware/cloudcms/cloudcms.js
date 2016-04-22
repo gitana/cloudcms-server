@@ -347,6 +347,95 @@ exports = module.exports = function()
         });
     };
 
+    var _LOCK = function(cacheKey, workFunction)
+    {
+        process.locks.lock("branchload-" + cacheKey, workFunction);
+    };
+
+    // store a cache of branches since we don't want to reload these every time
+    var CACHED_BRANCHES = {};
+
+    var _branch_key = function(repository, branchId) {
+        return repository._doc + "_" + branchId;
+    };
+
+    var _load_branch = function(repository, branchId, callback)
+    {
+        var cacheKey = _branch_key(repository, branchId);
+
+        var branch = CACHED_BRANCHES[cacheKey];
+        if (branch) {
+            return callback(null, Chain(branch));
+        }
+
+        // only allow one "thread" at a time to load the branch
+        _LOCK(cacheKey, function(releaseLockFn) {
+
+            var loadFn = function(finished) {
+
+                Chain(repository).trap(function(e) {
+
+                    // unable to load branch!
+                    console.log("Unable to load branch: " + req.branchId + ", err: " + e);
+                    console.log(JSON.stringify(e));
+                    callback({
+                        "message": "Unable to load branch: " + req.branchId
+                    });
+                    return false;
+                }).readBranch(branchId).then(function() {
+                    finished(null, this);
+                });
+
+            };
+
+            loadFn(function(err, branch) {
+
+                if (err || !branch)
+                {
+                    // try again...
+                    return loadFn(function(err, branch) {
+
+                        if (err) {
+
+                            // release the lock
+                            releaseLockFn();
+
+                            // do the callback
+                            return callback(err);
+                        }
+
+                        // success!
+
+                        // store in cache
+                        CACHED_BRANCHES[cacheKey] = branch;
+
+                        // release the lock
+                        releaseLockFn();
+
+                        // do the callback
+                        return callback(null, branch);
+                    });
+                }
+
+                // store in cache
+                CACHED_BRANCHES[cacheKey] = branch;
+
+                // release the lock
+                releaseLockFn();
+
+                // do the callback
+                return callback(null, branch);
+            });
+        });
+    };
+
+    var _invalidate_branch = function(repository, branchId)
+    {
+        var cacheKey = _branch_key(repository, branchId);
+
+        delete CACHED_BRANCHES[cacheKey];
+    };
+
     /**
      * Allows for branch switching via request parameter.
      *
@@ -413,16 +502,22 @@ exports = module.exports = function()
                     }
 
                     req.repository(function(err, repository) {
-                        Chain(repository).trap(function(e) {
 
-                            // unable to load branch!
-                            console.log("Unable to load branch: " + req.branchId);
-                            callback({
-                                "message": "Unable to load branch: " + req.branchId
+                        if (err) {
+                            console.log("Attempting to load branch, could not load repository, err: " + err);
+                            console.log(JSON.stringify(err));
+                            return callback({
+                                "message": "Attempting to load branch, failed to load repository for branch: " + req.branchId
                             });
-                            return false;
-                        }).readBranch(req.branchId).then(function() {
-                            req._branch = this;
+                        }
+
+                        _load_branch(repository, req.branchId, function(err, branch) {
+
+                            if (err) {
+                                return callback(err);
+                            }
+
+                            req._branch = branch;
                             callback(null, req._branch);
                         });
                     });
