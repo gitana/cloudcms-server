@@ -345,21 +345,53 @@ exports = module.exports = function()
     {
         if (process.broadcast)
         {
-            // when an application invalidates, tear down any drivers cached for this app
-            process.broadcast.subscribe("application_invalidation", function (message, invalidationDone) {
+            // when an application invalidates, re-initialize the app helpers for any cached drivers
+            process.broadcast.subscribe("application_invalidation", function(message, invalidationDone) {
 
                 var applicationId = message.applicationId;
                 var host = message.host;
 
-                Gitana.disconnect(applicationId);
-                console.log("Invalidated application: " + applicationId + ", disconnected driver");
+                console.log("Invalidating Driver Cache for application: " + applicationId + ", host: " + host);
 
-                // remove from cache
-                process.driverConfigCache.invalidate(host, function() {
-                    console.log("Invalidated application: " + applicationId + ", invalidated driver config for host: " + host);
-                    invalidationDone();
+                // find the driver config for this host
+                process.driverConfigCache.read(host, function(err, c) {
+
+                    if (err) {
+                        return invalidationDone();
+                    }
+
+                    if (!c) {
+                        return invalidationDone();
+                    }
+
+                    if (!c.config) {
+                        return invalidationDone();
+                    }
+
+                    var driverConfig = c.config;
+
+                    console.log("Found driver config to invalidate: " + driverConfig.key);
+
+                    Gitana.connect(driverConfig, function(err) {
+
+                        if (err) {
+                            return invalidationDone();
+                        }
+
+                        // NOTE: this = appHelper
+
+                        // re-init the appHelper
+                        this.init.call(this, function(err) {
+                            console.log("Successfully invalidated driver config: " + driverConfig.key);
+                            if (err) {
+                                console.log(JSON.stringify(err));
+                            }
+
+                            invalidationDone();
+                        });
+
+                    });
                 });
-
             });
         }
     };

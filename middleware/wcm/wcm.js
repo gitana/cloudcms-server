@@ -258,128 +258,133 @@ exports = module.exports = function()
                     return callback(null, pages);
                 }
 
-                // take out a preloading lock so that only one thread proceeds at a time here
-                _LOCK(null, _lock_identifier(req.virtualHost, "preloading"), function(releaseLockFn) {
+                req.application(function(err, application) {
 
-                    // check again inside lock in case another request preloaded this before we arrived
-                    req.cache.read(WCM_PAGES, function (err, pages) {
+                    var loadingPagesCacheKey = application._doc + "-wcm-loading-pages";
 
-                        if (pages)
-                        {
-                            releaseLockFn();
-                            return callback(null, pages);
-                        }
+                    // take out a preloading lock so that only one thread proceeds at a time here
+                    _LOCK(null, loadingPagesCacheKey, function (releaseLockFn) {
 
-                        req.log("Loading Web Pages into cache");
+                        // check again inside lock in case another request preloaded this before we arrived
+                        req.cache.read(WCM_PAGES, function (err, pages) {
 
-                        // build out pages
-                        pages = {};
-
-                        var errorHandler = function (err) {
-
-                            req.log("Error while loading web pages: " + JSON.stringify(err));
-
-                            callback(err);
-                        };
-
-                        // load all wcm pages from the server
-                        req.branch(function (err, branch) {
-
-                            if (err)
+                            if (pages)
                             {
-                                // release the lock
                                 releaseLockFn();
-
-                                // fire the error handler
-                                return errorHandler(err);
+                                return callback(null, pages);
                             }
 
-                            branch.trap(function (err) {
+                            req.log("Loading Web Pages into cache");
 
-                                // release the lock
-                                releaseLockFn();
+                            // build out pages
+                            pages = {};
 
-                                // fire the error handler
-                                errorHandler(err);
+                            var errorHandler = function (err) {
 
-                                return false;
-                            }).then(function () {
+                                req.log("Error while loading web pages: " + JSON.stringify(err));
 
-                                this.queryNodes({
-                                    "_type": "wcm:page"
-                                }, {
-                                    "limit": 9999 // essentially, unlimited
-                                }).each(function () {
+                                callback(err);
+                            };
 
-                                    // THIS = wcm:page
-                                    var page = this;
+                            // load all wcm pages from the server
+                            req.branch(function (err, branch) {
 
-                                    // if page has a template
-                                    if (page.template)
-                                    {
-                                        var fn_x = function(page) {
-
-                                            if (page.templatePath)
-                                            {
-                                                if (page.uris)
-                                                {
-                                                    // merge into our pages collection
-                                                    for (var i = 0; i < page.uris.length; i++)
-                                                    {
-                                                        pages[page.uris[i]] = page;
-                                                    }
-                                                }
-                                            }
-                                        };
-
-                                        // is the template a GUID or a path to the template file?
-                                        if ((page.template.indexOf("/") > -1) || (page.template.indexOf(".") > -1))
-                                        {
-                                            page.templatePath = page.template;
-                                            fn_x(page);
-                                        }
-                                        else
-                                        {
-                                            // load the template
-                                            this.subchain(branch).readNode(page.template).then(function () {
-
-                                                // THIS = wcm:template
-                                                var template = this;
-
-                                                if (template.path)
-                                                {
-                                                    page.templatePath = template.path;
-                                                }
-
-                                                /*
-                                                // try to download the "default" attachment if it exists
-                                                this.trap(function() {
-                                                    return false;
-                                                }).attachment("default").download(function(text) {
-                                                    console.log("DOWNLOADED TEXT: " + text);
-                                                    page.tempateText = text;
-                                                });
-                                                */
-
-                                                fn_x(page);
-
-                                            });
-                                        }
-                                    }
-                                });
-
-                            }).then(function () {
-
-                                for (var uri in pages)
+                                if (err)
                                 {
-                                    req.log("Loaded Web Page -> " + uri);
+                                    // release the lock
+                                    releaseLockFn();
+
+                                    // fire the error handler
+                                    return errorHandler(err);
                                 }
 
-                                req.cache.write(WCM_PAGES, pages, WCM_CACHE_TIMEOUT_SECONDS);
+                                branch.trap(function (err) {
 
-                                releaseLockFn();
+                                    // release the lock
+                                    releaseLockFn();
 
-                                callback(null, pages);
+                                    // fire the error handler
+                                    errorHandler(err);
+
+                                    return false;
+                                }).then(function () {
+
+                                    this.queryNodes({
+                                        "_type": "wcm:page"
+                                    }, {
+                                        "limit": 9999 // essentially, unlimited
+                                    }).each(function () {
+
+                                        // THIS = wcm:page
+                                        var page = this;
+
+                                        // if page has a template
+                                        if (page.template)
+                                        {
+                                            var fn_x = function (page) {
+
+                                                if (page.templatePath)
+                                                {
+                                                    if (page.uris)
+                                                    {
+                                                        // merge into our pages collection
+                                                        for (var i = 0; i < page.uris.length; i++)
+                                                        {
+                                                            pages[page.uris[i]] = page;
+                                                        }
+                                                    }
+                                                }
+                                            };
+
+                                            // is the template a GUID or a path to the template file?
+                                            if ((page.template.indexOf("/") > -1) || (page.template.indexOf(".") > -1))
+                                            {
+                                                page.templatePath = page.template;
+                                                fn_x(page);
+                                            }
+                                            else
+                                            {
+                                                // load the template
+                                                this.subchain(branch).readNode(page.template).then(function () {
+
+                                                    // THIS = wcm:template
+                                                    var template = this;
+
+                                                    if (template.path)
+                                                    {
+                                                        page.templatePath = template.path;
+                                                    }
+
+                                                    /*
+                                                     // try to download the "default" attachment if it exists
+                                                     this.trap(function() {
+                                                     return false;
+                                                     }).attachment("default").download(function(text) {
+                                                     console.log("DOWNLOADED TEXT: " + text);
+                                                     page.tempateText = text;
+                                                     });
+                                                     */
+
+                                                    fn_x(page);
+
+                                                });
+                                            }
+                                        }
+                                    });
+
+                                }).then(function () {
+
+                                    for (var uri in pages)
+                                    {
+                                        req.log("Loaded Web Page -> " + uri);
+                                    }
+
+                                    req.cache.write(WCM_PAGES, pages, WCM_CACHE_TIMEOUT_SECONDS);
+
+                                    releaseLockFn();
+
+                                    callback(null, pages);
+                                });
                             });
                         });
                     });
