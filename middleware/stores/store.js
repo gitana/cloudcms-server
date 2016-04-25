@@ -305,7 +305,7 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
 
     r.debug = function()
     {
-        console.log("Engine Path: " + _enginePath("/"));
+        return "Engine Path: " + _enginePath("/");
     };
 
     return r;

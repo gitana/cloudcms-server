@@ -2,8 +2,6 @@ var path = require('path');
 var util = require("../../util/util");
 var async = require("async");
 
-var multistoreFactory = require("../stores/multistore");
-
 exports = module.exports = function()
 {
     var CACHED_ADAPTERS = {};
@@ -618,9 +616,6 @@ exports = module.exports = function()
                         return res.end();
                     }
 
-                    console.log("z1: " + req._remote_config_store);
-                    console.log("z2: " + req._remote_config_store.debug());
-
                     handleConfigRequest(req, req._remote_config_store, function(err, configArray) {
 
                         if (err) {
@@ -649,7 +644,7 @@ exports = module.exports = function()
     };
 
 
-    r.invalidateAdapter = function(configStore)
+    var invalidateAdapter = r.invalidateAdapter = function(configStore)
     {
         var adapter = CACHED_ADAPTERS[configStore.id];
         if (adapter)
@@ -747,6 +742,11 @@ exports = module.exports = function()
             var directoryPath = "uiconfigs/" + uiConfigId;
 
             rootStore.removeDirectory(directoryPath, function(err) {
+
+                var uiConfigStore = rootStore.mount(path.join(directoryPath, "config"));
+                console.log("remove adapter: " + uiConfigStore.id);
+                invalidateAdapter(uiConfigStore);
+
                 callback(err);
             });
 
