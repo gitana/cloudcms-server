@@ -36,15 +36,20 @@ exports.bindGitana = function(socket, callback)
         driverConfig.resolveConfig(socket, rootStore, function(err) {
 
             if (err) {
-                callback(err);
-                return;
+                return callback(err);
+            }
+
+            if (!socket.gitanaConfig)
+            {
+                return callback({
+                    "message": "Socket is missing gitanaConfig"
+                });
             }
 
             driver.doConnect(socket, socket.gitanaConfig, function(err) {
 
                 if (err) {
-                    callback(err);
-                    return;
+                    return callback(err);
                 }
 
                 socket.gitana = this;

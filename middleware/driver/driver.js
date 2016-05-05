@@ -251,8 +251,10 @@ exports = module.exports = function()
 
                     return;
                 }
-
-                completionFn();
+                else
+                {
+                    completionFn();
+                }
 
                 return;
             }
@@ -295,15 +297,13 @@ exports = module.exports = function()
 
                 if (err) {
                     req.log("Error loading gitana config: " + JSON.stringify(err));
-                    next();
-                    return;
+                    return next();
                 }
 
                 if (!gitanaConfig)
                 {
                     //req.log("Could not find gitana.json file");
-                    next();
-                    return;
+                    return next();
                 }
 
                 if (!gitanaConfig.key)
