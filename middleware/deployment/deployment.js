@@ -225,7 +225,8 @@ exports = module.exports = function()
                                 completionHandler(err);
                             });
                         }
-                        else {
+                        else
+                        {
                             callback({
                                 "message": "Unable to deploy source of type: " + sourceType
                             }, host);
