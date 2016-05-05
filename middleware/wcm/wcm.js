@@ -283,7 +283,7 @@ exports = module.exports = function()
 
                                 req.log("Error while loading web pages: " + JSON.stringify(err));
 
-                                callback(err);
+                                return callback(err);
                             };
 
                             // load all wcm pages from the server

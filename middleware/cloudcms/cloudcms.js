@@ -376,10 +376,10 @@ exports = module.exports = function()
                 Chain(repository).trap(function(e) {
 
                     // unable to load branch!
-                    console.log("Unable to load branch: " + req.branchId + ", err: " + e);
+                    console.log("Unable to load branch: " + repository._doc + "/" + branchId + ", err: " + e);
                     console.log(JSON.stringify(e));
                     callback({
-                        "message": "Unable to load branch: " + req.branchId
+                        "message": "Unable to load branch: " + repository._doc + "/" + branchId
                     });
                     return false;
                 }).readBranch(branchId).then(function() {
@@ -447,81 +447,122 @@ exports = module.exports = function()
 
             if (req.gitana)
             {
-                var cookieBranchId = req.cookies["cloudcms-server-branch-id"];
+                req.application(function(err, application) {
 
-                // pick which branch
-                var branchId = req.query["branch"];
-                if (!branchId)
-                {
-                    branchId = req.query["branchId"];
-                }
-                if (!branchId)
-                {
-                    branchId = req.header("CLOUDCMS_BRANCH");
-                }
-                if (!branchId)
-                {
-                    // does the runtime tell us which branch to use?
-                    if (req.runtime && req.runtime.branchId)
+                    var branchCookieName = null;
+                    var branchCookieId = null;
+                    if (!err && application)
                     {
-                        branchId = req.runtime.branchId;
-                    }
-                }
-                if (!branchId)
-                {
-                    // allow for the branch to specified via an environment parameter
-                    if (process.env.CLOUDCMS_BRANCH_ID)
-                    {
-                        branchId = process.env.CLOUDCMS_BRANCH_ID;
-                    }
-                }
-                if (!branchId)
-                {
-                    branchId = cookieBranchId;
-                }
-                if (!branchId)
-                {
-                    branchId = "master";
-                }
-
-                req.branchId = branchId;
-
-                // write a cookie down to store branch ID if it changed
-                if (branchId !== cookieBranchId)
-                {
-                    res.clearCookie("cloudcms-server-branch-id");
-                    res.cookie("cloudcms-server-branch-id", branchId);
-                }
-
-                // helper function
-                req.branch = function(callback)
-                {
-                    if (req._branch)
-                    {
-                        return callback(null, Chain(req._branch));
+                        branchCookieName = "cloudcms-server-application-" + application.getId() + "-branch-id";
+                        branchCookieId = req.cookies[branchCookieName];
                     }
 
-                    req.repository(function(err, repository) {
+                    // pick which branch
+                    var branchId = req.query["branch"];
+                    if (!branchId)
+                    {
+                        branchId = req.query["branchId"];
+                    }
+                    if (!branchId)
+                    {
+                        branchId = req.header("CLOUDCMS_BRANCH");
+                    }
+                    if (!branchId)
+                    {
+                        branchId = req.header("BRANCH");
+                    }
+                    if (!branchId)
+                    {
+                        branchId = req.header("branchId");
+                    }
+                    if (!branchId)
+                    {
+                        // does the runtime tell us which branch to use?
+                        if (req.runtime && req.runtime.branchId)
+                        {
+                            branchId = req.runtime.branchId;
+                        }
+                    }
+                    if (!branchId)
+                    {
+                        // allow for the branch to specified via an environment parameter
+                        if (process.env.CLOUDCMS_BRANCH_ID)
+                        {
+                            branchId = process.env.CLOUDCMS_BRANCH_ID;
+                        }
+                    }
+                    if (!branchId)
+                    {
+                        // allow for the branch to specified via an environment parameter
+                        if (process.env.CLOUDCMS_RUNTIME_BRANCH_ID)
+                        {
+                            branchId = process.env.CLOUDCMS_RUNTIME_BRANCH_ID;
+                        }
+                    }
+                    if (!branchId)
+                    {
+                        branchId = branchCookieId;
+                    }
 
-                        if (err) {
-                            console.log("Attempting to load branch, could not load repository, err: " + err);
-                            console.log(JSON.stringify(err));
-                            return callback({
-                                "message": "Attempting to load branch, failed to load repository for branch: " + req.branchId
-                            });
+                    // fallback to master if no other choice
+                    if (!branchId)
+                    {
+                        branchId = "master";
+                    }
+
+                    // allow value to be forced?
+                    if (process.env.CLOUDCMS_RUNTIME_BRANCH_ID)
+                    {
+                        branchId = process.env.CLOUDCMS_RUNTIME_BRANCH_ID;
+                    }
+
+                    req.branchId = branchId;
+
+                    // write a cookie down to store branch ID if it changed
+                    if (branchId !== branchCookieId)
+                    {
+                        if (branchCookieName)
+                        {
+                            res.cookie(branchCookieName, req.branchId);
+
+                            // legacy cleanup
+                            res.clearCookie("cloudcms-server-branch-id");
+                        }
+                    }
+
+                    // declare the helper function
+                    req.branch = function(callback)
+                    {
+                        // if we already have a cached branch on this request, just hand that back
+                        if (req._branch)
+                        {
+                            return callback(null, Chain(req._branch));
                         }
 
-                        _load_branch(repository, req.branchId, function(err, branch) {
+                        // load the branch, first get the repository
+                        req.repository(function(err, repository) {
 
                             if (err) {
-                                return callback(err);
+                                console.log("Attempting to load branch, could not load repository, err: " + err);
+                                console.log(JSON.stringify(err));
+                                return callback({
+                                    "message": "Attempting to load branch, failed to load repository for branch: " + req.branchId
+                                });
                             }
 
-                            req._branch = branch;
-                            callback(null, req._branch);
+                            // now load the branch with a sync lock
+                            _load_branch(repository, req.branchId, function(err, branch) {
+
+                                if (err) {
+                                    return callback(err);
+                                }
+
+                                req._branch = branch;
+                                callback(null, req._branch);
+                            });
                         });
-                    });
-                };
+                    };
+                });
             }
 
             next();

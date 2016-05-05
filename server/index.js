@@ -11,7 +11,6 @@ var async = require('../util/async');
 
 var morgan = require("morgan");
 var bodyParser = require("body-parser");
-var errorHandler = require("errorhandler");
 var multipart = require("connect-multiparty");
 var session = require('express-session');
 var cookieParser = require('cookie-parser');
@@ -51,6 +50,7 @@ var SETTINGS = {
     "name": "Cloud CMS Application Server",
     "socketFunctions": [],
     "routeFunctions": [],
+    "errorFunctions": [],
     "configureFunctions": {},
     "beforeFunctions": [],
     "afterFunctions": [],
@@ -298,6 +298,15 @@ exports.routes = function (fn) {
 };
 
 /**
+ * Registers an error handler function.
+ *
+ * @param fn
+ */
+exports.error = function (fn) {
+    SETTINGS.errorFunctions.push(fn);
+};
+
+/**
  * Adds an initialization function to set up dust.
  *
  * The function must have signature fn(app, dust)
@@ -343,8 +352,7 @@ var runFunctions = function (functions, args, callback) {
 
     // skip out early if nothing to do
     if (!functions || functions.length === 0) {
-        callback();
-        return;
+        return callback();
     }
 
     async.series(functions, args, function (err) {
@@ -380,12 +388,20 @@ exports.start = function(overrides, callback) {
         callback = function() {};
     }
 
-    // DUST - some setup
-    if (!SETTINGS.dustFunctions) {
-        SETTINGS.dustFunctions = [];
-    }
     // always push core tag helpers to the front
     SETTINGS.dustFunctions.unshift(coreHelpers);
+
+    // if SETTINGS.errorFunctions is empty, plug in a default error handler
+    if (SETTINGS.errorFunctions.length === 0)
+    {
+        SETTINGS.errorFunctions.push(main.defaultErrorHandler);
+    }
+    else
+    {
+        // otherwise, if they plugged in a custom error handler, make sure we at least have a console logger ahead of it
+        // so that things are sure to get logged out to console
+        SETTINGS.errorFunctions.unshift(main.consoleErrorLogger);
+    }
 
     // create our master config
     var config = clone(SETTINGS);
@@ -663,12 +679,12 @@ var startSlave = function(config, afterStartFn)
                 main.common1(app);
 
                 /*
-                // initial log
-                app.use(function (req, res, next) {
-                    req.log("<req> " + req.method + " " + req.url);
-                    next();
-                });
-                */
+                 // initial log
+                 app.use(function (req, res, next) {
+                 req.log("<req> " + req.method + " " + req.url);
+                 next();
+                 });
+                 */
 
                 // set up CORS allowances
                 // this lets CORS requests float through the proxy
@@ -703,7 +719,6 @@ var startSlave = function(config, afterStartFn)
                     });
 
                 });
-
 
 
                 ////////////////////////////////////////////////////////////////////////////
@@ -759,7 +774,6 @@ var startSlave = function(config, afterStartFn)
                 main.interceptors(app, true);
 
                 //app.use(app.router);
-                app.use(errorHandler());
 
                 // healthcheck middleware
                 main.healthcheck(app);
@@ -770,152 +784,170 @@ var startSlave = function(config, afterStartFn)
                     // configure cloudcms app server handlers
                     main.handlers(app, true);
 
-                    // APPLY CUSTOM CONFIGURE FUNCTIONS
-                    var allConfigureFunctions = [];
-                    for (var env in config.configureFunctions)
-                    {
-                        var functions = config.configureFunctions[env];
-                        if (functions)
+                    // register error functions
+                    runFunctions(config.errorFunctions, [app], function (err) {
+
+                        // APPLY CUSTOM CONFIGURE FUNCTIONS
+                        var allConfigureFunctions = [];
+                        for (var env in config.configureFunctions)
                         {
-                            for (var i = 0; i < functions.length; i++)
+                            var functions = config.configureFunctions[env];
+                            if (functions)
                             {
-                                allConfigureFunctions.push(functions[i]);
+                                for (var i = 0; i < functions.length; i++)
+                                {
+                                    allConfigureFunctions.push(functions[i]);
+                                }
                             }
                         }
-                    }
-                    runFunctions(allConfigureFunctions, [app], function (err) {
+                        runFunctions(allConfigureFunctions, [app], function (err) {
 
-                        ////////////////////////////////////////////////////////////////////////////
-                        //
-                        // INITIALIZE THE SERVER
-                        //
-                        ////////////////////////////////////////////////////////////////////////////
+                            ////////////////////////////////////////////////////////////////////////////
+                            //
+                            // INITIALIZE THE SERVER
+                            //
+                            ////////////////////////////////////////////////////////////////////////////
 
-                        // CORE OBJECTS
-                        var server = http.Server(app);
-                        server.setTimeout(30000); // 30 seconds
-                        server.on("connection", function (socket) {
-                            socket.setNoDelay(true);
-                        });
-                        var io = process.IO = require("socket.io")(server);
-                        io.set('transports', config.socketTransports);
-                        io.use(function (socket, next) {
-
-                            console.log("New socket being initialized");
-
-                            // attach _log function
-                            socket._log = function (text) {
-
-                                var host = socket.handshake.headers.host;
-                                if (socket.handshake.headers["x-forwarded-host"])
-                                {
-                                    host = socket.handshake.headers["x-forwarded-host"];
-                                }
-
-                                var d = new Date();
-                                var dateString = d.toDateString();
-                                var timeString = d.toTimeString();
-
-                                // gray color
-                                var grayColor = "\x1b[90m";
-
-                                // final color
-                                var finalColor = "\x1b[0m";
-
-                                if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
-                                {
-                                    grayColor = "";
-                                    finalColor = "";
-                                }
-
-                                var message = '';
-                                message += grayColor + '<socket> ';
-                                message += grayColor + '[' + dateString + ' ' + timeString + '] ';
-                                message += grayColor + host + ' ';
-                                message += grayColor + text + '';
-                                message += finalColor;
-
-                                console.log(message);
-                            };
-                            socket.on("connect", function () {
-                                console.log("Socket connect()");
+                            // CORE OBJECTS
+                            var server = http.Server(app);
+                            server.setTimeout(30000); // 30 seconds
+                            server.on("connection", function (socket) {
+                                socket.setNoDelay(true);
                             });
-                            socket.on("disconnect", function () {
-                                var message = "Socket disconnected";
-                                if (socket && socket.host)
-                                {
-                                    message += ", host=" + socket.host;
-                                }
-                                if (socket && socket.gitana && socket.gitana.application && socket.gitana.application())
-                                {
-                                    message += ", application=" + socket.gitana.application().title;
-                                }
-                                console.log(message);
-                            });
+                            var io = process.IO = require("socket.io")(server);
+                            io.set('transports', config.socketTransports);
+                            io.use(function (socket, next) {
 
-                            // APPLY CUSTOM SOCKET.IO CONFIG
-                            runFunctions(config.socketFunctions, [socket], function (err) {
+                                console.log("New socket being initialized");
 
-                                // INSIGHT SERVER
-                                if (config.insight && config.insight.enabled)
-                                {
-                                    console.log("Init Insight to Socket");
+                                // attach _log function
+                                socket._log = function (text) {
 
-                                    require("../insight/insight").init(socket, function () {
-                                        next();
-                                    });
-                                }
-                                else
-                                {
-                                    next();
-                                }
-                            });
-
-                        });
-
-                        // SET INITIAL VALUE FOR SERVER TIMESTAMP
-                        process.env.CLOUDCMS_APPSERVER_TIMESTAMP = new Date().getTime();
-
-                        // DUST
-                        runFunctions(config.dustFunctions, [app, duster.getDust()], function (err) {
-
-                            // APPLY SERVER BEFORE START FUNCTIONS
-                            runFunctions(config.beforeFunctions, [app], function (err) {
-
-                                server._listenPort = app.get("port");
-
-                                // AFTER SERVER START
-                                runFunctions(config.afterFunctions, [app], function (err) {
-
-                                    // listen for kill or interrupt so that we can shut down cleanly
-                                    process.on('SIGINT', function() {
-
-                                        console.log("");
-                                        console.log("");
-
-                                        console.log("Cloud CMS Module shutting down");
-                                        // close server connections as cleanly as we can
-                                        console.log(" -> Closing server connections");
-                                        try { server.close(); } catch (e) { console.log("Server.close produced error: " + JSON.stringify(e)); }
-
-                                        // ask toobusy to shut down as cleanly as we can
-                                        console.log(" -> Closing toobusy monitor");
-                                        try { toobusy.shutdown(); } catch (e) { console.log("toobusy.shutdown produced error: " + JSON.stringify(e)); }
-
-                                        console.log("");
-
-                                        // tell the process to exit
-                                        process.exit();
-                                    });
-
-                                    // if we are on a worker process, then inform the master that we completed
-                                    if (process.send)
+                                    var host = socket.handshake.headers.host;
+                                    if (socket.handshake.headers["x-forwarded-host"])
                                     {
-                                        process.send("server-startup");
+                                        host = socket.handshake.headers["x-forwarded-host"];
                                     }
 
-                                    afterStartFn(app, server);
+                                    var d = new Date();
+                                    var dateString = d.toDateString();
+                                    var timeString = d.toTimeString();
 
+                                    // gray color
+                                    var grayColor = "\x1b[90m";
+
+                                    // final color
+                                    var finalColor = "\x1b[0m";
+
+                                    if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
+                                    {
+                                        grayColor = "";
+                                        finalColor = "";
+                                    }
+
+                                    var message = '';
+                                    message += grayColor + '<socket> ';
+                                    message += grayColor + '[' + dateString + ' ' + timeString + '] ';
+                                    message += grayColor + host + ' ';
+                                    message += grayColor + text + '';
+                                    message += finalColor;
+
+                                    console.log(message);
+                                };
+                                socket.on("connect", function () {
+                                    console.log("Socket connect()");
+                                });
+                                socket.on("disconnect", function () {
+                                    var message = "Socket disconnected";
+                                    if (socket && socket.host)
+                                    {
+                                        message += ", host=" + socket.host;
+                                    }
+                                    if (socket && socket.gitana && socket.gitana.application && socket.gitana.application())
+                                    {
+                                        message += ", application=" + socket.gitana.application().title;
+                                    }
+                                    console.log(message);
+                                });
+
+                                // APPLY CUSTOM SOCKET.IO CONFIG
+                                runFunctions(config.socketFunctions, [socket], function (err) {
+
+                                    // INSIGHT SERVER
+                                    if (config.insight && config.insight.enabled)
+                                    {
+                                        console.log("Init Insight to Socket");
+
+                                        require("../insight/insight").init(socket, function () {
+                                            next();
+                                        });
+                                    }
+                                    else
+                                    {
+                                        next();
+                                    }
+                                });
+
+                            });
+
+                            // SET INITIAL VALUE FOR SERVER TIMESTAMP
+                            process.env.CLOUDCMS_APPSERVER_TIMESTAMP = new Date().getTime();
+
+                            // DUST
+                            runFunctions(config.dustFunctions, [app, duster.getDust()], function (err) {
+
+                                // APPLY SERVER BEFORE START FUNCTIONS
+                                runFunctions(config.beforeFunctions, [app], function (err) {
+
+                                    server._listenPort = app.get("port");
+
+                                    // AFTER SERVER START
+                                    runFunctions(config.afterFunctions, [app], function (err) {
+
+                                        // listen for kill or interrupt so that we can shut down cleanly
+                                        process.on('SIGINT', function () {
+
+                                            console.log("");
+                                            console.log("");
+
+                                            console.log("Cloud CMS Module shutting down");
+                                            // close server connections as cleanly as we can
+                                            console.log(" -> Closing server connections");
+                                            try
+                                            {
+                                                server.close();
+                                            }
+                                            catch (e)
+                                            {
+                                                console.log("Server.close produced error: " + JSON.stringify(e));
+                                            }
+
+                                            // ask toobusy to shut down as cleanly as we can
+                                            console.log(" -> Closing toobusy monitor");
+                                            try
+                                            {
+                                                toobusy.shutdown();
+                                            }
+                                            catch (e)
+                                            {
+                                                console.log("toobusy.shutdown produced error: " + JSON.stringify(e));
+                                            }
+
+                                            console.log("");
+
+                                            // tell the process to exit
+                                            process.exit();
+                                        });
+
+                                        // if we are on a worker process, then inform the master that we completed
+                                        if (process.send)
+                                        {
+                                            process.send("server-startup");
+                                        }
+
+                                        afterStartFn(app, server);
+
+                                    });
                                 });
                             });
                         });

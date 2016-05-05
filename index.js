@@ -272,6 +272,9 @@ exports = module.exports = function()
             // bind a cache helper
             app.use(cache.cacheInterceptor());
 
+            // auto-select the application
+            app.use(cloudcms.applicationInterceptor());
+
             // auto-select which gitana repository to use
             app.use(cloudcms.repositoryInterceptor());
 
@@ -281,9 +284,6 @@ exports = module.exports = function()
 
             // auto-select which gitana domain to use
             app.use(cloudcms.domainInterceptor());
-
-            // auto-select the application
-            app.use(cloudcms.applicationInterceptor());
 
             // enables ICE menu
             // app.use(cloudcms.iceInterceptor());
@@ -462,6 +462,44 @@ exports = module.exports = function()
 
             next();
         };
+    };
+
+    var stringifyError = function(err)
+    {
+        var stack = err.stack;
+
+        if (stack) {
+            return String(stack)
+        }
+
+        return JSON.stringify(err, null, "  ");
+    };
+
+
+    r.consoleErrorLogger = function(app, callback)
+    {
+        // generic logger to console
+        app.use(function(err, req, res, next) {
+
+            console.error(stringifyError(err));
+
+            next(err);
+        });
+
+        callback();
+    };
+
+    var errorHandler = require("errorhandler");
+
+    r.defaultErrorHandler = function(app, callback)
+    {
+        app.use(function(err, req, res, next) {
+
+            // use the stock error handler
+            errorHandler()(err, req, res, next);
+        });
+
+        callback();
     };
 
     // additional methods for Gitana driver
