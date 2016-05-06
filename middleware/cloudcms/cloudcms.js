@@ -1782,21 +1782,24 @@ exports = module.exports = function()
             process.broadcast.subscribe("node_invalidation", function (message, done) {
 
                 var nodeId = message.nodeId;
-                var branchId = message.isMasterBranch ? "master" : message.branchId;
+                var branchId = message.branchId;
                 var repositoryId = message.repositoryId;
-                var ref = message.ref;
-
                 var host = message.host;
 
-                // at the moment, caching on disk uses "master" for the master branch instead of the actual branch id
-                var isMasterBranch = message.isMasterBranch;
-                if (isMasterBranch)
-                {
-                    branchId = "master";
-                }
-
                 self.invalidateNode(host, repositoryId, branchId, nodeId, function(err) {
-                    done(err);
+
+                    if (message.isMasterBranch)
+                    {
+                        // for master branch, we make a second attempt using "master" as the branch ID
+                        self.invalidateNode(host, repositoryId, "master", nodeId, function(err) {
+                            done(err);
+                        });
+                    }
+                    else
+                    {
+                        done(err);
+                    }
+
                 });
 
             });
