@@ -312,7 +312,6 @@ exports = module.exports = function()
             // handles retrieval of content from wcm
             app.use(wcm.wcmInterceptor());
         }
-
     };
 
     r.handlers = function(app, includeCloudCMS)

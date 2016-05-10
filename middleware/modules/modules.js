@@ -47,36 +47,32 @@ exports = module.exports = function()
     {
         if (!moduleConfig)
         {
-            callback({
+            return callback({
                 "message": "Missing module config argument"
             });
-            return;
         }
 
         if (!moduleConfig.source)
         {
-            callback({
+            return callback({
                 "message": "Missing module config source settings"
             });
-            return;
         }
 
         var sourceType = moduleConfig.source.type;
         if (!sourceType)
         {
-            callback({
+            return callback({
                 "message": "The source descriptor is missing the module 'type' field"
             });
-            return;
         }
 
         var sourceUrl = moduleConfig.source.uri;
         if (!sourceUrl)
         {
-            callback({
+            return callback({
                 "message": "The source descriptor is missing the module 'uri' field"
             });
-            return;
         }
 
         var sourcePath = moduleConfig.source.path;
@@ -154,9 +150,11 @@ exports = module.exports = function()
                  * The incoming payload looks like:
                  *
                  *     {
-                 *         "type": "github",
-                 *         "uri": "https://github.com/gitana/sdk.git",
-                 *         "path": "oneteam/sample"
+                 *         "source": {
+                 *             "type": "github",
+                 *             "uri": "https://github.com/gitana/sdk.git",
+                 *             "path": "oneteam/sample"
+                 *         }
                  *     }
                  */
                 if (req.url.indexOf("/_modules/_deploy") === 0)
@@ -420,8 +418,7 @@ exports = module.exports = function()
 
             if (!exists)
             {
-                util.status(res, 404).end();
-                return;
+                return util.status(res, 404).end();
             }
 
             store.sendFile(res, filePath, function (err) {

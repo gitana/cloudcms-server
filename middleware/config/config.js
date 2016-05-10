@@ -492,6 +492,11 @@ exports = module.exports = function()
                 return next();
             }
 
+            if (req.url.indexOf("/_config") !== 0)
+            {
+                return next();
+            }
+
             var uiConfigId = req.query["id"];
             if (!uiConfigId) {
                 return next();
@@ -506,8 +511,6 @@ exports = module.exports = function()
                 if (!uiConfigStore) {
                     return next();
                 }
-
-                console.log("a3");
 
                 req._remote_config_store = uiConfigStore;
 

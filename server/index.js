@@ -684,7 +684,8 @@ var startSlave = function(config, afterStartFn)
                  req.log("<req> " + req.method + " " + req.url);
                  next();
                  });
-                 */
+                */
+
 
                 // set up CORS allowances
                 // this lets CORS requests float through the proxy
@@ -719,7 +720,6 @@ var startSlave = function(config, afterStartFn)
                     });
 
                 });
-
 
                 ////////////////////////////////////////////////////////////////////////////
                 //
