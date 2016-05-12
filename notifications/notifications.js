@@ -14,6 +14,8 @@ var handleNotificationMessages = function(items, callback) {
         var fn = function(item, i) {
             return function(done) {
 
+                // console.log("WORKING ON ITEM: " + i + ", item: " + JSON.stringify(item, null, "  "));
+
                 var host = item.host;
 
                 // if virtual hosts not enabled, assume for process.env.CLOUDCMS_STANDALONE_HOST ("local")

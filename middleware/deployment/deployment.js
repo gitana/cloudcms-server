@@ -277,8 +277,18 @@ exports = module.exports = function()
                     duster.invalidateCacheForApp(descriptor.application.id);
 
                     // invalidate gitana driver for this application
-                    req.log("Invalidating gitana cache for application: " + descriptor.application.id);
-                    Gitana.disconnect(descriptor.application.id);
+                    //req.log("Invalidating gitana cache for application: " + descriptor.application.id);
+                    //Gitana.disconnect(descriptor.application.id);
+                    // TODO: we'd need to do something like this to invalidate for the app
+                    /*
+                    process.broadcast.publish("application_invalidation", {
+                        "ref": "application://",
+                        "applicationId": applicationId,
+                        "deploymentKey": deploymentKey,
+                        "host": host
+                    });
+                    */
+
 
                     // remove host directory
                     req.log("Removing host directory: " + host);

@@ -138,6 +138,8 @@ exports = module.exports = function()
 
                 var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT + "/applications/" + applicationId + "/deployments/" + deploymentKey + "/pagerenditions";
 
+                // console.log("Mark Rendition: " + JSON.stringify(renditionObject, null, "  "));
+
                 request({
                     "method": "POST", "url": URL, "qs": {}, "json": renditionObject, "headers": headers
                 }, function (err, response, body) {
@@ -150,8 +152,7 @@ exports = module.exports = function()
                     if (err)
                     {
                         // failed to add the page rendition
-                        callback(err);
-                        return;
+                        return callback(err);
                     }
 
                     callback();

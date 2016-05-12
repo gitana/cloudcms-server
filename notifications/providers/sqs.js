@@ -5,21 +5,33 @@ var holder = {};
 module.exports = {};
 module.exports.start = function(configuration, callback)
 {
-    if (process.env.CLOUDCMS_NOTIFICATIONS_SQS_QUEUE_URL)
+    if (!configuration.queueUrl)
     {
-        configuration.queueUrl = process.env.CLOUDCMS_NOTIFICATIONS_SQS_QUEUE_URL;
+        if (process.env.CLOUDCMS_NOTIFICATIONS_SQS_QUEUE_URL)
+        {
+            configuration.queueUrl = process.env.CLOUDCMS_NOTIFICATIONS_SQS_QUEUE_URL;
+        }
     }
-    if (process.env.CLOUDCMS_NOTIFICATIONS_SQS_ACCESS_KEY)
+    if (!configuration.accessKey)
     {
-        configuration.accessKey = process.env.CLOUDCMS_NOTIFICATIONS_SQS_ACCESS_KEY;
+        if (process.env.CLOUDCMS_NOTIFICATIONS_SQS_ACCESS_KEY)
+        {
+            configuration.accessKey = process.env.CLOUDCMS_NOTIFICATIONS_SQS_ACCESS_KEY;
+        }
     }
-    if (process.env.CLOUDCMS_NOTIFICATIONS_SQS_SECRET_KEY)
+    if (!configuration.secretKey)
     {
-        configuration.secretKey = process.env.CLOUDCMS_NOTIFICATIONS_SQS_SECRET_KEY;
+        if (process.env.CLOUDCMS_NOTIFICATIONS_SQS_SECRET_KEY)
+        {
+            configuration.secretKey = process.env.CLOUDCMS_NOTIFICATIONS_SQS_SECRET_KEY;
+        }
     }
-    if (process.env.CLOUDCMS_NOTIFICATIONS_SQS_REGION)
+    if (!configuration.region)
     {
-        configuration.region = process.env.CLOUDCMS_NOTIFICATIONS_SQS_REGION;
+        if (process.env.CLOUDCMS_NOTIFICATIONS_SQS_REGION)
+        {
+            configuration.region = process.env.CLOUDCMS_NOTIFICATIONS_SQS_REGION;
+        }
     }
 
     var queueUrl = configuration.queueUrl;
