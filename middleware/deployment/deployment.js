@@ -186,13 +186,18 @@ exports = module.exports = function()
                     rootStore.writeFile("descriptor.json", JSON.stringify(descriptor, null, "  "), function (err) {
 
                         if (err) {
-                            callback(err, host);
-                            return;
+                            return callback(err, host);
                         }
 
                         var completionHandler = function () {
                             // optionally write any require gitana config into the virtual host
                             doHandleWriteGitanaConfiguration(descriptor, rootStore, function (err) {
+
+                                // invalidate gitana driver for this application
+                                process.broadcast.publish("application_invalidation", {
+                                    "applicationId": descriptor.application.id,
+                                    "host": host
+                                });
 
                                 // CACHE: INVALIDATE
                                 process.deploymentDescriptorCache.invalidate(host, function() {
@@ -218,8 +223,7 @@ exports = module.exports = function()
                             util.gitCheckout(host, sourceType, sourceUrl, sourcePath, null, true, req.log, function (err) {
 
                                 if (err) {
-                                    callback(err, host);
-                                    return;
+                                    return callback(err, host);
                                 }
 
                                 completionHandler(err);
@@ -277,18 +281,10 @@ exports = module.exports = function()
                     duster.invalidateCacheForApp(descriptor.application.id);
 
                     // invalidate gitana driver for this application
-                    //req.log("Invalidating gitana cache for application: " + descriptor.application.id);
-                    //Gitana.disconnect(descriptor.application.id);
-                    // TODO: we'd need to do something like this to invalidate for the app
-                    /*
                     process.broadcast.publish("application_invalidation", {
-                        "ref": "application://",
-                        "applicationId": applicationId,
-                        "deploymentKey": deploymentKey,
+                        "applicationId": descriptor.application.id,
                         "host": host
                     });
-                    */
-
 
                     // remove host directory
                     req.log("Removing host directory: " + host);
