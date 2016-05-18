@@ -157,8 +157,11 @@ exports = module.exports = function()
 {
     var handleErrorMessage = function(req, res, errorMessage)
     {
-        // stores error message into "flash" session memory
-        req.flash("info", errorMessage);
+        if (req.flash)
+        {
+            // stores error message into "flash" session memory
+            req.flash("info", errorMessage);
+        }
 
         var failureUrl = req.query["failureUrl"];
         if (failureUrl)
