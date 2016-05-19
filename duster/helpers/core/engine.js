@@ -628,6 +628,8 @@ module.exports = function(app, dust)
                             "_doc": {
                                 "$in": otherNodeIds
                             }
+                        }, {
+                            "limit": otherNodeIds.length
                         }).each(function() {
 
                             var associations_array = otherNodeIdToAssociations[this._doc];
