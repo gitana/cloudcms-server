@@ -40,14 +40,14 @@ exports = module.exports = function(cacheConfig)
     {
         if (seconds <= -1)
         {
-            client.set([key, value], function(err, reply) {
+            client.set([key, JSON.stringify(value)], function(err, reply) {
                 console.log("[redis] write -> reply = " + reply);
                 callback(err, reply);
             });
         }
         else
         {
-            client.set([key, value, "EX", seconds], function(err, reply) {
+            client.set([key, JSON.stringify(value), "EX", seconds], function(err, reply) {
                 console.log("[redis] write.ex -> reply = " + reply);
                 callback(err, reply);
             });
@@ -58,7 +58,7 @@ exports = module.exports = function(cacheConfig)
     {
         client.get([key], function(err, reply) {
             console.log("[redis] read -> reply = " + reply);
-            callback(err, reply);
+            callback(err, JSON.parse(reply));
         });
     };
 
@@ -73,7 +73,7 @@ exports = module.exports = function(cacheConfig)
     {
         client.keys([prefix], function(err, reply) {
             console.log("[redis] keys -> reply = " + reply);
-            callback(err, reply);
+            callback(err, JSON.parse(reply));
         });
     };
 
