@@ -54,13 +54,20 @@ exports = module.exports = function(cacheConfig)
         }
     };
 
-    r.read = function(key, callback)
-    {
-        client.get([key], function(err, reply) {
-            console.log("[redis] read -> reply = " + reply);
-            callback(err, JSON.parse(reply));
-        });
-    };
+    r.read = function(key, callback)
+    {
+        client.get([key], function(err, reply) {
+            console.log("[redis] read -> reply = " + reply);
+            var result = null;
+            try {
+                result = JSON.parse(reply);
+            } catch (ex) {
+                result = null;
+                err = ex;
+            }
+            callback(err, result);
+        });
+    };
 
     r.remove = function(key, callback)
     {
@@ -69,13 +76,13 @@ exports = module.exports = function(cacheConfig)
         });
     };
 
-    r.keys = function(prefix, callback)
-    {
-        client.keys([prefix], function(err, reply) {
-            console.log("[redis] keys -> reply = " + reply);
-            callback(err, JSON.parse(reply));
-        });
-    };
+    r.keys = function(prefix, callback)
+    {
+        client.keys([prefix], function(err, reply) {
+            console.log("[redis] keys -> reply = " + reply);
+            callback(err, reply);
+        });
+    };
 
     return r;
 };
