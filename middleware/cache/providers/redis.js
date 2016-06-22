@@ -57,15 +57,21 @@ exports = module.exports = function(cacheConfig)
     r.read = function(key, callback)
     {
         client.get([key], function(err, reply) {
-            console.log("[redis] read -> reply = " + reply);
-            var result = null;
-            try {
+
+            console.log("[redis] read -> reply = " + reply);
+            
+            var result = null;
+            try
+            {
                 result = JSON.parse(reply);
-            } catch (ex) {
+            }
+            catch (ex)
+            {
                 result = null;
                 err = ex;
             }
-            callback(err, result);
+
+            callback(err, result);
         });
     };
 
@@ -79,8 +85,8 @@ exports = module.exports = function(cacheConfig)
     r.keys = function(prefix, callback)
     {
         client.keys([prefix], function(err, reply) {
-            console.log("[redis] keys -> reply = " + reply);
-            callback(err, reply);
+            console.log("[redis] keys -> reply = " + reply);
+            callback(err, reply);
         });
     };
 

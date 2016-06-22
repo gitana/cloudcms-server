@@ -247,7 +247,8 @@ exports = module.exports = function()
     var proxyConfig = {
         "target": target,
         "agent": false,
-        "xfwd": true
+        "xfwd": true,
+        "proxyTimeout": 1000 * 60 * 60 * 20 // 20 minutes
     };
 
     if (proxyScheme.toLowerCase() === "https")
