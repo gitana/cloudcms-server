@@ -276,9 +276,7 @@ exports = module.exports = function()
 
                             req.log("Loading Web Pages into cache");
 
-                            // build out pages
-                            pages = {};
-
+                            // error handler
                             var errorHandler = function (err) {
 
                                 req.log("Error while loading web pages: " + JSON.stringify(err));
@@ -298,6 +296,9 @@ exports = module.exports = function()
                                     return errorHandler(err);
                                 }
 
+                                // build out pages
+                                pages = {};
+
                                 branch.trap(function (err) {
 
                                     // release the lock
@@ -309,81 +310,104 @@ exports = module.exports = function()
                                     return false;
                                 }).then(function () {
 
+                                    var fns = [];
+
+                                    // load all of the pages
                                     this.queryNodes({
                                         "_type": "wcm:page"
                                     }, {
-                                        "limit": 9999 // essentially, unlimited
+                                        "limit": -1
                                     }).each(function () {
 
                                         // THIS = wcm:page
                                         var page = this;
 
-                                        // if page has a template
+                                        // if the page has a template
                                         if (page.template)
                                         {
-                                            var fn_x = function (page) {
+                                            var fn = function (branch, page) {
+                                                return function (allDone) {
 
-                                                if (page.templatePath)
-                                                {
-                                                    if (page.uris)
-                                                    {
-                                                        // merge into our pages collection
-                                                        for (var i = 0; i < page.uris.length; i++)
+                                                    var completionFn = function () {
+
+                                                        if (page.templatePath)
                                                         {
-                                                            pages[page.uris[i]] = page;
+                                                            if (page.uris)
+                                                            {
+                                                                // merge into our pages collection
+                                                                for (var i = 0; i < page.uris.length; i++)
+                                                                {
+                                                                    pages[page.uris[i]] = page;
+                                                                }
+                                                            }
                                                         }
-                                                    }
-                                                }
-                                            };
 
-                                            // is the template a GUID or a path to the template file?
-                                            if ((page.template.indexOf("/") > -1) || (page.template.indexOf(".") > -1))
-                                            {
-                                                page.templatePath = page.template;
-                                                fn_x(page);
-                                            }
-                                            else
-                                            {
-                                                // load the template
-                                                this.subchain(branch).readNode(page.template).then(function () {
+                                                        allDone();
+                                                    };
 
-                                                    // THIS = wcm:template
-                                                    var template = this;
-
-                                                    if (template.path)
+                                                    // is the template a GUID or a path to the template file?
+                                                    if ((page.template.indexOf("/") > -1) || (page.template.indexOf(".") > -1))
                                                     {
-                                                        page.templatePath = template.path;
+                                                        page.templatePath = page.template;
+                                                        completionFn();
                                                     }
+                                                    else
+                                                    {
+                                                        // load the template
+                                                        Chain(branch).trap(function (e2) {
+                                                            // skip it
+                                                            completionFn();
+                                                            return false;
+                                                        }).readNode(page.template).then(function () {
 
-                                                    /*
-                                                     // try to download the "default" attachment if it exists
-                                                     this.trap(function() {
-                                                     return false;
-                                                     }).attachment("default").download(function(text) {
-                                                     console.log("DOWNLOADED TEXT: " + text);
-                                                     page.tempateText = text;
-                                                     });
-                                                     */
+                                                            // THIS = wcm:template
+                                                            var template = this;
 
-                                                    fn_x(page);
+                                                            if (template.path)
+                                                            {
+                                                                page.templatePath = template.path;
+                                                            }
 
-                                                });
-                                            }
+                                                            //
+                                                            // // try to download the "default" attachment if it exists
+                                                            // this.trap(function() {
+                                                            // return false;
+                                                            // }).attachment("default").download(function(text) {
+                                                            // console.log("DOWNLOADED TEXT: " + text);
+                                                            // page.tempateText = text;
+                                                            // });
+                                                            //
+
+                                                            completionFn();
+
+                                                        });
+                                                    }
+                                                };
+                                            }(branch, page);
+                                            fns.push(fn);
                                         }
+
+                                    }).then(function () {
+
+                                        console.log("Processing " + fns.length + " web pages");
+
+                                        async.series(fns, function (err) {
+
+                                            console.log("Web Page processing complete");
+                                            for (var uri in pages)
+                                            {
+                                                req.log("Loaded Web Page -> " + uri);
+                                            }
+
+                                            req.cache.write(WCM_PAGES, pages, WCM_CACHE_TIMEOUT_SECONDS);
+
+                                            releaseLockFn();
+
+                                            callback(null, pages);
+
+                                        });
+
                                     });
-
-                                }).then(function () {
-
-                                    for (var uri in pages)
-                                    {
-                                        req.log("Loaded Web Page -> " + uri);
-                                    }
-
-                                    req.cache.write(WCM_PAGES, pages, WCM_CACHE_TIMEOUT_SECONDS);
-
-                                    releaseLockFn();
-
-                                    callback(null, pages);
                                 });
                             });
                         });
