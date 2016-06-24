@@ -81,12 +81,13 @@ exports = module.exports = function(cacheConfig)
             callback(err);
         });
     };
-
-    r.keys = function(prefix, callback)
+    
+    r.keys = function(prefix, callback)
     {
-        client.keys([prefix], function(err, reply) {
-            console.log("[redis] keys -> reply = " + reply);
-            callback(err, reply);
+        console.log('[redis] prefix = ' + prefix);
+        client.keys([prefix + '*'], function(err, reply) {
+            console.log("[redis] keys -> reply = " + reply);
+            callback(err, reply);
         });
     };
 
