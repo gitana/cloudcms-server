@@ -808,13 +808,20 @@ var startSlave = function(config, afterStartFn)
                             //
                             ////////////////////////////////////////////////////////////////////////////
 
+
+
                             // CORE OBJECTS
                             var server = http.Server(app);
-                            if (process.configuration.timeout) {
-                                server.setTimeout(process.configuration.timeout);
-                            } else {
-                                server.setTimeout(30000); // 30 seconds
-                            }
+
+                            // request timeout
+                            var requestTimeout = 30000; // 30 seconds
+                            if (process.configuration && process.configuration.timeout)
+                            {
+                                requestTimeout = process.configuration.timeout;
+                            }
+                            server.setTimeout(requestTimeout);
+
+                            // socket
                             server.on("connection", function (socket) {
                                 socket.setNoDelay(true);
                             });
