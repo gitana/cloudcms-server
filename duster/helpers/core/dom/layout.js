@@ -33,13 +33,13 @@ module.exports = function(app, dust, callback)
 
         var targetPath = context.resolve(params.path);
 
-        if (targetPath.indexOf("/layouts") === 0)
+        if (targetPath.indexOf(path.sep + "layouts") === 0)
         {
             // we're ok
         }
         else
         {
-            targetPath = "/" + path.join("layouts", targetPath);
+            targetPath = path.sep + path.join("layouts", targetPath);
         }
 
         return engine.handleInclude(chunk, context, bodies, params, targetPath);
