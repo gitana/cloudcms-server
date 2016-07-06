@@ -74,7 +74,7 @@ exports = module.exports = function()
         if (matcher)
         {
             // short cut - **
-            if (matcher == "**")
+            if (matcher === "**")
             {
                 // it's a match, pull out wildcard token
                 tokens["**"] = text;
@@ -83,12 +83,13 @@ exports = module.exports = function()
             }
 
             // if matcher has no wildcards or tokens...
-            if ((matcher.indexOf("{") == -1) && (matcher.indexOf("*") == -1))
+            if ((matcher.indexOf("{") === -1) && (matcher.indexOf("*") === -1))
             {
                 // if they're equal...
-                if (matcher == text)
+                if (matcher === text)
                 {
                     // it's a match, no tokens
+                    tokens["_exact"] = true;
                     printDebug();
                     return tokens;
                 }
@@ -108,11 +109,11 @@ exports = module.exports = function()
             // if there are remaining pattern and value elements
             if (!patternEmpty && !valueEmpty)
             {
-                if (pattern == "*")
+                if (pattern === "*")
                 {
                     // wildcard - element matches
                 }
-                else if (pattern == "**")
+                else if (pattern === "**")
                 {
                     // wildcard - match everything else, so break out
                     tokens["**"] = "/" + [].concat(value, array2).join("/");
@@ -147,16 +148,20 @@ exports = module.exports = function()
 
                     var key = pattern.substring(startIndex + 1, stopIndex);
 
-                    // URL decode the value
-                    value = decodeURIComponent(value);
-
                     // assign to token collection
-                    tokens[key] = value;
+                    if (value)
+                    {
+                        // URL decode the value
+                        value = decodeURIComponent(value);
+
+                        // assign to tokens
+                        tokens[key] = value;
+                    }
                 }
                 else
                 {
                     // check for exact match
-                    if (pattern == value)
+                    if (pattern === value)
                     {
                         // exact match
                     }
@@ -216,6 +221,12 @@ exports = module.exports = function()
                     index = i;
                     maxLen = len;
                 }
+
+                if (discoveredTokensArray[i]["_exact"])
+                {
+                    index = i;
+                    break;
+                }
             }
 
             // hand back the discovered page that matches the greatest # of tokens
@@ -235,7 +246,7 @@ exports = module.exports = function()
         WCM_CACHE_TIMEOUT_SECONDS = 60 * 60 * 24;
     }
 
-    var preloadPages = function(req, callback)
+    var preloadPages = function(req, finished)
     {
         var ensureInvalidate = function(callback) {
 
@@ -255,7 +266,7 @@ exports = module.exports = function()
             req.cache.read(WCM_PAGES, function (err, pages) {
 
                 if (pages) {
-                    return callback(null, pages);
+                    return finished(null, pages);
                 }
 
                 req.application(function(err, application) {
@@ -271,7 +282,7 @@ exports = module.exports = function()
                             if (pages)
                             {
                                 releaseLockFn();
-                                return callback(null, pages);
+                                return finished(null, pages);
                             }
 
                             req.log("Loading Web Pages into cache");
@@ -281,7 +292,7 @@ exports = module.exports = function()
 
                                 req.log("Error while loading web pages: " + JSON.stringify(err));
 
-                                return callback(err);
+                                return finished(err);
                             };
 
                             // load all wcm pages from the server
@@ -403,7 +414,7 @@ exports = module.exports = function()
 
                                             releaseLockFn();
 
-                                            callback(null, pages);
+                                            finished(null, pages);
 
                                         });
 
