@@ -156,6 +156,18 @@ var executeCommands = exports.executeCommands = function(commands, logMethod, ca
         text = text + data;
     });
 
+    terminal.on('error', function (err) {
+        logMethod("child process exited with error: " + err + " for commands: " + commands);
+
+        err = {
+            "commands": commands,
+            "message": err,
+            "err": err
+        };
+
+        callback(err);
+    });
+
     terminal.on('exit', function (code) {
 
         var err = null;
@@ -1363,8 +1375,19 @@ var status = exports.status = function(res, code)
     return res;
 };
 
+var isWindows = exports.isWindows = function()
+{
+    return /^win/.test(process.platform);
+};
+
 var maxFiles = exports.maxFiles = function(callback)
 {
+    // if windows, don't bother with this
+    if (isWindows())
+    {
+        return callback(null, -1);
+    }
+
     var logMethod = function(txt) { };
 
     var commands = [];
@@ -1391,6 +1414,12 @@ var maxFiles = exports.maxFiles = function(callback)
 
 var countOpenHandles = exports.countOpenHandles = function(callback)
 {
+    // if windows, don't bother with this
+    if (isWindows())
+    {
+        return callback(null, -1);
+    }
+
     fs.readdir('/proc/self/fd', function(err, list) {
         if (err) {
             return callback(err);
