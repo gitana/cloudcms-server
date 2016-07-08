@@ -5,6 +5,10 @@ var async = require("async");
 
 var tracker = require("../../tracker");
 var util = require("../../../util/util");
+if (util.isWindows())
+{
+    path = path.win32;
+}
 
 var DEFAULT_PAGINATION_LIMIT = 25;
 
@@ -1048,6 +1052,8 @@ module.exports = function(app, dust)
 
         var log = context.options.log;
 
+        targetPath = targetPath.replace(/\\/g, '/');
+
         return map(chunk, function(chunk) {
 
             var store = context.options.store;
@@ -1064,6 +1070,8 @@ module.exports = function(app, dust)
 
                     // absolute path, always relative to the first element in the template file paths list
                     var filePath = path.resolve(currentTemplateFilePaths[0], "..", "." + targetPath);
+                    filePath = filePath.replace(/\\/g, '/');
+                    filePath = filePath.replace(/^([a-zA-Z]:)/, '');
 
                     // if the file path does not end with ".html", we append
                     if (filePath.indexOf(".html") == -1)
@@ -1076,7 +1084,7 @@ module.exports = function(app, dust)
                         if (exists) {
                             callback(null, filePath);
                         } else {
-                            callback();
+                            callback("file not found: " + filePath);
                         }
                     });
                 }
