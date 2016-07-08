@@ -5,10 +5,6 @@ var async = require("async");
 
 var tracker = require("../../tracker");
 var util = require("../../../util/util");
-if (util.isWindows())
-{
-    path = path.win32;
-}
 
 var DEFAULT_PAGINATION_LIMIT = 25;
 
@@ -1069,9 +1065,7 @@ module.exports = function(app, dust)
                     currentTemplateFilePaths = currentTemplateFilePaths.reverse();
 
                     // absolute path, always relative to the first element in the template file paths list
-                    var filePath = path.resolve(currentTemplateFilePaths[0], "..", "." + targetPath);
-                    filePath = filePath.replace(/\\/g, '/');
-                    filePath = filePath.replace(/^([a-zA-Z]:)/, '');
+                    var filePath = path.normalize(path.join(currentTemplateFilePaths[0], "..", "." + targetPath));
 
                     // if the file path does not end with ".html", we append
                     if (filePath.indexOf(".html") == -1)
@@ -1100,7 +1094,7 @@ module.exports = function(app, dust)
                             return function(done) {
 
                                 // target template path
-                                var filePath = path.resolve(currentTemplateFilePath, "..", targetPath);
+                                var filePath = path.normalize(path.join(currentTemplateFilePath, "..", targetPath));
 
                                 // if the file path does not end with ".html", we append
                                 if (filePath.indexOf(".html") == -1)

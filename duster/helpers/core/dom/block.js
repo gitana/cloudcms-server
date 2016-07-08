@@ -33,13 +33,13 @@ module.exports = function(app, dust, callback)
 
         var targetPath = context.resolve(params.path);
 
-        if (targetPath.indexOf(path.sep + "blocks") === 0)
+        if (targetPath.indexOf("/blocks") === 0)
         {
             // we're ok
         }
         else
         {
-            targetPath = path.sep + path.join("blocks", targetPath);
+            targetPath = path.join("/blocks", targetPath);
         }
 
         return engine.handleInclude(chunk, context, bodies, params, targetPath);
