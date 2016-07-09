@@ -1078,7 +1078,8 @@ module.exports = function(app, dust)
                         if (exists) {
                             callback(null, filePath);
                         } else {
-                            callback("file not found: " + filePath);
+                            callback();
+                            // callback({"message": "file not found in store: " + filePath});
                         }
                     });
                 }
