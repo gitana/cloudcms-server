@@ -708,7 +708,7 @@ var startSlave = function(config, afterStartFn)
                 app.use(function (req, res, next) {
 
                     multipart()(req, res, function (err) {
-                        bodyParser.json()(req, res, function (err) {
+                        bodyParser.json('200kb')(req, res, function (err) {
                             bodyParser.urlencoded({
                                 extended: true
                             })(req, res, function (err) {
