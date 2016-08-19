@@ -791,9 +791,31 @@ exports = module.exports = function()
                 return next();
             }
 
+            if (req.method.toLowerCase() !== "get")
+            {
+                return next();
+            }
+
             // ensures that the WCM PAGES cache is preloaded for the current branch
             // pages must be loaded ahead of time so that matching can be performed
             preloadPages(req, function(err, pages) {
+
+                /*
+                // DEBUG: randomly fake an expired refresh token 20% of the time
+                var rand = Math.random() * 10;
+                console.log("rand: " + rand);
+                if (rand > 8)
+                {
+                    // debug
+                    err = {
+                        "name":"Http Error",
+                        "message":"Invalid refresh token (expired): 15b3fcd3-e7fb-4ea6-a0d2-c4cc481d8426",
+                        "status":401,
+                        "statusText":null,
+                        "errorType":"http"
+                    };
+                }
+                */
 
                 if (err)
                 {

@@ -490,6 +490,49 @@ exports = module.exports = function()
 
     var errorHandler = require("errorhandler");
 
+    r.refreshTokenErrorHandler = function(app, callback)
+    {
+        app.use(function(err, req, res, next) {
+
+            if (err)
+            {
+                if (req.method.toLowerCase() === "get")
+                {
+                    if (err.status === 401)
+                    {
+                        if (err.message)
+                        {
+                            if (err.message.toLowerCase().indexOf("expired") > -1)
+                            {
+                                if (err.message.toLowerCase().indexOf("refresh") > -1)
+                                {
+                                    var url = req.path;
+
+                                    console.log("Refresh Token Expired, re-requesting resource: " + url);
+
+                                    var html = "";
+                                    html += "<html>";
+                                    html += "<head>";
+                                    html += "<meta http-equiv='refresh' content='1;URL=" + url + "'>";
+                                    html += "</head>";
+                                    html += "<body>";
+                                    html += "</body>";
+                                    html += "</html>";
+
+                                    return res.status(200).type("text/html").send(html);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            next(err);
+        });
+
+        callback();
+    };
+
     r.defaultErrorHandler = function(app, callback)
     {
         app.use(function(err, req, res, next) {

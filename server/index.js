@@ -403,6 +403,9 @@ exports.start = function(overrides, callback) {
         SETTINGS.errorFunctions.unshift(main.consoleErrorLogger);
     }
 
+    // insert an error handler to handle refresh token failures
+    SETTINGS.errorFunctions.unshift(main.refreshTokenErrorHandler);
+
     // create our master config
     var config = clone(SETTINGS);
     if (overrides) {
