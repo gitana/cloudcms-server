@@ -1442,3 +1442,17 @@ var bytesToSize = exports.bytesToSize = function(bytes)
     return Math.round(bytes / Math.pow(1024, i), 2) + ' ' + sizes[i];
 };
 
+var stripQueryStringFromUrl = exports.stripQueryStringFromUrl = function(url)
+{
+    if (!url) {
+        return;
+    }
+
+    var z = url.indexOf("?");
+    if (z > -1)
+    {
+        url = url.substring(0, z);
+    }
+
+    return url;
+};

@@ -604,6 +604,7 @@ var startSlave = function(config, afterStartFn)
                     }
                 });
 
+                // general logging of requests
                 // gather statistics on response time
                 app.use(responseTime(function(req, res, time) {
 
@@ -612,7 +613,25 @@ var startSlave = function(config, afterStartFn)
                         warn = true;
                     }
 
-                    req.log(req.method + " " + req.originalPath + " [" + res.statusCode + "] (" + time.toFixed(2) + " ms)", warn);
+                    var requestPath = req.originalPath;
+                    if (requestPath)
+                    {
+                        var filter = false;
+                        if (requestPath.indexOf("/login") > -1)
+                        {
+                            filter = true;
+                        }
+                        if (requestPath.indexOf("/token") > -1)
+                        {
+                            filter = true;
+                        }
+                        if (filter)
+                        {
+                            requestPath = util.stripQueryStringFromUrl(requestPath);
+                        }
+                    }
+
+                    req.log(req.method + " " + requestPath + " [" + res.statusCode + "] (" + time.toFixed(2) + " ms)", warn);
                 }));
 
                 // add req.id  re
