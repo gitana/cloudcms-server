@@ -710,6 +710,10 @@ exports = module.exports = function()
      *    /static/repository/{repositoryId}/branch/{branchId}/node/{nodeId}/{attachmentId}/{filename}
      *    /static/repository/{repositoryId}/branch/{branchId}/path/A/B/C/D...
      *    /static/repository/{repositoryId}/branch/{branchId}?path=/A/B/C/D
+     *    /static/{filename}?repository={repositoryId}&branch={branchId}&node={nodeId}
+     *    /static/{filename}?repository={repositoryId}&branch={branchId}&path={path}
+     *    /static/{filename}?ref={ref}
+     *
      *    /preview/path/{path...}
      *    /preview/node/{nodeId}
      *    /preview/node/{nodeId}/{previewId}
@@ -765,7 +769,7 @@ exports = module.exports = function()
                 {
                     virtualizedPath = offsetPath.substring(13);
                 }
-                if (offsetPath.indexOf("/static/node/") === 0)
+                else if (offsetPath.indexOf("/static/node/") === 0)
                 {
                     virtualizedNode = offsetPath.substring(13);
 
@@ -777,7 +781,7 @@ exports = module.exports = function()
                         virtualizedNode = virtualizedNode.substring(0,x);
                     }
                 }
-                if (offsetPath.indexOf("/static/repository/") === 0)
+                else if (offsetPath.indexOf("/static/repository/") === 0)
                 {
                     // examples
                     //    /static/repository/ABC/branch/DEF/node/XYZ
@@ -810,7 +814,7 @@ exports = module.exports = function()
                     }
 
                     // pluck off the thing
-                    // "node" or "path" or "{previewId}
+                    // "node" or "path" or "{filename}
                     x1 = z.indexOf("/");
                     var thing = null;
                     if (x1 > -1) {
@@ -818,7 +822,7 @@ exports = module.exports = function()
                     } else {
                         thing = z;
                     }
-                    if (thing == "node")
+                    if (thing === "node")
                     {
                         virtualizedNode = z.substring(x1+1);
 
@@ -830,7 +834,7 @@ exports = module.exports = function()
                             virtualizedNode = virtualizedNode.substring(0,x);
                         }
                     }
-                    else if (thing == "path")
+                    else if (thing === "path")
                     {
                         virtualizedPath = z.substring(x1+1);
                     }
@@ -839,11 +843,11 @@ exports = module.exports = function()
                         virtualizedPath = req.query["path"];
                     }
                 }
-                if (offsetPath.indexOf("/preview/path/") === 0)
+                else if (offsetPath.indexOf("/preview/path/") === 0)
                 {
                     previewPath = offsetPath.substring(14);
                 }
-                if (offsetPath.indexOf("/preview/node/") === 0)
+                else if (offsetPath.indexOf("/preview/node/") === 0)
                 {
                     previewNode = offsetPath.substring(14);
 
@@ -861,7 +865,7 @@ exports = module.exports = function()
                         }
                     }
                 }
-                if (offsetPath.indexOf("/preview/repository/") === 0)
+                else if (offsetPath.indexOf("/preview/repository/") === 0)
                 {
                     // examples
                     //    /preview/repository/ABC/branch/DEF/node/XYZ
@@ -913,6 +917,43 @@ exports = module.exports = function()
                     {
                         previewId = thing;
                         previewPath = req.query["path"];
+                    }
+                }
+                else if ((offsetPath.indexOf("/static") === 0) || (offsetPath.indexOf("/preview") === 0))
+                {
+                    var isStatic = (offsetPath.indexOf("/static") === 0);
+                    var isPreview = (offsetPath.indexOf("/preview") === 0);
+
+                    var _repositoryId = req.query["repository"];
+                    if (_repositoryId)
+                    {
+                        repositoryId = _repositoryId;
+                    }
+
+                    var _branchId = req.query["branch"];
+                    if (_branchId)
+                    {
+                        branchId = _branchId;
+                    }
+
+                    var _node = req.query["node"];
+                    if (_node)
+                    {
+                        if (isStatic) {
+                            virtualizedNode = _node;
+                        } else if (isPreview) {
+                            previewNode = _node;
+                        }
+                    }
+
+                    var _path = req.query["path"];
+                    if (_path)
+                    {
+                        if (isStatic) {
+                            virtualizedPath = _path;
+                        } else if (isPreview) {
+                            previewPath = _path;
+                        }
                     }
                 }
 
