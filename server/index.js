@@ -713,6 +713,9 @@ var startSlave = function(config, afterStartFn)
                 // this lets CORS requests float through the proxy
                 app.use(main.ensureCORS());
 
+                // set up default security headers
+                app.use(main.ensureHeaders());
+
                 // common interceptors and config
                 main.common2(app);
 

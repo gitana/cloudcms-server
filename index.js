@@ -463,6 +463,28 @@ exports = module.exports = function()
         };
     };
 
+    r.ensureHeaders = function()
+    {
+        return function(req, res, next) {
+
+            // defaults
+            var xFrameOptions = "SAMEORIGIN";
+            var xXssProtection = "1; mode=block";
+
+            if (xFrameOptions)
+            {
+                util.setHeaderOnce(res, "X-Frame-Options", xFrameOptions);
+            }
+
+            if (xXssProtection)
+            {
+                util.setHeaderOnce(res, "X-XSS-Protection", xXssProtection)
+            }
+
+            next();
+        };
+    };
+
     var stringifyError = function(err)
     {
         var stack = err.stack;
