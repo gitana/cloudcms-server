@@ -691,12 +691,6 @@ var startSlave = function(config, afterStartFn)
                     next();
                 });
 
-                // some cosmetic things
-                app.use(function (req, res, next) {
-                    res.header("X-Powered-By", "Cloud CMS");
-                    next();
-                });
-
                 // common interceptors and config
                 main.common1(app);
 

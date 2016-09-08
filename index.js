@@ -471,6 +471,16 @@ exports = module.exports = function()
             var xFrameOptions = "SAMEORIGIN";
             var xXssProtection = "1; mode=block";
 
+            // if the request comes from *.cloudcms.net then assume more lenient settings
+            var referer = req.headers["referer"];
+            if (referer)
+            {
+                if (referer.indexOf(".cloudcms.net") > -1)
+                {
+                    xFrameOptions = null;
+                }
+            }
+
             if (xFrameOptions)
             {
                 util.setHeaderOnce(res, "X-Frame-Options", xFrameOptions);
@@ -480,6 +490,8 @@ exports = module.exports = function()
             {
                 util.setHeaderOnce(res, "X-XSS-Protection", xXssProtection)
             }
+
+            util.setHeaderOnce(res, "X-Powered-By", "Cloud CMS");
 
             next();
         };
