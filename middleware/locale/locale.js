@@ -1,5 +1,6 @@
 var path = require('path');
 var util = require('../../util/util');
+var accepts = require('accepts');
 
 /**
  * Sets locale.
@@ -17,6 +18,14 @@ exports = module.exports = function()
     {
         return function(req, res, next)
         {
+            var acceptLanguage = "en-us"
+
+            if(accepts(req) && accepts(req).languages() && accepts(req).languages()[0]) {
+                acceptLanguage = accepts(req).languages()[0];
+            }
+
+            req.acceptLanguage = acceptLanguage;
+
             var locale = "default";
 
             if (req.locale) {
