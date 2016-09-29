@@ -66,7 +66,7 @@ module.exports = function(app, dust)
         var near = context.resolve(params.near);
 
         // locale
-        var locale = context.resolve(params.locale);
+        var locale = context.resolve(params.locale) || context.get("req").acceptLanguage;
 
         // ensure limit and skip are numerical
         if (isDefined(limit))
@@ -360,7 +360,7 @@ module.exports = function(app, dust)
         var as = context.resolve(params.as);
 
         // locale
-        var locale = context.resolve(params.locale);
+        var locale = context.resolve(params.locale) || context.get("req").acceptLanguage;
 
         // ensure limit and skip are numerical
         if (isDefined(limit))
@@ -482,7 +482,7 @@ module.exports = function(app, dust)
         var associationDirection = context.resolve(params.direction);
 
         // locale
-        var locale = context.resolve(params.locale);
+        var locale = context.resolve(params.locale) || context.get("req").acceptLanguage;
 
         // ensure limit and skip are numerical
         if (isDefined(limit))
@@ -680,7 +680,7 @@ module.exports = function(app, dust)
         var fieldValue = context.resolve(params.fieldValue);
 
         // locale
-        var locale = context.resolve(params.locale);
+        var locale = context.resolve(params.locale) || context.get("req").acceptLanguage;
 
         // role
         var role = context.resolve(params.role);
@@ -832,7 +832,7 @@ module.exports = function(app, dust)
         var as = context.resolve(params.as);
 
         // locale
-        var locale = context.resolve(params.locale);
+        var locale = context.resolve(params.locale) || context.get("req").acceptLanguage;
 
         var requirements = support.buildRequirements(context, {
             "as": as,
