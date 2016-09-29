@@ -934,7 +934,7 @@ module.exports = function(app, dust)
         });
     };
 
-    var _handleForm = function(chunk, context, bodies, params)
+    r.handleForm = function(chunk, context, bodies, params)
     {
         params = params || {};
 
