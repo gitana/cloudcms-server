@@ -73,7 +73,7 @@ exports = module.exports = function()
                 logFn();
             });
 
-        }, 15000);
+        }, 30000);
     };
     logFn();
 
