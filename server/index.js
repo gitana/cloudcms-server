@@ -181,6 +181,9 @@ var SETTINGS = {
     "flow": {
         "enabled": false
     },
+    "form": {
+        "enabled": true
+    },
     "auth": {
         "enabled": true,
         "providers": {

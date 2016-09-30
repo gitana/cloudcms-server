@@ -27,8 +27,6 @@ module.exports = function(app, dust, callback)
      */
     dust.helpers.form = function(chunk, context, bodies, params)
     {
-        console.log("IN FORM TAG");
-
         return engine.handleForm(chunk, context, bodies, params);
     };
 

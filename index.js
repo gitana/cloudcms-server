@@ -75,6 +75,7 @@ exports = module.exports = function()
     var driverConfig = require("./middleware/driver-config/driver-config");
     var final = require("./middleware/final/final");
     var flow = require("./middleware/flow/flow");
+    var form = require("./middleware/form/form");
     var healthcheck = require("./middleware/healthcheck/healthcheck");
     var host = require("./middleware/host/host");
     var libraries = require("./middleware/libraries/libraries");
@@ -363,6 +364,9 @@ exports = module.exports = function()
 
         // handles calls to web flow controllers
         app.use(flow.handlers());
+
+        // handles calls to form controllers
+        app.use(form.formHandler());
 
         // handles runtime status calls
         app.use(runtime.handler());

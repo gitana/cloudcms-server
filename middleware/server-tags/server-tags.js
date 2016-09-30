@@ -38,8 +38,8 @@ exports = module.exports = function()
             if (doParse)
             {
                 wrapWithDustParser(webStore, req, res);
-                next();
-                return;
+
+                return next();
             }
 
             // otherwise, we don't bother
@@ -51,6 +51,7 @@ exports = module.exports = function()
     {
         var _sendFile = res.sendFile;
         var _send = res.send;
+        var _status = res.status;
 
         res.sendFile = function(filePath, options, fn)
         {
@@ -60,20 +61,25 @@ exports = module.exports = function()
                 fullFilePath = path.join(options.root, fullFilePath);
             }
 
+            var rebasedPath = webStore.pathWithinStore(filePath);
+            if (rebasedPath)
+            {
+                fullFilePath = rebasedPath;
+            }
+
             // read the file
             webStore.readFile(fullFilePath, function(err, text) {
 
                 if (!text)
                 {
-                    _sendFile.call(res, filePath, options, fn);
-                    return;
+                    return _sendFile.call(res, filePath, options, fn);
                 }
+
                 text = text.toString();
                 var z = text.indexOf("{@");
                 if (z === -1)
                 {
-                    _sendFile.call(res, filePath, options, fn);
-                    return;
+                    return _sendFile.call(res, filePath, options, fn);
                 }
                 var model = {};
                 duster.execute(req, webStore, fullFilePath, model, function(err, text) {
@@ -85,7 +91,8 @@ exports = module.exports = function()
                     }
                     else
                     {
-                        _send.call(res, 200, text);
+                        _status.call(res, 200);
+                        _send.call(res, text);
                     }
                 });
 

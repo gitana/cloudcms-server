@@ -2,6 +2,7 @@ var http = require("http");
 var path = require("path");
 var fs = require("fs");
 var util = require("../util/util");
+var request = require("request");
 
 var Gitana = require("gitana");
 
@@ -206,16 +207,6 @@ exports.init = function(app, callback)
         handleInfo(req, res);
     });
 
-    /**
-     * Form Submit handler
-     */
-    app.post("/form/:listKey", function(req, res) {
-
-        var listKey = req.params.listKey;
-
-        handleFormPost(req, res, listKey);
-    });
-
     callback();
 };
 
@@ -227,103 +218,4 @@ exports.onInvalidate = function(fn)
     }
 
     fns["invalidate"].push(fn);
-};
-
-/**
- * Handles a form post.
- *
- * @param req
- * @param res
- */
-var handleFormPost = function(req, res, listKey)
-{
-    // submitted form
-    var form = req.body;
-
-    // TODO: does this contain payment method information?  should customer account be created?
-    if (form.paymentMethod)
-    {
-        // use the "billing provider" configuration for the project
-        // create a customer inside of braintree
-        // retain the customer # and store on the domain principal id
-    }
-
-    // TODO: should this auto-register a principal?
-    if (form.principal)
-    {
-        // username
-        // password
-        // email
-        // TODO: auto-register
-    }
-
-
-    var successUrl = req.query["successUrl"];
-    var failureUrl = req.query["failureUrl"];
-
-    // use the app user
-    var gitana = req.gitana;
-
-    var errHandler = function(err) {
-
-        console.log("ERROR: " + JSON.stringify(err));
-
-        if (failureUrl)
-        {
-            res.redirect(failureUrl);
-        }
-        else
-        {
-            res.send({
-                "ok": false,
-                "error": + JSON.stringify(err)
-            });
-        }
-    };
-
-    // find the repository and branch
-    Chain(gitana.datastore("content")).trap(errHandler).readBranch("master").then(function() {
-
-        var url = "/pub/repositories/" + this.getRepositoryId() + "/branches/" + this.getId() + "/lists/" + listKey;
-
-        // post form to Cloud CMS using public method
-        var request = require("request");
-        var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT + url;
-        request({
-            "method": "POST",
-            "url": URL,
-            "qs": {},
-            "json": form
-        }, function(err, response, body) {
-
-            console.log("Response error: " + JSON.stringify(err));
-            console.log("Response: " + response);
-            console.log("Body: " + body);
-
-            if (err)
-            {
-                if (failureUrl)
-                {
-                    res.redirect(failureUrl);
-                }
-                else
-                {
-                    res.send(500, {
-                        "ok": false
-                    });
-                }
-            }
-
-            if (successUrl)
-            {
-                res.redirect(successUrl);
-            }
-            else
-            {
-                res.send({
-                    "ok": true
-                });
-            }
-        });
-    });
 };

@@ -13,9 +13,16 @@ exports = module.exports = function()
 {
     var GITANA_JS_PATH = "../../node_modules/gitana/lib";
 
-    if (!fs.existsSync(path.join(__dirname, GITANA_JS_PATH, "gitana.js"))) // OK
+    if (!fs.existsSync(path.join(__dirname, GITANA_JS_PATH, "gitana.min.js"))) // OK
     {
         GITANA_JS_PATH = path.join("..", "..", GITANA_JS_PATH);
+    }
+
+    var ALPACA_JS_PATH = "../../node_modules/alpaca/dist";
+
+    if (!fs.existsSync(path.join(__dirname, ALPACA_JS_PATH, "alpaca", "bootstrap", "alpaca.min.js"))) // OK
+    {
+        ALPACA_JS_PATH = path.join("..", "..", ALPACA_JS_PATH);
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -49,6 +56,7 @@ exports = module.exports = function()
             var doGitanaInject = false;
             var dirPath = "../../web";
 
+            // gitana
             if (uri === "/gitana/gitana.js" || uri === "/gitana.js" || uri === "/gitana/gitana.min.js")
             {
                 // we serve this right from node_modules
@@ -60,7 +68,6 @@ exports = module.exports = function()
                     doGitanaInject = true;
                 }
             }
-
             if (doGitanaInject)
             {
                 wrapWithGitanaInjection(req, res);
@@ -68,8 +75,50 @@ exports = module.exports = function()
                 util.setHeaderOnce(res, "Content-Type", "text/javascript");
             }
 
+            // alpaca
+            // this should be "/alpaca/alpaca.min.js" and so on...
+            var doAlpacaInject = false;
+            if (uri && uri.indexOf("/alpaca/") === 0)
+            {
+                // assume this for now
+                var dialect = "bootstrap";
+
+                // skip ahead "/alpaca/"
+                uri = uri.substring(8);
+
+                // we serve this right from node_modules
+                dirPath = path.join(ALPACA_JS_PATH, "alpaca", dialect);
+
+                if (uri === "alpaca.js" || uri === "alpaca.min.js")
+                {
+                    doAlpacaInject = true;
+                }
+            }
+            if (doAlpacaInject)
+            {
+                wrapWithAlpacaInjection(req, res);
+
+                util.setHeaderOnce(res, "Content-Type", "text/javascript");
+            }
+
+            // vendor libraries (provided by alpaca)
+            if (uri && uri.indexOf("/vendor/") === 0)
+            {
+                // skip ahead "/vendor/"
+                uri = uri.substring(8);
+
+                // we serve this right from node_modules
+                dirPath = path.join(ALPACA_JS_PATH, "..", "bower_components");
+            }
+
+
             util.setHeaderOnce(res, "Pragma", "no-cache");
             util.setHeaderOnce(res, "Cache-Control", "no-cache");
+
+            if (!uri)
+            {
+                return res.status(404).end();
+            }
 
             res.sendFile(uri, {
                 "root": path.join(__dirname, dirPath)
@@ -168,6 +217,44 @@ exports = module.exports = function()
                     "message": "Missing json clientKey in gitana config"
                 });
             }
+        };
+    };
+
+    var ALPACA_TEXT_CACHE = {};
+
+    var wrapWithAlpacaInjection = function(req, res, next)
+    {
+        var _send = res.send;
+
+        res.sendFile = function(filePath, options, fn)
+        {
+            var gitanaFilePath = path.join(options.root, filePath);
+
+            var text = ALPACA_TEXT_CACHE[gitanaFilePath];
+            if (text)
+            {
+                util.setHeaderOnce(res, "Content-Type", "text/javascript");
+
+                util.status(res, 200);
+                return _send.call(res, text);
+            }
+
+            fs.readFile(gitanaFilePath, function(err, gitanaText) {
+
+                var appServerPath = path.join(__dirname, "..", "..", "web", "connector", "appserver.js");
+                fs.readFile(appServerPath, function(err, appServerText) {
+
+                    var text = gitanaText + appServerText;
+
+                    ALPACA_TEXT_CACHE[gitanaFilePath] = text;
+
+                    util.setHeaderOnce(res, "Content-Type", "text/javascript");
+
+                    util.status(res, 200);
+                    _send.call(res, text);
+
+                });
+            });
         };
     };
 

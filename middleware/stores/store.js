@@ -308,6 +308,22 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
         return "Engine Path: " + _enginePath("/");
     };
 
+    /**
+     * Calculates a path to the asset within the store given an absolute path.
+     * Returns null if cannot be resolved.
+     *
+     * @param absolutePath
+     */
+    r.pathWithinStore = function(absolutePath)
+    {
+        if (absolutePath && absolutePath.indexOf(basePath()) === 0)
+        {
+            return absolutePath.substring(basePath().length);
+        }
+
+        return null;
+    };
+
     return r;
 };
 

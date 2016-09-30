@@ -976,38 +976,70 @@ module.exports = function(app, dust)
                             "schema": schema,
                             "options": options
                         };
+                        var action = "/_form/submit";
+                        /*
                         if (list)
                         {
-                            var action = "/form/" + list + "?a=1";
-                            if (successUrl)
-                            {
-                                action += "&successUrl=" + successUrl;
-                            }
-                            if (errorUrl)
-                            {
-                                action += "&errorUrl=" + errorUrl;
-                            }
-                            options.renderForm = true;
-                            options.form = {
-                                "attributes": {
-                                    "method": "POST",
-                                    "action": action,
-                                    "enctype": "multipart/form-data",
-                                    "data-ajax": "false"
-                                },
-                                "buttons": {
-                                    "submit": {
-                                        "value": "Submit"
-                                    }
-                                }
-                            };
+                            action += "&list=" + list;
                         }
+                        if (successUrl)
+                        {
+                            action += "&successUrl=" + successUrl;
+                        }
+                        if (errorUrl)
+                        {
+                            action += "&errorUrl=" + errorUrl;
+                        }
+                        */
+                        /*
+                        options.renderForm = true;
+                        options.form = {
+                            "attributes": {
+                                "method": "POST",
+                                "action": action,
+                                "enctype": "application/json",
+                                "data-ajax": "true"
+                            },
+                            "buttons": {
+                                "submit": {
+                                    "title": "Submit"
+                                }
+                            }
+                        };
+                        */
+                        config.helper = {};
+                        config.helper.method = "POST";
+                        config.helper.action = action;
+                        if (list)
+                        {
+                            config.helper.list = list;
+                        }
+                        if (successUrl)
+                        {
+                            config.helper.successUrl = successUrl;
+                        }
+                        if (errorUrl)
+                        {
+                            config.helper.errorUrl = errorUrl;
+                        }
+
+                        config.connector = {
+                            "id": "appserver",
+                            "config": {}
+                        };
 
                         var divId = "form" + new Date().getTime();
 
                         chunk.write("<div id='" + divId + "'></div>");
-                        chunk.write("<script>\r\n$('#" + divId + "').alpaca(" + JSON.stringify(config) + ");</script>\r\n");
+                        chunk.write("<script src='/_lib/formhelper/formhelper.js'></script>");
+
+                        chunk.write("<script>");
+                        chunk.write("var formConfig = GenerateForm(" + JSON.stringify(config) + ");");
+                        chunk.write("$('#" + divId + "').alpaca(formConfig);");
+                        chunk.write("</script>");
+
                         end(chunk, context);
+
                     });
                 });
             });
