@@ -108,7 +108,7 @@ exports = module.exports = function()
                 uri = uri.substring(8);
 
                 // we serve this right from node_modules
-                dirPath = path.join(ALPACA_JS_PATH, "..", "bower_components");
+                dirPath = path.join(ALPACA_JS_PATH, "lib");
             }
 
 
