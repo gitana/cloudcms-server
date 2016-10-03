@@ -291,6 +291,7 @@ exports = module.exports = function()
                             var errorHandler = function (err) {
 
                                 req.log("Error while loading web pages: " + JSON.stringify(err));
+                                console.trace();
 
                                 return finished(err);
                             };
@@ -324,7 +325,17 @@ exports = module.exports = function()
                                     var fns = [];
 
                                     // load all of the pages
-                                    this.queryNodes({
+                                    this.trap(function(err) {
+
+                                        // release the lock
+                                        releaseLockFn();
+
+                                        // fire the error handler
+                                        errorHandler(err);
+
+                                        return false;
+
+                                    }).queryNodes({
                                         "_type": "wcm:page"
                                     }, {
                                         "limit": -1
