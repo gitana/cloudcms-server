@@ -361,52 +361,57 @@ exports = module.exports = function()
             }
         }
 
+        // determine the domain to set x-forwarded-host to
+        // this is also the domain that we do cookie domain rewrites with
+        var newDomain = req.domainHost;
+
+        // if the incoming request is coming off of a CNAME entry that is maintained elsewhere (and they're just
+        // forwarding the CNAME request to our machine), then we try to detect this...
+        //
+        // our algorithm here is pretty weak but suffices for the moment.
+        // if the req.headers["x-forwarded-host"] first entry is in the req.headers["referer"] then we consider
+        // things to have been CNAME forwarded
+        // and so we write cookies back to the req.headers["x-forwarded-host"] first entry domain
+
+        var xForwardedHost = req.headers["x-forwarded-host"];
+        if (xForwardedHost)
+        {
+            xForwardedHost = xForwardedHost.split(",");
+            if (xForwardedHost.length > 0)
+            {
+                var cnameCandidate = xForwardedHost[0];
+
+                var referer = req.headers["referer"];
+                if (referer && referer.indexOf("://" + cnameCandidate) > -1)
+                {
+                    req.log("Detected CNAME: " + cnameCandidate);
+
+                    newDomain = cnameCandidate;
+                }
+            }
+        }
+
+        // we fall back to using http-node-proxy's xfwd support
+        // thus, spoof header here on request so that "x-forwarded-host" is set properly
+        req.headers["host"] = newDomain;
+
+
+        // allow forced cookie domains
+        var forcedCookieDomain = req.headers["cloudcmscookiedomain"];
+        if (!forcedCookieDomain)
+        {
+            if (process.env.CLOUDCMS_FORCE_COOKIE_DOMAIN)
+            {
+                forcedCookieDomain = process.env.CLOUDCMS_FORCE_COOKIE_DOMAIN;
+            }
+        }
+        if (forcedCookieDomain)
+        {
+            newDomain = forcedCookieDomain;
+        }
+
         var updateSetCookieValue = function(value)
         {
-            var newDomain = req.domainHost;
-
-            //
-            // if the incoming request is coming off of a CNAME entry that is maintained elsewhere (and they're just
-            // forwarding the CNAME request to our machine), then we try to detect this...
-            //
-            // our algorithm here is pretty weak but suffices for the moment.
-            // if the req.headers["x-forwarded-host"] first entry is in the req.headers["referer"] then we consider
-            // things to have been CNAME forwarded
-            // and so we write cookies back to the req.headers["x-forwarded-host"] first entry domain
-            //
-
-            var xForwardedHost = req.headers["x-forwarded-host"];
-            if (xForwardedHost)
-            {
-                xForwardedHost = xForwardedHost.split(",");
-                if (xForwardedHost.length > 0)
-                {
-                    var cnameCandidate = xForwardedHost[0];
-
-                    var referer = req.headers["referer"];
-                    if (referer && referer.indexOf("://" + cnameCandidate) > -1)
-                    {
-                        req.log("Detected CNAME: " + cnameCandidate);
-
-                        newDomain = cnameCandidate;
-                    }
-                }
-            }
-
-            // allow forced cookie domains
-            var forcedCookieDomain = req.headers["cloudcmscookiedomain"];
-            if (!forcedCookieDomain) {
-                if (process.env.CLOUDCMS_FORCE_COOKIE_DOMAIN) {
-                    forcedCookieDomain = process.env.CLOUDCMS_FORCE_COOKIE_DOMAIN;
-                }
-            }
-            if (forcedCookieDomain)
-            {
-                newDomain = forcedCookieDomain;
-            }
-
-            // now proceed
-
             // replace the domain with the host
             var i = value.indexOf("Domain=");
             if (i > -1)
