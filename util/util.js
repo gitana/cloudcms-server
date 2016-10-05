@@ -1,13 +1,13 @@
-var fs = require('fs');
-var path = require('path');
+var fs = require("fs");
+var path = require("path");
 var mkdirp = require('mkdirp');
 var request = require("request");
 var mime = require("mime");
 var uuid = require("node-uuid");
 var os = require("os");
 var async = require("async");
-var temp = require('temp');
-var onHeaders = require('on-headers')
+var temp = require("temp");
+var onHeaders = require("on-headers");
 
 var VALID_IP_ADDRESS_REGEX_STRING = "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$";
 
@@ -470,41 +470,6 @@ var copyFile = exports.copyFile = function(srcFile, destFile)
     var contents = fs.readFileSync(srcFile);
     fs.writeFileSync(destFile, contents);
 };
-
-/*
-var copyChildrenToDirectory = function(sourceDirectoryPath, targetDirectoryPath)
-{
-    var filenames = fs.readdirSync(sourceDirectoryPath);
-    for (var i = 0; i < filenames.length; i++)
-    {
-        var filenamePath = path.join(sourceDirectoryPath, filenames[i]);
-        var stat = fs.lstatSync(filenamePath);
-
-        var isDirectory = stat.isDirectory();
-        var isFile = stat.isFile();
-        //var isLink = stat.isSymbolicLink();
-
-        if (isFile)
-        {
-            // make sure this isn't a file we should skip
-            var skip = false;
-            if (filenames[i] === "gitana.json")
-            {
-                skip = true;
-            }
-
-            if (!skip)
-            {
-                copyFile(filenamePath, path.join(targetDirectoryPath, filenames[i]));
-            }
-        }
-        else if (isDirectory)
-        {
-            require("wrench").copyDirSyncRecursive(filenamePath, path.join(targetDirectoryPath, filenames[i]));
-        }
-    }
-};
-*/
 
 var trim = exports.trim = function(text)
 {

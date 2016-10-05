@@ -758,19 +758,30 @@ var startSlave = function(config, afterStartFn)
 
                 if (config.viewEngine === "dust")
                 {
-                    app.set('view engine', 'html');
                     var cons = require('consolidate');
+
+                    app.set('view engine', 'html');
+                    app.set('view engine', 'dust');
                     app.engine('html', cons.dust);
+                    app.engine('dust', cons.dust);
                 }
                 else if (config.viewEngine === "jade")
                 {
+                    var jade = require('jade');
+
+                    app.set('view engine', 'html');
                     app.set('view engine', 'jade');
+                    app.engine('html', jade.__express);
+                    app.engine('jade', jade.__express);
                 }
                 else if (config.viewEngine === "handlebars" || config.viewEngine === "hbs")
                 {
-                    app.set('view engine', 'html');
                     var hbs = require('hbs');
+
+                    app.set('view engine', 'html');
+                    app.set('view engine', 'hbs');
                     app.engine('html', hbs.__express);
+                    app.engine('hbs', hbs.__express);
                 }
 
                 //app.use(cookieParser("secret"));
