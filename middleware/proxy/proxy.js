@@ -7,9 +7,7 @@ var httpProxy = require('http-proxy');
 
 var oauth2 = require("../../util/oauth2")();
 
-//var ForeverAgent = require('forever-agent');
-
-var ForeverAgent = require('../../temp/forever-agent/index');
+//var ForeverAgent = require('../../temp/forever-agent/index');
 
 var async = require("async");
 
@@ -251,6 +249,8 @@ exports = module.exports = function()
         "proxyTimeout": 1000 * 60 * 60 * 20 // 20 minutes
     };
 
+    // BLOCK 1: using Forever Agent
+    /*
     if (proxyScheme.toLowerCase() === "https")
     {
         proxyConfig.agent = new ForeverAgent.SSL({
@@ -269,8 +269,9 @@ exports = module.exports = function()
             keepAliveMsecs: 5000
         });
     }
+    */
 
-    /*
+    // BLOCK 2 - using standard http agent
     proxyConfig.maxSockets = Infinity;
     proxyConfig.keepAlive = true;
     proxyConfig.keepAliveMsecs = 5000;
@@ -280,7 +281,6 @@ exports = module.exports = function()
         keepAlive: true,
         keepAliveMsecs: 5000
     });
-    */
 
     var proxyServer = new httpProxy.createProxyServer(proxyConfig);
 
