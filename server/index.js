@@ -544,6 +544,9 @@ var startSlave = function(config, afterStartFn)
                     var status = res.statusCode;
                     var len = parseInt(res.getHeader('Content-Length'), 10);
                     var host = req.domainHost;
+                    if (req.virtualHost) {
+                        host = req.virtualHost;
+                    }
 
                     len = isNaN(len) ? '0b' : len = bytes(len);
 
@@ -556,9 +559,15 @@ var startSlave = function(config, afterStartFn)
 
                     // status color
                     var color = 32;
-                    if (status >= 500) color = 31
-                    else if (status >= 400) color = 33
-                    else if (status >= 300) color = 36;
+                    if (status >= 500) {
+                        color = 31;
+                    }
+                    else if (status >= 400) {
+                        color = 33;
+                    }
+                    else if (status >= 300) {
+                        color = 36;
+                    }
                     var statusColor = "\x1b[" + color + "m"
 
                     // final color
@@ -607,36 +616,6 @@ var startSlave = function(config, afterStartFn)
                     }
                 });
 
-                // general logging of requests
-                // gather statistics on response time
-                app.use(responseTime(function(req, res, time) {
-
-                    var warn = false;
-                    if (time > 1000) {
-                        warn = true;
-                    }
-
-                    var requestPath = req.originalPath;
-                    if (requestPath)
-                    {
-                        var filter = false;
-                        if (requestPath.indexOf("/login") > -1)
-                        {
-                            filter = true;
-                        }
-                        if (requestPath.indexOf("/token") > -1)
-                        {
-                            filter = true;
-                        }
-                        if (filter)
-                        {
-                            requestPath = util.stripQueryStringFromUrl(requestPath);
-                        }
-                    }
-
-                    req.log(req.method + " " + requestPath + " [" + res.statusCode + "] (" + time.toFixed(2) + " ms)", warn);
-                }));
-
                 // add req.id  re
                 app.use(function (req, res, next) {
                     requestCounter++;
@@ -660,6 +639,9 @@ var startSlave = function(config, afterStartFn)
                     req._log = req.log = function(text, warn) {
 
                         var host = req.domainHost;
+                        if (req.virtualHost) {
+                            host = req.virtualHost;
+                        }
 
                         var timestamp = moment(new Date()).format("MM/DD/YYYY HH:mm:ss Z");
                         var grayColor = "\x1b[90m";
@@ -696,6 +678,37 @@ var startSlave = function(config, afterStartFn)
 
                 // common interceptors and config
                 main.common1(app);
+
+                // general logging of requests
+                // gather statistics on response time
+                app.use(responseTime(function(req, res, time) {
+
+                    var warn = false;
+                    if (time > 1000) {
+                        warn = true;
+                    }
+
+                    var requestPath = req.originalPath;
+                    if (requestPath)
+                    {
+                        var filter = false;
+                        if (requestPath.indexOf("/login") > -1)
+                        {
+                            filter = true;
+                        }
+                        if (requestPath.indexOf("/token") > -1)
+                        {
+                            filter = true;
+                        }
+                        if (filter)
+                        {
+                            requestPath = util.stripQueryStringFromUrl(requestPath);
+                        }
+                    }
+
+                    req.log(req.method + " " + requestPath + " [" + res.statusCode + "] (" + time.toFixed(2) + " ms)", warn);
+                }));
+
 
                 /*
                  // initial log
