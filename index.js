@@ -7,6 +7,29 @@ var async = require("async");
 
 var util = require("./util/util");
 
+var http = require('http');
+var https = require('https');
+
+// ensure proper global agent properties
+http.globalAgent = new http.Agent({
+    maxSockets: Infinity,
+    maxFreeSockets: 256,
+    keepAlive: true,
+    keepAliveMsecs: 5000,
+    rejectUnauthorized: false
+});
+https.globalAgent = new https.Agent({
+    maxSockets: Infinity,
+    maxFreeSockets: 256,
+    keepAlive: true,
+    keepAliveMsecs: 5000,
+    rejectUnauthorized: false
+});
+
+
+// root ssl ca's
+require("ssl-root-cas").inject();
+
 /**
  * Supports the following directory structure:
  *
@@ -58,9 +81,6 @@ exports = module.exports = function()
             return true;
         };
     }
-
-    // root ssl ca's
-    require('ssl-root-cas').inject();
 
     // middleware
     var admin = require("./middleware/admin/admin");

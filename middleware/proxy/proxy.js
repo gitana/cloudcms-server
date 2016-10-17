@@ -249,8 +249,8 @@ exports = module.exports = function()
         "proxyTimeout": 1000 * 60 * 60 * 20 // 20 minutes
     };
 
-    // BLOCK 1: using Forever Agent
     /*
+    // BLOCK 1: using Forever Agent
     if (proxyScheme.toLowerCase() === "https")
     {
         proxyConfig.agent = new ForeverAgent.SSL({
@@ -272,15 +272,32 @@ exports = module.exports = function()
     */
 
     // BLOCK 2 - using standard http agent
-    proxyConfig.maxSockets = Infinity;
-    proxyConfig.keepAlive = true;
-    proxyConfig.keepAliveMsecs = 5000;
-    proxyConfig.agent = new http.Agent({
-        maxSockets: Infinity,
-        maxFreeSockets: 256,
-        keepAlive: true,
-        keepAliveMsecs: 5000
-    });
+    if (proxyScheme.toLowerCase() === "https")
+    {
+        proxyConfig.maxSockets = Infinity;
+        proxyConfig.keepAlive = true;
+        proxyConfig.keepAliveMsecs = 5000;
+        proxyConfig.agent = new https.Agent({
+            maxSockets: Infinity,
+            maxFreeSockets: 256,
+            keepAlive: true,
+            keepAliveMsecs: 5000,
+            rejectUnauthorized: false
+        });
+    }
+    else if (proxyScheme.toLowerCase() === "http")
+    {
+        proxyConfig.maxSockets = Infinity;
+        proxyConfig.keepAlive = true;
+        proxyConfig.keepAliveMsecs = 5000;
+        proxyConfig.agent = new http.Agent({
+            maxSockets: Infinity,
+            maxFreeSockets: 256,
+            keepAlive: true,
+            keepAliveMsecs: 5000,
+            rejectUnauthorized: false
+        });
+    }
 
     var proxyServer = new httpProxy.createProxyServer(proxyConfig);
 
@@ -361,9 +378,15 @@ exports = module.exports = function()
             }
         }
 
+        var cloudcmsOrigin = null;
+
         // determine the domain to set x-forwarded-host to
         // this is also the domain that we do cookie domain rewrites with
         var newDomain = req.domainHost;
+        if (req.virtualHost) {
+            newDomain = req.virtualHost;
+            cloudcmsOrigin = req.virtualHost;
+        }
 
         // if the incoming request is coming off of a CNAME entry that is maintained elsewhere (and they're just
         // forwarding the CNAME request to our machine), then we try to detect this...
@@ -374,6 +397,7 @@ exports = module.exports = function()
         // and so we write cookies back to the req.headers["x-forwarded-host"] first entry domain
 
         var xForwardedHost = req.headers["x-forwarded-host"];
+
         if (xForwardedHost)
         {
             xForwardedHost = xForwardedHost.split(",");
@@ -394,6 +418,13 @@ exports = module.exports = function()
         // we fall back to using http-node-proxy's xfwd support
         // thus, spoof header here on request so that "x-forwarded-host" is set properly
         req.headers["host"] = newDomain;
+
+        // set optional cloudcms origin header
+        // this is currently set to the value of virtual host
+        if (cloudcmsOrigin)
+        {
+            req.headers["X-CLOUDCMS-ORIGIN"] = cloudcmsOrigin;
+        }
 
 
         // allow forced cookie domains
