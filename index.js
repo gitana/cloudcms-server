@@ -11,6 +11,7 @@ var http = require('http');
 var https = require('https');
 
 // ensure proper global agent properties
+/*
 http.globalAgent = new http.Agent({
     maxSockets: Infinity,
     maxFreeSockets: 256,
@@ -25,6 +26,44 @@ https.globalAgent = new https.Agent({
     keepAliveMsecs: 5000,
     rejectUnauthorized: false
 });
+*/
+
+var KeepAliveAgent = require('agentkeepalive');
+http.globalAgent = new KeepAliveAgent({
+    keepAlive: true,
+    keepAliveMsecs: 1000,
+    keepAliveTimeout: 30000,
+    timeout: 60000,
+    maxSockets: 200,
+    maxFreeSockets: 40
+});
+https.globalAgent = new KeepAliveAgent({
+    keepAlive: true,
+    keepAliveMsecs: 1000,
+    keepAliveTimeout: 30000,
+    timeout: 60000,
+    maxSockets: 200,
+    maxFreeSockets: 40
+});
+
+// report http/https socket state every minute
+var socketReportFn = function()
+{
+    setTimeout(function() {
+
+        var http = require("http");
+        var https = require("https");
+
+        console.log("--- START SOCKET REPORT ---");
+        console.log("[http]: " + JSON.stringify(http.globalAgent.getCurrentStatus(), null, "  "));
+        console.log("[https]:" + JSON.stringify(https.globalAgent.getCurrentStatus(), null, "  "));
+        console.log("--- END SOCKET REPORT ---");
+
+        socketReportFn();
+
+    }, 60 * 1000);
+};
+socketReportFn();
 
 
 // root ssl ca's

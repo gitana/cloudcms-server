@@ -517,14 +517,12 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
 
     var _handler = function(gitana, config, currentAttempts, maxAttempts, previousError, cb)
     {
-        if (currentAttempts === maxAttempts)
+        if (currentAttempts >= maxAttempts)
         {
-            cb({
+            return cb({
                 "message": "Maximum number of connection attempts exceeded (" + maxAttempts + ")",
                 "err": previousError
             });
-
-            return;
         }
 
         // make sure we have a headers object
@@ -554,7 +552,7 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
                 try
                 {
                     var json = body;
-                    if (typeof(json) == "string")
+                    if (typeof(json) === "string")
                     {
                         // convert to json
                         json = JSON.parse(json);

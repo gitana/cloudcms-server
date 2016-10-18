@@ -271,6 +271,7 @@ exports = module.exports = function()
     }
     */
 
+    /*
     // BLOCK 2 - using standard http agent
     if (proxyScheme.toLowerCase() === "https")
     {
@@ -298,6 +299,7 @@ exports = module.exports = function()
             rejectUnauthorized: false
         });
     }
+    */
 
     var proxyServer = new httpProxy.createProxyServer(proxyConfig);
 
