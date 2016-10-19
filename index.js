@@ -28,22 +28,25 @@ https.globalAgent = new https.Agent({
 });
 */
 
-var KeepAliveAgent = require('agentkeepalive');
-http.globalAgent = new KeepAliveAgent({
+var HttpKeepAliveAgent = require('agentkeepalive');
+var HttpsKeepAliveAgent = require('agentkeepalive').HttpsAgent;
+http.globalAgent = new HttpKeepAliveAgent({
     keepAlive: true,
     keepAliveMsecs: 1000,
     keepAliveTimeout: 30000,
     timeout: 60000,
     maxSockets: 200,
-    maxFreeSockets: 40
+    maxFreeSockets: 40,
+    rejectUnauthorized: false
 });
-https.globalAgent = new KeepAliveAgent({
+https.globalAgent = new HttpsKeepAliveAgent({
     keepAlive: true,
     keepAliveMsecs: 1000,
     keepAliveTimeout: 30000,
     timeout: 60000,
     maxSockets: 200,
-    maxFreeSockets: 40
+    maxFreeSockets: 40,
+    rejectUnauthorized: false
 });
 
 // report http/https socket state every minute

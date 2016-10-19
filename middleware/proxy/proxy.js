@@ -301,6 +301,16 @@ exports = module.exports = function()
     }
     */
 
+    if (proxyScheme.toLowerCase() === "https")
+    {
+        proxyConfig.agent = https.globalAgent;
+    }
+    else if (proxyScheme.toLowerCase() === "http")
+    {
+        proxyConfig.agent = http.globalAgent;
+    }
+
+
     var proxyServer = new httpProxy.createProxyServer(proxyConfig);
 
     // error handling
