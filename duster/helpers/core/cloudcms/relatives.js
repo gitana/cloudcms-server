@@ -16,7 +16,7 @@ module.exports = function(app, dust, callback)
      *
      * Syntax:
      *
-     *    {@relatives node="<nodeId>" type="<association_type>" limit="" skip="" as=""}
+     *    {@relatives node="<nodeId>" associationType="<association_type>" limit="" skip="" as=""}
      *       {+templateIdentifier/}
      *    {/relatives}
      *
