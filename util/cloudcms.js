@@ -370,8 +370,7 @@ exports = module.exports = function()
                     "url": URL,
                     "qs": {},
                     "headers": headers,
-                    "timeout": REQUEST_CONNECTION_TIMEOUT_MS,
-                    "gzip": true
+                    "timeout": REQUEST_CONNECTION_TIMEOUT_MS
                 }).on('response', function (response) {
 
                     //console.log("Status Code: " + response.statusCode);
@@ -455,9 +454,6 @@ exports = module.exports = function()
                     {
                         // some kind of http error (usually permission denied or invalid_token)
 
-                        // ensure stream is closed
-                        closeWriteStream(tempStream);
-
                         var body = "";
 
                         response.on('data', function (chunk) {
@@ -465,6 +461,9 @@ exports = module.exports = function()
                         });
 
                         response.on('end', function () {
+
+                            // ensure stream is closed
+                            closeWriteStream(tempStream);
 
                             var afterCleanup = function () {
 
@@ -481,7 +480,7 @@ exports = module.exports = function()
                                 }
                                 catch (e)
                                 {
-                                    console.log("JSON parse failure: " + body);
+                                    // swallow
                                 }
 
                                 if (isInvalidToken)
@@ -520,6 +519,11 @@ exports = module.exports = function()
 
                     console.log("_writeToDisk request timed out");
                     console.log(e)
+                }).on('end', function (e) {
+
+                    // ensure stream is closed
+                    closeWriteStream(tempStream);
+
                 }).end();
 
                 tempStream.on("error", function (e) {
