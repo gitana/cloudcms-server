@@ -312,13 +312,11 @@ exports = module.exports = function()
 
                 if (err)
                 {
-                    cb({
+                    return cb({
                         "message": "Failed to refresh authentication token: " + JSON.stringify(err),
                         "err": previousError,
                         "invalidateGitanaDriver": true
                     });
-
-                    return;
                 }
                 else
                 {
@@ -372,7 +370,8 @@ exports = module.exports = function()
                     "url": URL,
                     "qs": {},
                     "headers": headers,
-                    "timeout": REQUEST_CONNECTION_TIMEOUT_MS
+                    "timeout": REQUEST_CONNECTION_TIMEOUT_MS,
+                    "gzip": true
                 }).on('response', function (response) {
 
                     //console.log("Status Code: " + response.statusCode);
@@ -388,63 +387,61 @@ exports = module.exports = function()
                             if (err)
                             {
                                 // some went wrong at disk io level?
-                                safeRemove(contentStore, filePath, function () {
+                                return safeRemove(contentStore, filePath, function () {
                                     cb({
                                         "message": "Failed to download: " + JSON.stringify(err)
                                     });
                                 });
                             }
-                            else
-                            {
-                                contentStore.existsFile(filePath, function (exists) {
 
-                                    if (exists) {
+                            contentStore.existsFile(filePath, function (exists) {
 
-                                        // write cache file
-                                        var cacheInfo = buildCacheInfo(response);
-                                        if (cacheInfo)
-                                        {
-                                            contentStore.writeFile(cacheFilePath, JSON.stringify(cacheInfo, null, "    "), function (err) {
+                                if (exists) {
 
-                                                if (err)
-                                                {
-                                                    // failed to write cache file, thus the whole thing is invalid
-                                                    safeRemove(contentStore, cacheFilePath, function () {
-                                                        safeRemove(contentStore, filePath, function () {
-                                                            cb({
-                                                                "message": "Failed to write cache file: " + cacheFilePath
-                                                            });
+                                    // write cache file
+                                    var cacheInfo = buildCacheInfo(response);
+                                    if (cacheInfo)
+                                    {
+                                        contentStore.writeFile(cacheFilePath, JSON.stringify(cacheInfo, null, "    "), function (err) {
+
+                                            if (err)
+                                            {
+                                                // failed to write cache file, thus the whole thing is invalid
+                                                safeRemove(contentStore, cacheFilePath, function () {
+                                                    safeRemove(contentStore, filePath, function () {
+                                                        cb({
+                                                            "message": "Failed to write cache file: " + cacheFilePath
                                                         });
                                                     });
-                                                }
-                                                else
-                                                {
-                                                    cb(null, filePath, cacheInfo);
-                                                }
+                                                });
+                                            }
+                                            else
+                                            {
+                                                cb(null, filePath, cacheInfo);
+                                            }
 
-                                            });
-                                        }
-                                        else
-                                        {
-                                            cb(null, filePath, cacheInfo);
-                                        }
+                                        });
                                     }
                                     else
                                     {
-                                        console.log("WARN: exists false, " + filePath);
+                                        cb(null, filePath, cacheInfo);
+                                    }
+                                }
+                                else
+                                {
+                                    console.log("WARN: exists false, " + filePath);
 
-                                        // for some reason, file wasn't found
-                                        // roll back the whole thing
-                                        safeRemove(contentStore, cacheFilePath, function () {
-                                            safeRemove(contentStore, filePath, function () {
-                                                cb({
-                                                    "message": "Failed to verify written cached file: " + filePath
-                                                });
+                                    // for some reason, file wasn't found
+                                    // roll back the whole thing
+                                    safeRemove(contentStore, cacheFilePath, function () {
+                                        safeRemove(contentStore, filePath, function () {
+                                            cb({
+                                                "message": "Failed to verify written cached file: " + filePath
                                             });
                                         });
-                                    }
-                                });
-                            }
+                                    });
+                                }
+                            });
 
                         }).on("error", function (err) {
 
@@ -474,24 +471,27 @@ exports = module.exports = function()
                                 // see if it is "invalid_token"
                                 // if so, we can automatically retry
                                 var isInvalidToken = false;
-                                try {
+                                try
+                                {
                                     var json = JSON.parse(body);
-                                    if (json && json.error == "invalid_token") {
+                                    if (json && json.error === "invalid_token")
+                                    {
                                         isInvalidToken = true;
                                     }
                                 }
-                                catch (e) {
+                                catch (e)
+                                {
+                                    console.log("JSON parse failure: " + body);
                                 }
 
-                                if (isInvalidToken) {
+                                if (isInvalidToken)
+                                {
                                     // fire for retry
-                                    _refreshAccessTokenAndRetry(contentStore, gitana, uri, filePath, attemptCount, maxAttemptsAllowed, {
+                                    return _refreshAccessTokenAndRetry(contentStore, gitana, uri, filePath, attemptCount, maxAttemptsAllowed, {
                                         "message": "Unable to load asset from remote store",
                                         "code": response.statusCode,
                                         "body": body
                                     }, cb);
-
-                                    return;
                                 }
 
                                 // otherwise, it's not worth retrying at this time
@@ -534,7 +534,7 @@ exports = module.exports = function()
 
         };
 
-        _writeToDisk(contentStore, gitana, uri, filePath, 0, 3, null, function(err, filePath, cacheInfo) {
+        _writeToDisk(contentStore, gitana, uri, filePath, 0, 2, null, function(err, filePath, cacheInfo) {
             callback(err, filePath, cacheInfo);
         });
 
@@ -723,13 +723,12 @@ exports = module.exports = function()
 
                         if (err) {
                             console.log("ERR: " + err.message + " for URI: " + uri);
-                            callback(err);
+                            return callback(err);
                         }
-                        else {
-                            //console.log("Fetched: " + assetPath);
-                            //console.log("Retrieved from server: " + filePath);
-                            callback(null, filePath, responseHeaders);
-                        }
+
+                        //console.log("Fetched: " + assetPath);
+                        //console.log("Retrieved from server: " + filePath);
+                        callback(null, filePath, responseHeaders);
                     });
                 });
             };
