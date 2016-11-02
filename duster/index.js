@@ -206,6 +206,11 @@ exports.execute = function(req, store, filePath, model, callback)
             console.log("An error was caught while rendering dust template: " + templatePath + ", error: " + err);
         }
 
+        // clean up - help out the garbage collector
+        context.req = null;
+        context.gitana = null;
+        context.user = null;
+
         var dependencies = {
             "requires": tracker.requires,
             "produces": tracker.produces

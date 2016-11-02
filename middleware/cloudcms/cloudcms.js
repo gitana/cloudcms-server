@@ -331,18 +331,11 @@ exports = module.exports = function()
                     req.repositoryId = repository.getId();
 
                     // helper function
-                    req.repository = function(callback)
-                    {
-                        if (req._repository)
-                        {
-                            return callback(null, req._repository);
-                        }
-
-                        req.gitana.datastore("content").then(function() {
-                            req._repository = this;
-                            callback(null, this);
-                        });
-                    };
+                    req.repository = function(repository) {
+                        return function(callback) {
+                            callback(null, repository);
+                        };
+                    }(repository);
                 }
             }
 
@@ -534,37 +527,42 @@ exports = module.exports = function()
                     }
 
                     // declare the helper function
-                    req.branch = function(callback)
+                    req.branch = function()
                     {
-                        // if we already have a cached branch on this request, just hand that back
-                        if (req._branch)
+                        var _branch = null;
+
+                        return function(callback)
                         {
-                            return callback(null, Chain(req._branch));
-                        }
-
-                        // load the branch, first get the repository
-                        req.repository(function(err, repository) {
-
-                            if (err) {
-                                console.log("Attempting to load branch, could not load repository, err: " + err);
-                                console.log(JSON.stringify(err));
-                                return callback({
-                                    "message": "Attempting to load branch, failed to load repository for branch: " + req.branchId
-                                });
+                            // if we already have a cached branch on this request, just hand that back
+                            if (_branch)
+                            {
+                                return callback(null, Chain(_branch));
                             }
 
-                            // now load the branch with a sync lock
-                            _load_branch(repository, req.branchId, function(err, branch) {
+                            // load the branch, first get the repository
+                            req.repository(function(err, repository) {
 
                                 if (err) {
-                                    return callback(err);
+                                    console.log("Attempting to load branch, could not load repository, err: " + err);
+                                    console.log(JSON.stringify(err));
+                                    return callback({
+                                        "message": "Attempting to load branch, failed to load repository for branch: " + req.branchId
+                                    });
                                 }
 
-                                req._branch = branch;
-                                callback(null, req._branch);
+                                // now load the branch with a sync lock
+                                _load_branch(repository, req.branchId, function(err, branch) {
+
+                                    if (err) {
+                                        return callback(err);
+                                    }
+
+                                    _branch = branch;
+                                    callback(null, _branch);
+                                });
                             });
-                        });
-                    };
+                        }
+                    }();
                 });
             }
 
@@ -620,9 +618,11 @@ exports = module.exports = function()
                 }
 
                 // helper function
-                req.application = function(callback) {
-                    callback(null, application);
-                };
+                req.application = function(application) {
+                    return function (callback) {
+                        callback(null, application);
+                    };
+                }(application);
             }
 
             next();
