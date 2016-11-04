@@ -242,7 +242,7 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
             // connect a default error handler
             if (stream)
             {
-                stream.on('error', function (e) {
+                stream.once('error', function (e) {
                     console.log("readStream for: " + filePath + ", error: " + e);
                 });
             }
@@ -260,7 +260,7 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
             // connect a default error handler
             if (stream)
             {
-                stream.on('error', function (e) {
+                stream.once('error', function (e) {
                     console.log("writeStream for: " + filePath + ", error: " + e);
                 });
             }

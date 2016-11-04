@@ -440,15 +440,14 @@ exports = module.exports = function(remoteStore)
 
             if (state.faulted)
             {
-                _sendFile(res, cacheAssetPath, cacheInfo, callback);
-                return;
+                return _sendFile(res, cacheAssetPath, cacheInfo, callback);
             }
 
             // download to cache
             remoteStore.readStream(filePath, function(err, reader) {
 
                 var writer = fs.createWriteStream(cacheAssetPath);
-                writer.on("close", function() {
+                writer.once("close", function() {
                     __putCachedObject(filePath, true, null, function() {
                         _sendFile(res, cacheAssetPath, cacheInfo, callback);
                     });
@@ -466,14 +465,13 @@ exports = module.exports = function(remoteStore)
 
             if (state.faulted)
             {
-                _downloadFile(res, cacheAssetPath, filename, cacheInfo, callback);
-                return;
+                return _downloadFile(res, cacheAssetPath, filename, cacheInfo, callback);
             }
 
             // download to cache
             remoteStore.readStream(filePath, function(err, reader) {
                 var writer = fs.createWriteStream(cacheAssetPath);
-                writer.on("close", function() {
+                writer.once("close", function() {
                     __putCachedObject(filePath, true, null, function() {
                         _downloadFile(res, cacheAssetPath, filename, cacheInfo, callback);
                     });
