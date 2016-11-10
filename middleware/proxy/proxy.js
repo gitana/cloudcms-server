@@ -392,11 +392,11 @@ exports = module.exports = function()
 
         var cloudcmsOrigin = null;
 
-        // determine the domain to set x-forwarded-host to
-        // this is also the domain that we do cookie domain rewrites with
-        var newDomain = req.domainHost;
+        // determine the domain to set x-forwarded-host to (i.e. the "proxyHostHeader")
+        // this is what we pass to the API server
+        var proxyHostHeader = req.domainHost;
         if (req.virtualHost) {
-            newDomain = req.virtualHost;
+            proxyHostHeader = req.virtualHost;
             cloudcmsOrigin = req.virtualHost;
         }
 
@@ -409,7 +409,6 @@ exports = module.exports = function()
         // and so we write cookies back to the req.headers["x-forwarded-host"] first entry domain
 
         var xForwardedHost = req.headers["x-forwarded-host"];
-
         if (xForwardedHost)
         {
             xForwardedHost = xForwardedHost.split(",");
@@ -422,22 +421,25 @@ exports = module.exports = function()
                 {
                     req.log("Detected CNAME: " + cnameCandidate);
 
-                    newDomain = cnameCandidate;
+                    proxyHostHeader = cnameCandidate;
                 }
             }
         }
 
         // we fall back to using http-node-proxy's xfwd support
         // thus, spoof header here on request so that "x-forwarded-host" is set properly
-        req.headers["host"] = newDomain;
+        req.headers["host"] = proxyHostHeader;
 
-        // set optional cloudcms origin header
-        // this is currently set to the value of virtual host
+        // set optional "x-cloudcms-origin" header
         if (cloudcmsOrigin)
         {
             req.headers["X-CLOUDCMS-ORIGIN"] = cloudcmsOrigin;
         }
 
+        // determine domain to use for cookie rewrites
+
+        // assume cookieDomain to be req.domainHost
+        var cookieDomain = req.domainHost;
 
         // allow forced cookie domains
         var forcedCookieDomain = req.headers["cloudcmscookiedomain"];
@@ -450,30 +452,32 @@ exports = module.exports = function()
         }
         if (forcedCookieDomain)
         {
-            newDomain = forcedCookieDomain;
+            cookieDomain = forcedCookieDomain;
         }
 
         var updateSetCookieValue = function(value)
         {
+            console.log("Using cookie domain: " + cookieDomain);
+
             // replace the domain with the host
-            var i = value.indexOf("Domain=");
+            var i = value.toLowerCase().indexOf("domain=");
             if (i > -1)
             {
                 var j = value.indexOf(";", i);
                 if (j > -1)
                 {
-                    value = value.substring(0, i+7) + newDomain + value.substring(j);
+                    value = value.substring(0, i+7) + cookieDomain + value.substring(j);
                 }
                 else
                 {
-                    value = value.substring(0, i+7) + newDomain;
+                    value = value.substring(0, i+7) + cookieDomain;
                 }
             }
 
             // if the originating request isn't secure, strip out "secure" from cookie
             if (!req.secure)
             {
-                var i = value.indexOf("; Secure");
+                var i = value.toLowerCase().indexOf("; secure");
                 if (i > -1)
                 {
                     value = value.substring(0, i);
