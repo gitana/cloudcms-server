@@ -440,6 +440,10 @@ exports = module.exports = function()
 
         // assume cookieDomain to be req.domainHost
         var cookieDomain = req.domainHost;
+        if (xForwardedHost)
+        {
+            cookieDomain = xForwardedHost;
+        }
 
         // allow forced cookie domains
         var forcedCookieDomain = req.headers["cloudcmscookiedomain"];
