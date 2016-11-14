@@ -115,6 +115,10 @@ module.exports.process = function(callback)
                 {
                     // failed to parse body, log why
                     console.log("Caught error on body parse for SQS: " + e);
+
+                    // TODO: we need a way to auto-cleanup these failed messages otherwise they end up sitting on the queue
+                    // for a long time until they idle out eventually
+                    // meanwhile, we'll keep trying to parse them and running through this catch handler
                 }
 
                 if (body)

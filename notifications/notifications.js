@@ -111,6 +111,8 @@ var handleNotificationMessages = function(items, callback) {
                                             repositoryId = parts[2];
                                         }
 
+                                        console.log("Sending node invalidation for host: " + obj.host);
+
                                         // broadcast invalidation
                                         process.broadcast.publish("node_invalidation", {
                                             "ref": ref,
