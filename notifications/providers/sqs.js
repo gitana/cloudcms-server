@@ -106,44 +106,57 @@ module.exports.process = function(callback)
 
                 var messageId = message.MessageId;
 
-                var body = JSON.parse(message.Body);
-
-                var subject = body.Subject;
-                var timestamp = body.Timestamp;
-                var sentTimestamp = message.Attributes.SentTimestamp;
-
-                var item = null;
+                var body = null;
                 try
                 {
-                    item = JSON.parse(body.Message);
+                    body = JSON.parse(message.Body);
                 }
                 catch (e)
                 {
-                    // oh well, not something we can deal with
+                    // failed to parse body, log why
+                    console.log("Caught error on body parse for SQS: " + e);
                 }
 
-                if (!item) {
-                    item = {};
+                if (body)
+                {
+                    var subject = body.Subject;
+                    var timestamp = body.Timestamp;
+                    var sentTimestamp = message.Attributes.SentTimestamp;
+
+                    var item = null;
+                    try
+                    {
+                        item = JSON.parse(body.Message);
+                    }
+                    catch (e)
+                    {
+                        // oh well, not something we can deal with
+                    }
+
+                    if (!item)
+                    {
+                        item = {};
+                    }
+
+                    // unique message id
+                    item._id = messageId;
+
+                    // keep this around so that we can delete later
+                    item._deletionEntry = {
+                        "Id": "message" + i,
+                        "ReceiptHandle": message.ReceiptHandle
+                    };
+
+                    // other properties
+                    item.timestamp = timestamp;
+                    item.sentTimestamp = sentTimestamp;
+                    item.subject = subject;
+
+                    // raw message
+                    item.rawMessage = body.Message;
+
+                    items.push(item);
                 }
-
-                // unique message id
-                item._id = messageId;
-
-                // keep this around so that we can delete later
-                item._deletionEntry = {
-                    "Id": "message" + i,
-                    "ReceiptHandle": message.ReceiptHandle
-                };
-
-                // other properties
-                item.timestamp = timestamp;
-                item.sentTimestamp = sentTimestamp;
-                item.subject = subject;
-
-                // raw message
-                item.rawMessage = body.Message;
-
-                items.push(item);
             }
         }
 
