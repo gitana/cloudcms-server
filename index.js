@@ -49,6 +49,8 @@ https.globalAgent = new HttpsKeepAliveAgent({
     rejectUnauthorized: false
 });
 
+// disable for now
+/*
 // report http/https socket state every minute
 var socketReportFn = function()
 {
@@ -67,7 +69,7 @@ var socketReportFn = function()
     }, 60 * 1000);
 };
 socketReportFn();
-
+*/
 
 // root ssl ca's
 require("ssl-root-cas").inject();

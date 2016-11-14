@@ -53,8 +53,8 @@ exports = module.exports = function()
 
                             if (err)
                             {
-                                console.log("ERR6: " + err);
-                                console.log("ERR6: " + JSON.stringify(err));
+                                console.log("Web Store Error: " + err);
+                                console.log("Web Store Error: " + JSON.stringify(err));
 
                                 util.status(res, 503).end();
                             }

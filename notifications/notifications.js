@@ -326,13 +326,13 @@ var handleNotificationMessages = function(items, callback) {
     });
 };
 
-var completeRunnerFn = function(provider)
+var completeRunnerFn = function(provider, printStartMessage)
 {
-    return runnerFn(provider);
+    return runnerFn(provider, printStartMessage);
 };
 
 var runnerCount = 0;
-var runnerFn = function(provider)
+var runnerFn = function(provider, printStartMessage)
 {
     var wid = "main";
     if (cluster && cluster.worker)
@@ -340,10 +340,14 @@ var runnerFn = function(provider)
         wid = cluster.worker.id;
     }
 
-    var runner = function(provider, runnerCount, wid)
+    var runner = function(provider, runnerCount, wid, printStartMessage)
     {
         return function() {
-            console.log("[" + wid + "][" + runnerCount + "] Starting notifications loop");
+
+            if (printStartMessage)
+            {
+                console.log("[" + wid + "][" + runnerCount + "] Starting notifications loop");
+            }
 
             provider.process(function(err, items, postHandleCallback) {
 
@@ -359,13 +363,13 @@ var runnerFn = function(provider)
                     items = [];
                 }
 
-                console.log("[" + wid + "][" + runnerCount + "] Notification Provider found: " + items.length + " notification items");
-
                 if (items.length === 0)
                 {
                     // start it up again
-                    return completeRunnerFn(provider);
+                    return completeRunnerFn(provider, false);
                 }
+
+                console.log("[" + wid + "][" + runnerCount + "] Notification Provider found: " + items.length + " notification items");
 
                 handleNotificationMessages(items, function (err) {
 
@@ -376,13 +380,13 @@ var runnerFn = function(provider)
                         console.log("[" + wid + "][" + runnerCount + "] Notification Provider completed - handled: " + items.length + ", deleted: " + deletedItems.length);
 
                         // start it up again
-                        return completeRunnerFn(provider);
+                        return completeRunnerFn(provider, true);
 
                     });
                 });
             });
         }  ;
-    }(provider, runnerCount++, wid);
+    }(provider, runnerCount++, wid, printStartMessage);
 
     setTimeout(runner, 500);
 };
@@ -436,7 +440,7 @@ module.exports = function()
                 }
 
                 // this starts the "thread" for the provider listener
-                runnerFn(provider);
+                runnerFn(provider, true);
 
                 callback();
             });

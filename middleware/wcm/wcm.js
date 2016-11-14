@@ -593,7 +593,6 @@ exports = module.exports = function()
                         return callback();
                     }
 
-                    console.log("6: " + pageBasePath);
                     stores.content.removeDirectory(pageBasePath, function () {
                         releaseLockFn();
                         callback();

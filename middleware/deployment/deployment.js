@@ -359,9 +359,8 @@ exports = module.exports = function()
 
                             req.log("Starting application: " + data.application.id + " with host: " + host);
 
-                            console.log("H5");
                             rootStore.writeFile("descriptor.json", JSON.stringify(data, null, "  "), function (err) {
-                                console.log("H6: "+ err);
+                                console.log("Start error: "+ err);
                                 callback(err);
                             });
                         });
