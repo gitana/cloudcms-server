@@ -142,13 +142,12 @@ var handleNotificationMessages = function(items, callback) {
                                         var ref = obj.ref;
                                         var applicationId = obj.applicationId;
                                         var deploymentKey = obj.deploymentKey;
-                                        var host = obj.host;
 
                                         process.broadcast.publish("application_invalidation", {
                                             "ref": ref,
                                             "applicationId": applicationId,
                                             "deploymentKey": deploymentKey,
-                                            "host": host
+                                            "host": host || obj.host
                                         });
 
                                         z_done();
@@ -214,7 +213,7 @@ var handleNotificationMessages = function(items, callback) {
                         "pageCacheKey": pageCacheKey,
                         "applicationId": applicationId,
                         "deploymentKey": deploymentKey,
-                        "host": host,
+                        "host": host || obj.host,
                         "repositoryId": repositoryId,
                         "branchId": branchId,
                         "isMasterBranch": isMasterBranch
@@ -264,7 +263,7 @@ var handleNotificationMessages = function(items, callback) {
                                         "pageCacheKey": pageCacheKey,
                                         "applicationId": applicationId,
                                         "deploymentKey": deploymentKey,
-                                        "host": host,
+                                        "host": host || obj.host,
                                         "repositoryId": repositoryId,
                                         "branchId": branchId,
                                         "isMasterBranch": isMasterBranch
