@@ -962,6 +962,7 @@ exports = module.exports = function()
                     // yes, we found it in cache, so we'll simply pipe it back from disk
                     req.log("WCM Page Cache Hit: " + offsetPath);
                     util.status(res, 200);
+                    util.applyResponseContentType(res, null, offsetPath);
                     readStream.pipe(res);
                     return;
                 }
@@ -1030,6 +1031,7 @@ exports = module.exports = function()
 
                         // send back results right away
                         util.status(res, 200);
+                        util.applyResponseContentType(res, null, offsetPath);
                         res.send(text);
 
                     });

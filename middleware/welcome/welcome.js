@@ -40,6 +40,7 @@ exports = module.exports = function()
                 if (y === url.length - 1)
                 {
                     req.url = path.join(req.originalUrl, configuration.file);
+                    req.path = path.join(req.path, configuration.file);
                     //req.url = req.originalUrl + configuration.file;
                 }
 
