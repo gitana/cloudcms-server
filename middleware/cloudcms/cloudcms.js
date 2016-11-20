@@ -702,6 +702,18 @@ exports = module.exports = function()
      *
      * URIs may include the following structures:
      *
+     *  (preferred)
+     *
+     *    /static/{filename}?repository={repositoryId}&branch={branchId}&node={nodeId}
+     *    /static/{filename}?repository={repositoryId}&branch={branchId}&path={path}
+     *    /static/{filename}?ref={ref}
+     *
+     *    /preview/{filename}?repository={repositoryId}&branch={branchId}&node={nodeId}
+     *    /preview/{filename}?repository={repositoryId}&branch={branchId}&path={path}
+     *    /preview/{filename}?ref={ref}
+     *
+     *  (legacy)
+     *
      *    /static/path/{path...}
      *    /static/node/{nodeId}
      *    /static/node/{nodeId}/{attachmentId}
@@ -710,9 +722,6 @@ exports = module.exports = function()
      *    /static/repository/{repositoryId}/branch/{branchId}/node/{nodeId}/{attachmentId}/{filename}
      *    /static/repository/{repositoryId}/branch/{branchId}/path/A/B/C/D...
      *    /static/repository/{repositoryId}/branch/{branchId}?path=/A/B/C/D
-     *    /static/{filename}?repository={repositoryId}&branch={branchId}&node={nodeId}
-     *    /static/{filename}?repository={repositoryId}&branch={branchId}&path={path}
-     *    /static/{filename}?ref={ref}
      *
      *    /preview/path/{path...}
      *    /preview/node/{nodeId}
