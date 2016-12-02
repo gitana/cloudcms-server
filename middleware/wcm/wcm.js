@@ -290,6 +290,7 @@ exports = module.exports = function()
                             // error handler
                             var errorHandler = function (err) {
 
+                                console.log("a3");
                                 req.log("Error while loading web pages: " + JSON.stringify(err));
                                 console.trace();
 
@@ -301,6 +302,8 @@ exports = module.exports = function()
 
                                 if (err)
                                 {
+                                    console.log("a9");
+
                                     // release the lock
                                     releaseLockFn();
 
@@ -312,6 +315,8 @@ exports = module.exports = function()
                                 pages = {};
 
                                 branch.trap(function (err) {
+
+                                    console.log("a1");
 
                                     // release the lock
                                     releaseLockFn();
@@ -326,6 +331,8 @@ exports = module.exports = function()
 
                                     // load all of the pages
                                     this.trap(function(err) {
+
+                                        console.log("a2");
 
                                         // release the lock
                                         releaseLockFn();

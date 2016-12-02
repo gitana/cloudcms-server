@@ -374,7 +374,7 @@ exports = module.exports = function()
                     // unable to load branch!
                     console.log("Unable to load branch: " + repository._doc + "/" + branchId + ", err: " + e);
                     console.log(JSON.stringify(e));
-                    callback({
+                    finished({
                         "message": "Unable to load branch: " + repository._doc + "/" + branchId
                     });
                     return false;
