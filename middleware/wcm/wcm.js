@@ -302,8 +302,6 @@ exports = module.exports = function()
 
                                 if (err)
                                 {
-                                    console.log("a9");
-
                                     // release the lock
                                     releaseLockFn();
 
@@ -315,8 +313,6 @@ exports = module.exports = function()
                                 pages = {};
 
                                 branch.trap(function (err) {
-
-                                    console.log("a1");
 
                                     // release the lock
                                     releaseLockFn();
@@ -331,8 +327,6 @@ exports = module.exports = function()
 
                                     // load all of the pages
                                     this.trap(function(err) {
-
-                                        console.log("a2");
 
                                         // release the lock
                                         releaseLockFn();
