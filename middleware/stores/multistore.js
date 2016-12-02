@@ -287,7 +287,6 @@ exports = module.exports = function(originalStores)
         findFileStores(directoryPath, function(err, stores) {
 
             if (err) {
-                callback(err);
                 return;
             }
 

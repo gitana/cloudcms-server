@@ -326,33 +326,37 @@ module.exports = function(configStore)
             // all done
             callback(null, registry);
 
-            // set a watch
-            // watch for changes and when they happen, reload context
-            (function (registry) {
+            if (process.env.CLOUDCMS_APPSERVER_MODE !== "production")
+            {
+                // set a watch
+                // watch for changes and when they happen, reload context
+                (function (registry) {
 
-                var first = true;
+                    var first = true;
 
-                configStore.watchDirectory("/", function() {
+                    configStore.watchDirectory("/", function () {
 
-                    if (!first) {
+                        if (!first)
+                        {
 
-                        var t1 = new Date().getTime();
+                            var t1 = new Date().getTime();
 
-                        // reload context
-                        loadContext(function(err, context) {
-                            compileContextToRegistry(context);
-                            registry.reloadContext(context);
-                            var t2 = new Date().getTime();
+                            // reload context
+                            loadContext(function (err, context) {
+                                compileContextToRegistry(context);
+                                registry.reloadContext(context);
+                                var t2 = new Date().getTime();
 
-                            _log("Reloaded context in: " + (t2 - t1) + " ms");
-                        });
-                    }
+                                _log("Reloaded context in: " + (t2 - t1) + " ms");
+                            });
+                        }
 
-                    first = false;
+                        first = false;
 
-                });
+                    });
 
-            })(registry);
+                })(registry);
+            }
 
         });
     };
