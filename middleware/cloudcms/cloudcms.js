@@ -553,11 +553,17 @@ exports = module.exports = function()
                                 // now load the branch with a sync lock
                                 _load_branch(repository, req.branchId, function(err, branch) {
 
-                                    if (err) {
+                                    if (err)
+                                    {
+                                        // make sure to remove cookie
+                                        var cookieName = "cloudcms-server-application-" + req.applicationId + "-branch-id";
+                                        res.clearCookie(cookieName);
+
                                         return callback(err);
                                     }
 
                                     _branch = branch;
+
                                     callback(null, _branch);
                                 });
                             });
