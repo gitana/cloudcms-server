@@ -6,7 +6,7 @@
   },
   "name": "cloudcms-server",
   "description": "Cloud CMS Application Server Module",
-  "version": "0.8.327",
+  "version": "0.8.328",
   "repository": {
     "type": "git",
     "url": "git://github.com/gitana/cloudcms-server.git"

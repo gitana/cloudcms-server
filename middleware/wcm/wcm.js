@@ -962,6 +962,12 @@ exports = module.exports = function()
                 {
                     // yes, we found it in cache, so we'll simply pipe it back from disk
                     req.log("WCM Page Cache Hit: " + offsetPath);
+
+                    // SPECIAL HANDLING FOR OFFSET PATH "/" TO SUPPORT HTML CONTENT TYPE HEADER
+                    if (offsetPath === "/") {
+                        offsetPath += "index.html";
+                    }
+
                     util.status(res, 200);
                     util.applyResponseContentType(res, null, offsetPath);
                     readStream.pipe(res);
@@ -1029,6 +1035,11 @@ exports = module.exports = function()
                             //res.status(200);
                             //res.send(text);
                         });
+
+                        // SPECIAL HANDLING FOR OFFSET PATH "/" TO SUPPORT HTML CONTENT TYPE HEADER
+                        if (offsetPath === "/") {
+                            offsetPath += "index.html";
+                        }
 
                         // send back results right away
                         util.status(res, 200);
