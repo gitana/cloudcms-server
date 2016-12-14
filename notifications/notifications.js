@@ -1,6 +1,47 @@
 var async = require("async");
 var cluster = require("cluster");
 
+var determineHost = function(item, obj)
+{
+    var host = null;
+
+    // if virtual hosts aren't enabled, then host is the standalone host ("local")
+    if (!process.configuration.virtualHost || !process.configuration.virtualHost.enabled)
+    {
+        host = process.env.CLOUDCMS_STANDALONE_HOST;
+    }
+    else
+    {
+        // assume host if specified on the item
+        host = item.host;
+
+        // if not specified on the item, assume value imputed based on virtual host being activ
+        if (process.configuration.virtualHost && process.configuration.virtualHost.enabled)
+        {
+            if (!host && item.tenantDnsSlug)
+            {
+                host = item.tenantDnsSlug + ".cloudcms.net";
+            }
+        }
+
+        // if we have an object, maybe we can use thaT?
+        if (!host && obj)
+        {
+            host = obj.host;
+
+            if (process.configuration.virtualHost && process.configuration.virtualHost.enabled)
+            {
+                if (!host && obj.tenantDnsSlug)
+                {
+                    host = obj.tenantDnsSlug + ".cloudcms.net";
+                }
+            }
+        }
+    }
+
+    return host;
+};
+
 var handleNotificationMessages = function(items, callback) {
 
     if (!items) {
@@ -15,22 +56,6 @@ var handleNotificationMessages = function(items, callback) {
             return function(done) {
 
                 // console.log("WORKING ON ITEM: " + i + ", item: " + JSON.stringify(item, null, "  "));
-
-                var host = item.host;
-
-                // if virtual hosts not enabled, assume for process.env.CLOUDCMS_STANDALONE_HOST ("local")
-                if (!process.configuration.virtualHost || !process.configuration.virtualHost.enabled)
-                {
-                    host = process.env.CLOUDCMS_STANDALONE_HOST;
-                }
-                else if (process.configuration.virtualHost && process.configuration.virtualHost.enabled)
-                {
-                    if (!host && item.tenantDnsSlug) {
-                        host = item.tenantDnsSlug + ".cloudcms.net";
-                    }
-                }
-
-                // console.log("Heard: " + host + ", item: " + JSON.stringify(item, null, "  "));
 
                 var operation = item.operation;
 
@@ -63,6 +88,8 @@ var handleNotificationMessages = function(items, callback) {
                             repositoryId = parts[2];
                         }
 
+                        var host = determineHost(item);
+
                         // broadcast invalidation
                         process.broadcast.publish("node_invalidation", {
                             "ref": ref,
@@ -88,8 +115,10 @@ var handleNotificationMessages = function(items, callback) {
                         var z_fns = [];
                         for (var z = 0; z < invalidations.length; z++)
                         {
-                            var z_fn = function(obj, z) {
+                            var z_fn = function(item, obj, z) {
                                 return function(z_done) {
+
+                                    var host = determineHost(item, obj);
 
                                     var type = obj.type;
 
@@ -111,7 +140,7 @@ var handleNotificationMessages = function(items, callback) {
                                             repositoryId = parts[2];
                                         }
 
-                                        console.log("Sending node invalidation for host: " + obj.host);
+                                        console.log("Sending node invalidation for host: " + host);
 
                                         // broadcast invalidation
                                         process.broadcast.publish("node_invalidation", {
@@ -120,7 +149,7 @@ var handleNotificationMessages = function(items, callback) {
                                             "branchId": branchId,
                                             "repositoryId": repositoryId,
                                             "isMasterBranch": obj.isMasterBranch,
-                                            "host": host || obj.host
+                                            "host": host
                                         }, z_done);
                                     }
                                     else if (type === "settings")
@@ -134,7 +163,7 @@ var handleNotificationMessages = function(items, callback) {
                                             "ref": ref,
                                             "settingsKey": settingsKey,
                                             "settingsScope": settingsScope,
-                                            "host": host || obj.host
+                                            "host": host
                                         }, z_done);
                                     }
                                     else if (type === "application")
@@ -147,7 +176,7 @@ var handleNotificationMessages = function(items, callback) {
                                             "ref": ref,
                                             "applicationId": applicationId,
                                             "deploymentKey": deploymentKey,
-                                            "host": host || obj.host
+                                            "host": host
                                         });
 
                                         z_done();
@@ -161,7 +190,7 @@ var handleNotificationMessages = function(items, callback) {
                                         process.broadcast.publish("uiconfig_invalidation", {
                                             "ref": ref,
                                             "id": id,
-                                            "host": host || obj.host
+                                            "host": host
                                         }, z_done);
                                     }
 
@@ -170,7 +199,7 @@ var handleNotificationMessages = function(items, callback) {
                                         z_done();
                                     }
                                 }
-                            }(invalidations[z], z);
+                            }(item, invalidations[z], z);
                             z_fns.push(z_fn);
                         }
 
@@ -197,6 +226,8 @@ var handleNotificationMessages = function(items, callback) {
                     var branchId = item.branchId;
                     var isMasterBranch = item.isMasterBranch;
 
+                    var host = determineHost(item);
+
                     // SAFETY CHECK: if no repository and/or branch, just bail
                     if (!repositoryId || !branchId) {
                         console.log("Missing repositoryId or branchId, skipping WCM page invalidation (1)");
@@ -213,7 +244,7 @@ var handleNotificationMessages = function(items, callback) {
                         "pageCacheKey": pageCacheKey,
                         "applicationId": applicationId,
                         "deploymentKey": deploymentKey,
-                        "host": host || obj.host,
+                        "host": host,
                         "repositoryId": repositoryId,
                         "branchId": branchId,
                         "isMasterBranch": isMasterBranch
@@ -237,7 +268,7 @@ var handleNotificationMessages = function(items, callback) {
                         var z_fns = [];
                         for (var z = 0; z < invalidations.length; z++)
                         {
-                            var z_fn = function(obj) {
+                            var z_fn = function(item, obj) {
                                 return function(z_done) {
 
                                     var deploymentKey = obj.deploymentKey;
@@ -246,6 +277,8 @@ var handleNotificationMessages = function(items, callback) {
                                     var repositoryId = obj.repositoryId;
                                     var branchId = obj.branchId;
                                     var isMasterBranch = obj.isMasterBranch;
+
+                                    var host = determineHost(item, obj);
 
                                     // SAFETY CHECK: if no repository and/or branch, just bail
                                     if (!repositoryId || !branchId) {
@@ -263,7 +296,7 @@ var handleNotificationMessages = function(items, callback) {
                                         "pageCacheKey": pageCacheKey,
                                         "applicationId": applicationId,
                                         "deploymentKey": deploymentKey,
-                                        "host": host || obj.host,
+                                        "host": host,
                                         "repositoryId": repositoryId,
                                         "branchId": branchId,
                                         "isMasterBranch": isMasterBranch
@@ -280,7 +313,7 @@ var handleNotificationMessages = function(items, callback) {
                                     });
 
                                 }
-                            }(invalidations[z]);
+                            }(item, invalidations[z]);
                             z_fns.push(z_fn);
                         }
 
@@ -294,6 +327,8 @@ var handleNotificationMessages = function(items, callback) {
                     var deploymentKey = item.deploymentKey;
                     var applicationId = item.applicationId;
                     var scope = item.scope;
+
+                    var host = determineHost(item);
 
                     var message = {
                         "applicationId": applicationId,
