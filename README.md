@@ -13,12 +13,17 @@ This looks like:
 
 ````
 {
+    "setup": "single", // single, multiple, cluster
     "name": "Cloud CMS Application Server",
     "socketFunctions": [],
     "routeFunctions": [],
+    "errorFunctions": [],
     "configureFunctions": {},
     "beforeFunctions": [],
     "afterFunctions": [],
+    "reportFunctions": [],
+    "dustFunctions": [],
+    "initFunctions": [],
     "viewEngine": "handlebars",
     "storeEngines": {
         "app": {
@@ -27,10 +32,18 @@ This looks like:
                 "basePath": "{appBasePath}"
             }
         },
+        "tmp": {
+            "type": "fs",
+            "config": {
+                "basePath": "{tmpdirPath}/hosts/{host}",
+                "hostsPath": "{tmpdirPath}/hosts"
+            }
+        },
         "hosts_fs": {
             "type": "fs",
             "config": {
-                "basePath": "/hosts/{host}"
+                "basePath": "/hosts/{host}",
+                "hostsPath": "/hosts"
             }
         },
         "hosts_s3": {
@@ -39,7 +52,8 @@ This looks like:
                 "accessKey": "",
                 "secretKey": "",
                 "bucket": "",
-                "basePath": "/hosts/{host}"
+                "basePath": "/hosts/{host}",
+                "hostsPath": "/hosts"
             }
         },
         "hosts_s3fs": {
@@ -48,7 +62,8 @@ This looks like:
                 "accessKey": "",
                 "secretKey": "",
                 "bucket": "",
-                "basePath": "/hosts/{host}"
+                "basePath": "/hosts/{host}",
+                "hostsPath": "/hosts"
             }
         }
     },
@@ -57,53 +72,70 @@ This looks like:
             "root": "app",
             "config": "app",
             "web": "app",
-            "content": "app"
+            "content": "tmp",
+            "templates": "app",
+            "modules": "app"
         },
         "oneteam": {
             "root": "hosts_fs",
             "config": "app",
             "web": "app",
-            "content": "hosts_fs"
+            "content": "hosts_fs",
+            "templates": "app",
+            "modules": "hosts_fs"
         },
         "net-development": {
             "root": "hosts_fs",
             "config": "hosts_fs",
             "web": "hosts_fs",
-            "content": "hosts_fs"
+            "content": "hosts_fs",
+            "templates": "hosts_fs",
+            "modules": "hosts_fs"
         },
         "net-production": {
             "root": "hosts_s3fs",
             "config": "hosts_s3fs",
             "web": "hosts_s3fs",
-            "content": "hosts_s3fs"
+            "content": "hosts_s3fs",
+            "templates": "hosts_s3fs",
+            "modules": "hosts_s3fs"
         },
         "net-development-s3": {
             "root": "hosts_s3",
             "config": "hosts_s3",
             "web": "hosts_s3",
-            "content": "hosts_s3"
+            "content": "hosts_s3",
+            "templates": "hosts_s3"
         },
         "net-development-s3fs": {
             "root": "hosts_s3fs",
             "config": "hosts_s3fs",
             "web": "hosts_s3fs",
-            "content": "hosts_s3fs"
+            "content": "hosts_s3fs",
+            "templates": "hosts_s3fs",
+            "modules": "hosts_s3fs"
+        }
+    },
+    "duster": {
+        "fragments": {
+            "cache": true
         }
     },
     "virtualHost": {
-        "enabled": false // true
+        "enabled": false
     },
     "wcm": {
-        "enabled": false // true
+        "enabled": false,
+        "cache": false
     },
     "serverTags": {
-        "enabled": false // true
+        "enabled": false
     },
     "insight": {
-        "enabled": false // true
+        "enabled": false
     },
     "perf": {
-        "enabled": true // true
+        "enabled": true
     },
     "driverConfig": {
         "enabled": true
@@ -111,8 +143,14 @@ This looks like:
     "virtualDriver": {
         "enabled": false
     },
+    "virtualContent": {
+        "enabled": true
+    },
     "flow": {
         "enabled": false
+    },
+    "form": {
+        "enabled": true
     },
     "auth": {
         "enabled": true,
@@ -153,6 +191,23 @@ This looks like:
     },
     "cache": {
         "enabled": true
+    },
+    "templates": {
+        "enabled": true
+    },
+    "modules": {
+        "enabled": true
+    },
+    "debug": {
+        "enabled": false,
+        "logGlobalTimings": false
+    },
+    "cors": {
+        "enabled": true,
+        "origin": null,
+        "methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "headers": "X-Forwarded-Host, X-Requested-With, Content-Type, Authorization, Origin, X-Requested-With, X-Prototype-Version, Cache-Control, Pragma, X-CSRF-TOKEN, X-XSRF-TOKEN",
+        "credentials": false
     }
 }
 ````

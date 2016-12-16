@@ -506,17 +506,27 @@ exports = module.exports = function()
         var _setHeader = res.setHeader;
         res.setHeader = function(key, value)
         {
-            if (key.toLowerCase() === "set-cookie")
-            {
-                for (var x in value)
-                {
-                    value[x] = updateSetCookieValue(value[x]);
-                }
-            }
+            var _key = key.toLowerCase();
 
-            var existing = this.getHeader(key);
-            if (!existing) {
-                _setHeader.call(this, key, value);
+            if (_key.indexOf("access-control-") === 0)
+            {
+                // skip any access control headers
+            }
+            else
+            {
+                if (_key === "set-cookie")
+                {
+                    for (var x in value)
+                    {
+                        value[x] = updateSetCookieValue(value[x]);
+                    }
+                }
+
+                var existing = this.getHeader(key);
+                if (!existing)
+                {
+                    _setHeader.call(this, key, value);
+                }
             }
         };
 

@@ -505,22 +505,43 @@ exports = module.exports = function()
      */
     r.ensureCORS = function()
     {
-        return function(req, res, next) {
+        return util.createInterceptor("cors", function(req, res, next, stores, cache, configuration) {
 
-            var origin = req.get("Origin");
+            var origin = configuration.origin;
             if (!origin)
             {
-                origin = req.get("origin");
+                origin = req.headers["origin"];
+            }
+            if (!origin)
+            {
+                origin = req.headers["x-cloudcms-origin"];
+            }
+            if (!origin)
+            {
+                origin = "*";
             }
 
-            if (!origin) {
-                return next();
+            var methods = configuration.methods;
+            var headers = configuration.headers;
+            var credentials = configuration.credentials;
+
+            util.setHeaderOnce(res, "Access-Control-Allow-Origin", origin);
+
+            if (methods)
+            {
+                util.setHeaderOnce(res, "Access-Control-Allow-Methods", methods);
             }
 
-            res.set('Access-Control-Allow-Origin', origin);
-            res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-            res.set('Access-Control-Allow-Headers', 'X-Forwarded-Host, X-Requested-With, Content-Type, Authorization, Origin, X-Requested-With, X-Prototype-Version, Cache-Control, Pragma, X-CSRF-TOKEN, X-XSRF-TOKEN');
-            res.set('Access-Control-Allow-Credentials', 'true');
+            if (headers)
+            {
+                util.setHeaderOnce(res, "Access-Control-Allow-Headers", headers);
+            }
+
+            if (credentials)
+            {
+                util.setHeaderOnce(res, "Access-Control-Allow-Credentials", "" + credentials);
+            }
+
             // res.set('Access-Control-Allow-Max-Age', 3600);
 
             if ('OPTIONS' === req.method) {
@@ -528,7 +549,7 @@ exports = module.exports = function()
             }
 
             next();
-        };
+        });
     };
 
     r.ensureHeaders = function()
