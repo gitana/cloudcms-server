@@ -55,25 +55,125 @@ exports = module.exports = function()
             // global caches
             process.deploymentDescriptorCache = createNamespacedCache.call(r, "descriptors");
             process.driverConfigCache = createNamespacedCache.call(r, "driverconfigs");
+            process.subKeyMapCache = createNamespacedCache.call(r, "keyMap");
+
+            // subscribe to node invalidation broadcast events
+            process.broadcast.subscribe("node_invalidation", function (message, done) {
+
+                var nodeId = message.nodeId;
+                var branchId = message.branchId;
+                var repositoryId = message.repositoryId;
+                var host = message.host;
+
+                invalidateNode(host, repositoryId, branchId, nodeId, function(err) {
+
+                    if (message.isMasterBranch)
+                    {
+                        // for master branch, we make a second attempt using "master" as the branch ID
+                        invalidateNode(host, repositoryId, "master", nodeId, function(err) {
+                            done(err);
+                        });
+                    }
+                    else
+                    {
+                        done(err);
+                    }
+
+                });
+
+            });
 
             callback(err);
         });
     };
 
-    var write = r.write = function(key, value, seconds, callback)
-    {
-        if (typeof(seconds) === "function")
+    // overload the "config" param so it can be either:
+    // number of seconds
+    // callback function
+    // config object:
+    // {
+    //   "seconds": -1
+    //   "subKeys": ["7543584a70136edb1545", "61defbdf2d2227c6654c"] // optional. used for invalidating cache objects by node id
+    // }
+    var write = r.write = function(key, value, config, callback)
+    {        
+        if (typeof(config) === "function")
         {
-            callback = seconds;
-            seconds = -1;
+            callback = config;
+            config = { 
+                "seconds": -1
+            };
+        } else if (typeof(config) === "number" ) {
+            config = {
+                "seconds": config
+            }
+        } else if (typeof(config) === "object" ) {
+            config.seconds = config.seconds || -1;
         }
 
-        provider.write(key, value, seconds, function(err, res) {
-            if (callback)
-            {
-                callback(err, res);
-            }
-        });
+        if (config.subKeys) {
+            // subKeys (a list of node IDs) are present so store a map for invalidation
+            subKeyMapCache().read("keyMapCache", function(err, keyMapCache){
+                var keyMap =  {};
+                var keyInverseMap = {};
+
+                if (keyMapCache)
+                {
+                    keyMap = keyMapCache.keyMapCache || {};
+                    keyInverseMap = keyMapCache.keyInverseMapCache || {};
+                }
+
+                for(var i = 0; i < config.subKeys.length; i++)
+                {
+                    // subKeys are node IDs
+                    var nodeId = config.subKeys[i];
+
+                    if (keyInverseMap[key])
+                    {
+                        keyInverseMap[key][nodeId] = true;
+                    }
+                    else
+                    {
+                        keyInverseMap[key] = {};
+                        keyInverseMap[key][nodeId] = true;
+                    }
+
+                    if (keyMap[nodeId])
+                    {
+                        keyMap[nodeId][key] = true;
+                    }
+                    else
+                    {
+                        keyMap[nodeId] = {};
+                        keyMap[nodeId][key] = true;
+                    }
+                }
+
+                keyMapCache = {
+                    "keyMapCache": keyMap,
+                    "keyInverseMapCache": keyInverseMap
+                };
+
+                subKeyMapCache().write("keyMapCache", keyMapCache, function(){
+                    provider.write(key, value, config.seconds, function(err, res) {
+                        if (callback)
+                        {
+                            callback(err, res);
+                        }
+                    });
+                });
+                
+            });
+        }
+        else
+        {
+            provider.write(key, value, config.seconds, function(err, res) {
+                if (callback)
+                {
+                    callback(err, res);
+                }
+            });
+        }
     };
 
     var read = r.read = function(key, callback)
@@ -85,10 +185,60 @@ exports = module.exports = function()
 
     var remove = r.remove = function(key, callback)
     {
-        provider.remove(key, function(err) {
-            if (callback)
+        subKeyMapCache().read("keyMapCache", function(err, keyMapCache){
+            var keyMap =  {};
+            var keyInverseMap = {};
+
+            if (keyMapCache)
             {
-                callback(err);
+                keyMap = keyMapCache.keyMapCache || {};
+                keyInverseMap = keyMapCache.keyInverseMapCache || {};
+            }
+
+            var _keys = Object.keys(keyInverseMap);
+            if (_keys[key])
+            {
+                var _key = _keys[key];
+                for(var i = 0; i < _keys.length; i++)
+                {
+                    if (keyMap[key])
+                    {
+                        var nodeIds = Object.keys(keyMap[key]);
+                        for(var j = 0; j < nodeIds.length; j++)
+                        {
+                            delete keyMap[nodeIds[j]][key];
+                        }                        
+                    }
+
+                    if (keyInverseMap[key])
+                    {
+                        delete keyInverseMap[key];
+                    }
+                }
+
+                keyMapCache = {
+                    "keyMapCache": keyMap,
+                    "keyInverseMapCache": keyInverseMap
+                };
+
+                subKeyMapCache().write("keyMapCache", keyMapCache, function(){
+                    provider.remove(key, function(err) {
+                        if (callback)
+                        {
+                            callback(err);
+                        }
+                    });
+                });
+                
+            }
+            else
+            {
+                provider.remove(key, function(err) {
+                    if (callback)
+                    {
+                        callback(err);
+                    }
+                });
             }
         });
     };
@@ -147,6 +297,46 @@ exports = module.exports = function()
                     callback();
                 }
             })
+        });
+    };
+
+    // invalidate any local cache entries containing a node by id. 
+    // this method is registered as a callback from the invalidation handler
+    var invalidateNode = r.invalidateNode = function(host, repositoryId, branchId, nodeId, callback)
+    {
+        subKeyMapCache().read("keyMapCache", function(err, keyMapCache){
+            var keyMap =  {};
+            var keyInverseMap = {};
+
+            if (keyMapCache)
+            {
+                keyMap = keyMapCache.keyMapCache || {};
+                keyInverseMap = keyMapCache.keyInverseMapCache || {};
+            }
+
+            if (keyMap[nodeId])
+            {
+                async.map(Object.keys(keyMap[nodeId]), function(key, callback){
+                    remove(key, function(){
+                        callback();
+                    });
+                }, function(err, result) {
+                    delete keyMap[nodeId];
+
+                    keyMapCache = {
+                        "keyMapCache": keyMap,
+                        "keyInverseMapCache": keyInverseMap
+                    };
+
+                    subKeyMapCache().write("keyMapCache", keyMapCache, function(){
+                        callback();
+                    });
+                });
+            }
+            else
+            {
+                callback();
+            }
         });
     };
 
@@ -216,6 +406,11 @@ exports = module.exports = function()
     r.driverConfigCache = function()
     {
         return process.driverConfigCache;
+    };
+
+    var subKeyMapCache = r.subKeyMapCache = function()
+    {
+        return process.subKeyMapCache;
     };
 
     return r;
