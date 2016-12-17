@@ -246,7 +246,7 @@ exports = module.exports = function()
         "target": target,
         "agent": false,
         "xfwd": true,
-        "proxyTimeout": 1000 * 60 * 60 * 20 // 20 minutes
+        "proxyTimeout": process.defaultHttpTimeoutMs
     };
 
     /*
@@ -309,7 +309,6 @@ exports = module.exports = function()
     {
         proxyConfig.agent = http.globalAgent;
     }
-
 
     var proxyServer = new httpProxy.createProxyServer(proxyConfig);
 

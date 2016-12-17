@@ -4,6 +4,9 @@ var util = require("../util/util");
 var async = require("async");
 var request = require("request");
 
+var http = require("http");
+var https = require("https");
+
 /**
  * WCM Resource Dependency Manager
  *
@@ -140,8 +143,20 @@ exports = module.exports = function()
 
                 // console.log("Mark Rendition: " + JSON.stringify(renditionObject, null, "  "));
 
+                var agent = http.globalAgent;
+                if (process.env.GITANA_PROXY_SCHEME === "https")
+                {
+                    agent = https.globalAgent;
+                }
+
                 request({
-                    "method": "POST", "url": URL, "qs": {}, "json": renditionObject, "headers": headers
+                    "method": "POST",
+                    "url": URL,
+                    "qs": {},
+                    "json": renditionObject,
+                    "headers": headers,
+                    "timeout": process.defaultHttpTimeoutMs,
+                    "agent": agent
                 }, function (err, response, body) {
 
                     //console.log("Response error: " + JSON.stringify(err));

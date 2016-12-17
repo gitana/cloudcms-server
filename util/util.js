@@ -9,6 +9,9 @@ var async = require("async");
 var temp = require("temp");
 var onHeaders = require("on-headers");
 
+var http = require("http");
+var https = require("https");
+
 var VALID_IP_ADDRESS_REGEX_STRING = "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$";
 
 exports = module.exports;
@@ -525,10 +528,36 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
             });
         }
 
+        // make sure agent is applied
+        if (!config.agent && config.url)
+        {
+            var agent = null;
+
+            if (config.url.indexOf("https://") === 0)
+            {
+                agent = https.globalAgent;
+            }
+            else if (config.url.indexOf("http://") === 0)
+            {
+                agent = http.globalAgent;
+            }
+
+            if (agent)
+            {
+                config.agent = agent;
+            }
+        }
+
         // make sure we have a headers object
         if (!config.headers)
         {
             config.headers = {};
+        }
+
+        // make sure we have a timeout applied
+        if (!config.timeout)
+        {
+            config.timeout = process.defaultHttpTimeoutMs;
         }
 
         // add "authorization" header for OAuth2 bearer token
@@ -541,8 +570,7 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
             // ok case (just callback)
             if (response && response.statusCode === 200)
             {
-                cb(err, response, body);
-                return;
+                return cb(err, response, body);
             }
 
             // look for the special "invalid_token" case

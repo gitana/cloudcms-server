@@ -3,11 +3,11 @@ var fs = require('fs');
 var util = require("./util");
 var request = require("request");
 
+var http = require("http");
+var https = require("https");
+
 exports = module.exports = function()
 {
-    // two minutes
-    var REQUEST_CONNECTION_TIMEOUT_MS = 120000;
-
     var toCacheFilePath = function(filePath)
     {
         var filename = path.basename(filePath);
@@ -363,14 +363,20 @@ exports = module.exports = function()
                 var headers2 = gitana.platform().getDriver().getHttpHeaders();
                 headers["Authorization"] = headers2["Authorization"];
 
+                var agent = http.globalAgent;
+                if (process.env.GITANA_PROXY_SCHEME === "https")
+                {
+                    agent = https.globalAgent;
+                }
+
                 var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT + uri;
-                //console.log("URL: " + URL);
                 request({
                     "method": "GET",
                     "url": URL,
                     "qs": {},
                     "headers": headers,
-                    "timeout": REQUEST_CONNECTION_TIMEOUT_MS
+                    "timeout": process.defaultHttpTimeoutMs,
+                    "agent": agent
                 }).on('response', function (response) {
 
                     //console.log("Status Code: " + response.statusCode);

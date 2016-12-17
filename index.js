@@ -10,31 +10,29 @@ var util = require("./util/util");
 var http = require('http');
 var https = require('https');
 
-// ensure proper global agent properties
-/*
-http.globalAgent = new http.Agent({
-    maxSockets: Infinity,
-    maxFreeSockets: 256,
-    keepAlive: true,
-    keepAliveMsecs: 5000,
-    rejectUnauthorized: false
-});
-https.globalAgent = new https.Agent({
-    maxSockets: Infinity,
-    maxFreeSockets: 256,
-    keepAlive: true,
-    keepAliveMsecs: 5000,
-    rejectUnauthorized: false
-});
-*/
+// default http timeout
+process.defaultHttpTimeoutMs = 120000; // 2 minutes
 
+if (process.env.DEFAULT_HTTP_TIMEOUT_MS)
+{
+    try
+    {
+        process.defaultHttpTimeoutMs = parseInt(process.env.DEFAULT_HTTP_TIMEOUT_MS);
+    }
+    catch (e)
+    {
+
+    }
+}
+
+// default agents
 var HttpKeepAliveAgent = require('agentkeepalive');
 var HttpsKeepAliveAgent = require('agentkeepalive').HttpsAgent;
 http.globalAgent = new HttpKeepAliveAgent({
     keepAlive: true,
     keepAliveMsecs: 1000,
     keepAliveTimeout: 30000,
-    timeout: 60000,
+    timeout: process.defaultHttpTimeoutMs,
     maxSockets: 200,
     maxFreeSockets: 40,
     rejectUnauthorized: false
@@ -43,7 +41,7 @@ https.globalAgent = new HttpsKeepAliveAgent({
     keepAlive: true,
     keepAliveMsecs: 1000,
     keepAliveTimeout: 30000,
-    timeout: 60000,
+    timeout: process.defaultHttpTimeoutMs,
     maxSockets: 200,
     maxFreeSockets: 40,
     rejectUnauthorized: false

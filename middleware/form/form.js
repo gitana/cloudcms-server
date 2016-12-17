@@ -1,8 +1,10 @@
 var path = require("path");
 var fs = require("fs");
-var http = require("http");
 var util = require("../../util/util");
 var request = require("request");
+
+var http = require("http");
+var https = require("https");
 
 /**
  * Form middleware.
@@ -120,14 +122,24 @@ exports = module.exports = function()
 
             // post form to Cloud CMS using public method
             var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT + url;
+
             var headers = {};
             headers["Authorization"] = req.gitana.platform().getDriver().getHttpHeaders()["Authorization"];
+
+            var agent = http.globalAgent;
+            if (process.env.GITANA_PROXY_SCHEME === "https")
+            {
+                agent = https.globalAgent;
+            }
+
             request({
                 "method": "POST",
                 "url": URL,
                 "qs": {},
                 "json": form,
-                "headers": headers
+                "headers": headers,
+                "agent": agent,
+                "timeout": process.defaultHttpTimeoutMs
             }, function(err, response, body) {
 
                 console.log("Response error: " + JSON.stringify(err));
@@ -181,14 +193,24 @@ exports = module.exports = function()
             var url = branch.getUri() + "/alpaca/datasource";
 
             var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT + url;
+
             var headers = {};
             headers["Authorization"] = req.gitana.platform().getDriver().getHttpHeaders()["Authorization"];
+
+            var agent = http.globalAgent;
+            if (process.env.GITANA_PROXY_SCHEME === "https")
+            {
+                agent = https.globalAgent;
+            }
+
             request({
                 "method": "POST",
                 "url": URL,
                 "qs": {},
                 "json": form,
-                "headers": headers
+                "headers": headers,
+                "agent": agent,
+                "timeout": process.defaultHttpTimeoutMs
             }).pipe(res);
 
         });
