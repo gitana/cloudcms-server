@@ -33,7 +33,7 @@
     "express": "^4.14.0",
     "express-session": "^1.14.1",
     "express-useragent": "^1.0.4",
-    "gitana": "^1.0.235",
+    "gitana": "^1.0.236",
     "handlebars": "^4.0.5",
     "hbs": "^4.0.1",
     "http-proxy": "^1.15.1",
