@@ -241,6 +241,11 @@ var SETTINGS = {
         "methods": "GET, POST, PUT, DELETE, OPTIONS",
         "headers": "X-Forwarded-Host, X-Requested-With, Content-Type, Authorization, Origin, X-Requested-With, X-Prototype-Version, Cache-Control, Pragma, X-CSRF-TOKEN, X-XSRF-TOKEN",
         "credentials": true
+    },
+    "admin": {
+        "enabled": true,
+        "username": "admin",
+        "password": "admin"
     }
 };
 

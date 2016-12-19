@@ -208,7 +208,12 @@ This looks like:
         "methods": "GET, POST, PUT, DELETE, OPTIONS",
         "headers": "X-Forwarded-Host, X-Requested-With, Content-Type, Authorization, Origin, X-Requested-With, X-Prototype-Version, Cache-Control, Pragma, X-CSRF-TOKEN, X-XSRF-TOKEN",
         "credentials": false
-    }
+    },
+    "admin": {
+        "enabled": true,
+        "username": "admin",
+        "password": "admin"
+    }    
 }
 ````
 
@@ -361,3 +366,23 @@ Examples of Node switches:
     node --max_old_space_size=3000 --prof nodemem.js --trace_incremental_marking=true --incremental_marking_steps=false
     
     node --max_old_space_size=3000 --max_new_space_size=3000 --max_executable_size=1000 --gc_global --prof nodemem.js --noincremental_marking --nolazy_sweeping --never_compact --gc_global --gc_interval=100000000
+
+
+# admin mode
+Administration API functions are available under /_admin.
+These can be enabled or disabled via the "admin" config block.
+
+If a "username" and "password" is provided in this config block, it will be asserted via basic configuration ahead of
+permitted access to the admin functions.
+
+Admin functions include
+
+    /_admin/cache/invalidate
+    
+This invalidates the full cache.  Or you can invalidate individual nodes:
+
+    /_admin/cache/invalidate?ref=node://{platformId}/{repositoryId}/{branchId}/{nodeId}
+    
+Where "ref" is a standard node reference.
+
+

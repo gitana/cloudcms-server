@@ -3,6 +3,8 @@ var fs = require('fs');
 var http = require('http');
 var util = require("../../util/util");
 
+var auth = require('basic-auth');
+
 /**
  * Admin middleware.
  *
@@ -21,14 +23,7 @@ exports = module.exports = function()
 
             var parts = identifier.split("/").reverse();
 
-            if (type === "application")
-            {
-                var applicationId = parts[0];
-
-                // TODO: invalidate any cache dependent on application
-                callback();
-            }
-            else if (type === "node")
+            if (type === "node")
             {
                 var nodeId = parts[0];
                 var branchId = parts[1];
@@ -91,7 +86,7 @@ exports = module.exports = function()
 
             var handled = false;
 
-            var completionFn = function(res, err)
+            var completionFn = function(host, res, err)
             {
                 if (err)
                 {
@@ -100,24 +95,45 @@ exports = module.exports = function()
                         "message": err.message,
                         "err": err
                     });
-                    res.end();
-                    return;
+                    return res.end();
                 }
 
                 // respond with ok
-                res.send({
+                res.json({
                     "ok": true,
                     "host": host
                 });
                 res.end();
             };
 
+            var assertAuthenticated = function(req, res, callback)
+            {
+                if (configuration.username && configuration.password)
+                {
+                    var credentials = auth(req);
+
+                    if (!credentials || credentials.name !== configuration.username || credentials.pass !== configuration.password)
+                    {
+                        res.statusCode = 401;
+                        res.setHeader('WWW-Authenticate', 'Basic realm="admin"');
+                        res.end('Admin access denied');
+                        return;
+                    }
+                }
+
+                callback();
+            };
+
             if (req.method.toLowerCase() === "post" || req.method.toLowerCase() === "get") {
 
-                if (req.url.indexOf("/_admin/cache/reset") === 0)
+                if (req.url.indexOf("/_admin/cache/reset") === 0 || req.url.indexOf("/_admin/cache/invalidate") === 0)
                 {
-                    doResetCache(req.virtualHost, req.ref, function(err) {
-                        completionFn(res, err);
+                    assertAuthenticated(req, res, function() {
+
+                        doResetCache(req.virtualHost, req.ref, function(err) {
+                            completionFn(req.virtualHost, res, err);
+                        });
+
                     });
 
                     handled = true;

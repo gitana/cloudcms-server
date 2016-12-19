@@ -566,7 +566,11 @@ exports = module.exports = function()
     {
         // this is the path to the page folder
         // if we blow away this folder, we blow away all page fragments as well
-        var pageBasePath = path.join("wcm", "repositories", repositoryId);
+        var pageBasePath = path.join("wcm");
+        if (repositoryId)
+        {
+            pageBasePath = path.join(pageBasePath, "repositories", repositoryId);
+        }
         if (branchId)
         {
             pageBasePath = path.join(pageBasePath, "branches", branchId);
@@ -678,10 +682,6 @@ exports = module.exports = function()
                     var branchId = message.branchId;
                     // at the moment, caching on disk uses "master" for the master branch instead of the actual branch id
                     var isMasterBranch = message.isMasterBranch;
-                    if (isMasterBranch)
-                    {
-                        branchId = "master";
-                    }
 
                     return function(done2)
                     {
@@ -689,6 +689,14 @@ exports = module.exports = function()
                         {
                             if (isPageCacheEnabled())
                             {
+                                // for master branch, we make a silent attempt using "master" as the branch ID
+                                if (isMasterBranch)
+                                {
+                                    handleCachePageInvalidate(host, repositoryId, "master", pageCacheKey, function() {
+
+                                    });
+                                }
+
                                 handleCachePageInvalidate(host, repositoryId, branchId, pageCacheKey, function(err) {
 
                                     if (!err) {
