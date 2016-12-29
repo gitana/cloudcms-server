@@ -522,7 +522,7 @@ exports = module.exports = function()
                             util.setCookie(req, res, branchCookieName, req.branchId);
 
                             // legacy cleanup
-                            util.clearCookie("cloudcms-server-branch-id");
+                            util.clearCookie(res, "cloudcms-server-branch-id");
                         }
                     }
 

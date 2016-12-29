@@ -478,7 +478,7 @@ exports = module.exports = function()
             }
 
             // if the originating request isn't secure, strip out "secure" from cookie
-            if (!req.secure)
+            if (!util.isSecure(req))
             {
                 var i = value.toLowerCase().indexOf("; secure");
                 if (i > -1)
@@ -487,9 +487,8 @@ exports = module.exports = function()
                 }
             }
 
-            // if the original request is secure, ensure cookies has "secure" set
-            var xForwardedHost = req.headers["x-forwarded-proto"];
-            if (req.secure || "https" === xForwardedHost)
+            // if the original request is secure, ensure cookies have "secure" set
+            if (util.isSecure(req))
             {
                 var i = value.toLowerCase().indexOf("; secure");
                 var j = value.toLowerCase().indexOf(";secure");

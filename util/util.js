@@ -1460,7 +1460,7 @@ var setCookie = exports.setCookie = function(req, res, name, value, options)
         };
 
         // any cookies requested over https should go back with secure flag set high
-        if (isHttps(req))
+        if (isSecure(req))
         {
             options.secure = true;
         }
@@ -1475,7 +1475,7 @@ var clearCookie = exports.clearCookie = function(res, name)
     res.clearCookie(name);
 };
 
-var isHttps = exports.isHttps = function(req)
+var isSecure = exports.isSecure = function(req)
 {
     if (req.protocol && req.protocol.toLowerCase() === "https")
     {
