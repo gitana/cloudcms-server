@@ -534,15 +534,17 @@ exports = module.exports = function()
                         var stateKey = hash(hugeKey, {
                             "algorithm": "md5"
                         });
-                        res.cookie("cloudcmsModuleStateKey", stateKey);
+                        util.setCookie(req, res, "cloudcmsModuleStateKey", stateKey);
                     }
                     else
                     {
-                        res.clearCookie("cloudcmsModuleStateKey");
+                        util.clearCookie(res, "cloudcmsModuleStateKey");
                     }
 
                     // always set cookie for module identifiers
-                    res.cookie("cloudcmsModuleIdentifiers", "" + moduleIdArray.join(","));
+                    util.setCookie(req, res, "cloudcmsModuleIdentifiers", "" + moduleIdArray.join(","), {
+                        "httpOnly": true
+                    });
                 }
 
                 next();

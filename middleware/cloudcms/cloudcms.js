@@ -519,10 +519,10 @@ exports = module.exports = function()
                     {
                         if (branchCookieName)
                         {
-                            res.cookie(branchCookieName, req.branchId);
+                            util.setCookie(req, res, branchCookieName, req.branchId);
 
                             // legacy cleanup
-                            res.clearCookie("cloudcms-server-branch-id");
+                            util.clearCookie("cloudcms-server-branch-id");
                         }
                     }
 
@@ -557,7 +557,7 @@ exports = module.exports = function()
                                     {
                                         // make sure to remove cookie
                                         var cookieName = "cloudcms-server-application-" + req.applicationId + "-branch-id";
-                                        res.clearCookie(cookieName);
+                                        util.clearCookie(res, cookieName);
 
                                         return callback(err);
                                     }

@@ -1447,3 +1447,60 @@ var stripQueryStringFromUrl = exports.stripQueryStringFromUrl = function(url)
 
     return url;
 };
+
+var setCookie = exports.setCookie = function(req, res, name, value, options)
+{
+    // if no options are provided, set a few standard options
+    if (!options) {
+
+        // force all cookies to http only
+        // this prevents browser js sniffing
+        options = {
+            "httpOnly": true
+        };
+
+        // any cookies requested over https should go back with secure flag set high
+        if (isHttps(req))
+        {
+            options.secure = true;
+        }
+    }
+
+    // set cookie on response
+    res.cookie(name, value, options);
+};
+
+var clearCookie = exports.clearCookie = function(res, name)
+{
+    res.clearCookie(name);
+};
+
+var isHttps = exports.isHttps = function(req)
+{
+    if (req.protocol && req.protocol.toLowerCase() === "https")
+    {
+        return true;
+    }
+
+    // X-FORWARDED-PROTO
+    var xForwardedProto = null;
+    if (req.header("X-Forwarded-Proto"))
+    {
+        xForwardedProto = req.header("X-Forwarded-Proto");
+    }
+    else if (req.header("x-forwarded-proto"))
+    {
+        xForwardedProto = req.header("x-forwarded-proto");
+    }
+    else if (req.header("X-FORWARDED-PROTO"))
+    {
+        xForwardedProto = req.header("X-FORWARDED-PROTO");
+    }
+
+    if (xForwardedProto && xForwardedProto.toLowerCase() === "https")
+    {
+        return true;
+    }
+
+    return false;
+};
