@@ -213,13 +213,14 @@ exports = module.exports = function()
                         };
 
                         // do the checkout
-                        var sourceType = descriptor.source.type;
-                        var sourceUrl = descriptor.source.uri;
-                        var sourcePath = descriptor.source.path;
+                        var sourceType = (descriptor.source ? descriptor.source.type : null);
+                        var sourceUrl = (descriptor.source ? descriptor.source.uri : null);
+                        var sourcePath = (descriptor.source ? descriptor.source.path : null);
                         if (!sourcePath) {
                             sourcePath = "/";
                         }
-                        if ("github" === sourceType || "bitbucket" == sourceType) {
+                        if ("github" === sourceType || "bitbucket" == sourceType)
+                        {
                             util.gitCheckout(host, sourceType, sourceUrl, sourcePath, null, true, req.log, function (err) {
 
                                 if (err) {
@@ -231,11 +232,15 @@ exports = module.exports = function()
                         }
                         else
                         {
-                            callback({
-                                "message": "Unable to deploy source of type: " + sourceType
-                            }, host);
-                        }
+                            util.installPackagedDeployment(host, "default", req.log, function(err) {
 
+                                if (err) {
+                                    return callback(err, host);
+                                }
+
+                                completionHandler(err);
+                            });
+                        }
                     });
                 });
             });

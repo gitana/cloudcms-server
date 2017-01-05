@@ -286,8 +286,7 @@ exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, offsetPat
     storeService.produce(host, function(err, stores) {
 
         if (err) {
-            callback(err, host);
-            return;
+            return callback(err, host);
         }
 
         var rootStore = stores.root;
@@ -296,24 +295,21 @@ exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, offsetPat
         createTempDirectory(function (err, tempRootDirectoryPath) {
 
             if (err) {
-                callback(err, host);
-                return;
+                return callback(err, host);
             }
 
             // initialize git in temp root directory
             gitInit(tempRootDirectoryPath, logMethod, function (err) {
 
                 if (err) {
-                    callback(err);
-                    return;
+                    return callback(err);
                 }
 
                 // perform a git pull of the repository
                 gitPull(tempRootDirectoryPath, gitUrl, sourceType, logMethod, function (err) {
 
                     if (err) {
-                        callback(err);
-                        return;
+                        return callback(err);
                     }
 
                     var tempRootDirectoryRelativePath = tempRootDirectoryPath;
@@ -381,6 +377,31 @@ exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, offsetPat
 
                 });
             });
+        });
+    });
+};
+
+var installPackagedDeployment = exports.installPackagedDeployment = function(host, packagedDeploymentName, logMethod, callback)
+{
+    var storeService = require("../middleware/stores/stores");
+
+    // create a "root" store for the host
+    storeService.produce(host, function(err, stores) {
+
+        if (err) {
+            return callback(err, host);
+        }
+
+        var rootStore = stores.root;
+
+        var defaultDeploymentDir = path.join(__dirname, "..", "packaged", "deployments", packagedDeploymentName);
+        console.log("Default deployment dir: " + defaultDeploymentDir);
+
+        // copy everything from default deployment directory into the store
+        copyToStore(defaultDeploymentDir, rootStore, "/public_build", function(err) {
+
+            callback(err);
+
         });
     });
 };
