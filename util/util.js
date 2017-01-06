@@ -524,7 +524,13 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
 
     var _retryHandler = function(gitana, config, currentAttempts, maxAttempts, previousError, cb)
     {
-        logMethod("Heard invalid_token, attempting retry (" + currentAttempts + " / " + maxAttempts + ")");
+        // try again with attempt count + 1
+        _handler(gitana, config, currentAttempts + 1, maxAttempts, previousError, cb)
+    };
+
+    var _invalidTokenRetryHandler = function(gitana, config, currentAttempts, maxAttempts, previousError, cb)
+    {
+        logMethod("Heard invalid_token, attempting retry (" + (currentAttempts + 1) + " / " + maxAttempts + ")");
 
         // tell gitana driver to refresh access token
         gitana.getDriver().refreshAuthentication(function(err) {
@@ -588,10 +594,27 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
         // make the request
         request(config, function(err, response, body) {
 
-            // ok case (just callback)
-            if (response && response.statusCode === 200)
+            if (response)
             {
-                return cb(err, response, body);
+                // ok case (just callback)
+                if (response.statusCode === 200)
+                {
+                    return cb(err, response, body);
+                }
+                else if (response.statusCode === 429)
+                {
+                    // we heard "too many requests", so we wait a bit and then retry
+                    // TODO: look at HTTP headers to determine how long to wait?
+                    return setTimeout(function() {
+                        logMethod("Too Many Requests heard, attempting retry (" + (currentAttempts + 1) + " / " + maxAttempts + ")");
+                        _retryHandler(gitana, config, currentAttempts, maxAttempts, {
+                            "message": "Heard 429 Too Many Requests",
+                            "code": response.statusCode,
+                            "body": body,
+                            "err": err
+                        }, cb);
+                    }, 2000);
+                }
             }
 
             // look for the special "invalid_token" case
@@ -613,21 +636,19 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
                 }
                 catch (e)
                 {
-                    console.log("ERR.88 " + JSON.stringify(e));
+                    //console.log("ERR.88 " + JSON.stringify(e));
                 }
             }
 
             if (isInvalidToken)
             {
-                // we go through the retry handler
-                _retryHandler(gitana, config, currentAttempts, maxAttempts, {
-                    "message": "Unable to communicate from remote store: " + JSON.stringify(config, null, "  "),
+                // refresh the access token and then retry
+                return _invalidTokenRetryHandler(gitana, config, currentAttempts, maxAttempts, {
+                    "message": "Unable to refresh access token and retry",
                     "code": response.statusCode,
                     "body": body,
                     "err": err
                 }, cb);
-
-                return;
             }
 
             // otherwise, we just hand back some kind of error
@@ -635,7 +656,7 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
         });
     };
 
-    _handler(gitana, config, 0, 2, null, callback);
+    _handler(gitana, config, 0, maxAttempts, null, callback);
 };
 
 var isIPAddress = exports.isIPAddress = function(text)
