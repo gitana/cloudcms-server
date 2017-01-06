@@ -14,9 +14,10 @@ exports = module.exports = function(dust)
 {
     var r = {};
 
+    // used to check whether a parameter is defined, meaning it has a value and the value is NON EMPTY.
     var isDefined = r.isDefined = function(thing)
     {
-        return (typeof(thing) !== "undefined");
+        return ( (typeof(thing) !== "undefined") && (thing !== "") );
     };
 
     /**
