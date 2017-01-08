@@ -1500,12 +1500,12 @@ var setCookie = exports.setCookie = function(req, res, name, value, options)
         options = {
             "httpOnly": true
         };
+    }
 
-        // any cookies requested over https should go back with secure flag set high
-        if (isSecure(req))
-        {
-            options.secure = true;
-        }
+    // any cookies requested over https should go back with secure flag set high
+    if (isSecure(req))
+    {
+        options.secure = true;
     }
 
     // set cookie on response
@@ -1526,7 +1526,27 @@ var isSecure = exports.isSecure = function(req)
 
     // X-FORWARDED-PROTO
     var xForwardedProto = null;
-    if (req.header("X-Forwarded-Proto"))
+    if (req.header("CloudFront-Forwarded-Proto"))
+    {
+        // support special CloudFront header
+        xForwardedProto = req.header("CloudFront-Forwarded-Proto");
+    }
+    else if (req.header("cloudfront-forwarded-proto"))
+    {
+        // support special CloudFront header
+        xForwardedProto = req.header("cloudfront-forwarded-proto");
+    }
+    else if (req.header("X-CloudCMS-Forwarded-Proto"))
+    {
+        // support special cloudcms proto header
+        xForwardedProto = req.header("X-CloudCMS-Forwarded-Proto");
+    }
+    else if (req.header("x-cloudcms-forwarded-proto"))
+    {
+        // support special cloudcms proto header
+        xForwardedProto = req.header("x-cloudcms-forwarded-proto");
+    }
+    else if (req.header("X-Forwarded-Proto"))
     {
         xForwardedProto = req.header("X-Forwarded-Proto");
     }
@@ -1540,6 +1560,12 @@ var isSecure = exports.isSecure = function(req)
     }
 
     if (xForwardedProto && xForwardedProto.toLowerCase() === "https")
+    {
+        return true;
+    }
+
+    // if browser tells us to upgrade
+    if (req.headers["upgrade-insecure-requests"] === "1")
     {
         return true;
     }
