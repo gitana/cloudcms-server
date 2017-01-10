@@ -696,6 +696,42 @@ var merge = exports.merge = function(source, target)
     }
 };
 
+var pluck = exports.pluck = function(list, propertyPath)
+{
+    var result = [];
+    var propertyPathArray = propertyPath.split(".");
+    for(var i = 0; i < list.length; i++)
+    {
+        var prop = list[i];;
+        for(var j = 0; j < propertyPathArray.length; j++)
+        {
+            if (prop[propertyPathArray[j]])
+            {
+                prop = prop[propertyPathArray[j]];
+            }
+            else
+            {
+                prop = null;
+                break;
+            }
+        }
+
+        if (isArray(prop))
+        {
+            for(var x = 0; x < prop.length; x++)
+            {
+                result.push(prop[x]);
+            }
+        }
+        else
+        {
+            result.push(prop);
+        }
+    }
+
+    return result;
+};
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 //
