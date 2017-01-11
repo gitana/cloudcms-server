@@ -5,6 +5,8 @@ var util = require("../../util/util");
 var duster = require("../../duster/index");
 var async = require("async");
 
+var support = require("../../duster/support")(duster.getDust());
+
 var renditions = require("../../util/renditions");
 
 /**
@@ -644,30 +646,58 @@ exports = module.exports = function()
 
                 var clearFragmentCacheFn = function(message)
                 {
-                    //var repositoryId = message.repositoryId;
-                    //var branchId = message.branchId;
-                    //var pageCacheKey = message.pageCacheKey;
+                    var pageCacheKey = message.pageCacheKey;
+                    var fragmentCacheKey = message.fragmentCacheKey;
+
                     var scope = message.scope;
+                    var host = message.host;
 
-                    //var host = message.host;
-
+                    var repositoryId = message.repositoryId;
+                    var branchId = message.branchId;
                     // at the moment, caching on disk uses "master" for the master branch instead of the actual branch id
-                    //var isMasterBranch = message.isMasterBranch;
-                    //if (isMasterBranch)
-                    //{
-                    //    branchId = "master";
-                    //}
+                    var isMasterBranch = message.isMasterBranch;
 
-                    return function(done2)
+                    return function(done3)
                     {
                         if (scope === "FRAGMENT" || scope === "ALL")
                         {
-                            // TODO: fragment level invalidation
-                            return done2();
+                            var buildFragmentsBasePath = function(branchId) {
+                                if (pageCacheKey) {
+                                    return path.join("wcm", "repositories", repositoryId, "branches", branchId, "pages", pageCacheKey, "fragments");
+                                }
+
+                                return path.join("duster", "repositories", repositoryId, "branches", branchId, "fragments");
+                            };
+
+                            if (support.isFragmentCacheEnabled())
+                            {
+                                // for master branch, we make a silent attempt using "master" as the branch ID
+                                if (isMasterBranch)
+                                {
+                                    var fragmentsBasePath = buildFragmentsBasePath("master");
+                                    support.handleCacheFragmentInvalidate(host, fragmentsBasePath, fragmentCacheKey, function(err) {
+                                        // done
+                                    });
+                                }
+
+                                var fragmentsBasePath = buildFragmentsBasePath(branchId);
+                                support.handleCacheFragmentInvalidate(host, fragmentsBasePath, fragmentCacheKey, function(err, invalidatedPath) {
+
+                                    if (!err) {
+                                        console.log(" > Invalidated fragment [host: " + host + ", path: " + invalidatedPath + "]");
+                                    }
+
+                                    return done3();
+                                });
+                            }
+                            else
+                            {
+                                return done3();
+                            }
                         }
                         else
                         {
-                            done2();
+                            done3();
                         }
                     }
                 }(message);
@@ -710,6 +740,10 @@ exports = module.exports = function()
                             {
                                 return done2();
                             }
+                        }
+                        else
+                        {
+                            done2();
                         }
 
                     }

@@ -151,6 +151,14 @@ var populateContext = function(req, context, model, templateFilePath)
     // this isn't clear... not all pages in a user authenticated web site will require per-user page caching...
     // if we were to do it, we'd do it manually like this
     //context["__tracker"]["requires"]["userId"] = [req.userId];
+
+    // used to generate fragment IDs
+    context["fragmentIdGenerator"] = function() {
+        var counter = 0;
+        return function() {
+            return "fragment-" + (++counter);
+        };
+    }();
 };
 
 exports.invalidateCacheForApp = function(applicationId)

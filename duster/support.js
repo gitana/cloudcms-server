@@ -26,7 +26,7 @@ exports = module.exports = function(dust)
      *
      * @returns {boolean}
      */
-    var isFragmentCacheEnabled = function()
+    var isFragmentCacheEnabled = r.isFragmentCacheEnabled = function()
     {
         if (!process.configuration.duster) {
             process.configuration.duster = {};
@@ -184,12 +184,11 @@ exports = module.exports = function(dust)
         return requirements;
     };
 
-    var handleCacheFragmentRead = function(context, fragmentId, requirements, callback)
+    var handleCacheFragmentRead = r.handleCacheFragmentRead = function(context, fragmentId, requirements, callback)
     {
         if (!isFragmentCacheEnabled())
         {
-            callback();
-            return;
+            return callback();
         }
 
         var req = context.get("req");
@@ -205,18 +204,17 @@ exports = module.exports = function(dust)
         var fragmentCacheKey = util.generateFragmentCacheKey(fragmentId, requirements);
 
         // disk location
-        var fragmentFilePath = path.join(fragmentsBasePath, fragmentId, fragmentCacheKey, "fragment.html");
+        var fragmentFilePath = path.join(fragmentsBasePath, fragmentCacheKey, "fragment.html");
         util.safeReadStream(contentStore, fragmentFilePath, function(err, stream) {
-            callback(err, stream);
+            callback(err, stream, fragmentFilePath);
         });
     };
 
-    var handleCacheFragmentWrite = function(context, fragmentDescriptor, fragmentDependencies, requirements, text, callback)
+    var handleCacheFragmentWrite = r.handleCacheFragmentWrite = function(context, fragmentDescriptor, fragmentDependencies, requirements, text, callback)
     {
         if (!isFragmentCacheEnabled())
         {
-            callback();
-            return;
+            return callback();
         }
 
         var req = context.get("req");
@@ -235,17 +233,42 @@ exports = module.exports = function(dust)
         fragmentDescriptor.fragmentCacheKey = fragmentCacheKey;
 
         // disk location
-        var fragmentFilePath = path.join(fragmentsBasePath, fragmentDescriptor.fragmentId, fragmentCacheKey, "fragment.html");
+        var fragmentFilePath = path.join(fragmentsBasePath, fragmentCacheKey, "fragment.html");
         contentStore.writeFile(fragmentFilePath, text, function(err) {
 
             if (err)
             {
-                callback(err);
-                return;
+                return callback(err, fragmentFilePath);
             }
 
             renditions.markRendition(req, fragmentDescriptor, fragmentDependencies, function(err) {
-                callback(err);
+                callback(err, fragmentFilePath);
+            });
+
+        });
+    };
+
+    var handleCacheFragmentInvalidate = r.handleCacheFragmentInvalidate = function(host, fragmentsBasePath, fragmentCacheKey, callback)
+    {
+        var fragmentFolderPath = path.join(fragmentsBasePath, fragmentCacheKey);
+
+        // list all of the hosts
+        var stores = require("../middleware/stores/stores");
+        stores.produce(host, function (err, stores) {
+
+            if (err) {
+                return callback(err, fragmentFolderPath);
+            }
+
+            stores.content.existsDirectory(fragmentFolderPath, function (exists) {
+
+                if (!exists) {
+                    return callback(null, fragmentFolderPath);
+                }
+
+                stores.content.removeDirectory(fragmentFolderPath, function () {
+                    callback(null, fragmentFolderPath);
+                });
             });
 
         });
@@ -258,29 +281,27 @@ exports = module.exports = function(dust)
             return callback(null, true);
         }
 
-        if (!fragmentId) {
+        if (!fragmentId)
+        {
             return callback(null, true);
         }
 
         var req = context.get("req");
 
-        handleCacheFragmentRead(context, fragmentId, requirements, function(err, readStream) {
+        handleCacheFragmentRead(context, fragmentId, requirements, function(err, readStream, readPath) {
 
             if (!err && readStream)
             {
                 // yes, we found it in cache, so we'll simply pipe it back from disk
-                req.log("Dust Fragment Cache Hit: " + fragmentId);
+                req.log("Dust Fragment Cache Hit: " + fragmentId + ", path: " + readPath);
 
                 // read stream in
-                var text = "";
                 var bufs = [];
-                readStream.on('data', function(d){ bufs.push(d); });
+                readStream.on('data', function(d){ bufs.push(d);});
                 readStream.on('end', function(){
                     var buf = Buffer.concat(bufs);
 
                     var text = "" + buf.toString();
-
-                    console.log("read stream done: " + text);
 
                     chunk.write(text);
                     end(chunk, context);
@@ -292,7 +313,7 @@ exports = module.exports = function(dust)
             }
 
             callback({
-                "message": "Unable to read fragment"
+                "message": "Unable to read fragment: " + fragmentId
             });
 
         });
@@ -310,14 +331,15 @@ exports = module.exports = function(dust)
 
         // otherwise, trap the output stream so that we can cache to disk
 
-        var curChunk = chunk.data.join() || ""; // Capture anything in chunk prior to this helper
+        var curChunk = chunk.data.join("") || ""; // Capture anything in chunk prior to this helper
         chunk.data = []; // Empty current chunk
-        var body = bodies.block(chunk, context).data.join() || "";
+        var body = bodies.block(chunk, context).data.join("") || "";
 
         var text = curChunk + body;
 
-        // write to dust.js chunk
-        chunk.write(text);
+        // NOTE: (do not) write to dust.js chunk
+        // NOTE: do not write again here as it was already written into chunk
+        //chunk.write(text);
         end(chunk, context);
 
         // now let's cache it
@@ -336,16 +358,15 @@ exports = module.exports = function(dust)
         fragmentDependencies.produces = tracker.produces;
 
         // write to cache
-        handleCacheFragmentWrite(context, fragmentDescriptor, fragmentDependencies, requirements, text, function(err) {
+        handleCacheFragmentWrite(context, fragmentDescriptor, fragmentDependencies, requirements, text, function(err, writtenPath) {
 
             if (err) {
                 console.log("Fragment cache write failed");
                 console.log(err);
-                callback(err);
-                return;
+                return callback(err);
             }
 
-            console.log("Successfully wrote to cache: " + fragmentDescriptor.fragmentId + ", text: " + text);
+            console.log("Successfully wrote to cache: " + fragmentDescriptor.fragmentId + ", path: " + writtenPath);
 
             callback();
         });

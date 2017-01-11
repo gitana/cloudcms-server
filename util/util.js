@@ -8,6 +8,7 @@ var os = require("os");
 var async = require("async");
 var temp = require("temp");
 var onHeaders = require("on-headers");
+var sha1 = require("sha1");
 
 var http = require("http");
 var https = require("https");
@@ -1319,10 +1320,8 @@ var generatePageCacheKey = exports.generatePageCacheKey = function(descriptor) {
     }
     */
 
-    // calculate a hashcode
-    var hash = hashcode(str);
-
-    return "pc" + hash;
+    // calculate a signature to serve as a page cache key
+    return hashSignature(str);
 };
 
 /**
@@ -1348,12 +1347,8 @@ var generateFragmentCacheKey = exports.generateFragmentCacheKey = function(fragm
         str += "&" + requirementKey + "=" + requirementValue;
     }
 
-    // calculate a hashcode
-    var hash = hashcode(str);
-
-    var fragmentCacheKey = "f-" + hash;
-
-    return fragmentCacheKey;
+    // calculate a signature to serve as a fragment cache key
+    return hashSignature(str);
 };
 
 var enhanceNode = exports.enhanceNode = function(node)
@@ -1571,4 +1566,9 @@ var isSecure = exports.isSecure = function(req)
     }
 
     return false;
+};
+
+var hashSignature = exports.hashSignature = function(text)
+{
+    return sha1(text);
 };

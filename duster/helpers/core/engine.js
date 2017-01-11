@@ -68,6 +68,17 @@ module.exports = function(app, dust)
         // locale
         var locale = context.resolve(params.locale) || context.get("req").acceptLanguage;
 
+        // whether to cache this fragment
+        var cache = context.resolve(params.cache);
+        if (typeof(cache) === "undefined" || !cache)
+        {
+            cache = false;
+        }
+        var fragmentId = null;
+        if (cache) {
+            fragmentId = context.get("fragmentIdGenerator")();
+        }
+
         // ensure limit and skip are numerical
         if (isDefined(limit))
         {
@@ -98,9 +109,6 @@ module.exports = function(app, dust)
         {
             tracker.finish(context);
         };
-
-        // identifier for this fragment
-        var fragmentId = context.resolve(params.fragment);
 
         return map(chunk, function(chunk) {
 
@@ -235,9 +243,6 @@ module.exports = function(app, dust)
                             support.renderFragment(newContext, fragmentId, requirements, chunk, bodies, function(err) {
                                 finishHandler(newContext, err);
                             });
-
-                            //chunk.render(bodies.block, newContext);
-                            //end(chunk, context);
                         }
                         else
                         {
@@ -265,9 +270,6 @@ module.exports = function(app, dust)
                             }
 
                             var newContext = context.push(resultObject);
-
-                            //chunk.render(bodies.block, newContext);
-                            //end(chunk, context);
 
                             support.renderFragment(newContext, fragmentId, requirements, chunk, bodies, function(err) {
                                 finishHandler(newContext, err);
