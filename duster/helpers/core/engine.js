@@ -25,6 +25,48 @@ module.exports = function(app, dust)
     var r = {};
 
     /**
+     * Handles behavior for @expand
+     *
+     * @param chunk
+     * @param context
+     * @param bodies
+     * @param params
+     * @returns {*}
+     * @private
+     */
+    r.handleExpand = function(chunk, context, bodies, params)
+    {
+        params = params || {};
+
+		var key = params.key;
+		var list = context.get(params.list);
+        
+		if (!util.isArray(list)) {
+			list = [list];
+		}
+		
+        var idList = util.pluck(list, key);
+        var finalIdList = [];
+        for(var i = 0; i < idList.length; i++) {
+            if (idList[i] && util.isString(idList[i])) {
+                finalIdList.push(idList[i]);
+            }
+        }
+
+        var query = {
+            "_doc": {
+                "$in": finalIdList
+            }
+        }
+
+        var obj = {};
+        obj['userQuery'] = query;
+        var newContext = context.push(obj);
+
+        return handleQuery(chunk, newContext, bodies, params);
+    };
+
+    /**
      * Handles behavior for @query and @queryOne.
      *
      * @param chunk
@@ -35,7 +77,7 @@ module.exports = function(app, dust)
      * @returns {*}
      * @private
      */
-    r.handleQuery = function(chunk, context, bodies, params, keepOne)
+    var handleQuery = r.handleQuery = function(chunk, context, bodies, params, keepOne)
     {
         params = params || {};
 
@@ -79,6 +121,9 @@ module.exports = function(app, dust)
             fragmentId = context.get("fragmentIdGenerator")();
         }
 
+        // user defined query
+        var userQuery = context.get("userQuery");
+
         // ensure limit and skip are numerical
         if (isDefined(limit))
         {
@@ -102,7 +147,8 @@ module.exports = function(app, dust)
             "fieldValue": fieldValue,
             "near": near,
             "locale": locale,
-            "role": role
+            "role": role,
+            "userQuery": JSON.stringify(userQuery)
         });
 
         var finishHandler = function(context, err)
@@ -125,7 +171,7 @@ module.exports = function(app, dust)
                 // TRACKER: START
                 tracker.start(context, fragmentId, requirements);
 
-                var query = {};
+                var query = userQuery || {};
                 if (isDefined(type))
                 {
                     query._type = type;

@@ -20,6 +20,7 @@ module.exports = function(app, dust, callback)
         "./helpers/core/cloudcms/relatives",
         "./helpers/core/cloudcms/search",
         "./helpers/core/cloudcms/searchOne",
+        "./helpers/core/cloudcms/expand",
 
         "./helpers/core/cloudcms/wcm/dependency",
 
