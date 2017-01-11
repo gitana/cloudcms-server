@@ -93,6 +93,11 @@ server.start({
     },
     "insight": {
         "enabled": true
+    },
+    "duster": {
+        "fragments": {
+            "cache": true
+        }
     }
 }, function() {
     // all done
