@@ -38,7 +38,7 @@ module.exports = function(app, dust)
     {
         params = params || {};
 
-		var key = params.key;
+        var key = context.resolve(params.key);
 		var list = context.get(params.list);
         
 		if (!util.isArray(list)) {
@@ -57,7 +57,7 @@ module.exports = function(app, dust)
             "_doc": {
                 "$in": finalIdList
             }
-        }
+        };
 
         var obj = {};
         obj['userQuery'] = query;
@@ -123,6 +123,9 @@ module.exports = function(app, dust)
 
         // user defined query
         var userQuery = context.get("userQuery");
+        if (!userQuery) {
+            userQuery = {};
+        }
 
         // ensure limit and skip are numerical
         if (isDefined(limit))

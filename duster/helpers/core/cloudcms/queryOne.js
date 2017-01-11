@@ -1,5 +1,5 @@
 /**
- * @search
+ * @queryOne
  *
  * @param app
  * @param dust
