@@ -2,6 +2,8 @@ var path = require('path');
 var fs = require('fs');
 var http = require('http');
 
+var util = require("../util/util");
+
 var dust = require("dustjs-linkedin");
 require("dustjs-helpers");
 
@@ -153,12 +155,12 @@ var populateContext = function(req, context, model, templateFilePath)
     //context["__tracker"]["requires"]["userId"] = [req.userId];
 
     // used to generate fragment IDs
-    context["fragmentIdGenerator"] = function() {
+    context["fragmentIdGenerator"] = function(url) {
         var counter = 0;
         return function() {
-            return "fragment-" + (++counter);
+            return util.hashSignature("fragment-" + url + "-" + (++counter));
         };
-    }();
+    }(req.url);
 };
 
 exports.invalidateCacheForApp = function(applicationId)

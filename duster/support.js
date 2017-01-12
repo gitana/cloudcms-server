@@ -160,12 +160,14 @@ exports = module.exports = function(dust)
 
         for (var key in requirements)
         {
-            if (!requirements[key]) {
+            if (!requirements[key])
+            {
                 badKeys.push(key);
             }
         }
 
-        for (var i = 0; i < badKeys.length; i++) {
+        for (var i = 0; i < badKeys.length; i++)
+        {
             delete requirements[badKeys[i]];
         }
 
@@ -173,10 +175,13 @@ exports = module.exports = function(dust)
         var req = context.get("req");
         if (req)
         {
-            if (req.repositoryId) {
+            if (req.repositoryId)
+            {
                 requirements["repository"] = req.repositoryId;
             }
-            if (req.branchId) {
+
+            if (req.branchId)
+            {
                 requirements["branch"] = req.branchId;
             }
         }
@@ -293,7 +298,7 @@ exports = module.exports = function(dust)
             if (!err && readStream)
             {
                 // yes, we found it in cache, so we'll simply pipe it back from disk
-                req.log("Dust Fragment Cache Hit: " + fragmentId + ", path: " + readPath);
+                req.log("Dust Fragment Cache Hit - path: " + readPath);
 
                 // read stream in
                 var bufs = [];
@@ -366,7 +371,7 @@ exports = module.exports = function(dust)
                 return callback(err);
             }
 
-            console.log("Successfully wrote to cache: " + fragmentDescriptor.fragmentId + ", path: " + writtenPath);
+            console.log("Successfully wrote to cache - path: " + writtenPath);
 
             callback();
         });

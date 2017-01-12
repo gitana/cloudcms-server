@@ -38,7 +38,9 @@ module.exports = function(app, dust)
     {
         params = params || {};
 
-        var key = context.resolve(params.key);
+        var key = context.resolve(params.type);
+
+		var key = params.key;
 		var list = context.get(params.list);
         
 		if (!util.isArray(list)) {
