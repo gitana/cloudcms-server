@@ -246,6 +246,16 @@ var SETTINGS = {
         "enabled": true,
         "username": "admin",
         "password": "admin"
+    },
+    "bodyParsers": {
+        "multipart": {
+        },
+        "json": {
+            "limit": "100kb"
+        },
+        "urlencoded": {
+            "extended": true
+        }
     }
 };
 
@@ -810,11 +820,9 @@ var startSlave = function(config, afterStartFn)
                     // that might be JSON (regardless of content type)
                     app.use(function (req, res, next) {
 
-                        multipart()(req, res, function (err) {
-                            bodyParser.json()(req, res, function (err) {
-                                bodyParser.urlencoded({
-                                    extended: true
-                                })(req, res, function (err) {
+                        multipart(process.configuration.bodyParsers.multipart || {})(req, res, function (err) {
+                            bodyParser.json(process.configuration.bodyParsers.json || {})(req, res, function (err) {
+                                bodyParser.urlencoded(process.configuration.bodyParsers.urlencoded || {})(req, res, function (err) {
                                     main.bodyParser()(req, res, function (err) {
                                         next(err);
                                     });

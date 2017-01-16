@@ -213,7 +213,17 @@ This looks like:
         "enabled": true,
         "username": "admin",
         "password": "admin"
-    }    
+    },
+    "bodyParsers": {
+        "multipart": {
+        },
+        "json": {
+            "limit": "100kb"
+        },
+        "urlencoded": {
+            "extended": true
+        }
+    }
 }
 ````
 
