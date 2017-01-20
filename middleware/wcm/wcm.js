@@ -477,9 +477,20 @@ exports = module.exports = function()
             process.configuration.wcm.enabled = false;
         }
 
+        // some helpful compatibility
+        if (typeof(process.configuration.wcm.enabled) === "false") {
+            process.configuration.wcm.enabled = false;
+        }
+
         if (typeof(process.configuration.wcm.cache) === "undefined") {
             process.configuration.wcm.cache = false;
         }
+
+        // some helpful compatibility
+        if (typeof(process.configuration.wcm.enabled) === "false") {
+            process.configuration.wcm.enabled = false;
+        }
+
 
         if (process.env.FORCE_CLOUDCMS_WCM_PAGE_CACHE === "true")
         {
