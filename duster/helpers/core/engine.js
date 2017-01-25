@@ -38,10 +38,10 @@ module.exports = function(app, dust)
     {
         params = params || {};
 
-        var key = context.resolve(params.type);
+        var key = context.resolve(params.key);
+        var list = context.resolve(params.list);
 
-        var key = params.key;
-        var list = context.get(params.list);
+        list = context.get(list);
 
         if (!util.isArray(list)) {
             list = [list];
@@ -60,14 +60,9 @@ module.exports = function(app, dust)
                 "$in": finalIdList
             }
         };
+        params._orderResults = finalIdList;
 
         return handleQuery(chunk, context, bodies, params);
-        var obj = {};
-        obj['userQuery'] = query;
-        obj['orderResults'] = finalIdList;
-        var newContext = context.push(obj);
-
-        return handleQuery(chunk, newContext, bodies, params);
     };
 
     /**
@@ -133,7 +128,8 @@ module.exports = function(app, dust)
         }
         
         // order the resulting records by _doc using this array of IDs
-        var orderResultsByList = context.get("orderResults");
+        var orderResultsByList = params._orderResults;
+        delete params._orderResults;
 
         // ensure limit and skip are numerical
         if (isDefined(limit))
@@ -271,7 +267,7 @@ module.exports = function(app, dust)
                             }
                         }
 
-                        if (util.isArray(orderResultsByList)) {
+                        if (orderResultsByList && util.isArray(orderResultsByList)) {
                             var newArray = [];
                             for( var i = 0 ; i < orderResultsByList.length ; i++ ){
                                 for( var j = 0 ; j < array.length ; j++ ){
