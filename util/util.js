@@ -1389,6 +1389,8 @@ var generateFragmentCacheKey = exports.generateFragmentCacheKey = function(fragm
 
 var enhanceNode = exports.enhanceNode = function(node)
 {
+    node._qname = node.__qname();
+
     // add in the "attachments" as a top level property
     // if "attachments" already exists, we'll set to "_attachments"
     var attachments = {};
