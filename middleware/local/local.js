@@ -31,6 +31,7 @@ exports = module.exports = function()
      *
      * @return {Function}
      */
+    /*
     r.webStoreHandler = function()
     {
         return util.createHandler("webStore", function(req, res, next, stores, cache, configuration) {
@@ -74,6 +75,7 @@ exports = module.exports = function()
             }
         });
     };
+    */
 
     /**
      * Fallback content retrieval for typical web paths.

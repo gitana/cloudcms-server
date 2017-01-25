@@ -112,6 +112,7 @@ exports = module.exports = function(dust)
     var map = r.map = function(chunk, callback)
     {
         var cursor = chunk.map(function(branch) {
+            //console.log("Map.chunk.id = " + chunk.id + ", branch.id = " + branch.id);
             callback(branch);
         });
         cursor.flushable = true;
@@ -279,16 +280,16 @@ exports = module.exports = function(dust)
         });
     };
 
-    var serveFragment = r.serveFragment = function(context, chunk, fragmentId, requirements, callback)
+    var loadFragment = r.loadFragment = function(context, fragmentId, requirements, callback)
     {
         if (!isFragmentCacheEnabled())
         {
-            return callback(null, true);
+            return callback();
         }
 
         if (!fragmentId)
         {
-            return callback(null, true);
+            return callback();
         }
 
         var req = context.get("req");
@@ -304,14 +305,10 @@ exports = module.exports = function(dust)
                 var bufs = [];
                 readStream.on('data', function(d){ bufs.push(d);});
                 readStream.on('end', function(){
-                    var buf = Buffer.concat(bufs);
 
-                    var text = "" + buf.toString();
+                    var fragment = "" + Buffer.concat(bufs).toString();
 
-                    chunk.write(text);
-                    end(chunk, context);
-
-                    callback();
+                    callback(null, fragment);
                 });
 
                 return;
@@ -334,17 +331,15 @@ exports = module.exports = function(dust)
             return callback();
         }
 
-        // otherwise, trap the output stream so that we can cache to disk
-
         var curChunk = chunk.data.join("") || ""; // Capture anything in chunk prior to this helper
         chunk.data = []; // Empty current chunk
         var body = bodies.block(chunk, context).data.join("") || "";
 
         var text = curChunk + body;
 
-        // NOTE: (do not) write to dust.js chunk
-        // NOTE: do not write again here as it was already written into chunk
+        // render as usual
         //chunk.write(text);
+        //chunk.render(bodies.block, context);
         end(chunk, context);
 
         // now let's cache it
@@ -371,7 +366,7 @@ exports = module.exports = function(dust)
                 return callback(err);
             }
 
-            console.log("Successfully wrote to cache - path: " + writtenPath);
+            console.log("Successfully wrote to cache - path: " + writtenPath + " (" + text.length + " chars)");
 
             callback();
         });

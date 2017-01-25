@@ -23,6 +23,7 @@ module.exports = function(app, dust, callback)
         "./helpers/core/cloudcms/expand",
 
         "./helpers/core/cloudcms/wcm/dependency",
+        "./helpers/core/cloudcms/wcm/fragment",
 
         "./helpers/core/dev/debug",
 

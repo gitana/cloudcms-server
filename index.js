@@ -434,9 +434,9 @@ exports = module.exports = function()
         app.use(runtime.handler());
 
         // handles virtualized local content retrieval from disk
-        app.use(local.webStoreHandler());
+        //app.use(local.webStoreHandler());
 
-        // handles default content retrieval from disk
+        // handles default content retrieval from disk (this includes virtualized)
         app.use(local.defaultHandler());
 
         // add User-Agent device info to req

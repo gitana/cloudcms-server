@@ -209,7 +209,9 @@ exports.execute = function(req, store, filePath, model, callback)
     var tracker = context.get("__tracker");
 
     // execute template
+    var t1 = new Date().getTime();
     dust.render(templatePath, context, function(err, out) {
+        var t2 = new Date().getTime();
 
         if (err)
         {
@@ -226,11 +228,14 @@ exports.execute = function(req, store, filePath, model, callback)
             "produces": tracker.produces
         };
 
+        var stats = {
+            "dustExecutionTime": (t2 - t1)
+        };
+
         // callback with dependencies
-        callback(err, out, dependencies);
+        callback(err, out, dependencies, stats);
     });
 };
-
 
 /**
  * Init function that runs on the first call to duster.execute().

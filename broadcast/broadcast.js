@@ -32,6 +32,9 @@ module.exports = function()
             {
                 var type = broadcast.type;
                 var configuration = broadcast.configuration;
+                if (!configuration) {
+                    configuration = broadcast.config;
+                }
 
                 process.env.CLOUDCMS_BROADCAST_TYPE = type;
 
@@ -39,8 +42,7 @@ module.exports = function()
                 provider.start(function (err) {
 
                     if (err) {
-                        callback(err);
-                        return;
+                        return callback(err);
                     }
 
                     callback();

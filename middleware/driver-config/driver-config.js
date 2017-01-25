@@ -123,8 +123,7 @@ exports = module.exports = function()
                 if (err)
                 {
                     req.log(err.message);
-                    next();
-                    return;
+                    return next();
                 }
 
                 next();

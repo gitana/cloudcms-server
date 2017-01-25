@@ -40,13 +40,13 @@ module.exports = function(app, dust)
 
         var key = context.resolve(params.type);
 
-		var key = params.key;
-		var list = context.get(params.list);
-        
-		if (!util.isArray(list)) {
-			list = [list];
-		}
-		
+        var key = params.key;
+        var list = context.get(params.list);
+
+        if (!util.isArray(list)) {
+            list = [list];
+        }
+
         var idList = util.pluck(list, key);
         var finalIdList = [];
         for(var i = 0; i < idList.length; i++) {
@@ -55,17 +55,13 @@ module.exports = function(app, dust)
             }
         }
 
-        var query = {
+        params._userQuery = {
             "_doc": {
                 "$in": finalIdList
             }
         };
 
-        var obj = {};
-        obj['userQuery'] = query;
-        var newContext = context.push(obj);
-
-        return handleQuery(chunk, newContext, bodies, params);
+        return handleQuery(chunk, context, bodies, params);
     };
 
     /**
@@ -124,7 +120,8 @@ module.exports = function(app, dust)
         }
 
         // user defined query
-        var userQuery = context.get("userQuery");
+        var userQuery = params._userQuery;
+        delete params._userQuery;
         if (!userQuery) {
             userQuery = {};
         }
@@ -161,13 +158,16 @@ module.exports = function(app, dust)
             tracker.finish(context);
         };
 
-        return map(chunk, function(chunk) {
+        return map(chunk, function(chunk2) {
 
             // if we can serve this from the fragment cache, we do so
-            support.serveFragment(context, chunk, fragmentId, requirements, function(err, disabled) {
+            support.loadFragment(context, fragmentId, requirements, function(err, fragmentText) {
 
-                // if no error and fragments were not disabled, then asset was served back, so simply return
-                if (!err && !disabled) {
+                // if we found a fragment, stream it back
+                if (!err && fragmentText)
+                {
+                    chunk2.write(fragmentText);
+                    chunk2.end();
                     return;
                 }
 
@@ -249,7 +249,7 @@ module.exports = function(app, dust)
                 req.branch(function(err, branch) {
 
                     if (err) {
-                        return end(chunk, context);
+                        return end(chunk2, context);
                     }
 
                     var handleResults = function(array)
@@ -291,7 +291,7 @@ module.exports = function(app, dust)
                                 newContext = context.push({});
                             }
 
-                            support.renderFragment(newContext, fragmentId, requirements, chunk, bodies, function(err) {
+                            support.renderFragment(newContext, fragmentId, requirements, chunk2, bodies, function(err) {
                                 finishHandler(newContext, err);
                             });
                         }
@@ -322,7 +322,7 @@ module.exports = function(app, dust)
 
                             var newContext = context.push(resultObject);
 
-                            support.renderFragment(newContext, fragmentId, requirements, chunk, bodies, function(err) {
+                            support.renderFragment(newContext, fragmentId, requirements, chunk2, bodies, function(err) {
                                 finishHandler(newContext, err);
                             });
                         }
@@ -902,13 +902,17 @@ module.exports = function(app, dust)
         // identifier for this fragment
         var fragmentId = context.resolve(params.fragment);
 
-        return map(chunk, function(chunk) {
+        return map(chunk, function(chunk2) {
 
             // if we can serve this from the fragment cache, we do so
-            support.serveFragment(context, chunk, fragmentId, requirements, function(err, disabled) {
+            support.loadFragment(context, fragmentId, requirements, function(err, fragmentText) {
 
-                // if no error and fragments were not disabled, then asset was served back, so simply return
-                if (!err && !disabled) {
+                // if we found a fragment, stream it back
+                if (!err && fragmentText)
+                {
+                    chunk2.write(fragmentText);
+                    chunk2.end();
+
                     return;
                 }
 
@@ -1031,35 +1035,35 @@ module.exports = function(app, dust)
                         };
                         var action = "/_form/submit";
                         /*
-                        if (list)
-                        {
-                            action += "&list=" + list;
-                        }
-                        if (successUrl)
-                        {
-                            action += "&successUrl=" + successUrl;
-                        }
-                        if (errorUrl)
-                        {
-                            action += "&errorUrl=" + errorUrl;
-                        }
-                        */
+                         if (list)
+                         {
+                         action += "&list=" + list;
+                         }
+                         if (successUrl)
+                         {
+                         action += "&successUrl=" + successUrl;
+                         }
+                         if (errorUrl)
+                         {
+                         action += "&errorUrl=" + errorUrl;
+                         }
+                         */
                         /*
-                        options.renderForm = true;
-                        options.form = {
-                            "attributes": {
-                                "method": "POST",
-                                "action": action,
-                                "enctype": "application/json",
-                                "data-ajax": "true"
-                            },
-                            "buttons": {
-                                "submit": {
-                                    "title": "Submit"
-                                }
-                            }
-                        };
-                        */
+                         options.renderForm = true;
+                         options.form = {
+                         "attributes": {
+                         "method": "POST",
+                         "action": action,
+                         "enctype": "application/json",
+                         "data-ajax": "true"
+                         },
+                         "buttons": {
+                         "submit": {
+                         "title": "Submit"
+                         }
+                         }
+                         };
+                         */
                         config.helper = {};
                         config.helper.method = "POST";
                         config.helper.action = action;
@@ -1135,7 +1139,7 @@ module.exports = function(app, dust)
 
         targetPath = targetPath.replace(/\\/g, '/');
 
-        return map(chunk, function(chunk) {
+        return map(chunk, function(chunk2) {
 
             var store = context.options.store;
 
@@ -1219,7 +1223,7 @@ module.exports = function(app, dust)
                 // if no match...
                 if (!matchingFilePath) {
                     console.log("Unable to find included file for path: " + targetPath);
-                    end(chunk, context);
+                    end(chunk2, context);
                     return;
                 }
 
@@ -1254,12 +1258,64 @@ module.exports = function(app, dust)
                     if (err) {
                         log("Error while rendering include for: " + templatePath);
                         log(err);
+                        return end(chunk2, context);
                     }
 
-                    chunk.write(out);
-
-                    end(chunk, context);
+                    chunk2.write(out);
+                    end(chunk2, context);
                 });
+            });
+        });
+    };
+
+    /**
+     * Handles behavior for @fragment.
+     *
+     * @param chunk
+     * @param context
+     * @param bodies
+     * @param params
+     *
+     * @returns {*}
+     * @private
+     */
+    var handleFragment = r.handleFragment = function(chunk, context, bodies, params)
+    {
+        params = params || {};
+
+        var fragmentId = context.get("fragmentIdGenerator")();
+
+        var requirements = support.buildRequirements(context, {});
+
+        var finishHandler = function(context, err)
+        {
+            tracker.finish(context);
+        };
+
+        return map(chunk, function(chunk2) {
+
+            // if we can serve this from the fragment cache, we do so
+            support.loadFragment(context, fragmentId, requirements, function(err, fragmentText) {
+
+                // if we found a fragment, stream it back
+                if (!err && fragmentText) {
+                    chunk2.write(fragmentText);
+                    return chunk2.end();
+                }
+
+                // not cached, so run this puppy...
+
+                // TRACKER: START
+                tracker.start(context, fragmentId, requirements);
+
+                var requirements = support.buildRequirements(context, {});
+
+                var newContext = context.push({});
+
+                support.renderFragment(newContext, fragmentId, requirements, chunk2, bodies, function(err) {
+                    finishHandler(newContext, err);
+                });
+
             });
         });
     };

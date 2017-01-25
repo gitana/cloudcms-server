@@ -141,8 +141,7 @@ exports = module.exports = function()
                 // if req.query.invalidate, don't bother
                 if (util.isInvalidateTrue(req))
                 {
-                    next();
-                    return;
+                    return next();
                 }
 
                 var assetPath = req.path;

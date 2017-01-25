@@ -292,7 +292,6 @@ exports = module.exports = function()
                             // error handler
                             var errorHandler = function (err) {
 
-                                console.log("a3");
                                 req.log("Error while loading web pages: " + JSON.stringify(err));
                                 console.trace();
 
@@ -653,7 +652,7 @@ exports = module.exports = function()
             // LISTEN: "invalidate_page_rendition"
             process.broadcast.subscribe("invalidate_page_rendition", function (message, invalidationDone) {
 
-                console.log("HEARD: invalidate_page_rendition");
+                // console.log("HEARD: invalidate_page_rendition");
 
                 var clearFragmentCacheFn = function(message)
                 {
@@ -864,23 +863,6 @@ exports = module.exports = function()
             // pages must be loaded ahead of time so that matching can be performed
             preloadPages(req, function(err, pages) {
 
-                /*
-                // DEBUG: randomly fake an expired refresh token 20% of the time
-                var rand = Math.random() * 10;
-                console.log("rand: " + rand);
-                if (rand > 8)
-                {
-                    // debug
-                    err = {
-                        "name":"Http Error",
-                        "message":"Invalid refresh token (expired): 15b3fcd3-e7fb-4ea6-a0d2-c4cc481d8426",
-                        "status":401,
-                        "statusText":null,
-                        "errorType":"http"
-                    };
-                }
-                */
-
                 if (err)
                 {
                     return next(err);
@@ -1068,7 +1050,7 @@ exports = module.exports = function()
                     model.page._doc = model.page.id = page._doc;
 
                     // dust it up
-                    duster.execute(req, webStore, page.templatePath, model, function (err, text, dependencies) {
+                    duster.execute(req, webStore, page.templatePath, model, function (err, text, dependencies, stats) {
 
                         if (err)
                         {
@@ -1097,6 +1079,7 @@ exports = module.exports = function()
                         // send back results right away
                         util.status(res, 200);
                         util.applyResponseContentType(res, null, offsetPath);
+                        util.setHeaderOnce(res, "cloudcms-dust-execution-time", stats.dustExecutionTime);
                         res.send(text);
 
                     });
