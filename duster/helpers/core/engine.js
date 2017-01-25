@@ -63,6 +63,7 @@ module.exports = function(app, dust)
 
         var obj = {};
         obj['userQuery'] = query;
+        obj['orderResults'] = finalIdList;
         var newContext = context.push(obj);
 
         return handleQuery(chunk, newContext, bodies, params);
@@ -128,6 +129,9 @@ module.exports = function(app, dust)
         if (!userQuery) {
             userQuery = {};
         }
+        
+        // order the resulting records by _doc using this array of IDs
+        var orderResultsByList = context.get("orderResults");
 
         // ensure limit and skip are numerical
         if (isDefined(limit))
@@ -260,6 +264,20 @@ module.exports = function(app, dust)
                             {
                                 array[i]._statistics = array[i].__stats();
                             }
+                        }
+
+                        if (util.isArray(orderResultsByList)) {
+                            var newArray = [];
+                            for( var i = 0 ; i < orderResultsByList.length ; i++ ){
+                                for( var j = 0 ; j < array.length ; j++ ){
+                                    if (array[j]._doc == orderResultsByList[i])
+                                    {
+                                        newArray.push(array[j]);
+                                        continue;
+                                    }
+                                }
+                            }
+                            array = newArray;
                         }
 
                         if (keepOne)
