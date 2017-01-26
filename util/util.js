@@ -1526,8 +1526,7 @@ var stripQueryStringFromUrl = exports.stripQueryStringFromUrl = function(url)
 var setCookie = exports.setCookie = function(req, res, name, value, options)
 {
     // if no options are provided, set a few standard options
-    if (!options) {
-
+    if (typeof(options) === "undefined") {
         // force all cookies to http only
         // this prevents browser js sniffing
         options = {

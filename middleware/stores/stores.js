@@ -534,7 +534,9 @@ exports = module.exports = function()
                         var stateKey = hash(hugeKey, {
                             "algorithm": "md5"
                         });
-                        util.setCookie(req, res, "cloudcmsModuleStateKey", stateKey);
+                        util.setCookie(req, res, "cloudcmsModuleStateKey", stateKey, {
+                            "httpOnly": false
+                        });
                     }
                     else
                     {
@@ -543,7 +545,7 @@ exports = module.exports = function()
 
                     // always set cookie for module identifiers
                     util.setCookie(req, res, "cloudcmsModuleIdentifiers", "" + moduleIdArray.join(","), {
-                        "httpOnly": true
+                        "httpOnly": false
                     });
                 }
 
