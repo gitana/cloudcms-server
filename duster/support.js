@@ -112,7 +112,6 @@ exports = module.exports = function(dust)
     var map = r.map = function(chunk, callback)
     {
         var cursor = chunk.map(function(branch) {
-            //console.log("Map.chunk.id = " + chunk.id + ", branch.id = " + branch.id);
             callback(branch);
         });
         cursor.flushable = true;
@@ -331,45 +330,53 @@ exports = module.exports = function(dust)
             return callback();
         }
 
-        var curChunk = chunk.data.join("") || ""; // Capture anything in chunk prior to this helper
-        chunk.data = []; // Empty current chunk
-        var body = bodies.block(chunk, context).data.join("") || "";
+        var c = chunk.capture(bodies.block, context, function(text, chunk2) {
 
-        var text = curChunk + body;
+            // we leave a timeout here so that things can catch up internally within Dust (more oddness!)
+            setTimeout(function() {
 
-        // render as usual
-        //chunk.write(text);
-        //chunk.render(bodies.block, context);
-        end(chunk, context);
+                // for reasons that have everything to do with Dust oddness...
+                // write to "c" and be sure to end "c" then "chunk2"
+                c.write(text);
+                c.end();
+                chunk2.end();
+                // normally, we'd expect to do something like this
+                //chunk2.write(text);
+                //end(chunk2);
+                // but this doesn't work and it has something to do with dust.map and chunk.capture intermingling weirdly
 
-        // now let's cache it
-        var fragmentDescriptor = {};
-        var pageDescriptor = context.get("_page_descriptor");
-        if (pageDescriptor) {
-            fragmentDescriptor = JSON.parse(JSON.stringify(pageDescriptor));
-        }
-        fragmentDescriptor.fragmentId = fragmentId;
-        fragmentDescriptor.scope = "FRAGMENT";
+                // now let's cache it
+                var fragmentDescriptor = {};
+                var pageDescriptor = context.get("_page_descriptor");
+                if (pageDescriptor) {
+                    fragmentDescriptor = JSON.parse(JSON.stringify(pageDescriptor));
+                }
+                fragmentDescriptor.fragmentId = fragmentId;
+                fragmentDescriptor.scope = "FRAGMENT";
 
-        var tracker = context.get("__tracker");
+                var tracker = context.get("__tracker");
 
-        var fragmentDependencies = {};
-        fragmentDependencies.requires = tracker.requires;
-        fragmentDependencies.produces = tracker.produces;
+                var fragmentDependencies = {};
+                fragmentDependencies.requires = tracker.requires;
+                fragmentDependencies.produces = tracker.produces;
 
-        // write to cache
-        handleCacheFragmentWrite(context, fragmentDescriptor, fragmentDependencies, requirements, text, function(err, writtenPath) {
+                // write to cache
+                handleCacheFragmentWrite(context, fragmentDescriptor, fragmentDependencies, requirements, text, function(err, writtenPath) {
 
-            if (err) {
-                console.log("Fragment cache write failed");
-                console.log(err);
-                return callback(err);
-            }
+                    if (err) {
+                        console.log("Fragment cache write failed");
+                        console.log(err);
+                        return callback(err);
+                    }
 
-            console.log("Successfully wrote to cache - path: " + writtenPath + " (" + text.length + " chars)");
+                    console.log("Successfully wrote to cache - path: " + writtenPath + " (" + text.length + " chars)");
 
-            callback();
+                    callback();
+                });
+            }, 1);
         });
+
+        return c;
     };
 
     var addHelpers = r.addHelpers = function(app, dust, filepaths, callback) {

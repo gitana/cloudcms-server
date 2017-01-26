@@ -42,8 +42,6 @@ dust.onLoad = function(templatePath, options, callback)
 {
     var log = options.log;
 
-    log("Loading: " + templatePath);
-
     // `templateName` is the name of the template requested by dust.render / dust.stream
     // or via a partial include, like {> "hello-world" /}
     // `options` can be set as part of a Context. They will be explored later
@@ -54,17 +52,15 @@ dust.onLoad = function(templatePath, options, callback)
     store.existsFile(templatePath, function(exists) {
 
         if (!exists) {
-            callback({
+            return callback({
                 "message": "Dust cannot find file path: " + templatePath
             });
-            return;
         }
 
         store.readFile(templatePath, function(err, data) {
 
             if (err) {
-                callback(err);
-                return;
+                return callback(err);
             }
 
             callback(null, "" + data);

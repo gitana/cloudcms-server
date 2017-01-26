@@ -126,7 +126,7 @@ module.exports = function(app, dust)
         if (!userQuery) {
             userQuery = {};
         }
-        
+
         // order the resulting records by _doc using this array of IDs
         var orderResultsByList = params._orderResults;
         delete params._orderResults;
@@ -169,11 +169,9 @@ module.exports = function(app, dust)
             support.loadFragment(context, fragmentId, requirements, function(err, fragmentText) {
 
                 // if we found a fragment, stream it back
-                if (!err && fragmentText)
-                {
+                if (!err && fragmentText) {
                     chunk2.write(fragmentText);
-                    chunk2.end();
-                    return;
+                    return chunk2.end();
                 }
 
                 // not cached, so run this puppy...
@@ -927,12 +925,9 @@ module.exports = function(app, dust)
             support.loadFragment(context, fragmentId, requirements, function(err, fragmentText) {
 
                 // if we found a fragment, stream it back
-                if (!err && fragmentText)
-                {
+                if (!err && fragmentText) {
                     chunk2.write(fragmentText);
-                    chunk2.end();
-
-                    return;
+                    return chunk2.end();
                 }
 
                 // TRACKER: START
@@ -1277,11 +1272,11 @@ module.exports = function(app, dust)
                     if (err) {
                         log("Error while rendering include for: " + templatePath);
                         log(err);
-                        return end(chunk2, context);
+                        return end(chunk2, subContext);
                     }
 
                     chunk2.write(out);
-                    end(chunk2, context);
+                    end(chunk2, subContext);
                 });
             });
         });
