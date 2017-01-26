@@ -109,6 +109,10 @@ exports = module.exports = function()
             }
         } else if (typeof(config) === "object" ) {
             config.seconds = config.seconds || -1;
+        } else {
+            config = { 
+                "seconds": -1
+            };
         }
 
         if (config.subKeys) {
