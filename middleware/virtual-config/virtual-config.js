@@ -10,6 +10,8 @@ var util = require("../../util/util");
  */
 exports = module.exports = function()
 {
+    var SENTINEL_NOT_FOUND_VALUE = "null";
+
     var connectAsVirtualDriver = function(callback)
     {
         var configuration = process.configuration;
@@ -53,8 +55,7 @@ exports = module.exports = function()
                 {
                     //console.log("Unable to find virtual driver gitana instance for host: " + host);
                     //console.log(JSON.stringify(err, null, "   "));
-                    callback(err);
-                    return;
+                    return callback(err);
                 }
 
                 // Basic Authentication request back to server
@@ -145,10 +146,9 @@ exports = module.exports = function()
                 process.cache.read(CACHE_KEY, function (err, failedRecently) {
 
                     if (failedRecently) {
-                        callback({
+                        return callback({
                             "message": "No virtual config found for host (from previous attempt)"
                         });
-                        return;
                     }
 
                     // load the gitana.json file from Cloud CMS
@@ -164,7 +164,7 @@ exports = module.exports = function()
                         if (!virtualConfig)
                         {
                             // mark that it failed
-                            process.cache.write(CACHE_KEY, "true", 120, function() {
+                            process.cache.write(CACHE_KEY, SENTINEL_NOT_FOUND_VALUE, 120, function() {
                                 callback({
                                     "message": "No virtual config found for host"
                                 });
@@ -265,8 +265,7 @@ exports = module.exports = function()
             if (req.gitanaLocal) {
                 console.log("Local gitana.json file found - disabling virtual hosts");
                 configuration.virtualHost.enabled = false;
-                next();
-                return;
+                return next();
             }
 
             // defaults
@@ -299,10 +298,9 @@ exports = module.exports = function()
 
             process.driverConfigCache.read(req.virtualHost, function(err, cachedValue)
             {
-
                 if (cachedValue)
                 {
-                    if (cachedValue === "null")
+                    if (cachedValue === SENTINEL_NOT_FOUND_VALUE)
                     {
                         // null means there verifiably isn't anything on disk (null used as sentinel marker)
                         completionFunction();
@@ -318,11 +316,9 @@ exports = module.exports = function()
                     // try to load from disk
                     acquireGitanaJson(req.virtualHost, req.rootStore, req.log, function (err, gitanaConfig)
                     {
-
                         if (err)
                         {
-                            completionFunction(err);
-                            return;
+                            return completionFunction(err);
                         }
 
                         if (gitanaConfig)
@@ -337,7 +333,7 @@ exports = module.exports = function()
                         else
                         {
                             // mark with sentinel
-                            process.driverConfigCache.write(req.virtualHost, "null", function (err)
+                            process.driverConfigCache.write(req.virtualHost, SENTINEL_NOT_FOUND_VALUE, function (err)
                             {
                                 completionFunction();
                             });

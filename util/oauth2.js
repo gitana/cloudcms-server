@@ -108,17 +108,28 @@ exports = module.exports = function()
             return;
         }
 
-        // process by hand so that we can inject the client key/secret
-
-        var clientKeySecret = req.gitanaConfig.clientKey + ":" + req.gitanaConfig.clientSecret;
-
-        var clientAuthorizationHeader = "Basic " + new Buffer(clientKeySecret).toString('base64');
-
-        if (!req.headers)
+        // if no gitanaConfig, don't do this
+        if (!req.gitanaConfig)
         {
-            req.headers = {};
+            return;
         }
-        req.headers[authorizationHeaderName] = clientAuthorizationHeader;
+
+        // only do this if we have gitanaConfig client key/secret
+        if (req.gitanaConfig.clientKey && req.gitanaConfig.clientSecret)
+        {
+            // process by hand so that we can inject the client key/secret
+
+            var clientKeySecret = req.gitanaConfig.clientKey + ":" + req.gitanaConfig.clientSecret;
+
+            var clientAuthorizationHeader = "Basic " + new Buffer(clientKeySecret).toString('base64');
+
+            if (!req.headers)
+            {
+                req.headers = {};
+            }
+
+            req.headers[authorizationHeaderName] = clientAuthorizationHeader;
+        }
     };
 
     return r;

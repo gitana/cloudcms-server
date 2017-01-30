@@ -40,12 +40,7 @@ module.exports = function()
 
                 provider = require("./providers/" + type)(configuration);
                 provider.start(function (err) {
-
-                    if (err) {
-                        return callback(err);
-                    }
-
-                    callback();
+                    return callback(err);
                 });
             }
             else
