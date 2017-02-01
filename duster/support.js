@@ -217,11 +217,6 @@ exports = module.exports = function(dust)
 
     var handleCacheFragmentWrite = r.handleCacheFragmentWrite = function(context, fragmentDescriptor, fragmentDependencies, requirements, text, callback)
     {
-        if (!isFragmentCacheEnabled())
-        {
-            return callback();
-        }
-
         var req = context.get("req");
 
         var contentStore = req.stores.content;
@@ -237,19 +232,24 @@ exports = module.exports = function(dust)
         // store this
         fragmentDescriptor.fragmentCacheKey = fragmentCacheKey;
 
+        // mark the rendition
+        if (fragmentDependencies)
+        {
+            renditions.markRendition(req, fragmentDescriptor, fragmentDependencies, function (err) {
+                // all done, nothing to do
+            });
+        }
+
+        // if fragment cache not enabled, just mark the rendition and return
+        if (!isFragmentCacheEnabled())
+        {
+            return callback();
+        }
+
         // disk location
         var fragmentFilePath = path.join(fragmentsBasePath, fragmentCacheKey, "fragment.html");
         contentStore.writeFile(fragmentFilePath, text, function(err) {
-
-            if (err)
-            {
-                return callback(err, fragmentFilePath);
-            }
-
-            renditions.markRendition(req, fragmentDescriptor, fragmentDependencies, function(err) {
-                callback(err, fragmentFilePath);
-            });
-
+            callback(err, fragmentFilePath);
         });
     };
 
@@ -340,7 +340,7 @@ exports = module.exports = function(dust)
                 c.write(text);
                 c.end();
                 chunk2.end();
-                // normally, we'd expect to do something like this
+                // NOTE: normally, we'd expect to do something like this
                 //chunk2.write(text);
                 //end(chunk2);
                 // but this doesn't work and it has something to do with dust.map and chunk.capture intermingling weirdly

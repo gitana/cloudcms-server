@@ -17,6 +17,27 @@ var https = require("https");
  */
 exports = module.exports = function()
 {
+    var isRenditionsEnabled = function()
+    {
+        if (!process.configuration.renditions) {
+            process.configuration.renditions = {};
+        }
+        if (typeof(process.configuration.renditions.enabled) === "undefined") {
+            if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
+            {
+                console.log("App Server running in production mode, renditions not defined, defaulting to: true");
+                process.configuration.renditions.enabled = true;
+            }
+        }
+
+        if (process.env.FORCE_CLOUDCMS_RENDITIONS_ENABLED === "true")
+        {
+            process.configuration.renditions.enabled = true;
+        }
+
+        return process.configuration.renditions.enabled;
+    };
+
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
     // RESULTING OBJECT
@@ -59,6 +80,12 @@ exports = module.exports = function()
      */
     var markRendition = r.markRendition = function(req, descriptor, dependencies, callback)
     {
+        // if renditions aren't enabled, don't bother sending back
+        if (!isRenditionsEnabled())
+        {
+            return;
+        }
+
         // empty dependencies if not defined
         if (!dependencies) {
             dependencies = {};

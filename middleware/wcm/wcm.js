@@ -518,6 +518,15 @@ exports = module.exports = function()
 
     var handleCachePageWrite = function(req, descriptor, pageBasePath, dependencies, text, callback)
     {
+        // mark the rendition
+        if (dependencies)
+        {
+            renditions.markRendition(req, descriptor, dependencies, function (err) {
+                // all done, nothing to do
+            });
+        }
+
+        // if page cache isn't enabled, just mark renditions and return
         if (!isPageCacheEnabled(req))
         {
             return callback();
@@ -536,14 +545,6 @@ exports = module.exports = function()
                 {
                     releaseLockFn();
                     return callback(err);
-                }
-
-                if (dependencies)
-                {
-                    // we let this run on it's own
-                    renditions.markRendition(req, descriptor, dependencies, function (err) {
-                        // all done, nothing to do
-                    });
                 }
 
                 releaseLockFn();

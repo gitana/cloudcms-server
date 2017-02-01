@@ -256,6 +256,9 @@ var SETTINGS = {
         "urlencoded": {
             "extended": true
         }
+    },
+    "renditions": {
+        "enabled": true
     }
 };
 
