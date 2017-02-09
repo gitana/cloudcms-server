@@ -319,6 +319,15 @@ exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, offsetPat
                         tempRootDirectoryRelativePath = path.join(tempRootDirectoryRelativePath, relativePath);
                     }
 
+                    // make sure the tempRootDirectoryRelativePath exists
+                    var tempRootDirectoryRelativePathExists = fs.existsSync(tempRootDirectoryRelativePath);
+                    if (!tempRootDirectoryRelativePathExists)
+                    {
+                        return callback({
+                            "message": "The relative path: " + relativePath + " does not exist within the Git repository: " + gitUrl
+                        });
+                    }
+
                     if (moveToPublic)
                     {
                         // if there isn't a "public" and there isn't a "public_build" directory,
