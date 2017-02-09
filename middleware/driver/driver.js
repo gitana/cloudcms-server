@@ -188,7 +188,7 @@ exports = module.exports = function()
         if (process.broadcast)
         {
             // when an application invalidates, re-initialize the app helpers for any cached drivers
-            process.broadcast.subscribe("application_invalidation", function(message, invalidationDone) {
+            process.broadcast.subscribe("application_invalidation", function(message, channel, invalidationDone) {
 
                 if (!invalidationDone) {
                     invalidationDone = function() { };
@@ -233,8 +233,10 @@ exports = module.exports = function()
                                 console.log(JSON.stringify(err));
                             }
 
-                            invalidationDone();
                         });
+
+                        // fire this here because firing it inside of the init.call callback seems to lose the variable
+                        invalidationDone();
 
                     });
                 });

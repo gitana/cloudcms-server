@@ -587,7 +587,7 @@ exports = module.exports = function()
 
         if (process.broadcast && !bound)
         {
-            process.broadcast.subscribe("node_invalidation", function (message, invalidationDone) {
+            process.broadcast.subscribe("node_invalidation", function (message, channel, invalidationDone) {
 
                 if (!invalidationDone) {
                     invalidationDone = function() { };

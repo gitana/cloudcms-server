@@ -58,7 +58,7 @@ exports = module.exports = function()
             process.subKeyMapCache = createNamespacedCache.call(r, "keyMap");
 
             // subscribe to node invalidation broadcast events
-            process.broadcast.subscribe("node_invalidation", function (message, invalidationDone) {
+            process.broadcast.subscribe("node_invalidation", function (message, channel, invalidationDone) {
 
                 if (!invalidationDone) {
                     invalidationDone = function() { };

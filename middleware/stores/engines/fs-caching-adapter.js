@@ -51,7 +51,7 @@ exports = module.exports = function(remoteStore)
     {
         if (process.broadcast)
         {
-            process.broadcast.subscribe(INVALIDATION_TOPIC, function(message, invalidationDone) {
+            process.broadcast.subscribe(INVALIDATION_TOPIC, function(message, channel, invalidationDone) {
 
                 if (!invalidationDone) {
                     invalidationDone = function() { };

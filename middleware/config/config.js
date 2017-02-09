@@ -661,7 +661,7 @@ exports = module.exports = function()
         if (process.broadcast)
         {
             // listen for node invalidation events
-            process.broadcast.subscribe("module-invalidation-topic", function (message, invalidationDone) {
+            process.broadcast.subscribe("module-invalidation-topic", function (message, channel, invalidationDone) {
 
                 if (!invalidationDone) {
                     invalidationDone = function() { };
@@ -681,7 +681,7 @@ exports = module.exports = function()
             });
 
             // listen for uiconfig being invalidated
-            process.broadcast.subscribe("uiconfig_invalidation", function (message, invalidationDone) {
+            process.broadcast.subscribe("uiconfig_invalidation", function (message, channel, invalidationDone) {
 
                 if (!invalidationDone) {
                     invalidationDone = function() { };

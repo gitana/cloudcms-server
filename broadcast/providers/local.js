@@ -30,7 +30,8 @@ exports = module.exports = function(broadcastConfig)
             {
                 var fn = function(handler, i, message) {
                     return function(done) {
-                        handlers[i](message, function(err) {
+                        var channel = {};
+                        handlers[i](message, channel, function(err) {
                             done(err);
                         });
                     };

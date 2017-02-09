@@ -651,7 +651,7 @@ exports = module.exports = function()
             // sends those along as page rendition invalidation events.  These are handled here...
 
             // LISTEN: "invalidate_page_rendition"
-            process.broadcast.subscribe("invalidate_page_rendition", function (message, invalidationDone) {
+            process.broadcast.subscribe("invalidate_page_rendition", function (message, channel, invalidationDone) {
 
                 if (!invalidationDone) {
                     invalidationDone = function() { };
@@ -774,7 +774,7 @@ exports = module.exports = function()
             });
 
             // LISTEN: "invalidate_all_page_renditions"
-            process.broadcast.subscribe("invalidate_all_page_renditions", function (message, invalidationDone) {
+            process.broadcast.subscribe("invalidate_all_page_renditions", function (message, channel, invalidationDone) {
 
                 if (!invalidationDone) {
                     invalidationDone = function() { };
