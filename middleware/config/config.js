@@ -661,7 +661,11 @@ exports = module.exports = function()
         if (process.broadcast)
         {
             // listen for node invalidation events
-            process.broadcast.subscribe("module-invalidation-topic", function (message, done) {
+            process.broadcast.subscribe("module-invalidation-topic", function (message, invalidationDone) {
+
+                if (!invalidationDone) {
+                    invalidationDone = function() { };
+                }
 
                 var command = message.command;
                 var host = message.host;
@@ -672,12 +676,16 @@ exports = module.exports = function()
                         console.log("ConfigService invalidated host: " + host);
                     }
 
-                    done(err);
+                    invalidationDone(err);
                 });
             });
 
             // listen for uiconfig being invalidated
-            process.broadcast.subscribe("uiconfig_invalidation", function (message, done) {
+            process.broadcast.subscribe("uiconfig_invalidation", function (message, invalidationDone) {
+
+                if (!invalidationDone) {
+                    invalidationDone = function() { };
+                }
 
                 //var command = message.command;
                 var host = message.host;
@@ -689,7 +697,7 @@ exports = module.exports = function()
                         console.log("Invalidated remote ui config, host: " + host + ", id: " + id);
                     }
 
-                    done(err);
+                    invalidationDone(err);
                 });
 
             });

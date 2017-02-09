@@ -587,7 +587,11 @@ exports = module.exports = function()
 
         if (process.broadcast && !bound)
         {
-            process.broadcast.subscribe("node_invalidation", function (message, done) {
+            process.broadcast.subscribe("node_invalidation", function (message, invalidationDone) {
+
+                if (!invalidationDone) {
+                    invalidationDone = function() { };
+                }
 
                 var repositoryId = message.repositoryId;
                 var branchId = message.branchId;
@@ -606,7 +610,7 @@ exports = module.exports = function()
                     }
                     */
 
-                    done(err);
+                    invalidationDone(err);
                 });
 
             });

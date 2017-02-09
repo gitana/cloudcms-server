@@ -653,6 +653,10 @@ exports = module.exports = function()
             // LISTEN: "invalidate_page_rendition"
             process.broadcast.subscribe("invalidate_page_rendition", function (message, invalidationDone) {
 
+                if (!invalidationDone) {
+                    invalidationDone = function() { };
+                }
+
                 // console.log("HEARD: invalidate_page_rendition");
 
                 var clearFragmentCacheFn = function(message)
@@ -771,6 +775,10 @@ exports = module.exports = function()
 
             // LISTEN: "invalidate_all_page_renditions"
             process.broadcast.subscribe("invalidate_all_page_renditions", function (message, invalidationDone) {
+
+                if (!invalidationDone) {
+                    invalidationDone = function() { };
+                }
 
                 // console.log("HEARD: invalidate_all_page_renditions");
 

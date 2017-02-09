@@ -190,6 +190,10 @@ exports = module.exports = function()
             // when an application invalidates, re-initialize the app helpers for any cached drivers
             process.broadcast.subscribe("application_invalidation", function(message, invalidationDone) {
 
+                if (!invalidationDone) {
+                    invalidationDone = function() { };
+                }
+
                 var applicationId = message.applicationId;
                 var host = message.host;
 

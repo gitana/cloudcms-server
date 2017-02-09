@@ -51,7 +51,11 @@ exports = module.exports = function(remoteStore)
     {
         if (process.broadcast)
         {
-            process.broadcast.subscribe(INVALIDATION_TOPIC, function(message, done) {
+            process.broadcast.subscribe(INVALIDATION_TOPIC, function(message, invalidationDone) {
+
+                if (!invalidationDone) {
+                    invalidationDone = function() { };
+                }
 
                 var command = message.command;
                 if ("invalidatePath" === command)
@@ -61,7 +65,7 @@ exports = module.exports = function(remoteStore)
                     __internal_removeCachedObject(message.path);
                 }
 
-                done();
+                invalidationDone();
             });
         }
     };

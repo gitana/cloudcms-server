@@ -46,7 +46,7 @@ exports = module.exports = function(broadcastConfig)
 
         setTimeout(function() {
             callback();
-        }, 2500);
+        }, 1500);
     };
 
     r.publish = function(topic, message, callback)

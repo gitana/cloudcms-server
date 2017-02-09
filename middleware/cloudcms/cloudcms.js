@@ -1838,7 +1838,11 @@ exports = module.exports = function()
 
         if (process.broadcast && !bound)
         {
-            process.broadcast.subscribe("node_invalidation", function (message, done) {
+            process.broadcast.subscribe("node_invalidation", function (message, invalidationDone) {
+
+                if (!invalidationDone) {
+                    invalidationDone = function() { };
+                }
 
                 var nodeId = message.nodeId;
                 var branchId = message.branchId;
@@ -1851,12 +1855,12 @@ exports = module.exports = function()
                     {
                         // for master branch, we make a second attempt using "master" as the branch ID
                         self.invalidateNode(host, repositoryId, "master", nodeId, function(err) {
-                            done(err);
+                            invalidationDone(err);
                         });
                     }
                     else
                     {
-                        done(err);
+                        invalidationDone(err);
                     }
 
                 });
