@@ -526,7 +526,8 @@ exports = module.exports = function()
 
                 // if we're rendering out the index.html top-most page, then we write down a cookie
                 // if index.html is cached, it may not come through here, so we try to latch on to manifest.appcache as well
-                if (req.path === "/" || req.path.indexOf(".html") > -1 || req.path.indexOf(".appcache") > -1)
+                // we also hook into the /context call
+                if (req.path === "/" || req.path.indexOf(".html") > -1 || req.path.indexOf(".appcache") > -1 || req.path.indexOf("/context") > -1)
                 {
                     if (moduleKeys.length > 0)
                     {
