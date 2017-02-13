@@ -1814,7 +1814,7 @@ exports = module.exports = function()
         return filename;
     };
 
-    r.invalidateNode = function(host, repositoryId, branchId, nodeId, callback)
+    r.invalidateNode = function(host, repositoryId, branchId, nodeId, paths, callback)
     {
         var stores = require("../stores/stores");
         stores.produce(host, function (err, stores) {
@@ -1825,7 +1825,7 @@ exports = module.exports = function()
 
             //console.log("Invalidating for hostname: " + host);
 
-            cloudcmsUtil.invalidate(stores.content, repositoryId, branchId, nodeId, function (err) {
+            cloudcmsUtil.invalidate(stores.content, repositoryId, branchId, nodeId, paths, function (err) {
                 callback(err);
             });
         });
@@ -1848,13 +1848,14 @@ exports = module.exports = function()
                 var branchId = message.branchId;
                 var repositoryId = message.repositoryId;
                 var host = message.host;
+                var paths = message.paths || {};
 
-                self.invalidateNode(host, repositoryId, branchId, nodeId, function(err) {
+                self.invalidateNode(host, repositoryId, branchId, nodeId, paths, function(err) {
 
                     if (message.isMasterBranch)
                     {
                         // for master branch, we make a second attempt using "master" as the branch ID
-                        self.invalidateNode(host, repositoryId, "master", nodeId, function(err) {
+                        self.invalidateNode(host, repositoryId, "master", nodeId, paths, function(err) {
                             invalidationDone(err);
                         });
                     }
