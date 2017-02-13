@@ -575,8 +575,7 @@ exports = module.exports = function()
         generateContentDirectoryPath(contentStore, repositoryId, branchId, nodeId, locale, function(err, contentDirectoryPath) {
 
             if (err) {
-                callback(err);
-                return;
+                return callback(err);
             }
 
             var filePath = contentDirectoryPath;
@@ -788,7 +787,41 @@ exports = module.exports = function()
 
             contentStore.removeDirectory(contentDirectoryPath, function(err) {
 
-                console.log(" > Invalidated [repository: " + repositoryId + ", branch: " + branchId + ", node: " + nodeId + "]");
+                console.log(" > Invalidated Node [repository: " + repositoryId + ", branch: " + branchId + ", node: " + nodeId + "]");
+
+                callback(err, true);
+            });
+
+        });
+    };
+
+    var invalidateNodePaths = function(contentStore, repositoryId, branchId, paths, callback)
+    {
+        if (!paths)
+        {
+            return callback();
+        }
+
+        var rootPath = paths["root"];
+        if (!rootPath)
+        {
+            return callback();
+        }
+
+        // base storage directory
+        // TODO: support non-root and non-default locale?
+        var rootCachePath = path.join(repositoryId, branchId, "root", "default", "paths", rootPath);
+
+        contentStore.existsDirectory(rootCachePath, function(exists) {
+
+            if (!exists)
+            {
+                return callback();
+            }
+
+            contentStore.removeDirectory(rootCachePath, function(err) {
+
+                console.log(" > Invalidated Path [repository: " + repositoryId + ", branch: " + branchId + ", path: " + rootPath + "]");
 
                 callback(err, true);
             });
@@ -1038,18 +1071,22 @@ exports = module.exports = function()
         });
     };
 
-    r.invalidate = function(contentStore, repositoryId, branchId, nodeId, callback)
+    r.invalidate = function(contentStore, repositoryId, branchId, nodeId, paths, callback)
     {
         // claim a lock around this node for this server
         _LOCK(contentStore, _lock_identifier(repositoryId, branchId, nodeId), function(releaseLockFn) {
 
             invalidateNode(contentStore, repositoryId, branchId, nodeId, function () {
 
-                // release lock
-                releaseLockFn();
+                invalidateNodePaths(contentStore, repositoryId, branchId, paths, function() {
 
-                // all done
-                callback();
+                    // release lock
+                    releaseLockFn();
+
+                    // all done
+                    callback();
+
+                });
             });
         });
     };

@@ -90,6 +90,8 @@ var handleNotificationMessages = function(items, callback) {
 
                         var host = determineHost(item);
 
+                        var paths = item.paths || {};
+
                         // broadcast invalidation
                         process.broadcast.publish("node_invalidation", {
                             "ref": ref,
@@ -97,7 +99,8 @@ var handleNotificationMessages = function(items, callback) {
                             "branchId": branchId,
                             "repositoryId": repositoryId,
                             "isMasterBranch": item.isMasterBranch,
-                            "host": host
+                            "host": host,
+                            "paths": paths
                         }, function(err) {
                             return done(err);
                         });
@@ -129,6 +132,8 @@ var handleNotificationMessages = function(items, callback) {
                                         var branchId = obj.branchId;
                                         var repositoryId = obj.repositoryId;
 
+                                        var paths = obj.paths || {};
+
                                         // TEMP: some legacy support to aid in transition
                                         if (!repositoryId || !branchId || !nodeId)
                                         {
@@ -149,7 +154,8 @@ var handleNotificationMessages = function(items, callback) {
                                             "branchId": branchId,
                                             "repositoryId": repositoryId,
                                             "isMasterBranch": obj.isMasterBranch,
-                                            "host": host
+                                            "host": host,
+                                            "paths": paths
                                         }, z_done);
                                     }
                                     else if (type === "settings")
@@ -171,12 +177,16 @@ var handleNotificationMessages = function(items, callback) {
                                         var ref = obj.ref;
                                         var applicationId = obj.applicationId;
                                         var deploymentKey = obj.deploymentKey;
+                                        var stackId = obj.stackId;
+                                        var stackMembers = obj.stackMembers;
 
                                         process.broadcast.publish("application_invalidation", {
                                             "ref": ref,
                                             "applicationId": applicationId,
                                             "deploymentKey": deploymentKey,
-                                            "host": host
+                                            "host": host,
+                                            "stackId": stackId,
+                                            "stackMembers": stackMembers
                                         });
 
                                         z_done();
