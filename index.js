@@ -104,18 +104,57 @@ exports = module.exports = function()
     // TODO: be resolved soon
     console.warn = function() {};
 
-    // init
-    if (!process.env.GITANA_PROXY_HOST) {
-        process.env.GITANA_PROXY_HOST = "api.cloudcms.com";
-    }
-    if (!process.env.GITANA_PROXY_PORT) {
-        process.env.GITANA_PROXY_PORT = 443;
-    }
-    if (!process.env.GITANA_PROXY_SCHEME) {
-        process.env.GITANA_PROXY_SCHEME = "https";
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
+    // assume app-server base path if none provided
+    if (!process.env.CLOUDCMS_APPSERVER_BASE_PATH) {
+        process.env.CLOUDCMS_APPSERVER_BASE_PATH = process.cwd();
     }
 
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+    // if there is a "gitana.json" file in the app server base path, we load proxy settings from there if they're
+    // not already specified
+    var defaultGitanaProxyHost = "api.cloudcms.com";
+    var defaultGitanaProxyPort = 443;
+    var defaultGitanaProxyScheme = "https";
+
+    var gitanaJsonPath = path.join(process.env.CLOUDCMS_APPSERVER_BASE_PATH, "gitana.json");
+    if (fs.existsSync(gitanaJsonPath))
+    {
+        var gitanaJson = JSON.parse("" + fs.readFileSync(gitanaJsonPath));
+        if (gitanaJson && gitanaJson.baseURL)
+        {
+            var parsedUrl = url.parse(gitanaJson.baseURL);
+
+            defaultGitanaProxyHost = parsedUrl.hostname;
+            defaultGitanaProxyScheme = parsedUrl.protocol.substring(0, parsedUrl.protocol.length - 1); // remove the :
+
+            if (parsedUrl.port)
+            {
+                defaultGitanaProxyPort = parsedUrl.port;
+            }
+            else
+            {
+                defaultGitanaProxyPort = 80;
+                if (defaultGitanaProxyScheme === "https")
+                {
+                    defaultGitanaProxyPort = 443;
+                }
+            }
+        }
+    }
+
+    // init
+    if (!process.env.GITANA_PROXY_SCHEME) {
+        process.env.GITANA_PROXY_SCHEME = defaultGitanaProxyScheme;
+    }
+    if (!process.env.GITANA_PROXY_HOST) {
+        process.env.GITANA_PROXY_HOST = defaultGitanaProxyHost;
+    }
+    if (!process.env.GITANA_PROXY_PORT) {
+        process.env.GITANA_PROXY_PORT = defaultGitanaProxyPort;
+    }
+
+    console.log("Gitana Proxy pointed to: " + process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT);
 
     // all web modules are included by default
     if (!process.includeWebModule) {
@@ -161,11 +200,6 @@ exports = module.exports = function()
     var notifications = require("./notifications/notifications");
     var broadcast = require("./broadcast/broadcast");
     var locks = require("./locks/locks");
-
-    // assume app-server base path if none provided
-    if (!process.env.CLOUDCMS_APPSERVER_BASE_PATH) {
-        process.env.CLOUDCMS_APPSERVER_BASE_PATH = process.cwd();
-    }
 
     // cache
     //process.cache = cache;

@@ -46,8 +46,7 @@ var scheduleData = function(socket, data)
     var gitana = socket.gitana;
     if (!gitana)
     {
-        socket._log("Insight - the socket does not have a gitana instance attached to it, host: " + host + ", skipping...");
-        return;
+        return socket._log("Insight - the socket does not have a gitana instance attached to it, host: " + host + ", skipping...");
     }
 
     var warehouseId = data.warehouseId;
@@ -61,8 +60,7 @@ var scheduleData = function(socket, data)
     }
 
     if (!warehouseId) {
-        console.log("Insight - the application does not have a warehouseId, skipping...");
-        return;
+        return console.log("Insight - the application does not have a warehouseId, skipping...");
     }
 
     var ip = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address.address;
@@ -114,8 +112,7 @@ var doSend = function(callback)
     if (!warehouseId)
     {
         // nothing to send
-        callback();
-        return;
+        return callback();
     }
 
     var gitana = PENDING_DATA[warehouseId].gitana;
