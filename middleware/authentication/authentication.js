@@ -1,12 +1,7 @@
-var path = require('path');
-var fs = require('fs');
-var http = require('http');
-
-var util = require('../../util/util');
+var auth = require("../../util/auth");
+var util = require("../../util/util");
 
 var Gitana = require("gitana");
-
-var passport = require('passport');
 
 /**
  * Authentication middleware.
@@ -15,15 +10,9 @@ var passport = require('passport');
  */
 exports = module.exports = function()
 {
-    var LIBS = {};
+    var PROVIDERS = {};
+    var ADAPTERS = {};
 
-    var addLibrary = function(providerConfiguration, providerId)
-    {
-        if (providerConfiguration.providers[providerId] && providerConfiguration.providers[providerId].enabled)
-        {
-            LIBS[providerId] = require("./lib/" + providerId)(passport, providerConfiguration.providers[providerId]);
-        }
-    };
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
@@ -33,77 +22,129 @@ exports = module.exports = function()
 
     var r = {};
 
-    r.authenticationInterceptor = function(app)
+    var registerProvider = r.registerProvider = function(providerType, providerFactoryFn)
     {
-        return util.createInterceptor("authentication", "auth", function(req, res, next, stores, cache, configuration) {
-            next();
+        PROVIDERS[providerType] = providerFactoryFn;
+    };
+
+    var registerAdapter = r.registerAdapter = function(adapterType, adapterFactory)
+    {
+        ADAPTERS[adapterType] = adapterFactory;
+    };
+
+    var buildProvider = r.buildProvider = function(req, providerId, callback)
+    {
+        req.configuration("auth", function(err, configuration) {
+
+            var providerDescriptor = configuration.providers[providerId];
+            if (!providerDescriptor)
+            {
+                console.log("Cannot find provider descriptor for provider id: " + providerId);
+                return callback();
+            }
+
+            if (!providerDescriptor.type)
+            {
+                console.log("Provider descriptor for provider: " + providerId + " does not have a type");
+                return callback();
+            }
+
+            if (!providerDescriptor.config) {
+                providerDescriptor.config = {};
+            }
+
+            var providerType = providerDescriptor.type;
+            var providerConfig = providerDescriptor.config;
+
+            cleanupProviderConfiguration(providerId, providerConfig);
+
+            var providerFactory = PROVIDERS[providerType];
+            var provider = providerFactory(providerId, providerType, providerConfig);
+
+
+            callback(null, provider, providerType, providerConfig);
+        });
+    };
+
+    var cleanupProviderConfiguration = function(providerId, providerConfig)
+    {
+        if (!providerConfig.callbackURL)
+        {
+            // calculate this
+            var callbackURL = providerConfig.callbackUrl || providerConfig.callback || providerConfig.callbackURL;
+            if (!callbackURL) {
+                providerConfig.callbackURL = "/auth/" + providerId + "/callback";
+            }
+        }
+    };
+
+    var buildAdapter = r.buildAdapter = function(req, adapterId, callback)
+    {
+        req.configuration("auth", function(err, configuration) {
+
+            var adapterDescriptor = configuration.adapters[adapterId];
+            if (!adapterDescriptor)
+            {
+                console.log("Cannot find adapter descriptor for provider id: " + adapterId);
+                return callback();
+            }
+
+            if (!adapterDescriptor.type)
+            {
+                console.log("Adapter descriptor for adapter: " + adapterId + " does not have a type");
+                return callback();
+            }
+
+            if (!adapterDescriptor.config) {
+                adapterDescriptor.config = {};
+            }
+
+            var adapterType = adapterDescriptor.type;
+            var adapterConfig = adapterDescriptor.config;
+
+            var adapterFactory = ADAPTERS[adapterType];
+            var adapter = adapterFactory(adapterId, adapterType, adapterConfig);
+
+            callback(null, adapter, adapterType, adapterConfig);
         });
     };
 
     /**
-     * Handler for authentication.
+     * Handles calls to:
+     *
+     *     /auth/<providerId>
+     *     /auth/<providerId>/*
      *
      * @return {Function}
      */
     r.handler = function(app)
     {
+        // providers
+        registerProvider("cas", require("./providers/cas"));
+        registerProvider("facebook", require("./providers/facebook"));
+        registerProvider("github", require("./providers/github"));
+        registerProvider("google", require("./providers/google"));
+        registerProvider("keycloak", require("./providers/keycloak"));
+        registerProvider("linkedin", require("./providers/linkedin"));
+        registerProvider("twitter", require("./providers/twitter"));
+
+        // filter - request adapters
+        registerAdapter("default", require("./adapters/default"));
+        registerAdapter("jwt", require("./adapters/jwt"));
+
+        // create handler
         return util.createHandler("authentication", "auth", function(req, res, next, stores, cache, configuration) {
 
+            if (process.env.CLOUDCMS_AUTH_PASS_TICKET === "true")
+            {
+                configuration.passTicket = true;
+
+                for (var providerId in configuration.providers) {
+                    configuration.providers[providerId].passTicket = true;
+                }
+            }
+
             var handled = false;
-
-            if (!configuration.providers)
-            {
-                configuration.providers = {};
-            }
-
-            if (!configuration.providers.github) {
-               configuration.providers.github = {};
-            }
-            if (process.env.CLOUDCMS_AUTH_PROVIDERS_GITHUB_ENABLED === "true") {
-               configuration.providers.github.enabled = true;
-            }
-
-            if (!configuration.providers.google) {
-               configuration.providers.google = {};
-            }
-            if (process.env.CLOUDCMS_AUTH_PROVIDERS_GOOGLE_ENABLED === "true") {
-               configuration.providers.google.enabled = true;
-            }
-
-            if (!configuration.providers.facebook) {
-               configuration.providers.facebook = {};
-            }
-            if (process.env.CLOUDCMS_AUTH_PROVIDERS_FACEBOOK_ENABLED === "true") {
-               configuration.providers.facebook.enabled = true;
-            }
-
-            if (!configuration.providers.twitter) {
-               configuration.providers.twitter = {};
-            }
-            if (process.env.CLOUDCMS_AUTH_PROVIDERS_TWITTER_ENABLED === "true") {
-               configuration.providers.twitter.enabled = true;
-            }
-
-            if (!configuration.providers.linkedin) {
-               configuration.providers.linkedin = {};
-            }
-            if (process.env.CLOUDCMS_AUTH_PROVIDERS_LINKEDIN_ENABLED === "true") {
-               configuration.providers.linkedin.enabled = true;
-            }
-            if (process.env.CLOUDCMS_AUTH_PASS_TICKET === "true") {
-               configuration.passTicket = true;
-               configuration.providers.github.passTicket = true;
-               configuration.providers.google.passTicket = true;
-               configuration.providers.facebook.passTicket = true;
-               configuration.providers.twitter.passTicket = true;
-               configuration.providers.linkedin.passTicket = true;
-            }
-
-            // add in any libraries
-            for (var providerId in configuration.providers)
-            {
-                addLibrary(configuration, providerId);
-            }
 
             // HANDLE
             if (req.method.toLowerCase() === "get")
@@ -119,103 +160,132 @@ exports = module.exports = function()
                         providerId = providerId.substring(0, j);
                     }
 
-                    var lib = LIBS[providerId];
-                    if (lib)
-                    {
+                    buildProvider(req, providerId, function(err, provider, providerType, providerConfig) {
+
+                        if (err) {
+                            return next(err);
+                        }
+
+                        if (!provider) {
+                            return next();
+                        }
+
                         if (req.path.indexOf("/callback") > -1)
                         {
                             handled = true;
 
-                            var config = configuration.providers[providerId];
+                            var handleFailure = function(res, providerConfig) {
+                                if (providerConfig.failureRedirect) {
+                                    return res.redirect(providerConfig.failureRedirect);
+                                }
 
-                            var cb = function (providerId, config) {
-                                return function (err, user, info) {
+                                res.status(401).end();
+                            };
 
-                                    // store provider information onto session
-                                    req.session.lastProviderInfo = info;
+                            var cb = function (providerId, provider, providerConfig) {
+                                return function (err, profile, info) {
 
                                     if (err) {
                                         console.log(err);
-                                        return res.redirect(config.failureRedirect);
+                                        return handleFailure(res, providerConfig);
                                     }
 
-                                    if (!user) {
-
-                                        // we signed into the provider but a logged in user wasn't found
-                                        // if a registration page redirect is provided, we'll go there
-                                        // otherwise, we just go to the error page
-                                        var redirectUrl = config.registrationRedirect;
-                                        if (!redirectUrl) {
-                                            redirectUrl = config.failureRedirect;
-                                        }
-
-                                        // redirect
-                                        return res.redirect(redirectUrl);
+                                    if (!profile || !info)
+                                    {
+                                        return handleFailure(res, providerConfig);
                                     }
 
-                                    req.session.user = user;
+                                    var domain = req.gitana.datastore("principals");
 
-                                    req.logIn(user, function (err) {
+                                    auth.syncProfile(req, res, domain, providerId, provider, profile, info.token, info.refreshToken, function(err, gitanaUser, platform, appHelper, key) {
 
                                         if (err) {
-                                            return res.redirect(config.failureRedirect);
+                                            return handleFailure(res, providerConfig);
                                         }
 
-                                        if (config.passTicket || config.passTokens) {
+                                        if (!gitanaUser)
+                                        {
+                                            if (providerConfig.registrationRedirect)
+                                            {
+                                                var parsedProfile = provider.parseProfile(profile);
+                                                var profileIdentifier = provider.profileIdentifier(profile);
 
-                                            var domain = req.gitana.datastore("principals");
+                                                var redirectUrl = providerConfig.registrationRedirect;
 
-                                            // connect and get ticket
-                                            var x = {
-                                                "clientKey": req.gitanaConfig.clientKey,
-                                                "clientSecret": req.gitanaConfig.clientSecret,
-                                                "username": domain.getId() + "/" + info.token,
-                                                "password": info.tokenSecret,
-                                                "baseURL": req.gitanaConfig.baseURL
-                                            };
-                                            Gitana.connect(x, function (err) {
-
-                                                if (err) {
-                                                    return res.redirect(config.failureRedirect);
+                                                if (!req.session)
+                                                {
+                                                    console.log("Registration redirect requires session");
                                                 }
+                                                else
+                                                {
+                                                    req.session.registration_user_object = parsedProfile;
+                                                    req.session.registration_provider_id = providerId;
+                                                    req.session.registration_user_identifier = profileIdentifier;
+                                                    req.session.registration_token = info.token;
+                                                    req.session.registration_refresh_token = info.refresh_token;
 
-                                                var ticket = this.getDriver().getAuthInfo().getTicket();
-                                                var token = info.token;
-                                                var secret = info.tokenSecret;
-
-                                                var params = [];
-                                                params.push("providerId=" + providerId);
-                                                if (config.passTicket) {
-                                                    params.push("ticket=" + this.getDriver().getAuthInfo().getTicket());
+                                                    return res.redirect(redirectUrl);
                                                 }
-                                                if (config.passTokens) {
-                                                    params.push("token=" + info.token);
-                                                    params.push("secret=" + info.tokenSecret);
-                                                }
+                                            }
 
-                                                var url = config.successRedirect + "?" + params.join("&");
-
-                                                return res.redirect(url);
-
-                                            });
+                                            return handleFailure(res, providerConfig);
                                         }
-                                        else {
-                                            return res.redirect(config.successRedirect);
+
+                                        //var appuserAccessToken = req.gitana.getDriver().getAuthInfo()["accessToken"];
+                                        //var userAccessToken = platform.getDriver().getAuthInfo()["accessToken"];
+
+                                        //console.log("a.1: " + appuserAccessToken);
+                                        //console.log("a.2: " + userAccessToken);
+
+                                        //var ticket1 = req.gitana.getDriver().getAuthInfo().getTicket();
+                                        //var ticket2 = platform.getDriver().getAuthInfo().getTicket();
+
+                                        //console.log("b.1: " + ticket1);
+                                        //console.log("b.2: " + ticket2);
+                                        //console.log(ticket1 == ticket2);
+
+                                        // redirect
+                                        var url = providerConfig.successRedirect;
+
+                                        if (providerConfig.passTicket || providerConfig.passTokens)
+                                        {
+                                            var accessToken = gitanaUser.getDriver().getAuthInfo()["accessToken"];
+                                            var refreshToken = gitanaUser.getDriver().getAuthInfo()["refreshToken"];
+                                            var ticket = gitanaUser.getDriver().getAuthInfo().getTicket();
+
+                                            var params = [];
+                                            if (providerConfig.passTicket)
+                                            {
+                                                params.push("ticket=" + encodeURIComponent(ticket));
+                                            }
+                                            if (providerConfig.passTokens)
+                                            {
+                                                params.push("accessToken=" + encodeURIComponent(accessToken));
+
+                                                if (refreshToken) {
+                                                    params.push("refreshToken=" + encodeURIComponent(refreshToken));
+                                                }
+                                            }
+
+                                            url = url + "?" + params.join("&");
                                         }
+
+                                        res.redirect(url);
+
                                     });
-
                                 }
-                            }(providerId, config);
+                            }(providerId, provider, providerConfig);
 
-                            lib.handleCallback(req, res, next, cb);
+                            provider.handleAuthCallback(req, res, next, cb);
                         }
                         else
                         {
                             handled = true;
 
-                            lib.handleLogin(req, res, next);
+                            provider.handleAuth(req, res, next);
                         }
-                    }
+
+                    });
                 }
             }
 
@@ -226,9 +296,412 @@ exports = module.exports = function()
         });
     };
 
-    r.getProvider = function(providerId)
+    // nothing to do at the moment
+    r.interceptor = function() {
+        return function(req, res, next) {
+            next();
+        }
+    };
+
+    /**
+     * Binds in an auth filter.
+     *
+     * @param id
+     * @returns {Function}
+     */
+    r.auth = function(id, loginFn) {
+
+        if (!loginFn) {
+            loginFn = function(req, res, next) {
+                req.user = req.gitana_user;
+                next();
+            };
+        }
+
+        var fn = build_auth_filter(id);
+        return function(req, res, next) {
+
+            fn(req, res, function(result) {
+
+                var properties = req.provider_properties;
+                delete req.provider_properties;
+
+                if (!result)
+                {
+                    return loginFn(req, res, function(err) {
+                        next(err);
+                    });
+                }
+
+                // otherwise, something went wrong
+
+                // load the configuration for the "auth" service
+                req.configuration("auth", function(err, configuration) {
+
+                    // some correction
+                    if (!result.err && result.message) {
+                        result.err = {
+                            "message": result.message
+                        };
+                    }
+
+                    var failureRedirect = null;
+                    var registrationRedirect = null;
+
+                    if (configuration && configuration.filters && configuration.filters[id])
+                    {
+                        var provider = configuration.filters[id].provider;
+                        if (provider && provider.type) {
+                            provider = provider.type;
+                        }
+
+                        failureRedirect = configuration.providers[provider].failureRedirect;
+                        registrationRedirect = configuration.providers[provider].registrationRedirect;
+                    }
+
+                    // if no user, redirect to registration url?
+                    if (result.nouser && registrationRedirect)
+                    {
+                        if (!req.session)
+                        {
+                            console.log("Registration redirect requires a session to be configured");
+                        }
+                        else
+                        {
+                            req.session.registration_user_object = properties.parsed_profile;
+                            req.session.registration_provider_id = properties.provider_id;
+                            req.session.registration_user_identifier = properties.profile_identifier;
+                            req.session.registration_token = properties.token;
+                            req.session.registration_refresh_token = properties.refresh_token;
+
+                            return res.redirect(registrationRedirect);
+                        }
+                    }
+
+                    // otherwise, we're in a failure state
+                    // should we redirect?
+                    if (failureRedirect)
+                    {
+                        return res.redirect(failureRedirect);
+                    }
+
+                    // if nothing else, 401
+                    res.status(401).end();
+                });
+            });
+        }
+    };
+
+    var build_auth_filter = function(id)
     {
-        return LIBS[providerId];
+        return function (req, res, next) {
+
+            req.configuration("auth", function(err, configuration) {
+
+                if (!configuration.filters) {
+                    return next({
+                        "outcome": "skip",
+                        "message": "Cannot find filter configuration: " + id
+                    });
+                }
+
+                var filterConfig = configuration.filters[id];
+                if (!filterConfig)
+                {
+                    return next({
+                        "outcome": "skip",
+                        "message": "Cannot find filter configuration: " + id
+                    });
+                }
+
+
+                ///
+                /// FILTER - REQUEST ADAPTER
+                ///
+
+                var adapterId = filterConfig.adapter;
+                if (!adapterId)
+                {
+                    return next({
+                        "outcome": "skip",
+                        "message": "Filter configuration: " + id + " must define an adapter"
+                    });
+                }
+
+                // build adapter
+                buildAdapter(req, adapterId, function (err, adapter, adapterType, adapterConfig) {
+
+                    if (err) {
+                        return next({
+                            "fail": true,
+                            "err": err
+                        });
+                    }
+
+                    if (!adapter) {
+                        return next({
+                            "skip": true,
+                            "message": "Cannot build adapter: " + adapterId
+                        });
+                    }
+
+                    // parse the token from the request
+                    var properties = adapter.parse(req);
+                    if (!properties)
+                    {
+                        // if we were not able to extract anything, then simply bail
+                        return next({
+                            "skip": true,
+                            "message": "Could not extract an auth token identifier from request"
+                        });
+                    }
+
+
+                    ///
+                    /// PROVIDER DESCRIPTOR
+                    ///
+
+                    var providerId = filterConfig.provider;
+                    if (!providerId)
+                    {
+                        return next({
+                            "outcome": "skip",
+                            "message": "Filter configuration: " + id + " must define a provider"
+                        });
+                    }
+
+                    // build provider
+                    buildProvider(req, providerId, function (err, provider, providerType, providerConfig) {
+
+                        if (err)
+                        {
+                            return next({
+                                "fail": true,
+                                "err": err
+                            });
+                        }
+
+                        if (!provider)
+                        {
+                            return next({
+                                "skip": true,
+                                "message": "Cannot build provider: " + providerId
+                            });
+                        }
+
+                        // properties looks like this:
+                        //
+                        //     value                        the raw string collected from HTTP
+                        //     trusted                      whether this identifier can be trusted and verification is not needed
+                        //
+                        // optional:
+                        //
+                        //     profile                      the user profile extracted from identifier
+                        //     profile_identifier           the user profile ID (corresponds to providerUserId)
+                        //     token                        access token
+                        //     refresh_token                refresh token
+
+                        // store provider ID
+                        properties.provider_id = providerId;
+
+
+                        var phaseProvider = function (req, provider, properties, done) {
+                            // if not trusted, we first verify then load if verified
+                            // this is to block against spoofed headers that are not implicitly trusted or whose trust cannot
+                            // be asserted using encryption (or which the developer simply deems to be trusted due to firewall
+                            // boundaries or other guarantees ahead of us in the request chain)
+
+                            if (!properties.trusted)
+                            {
+                                provider.verify(properties.value, function (err, verified) {
+
+                                    if (err)
+                                    {
+                                        return done({
+                                            "fail": true,
+                                            "err": err
+                                        });
+                                    }
+
+                                    if (!verified)
+                                    {
+                                        return done({
+                                            "skip": true,
+                                            "message": "Unable to verify user for token: " + properties.value
+                                        });
+                                    }
+
+                                    provider.load(properties.value, function (err, profile, token, refreshToken) {
+
+                                        if (err)
+                                        {
+                                            return done({
+                                                "fail": true,
+                                                "err": err
+                                            });
+                                        }
+
+                                        if (!profile)
+                                        {
+                                            return done({
+                                                "skip": true,
+                                                "message": "Could not load profile for identifier: " + properties.value
+                                            });
+                                        }
+
+                                        properties.profile = profile;
+                                        properties.profile_identifier = provider.profileIdentifier(profile);
+                                        properties.token = token;
+                                        properties.refresh_token = refreshToken;
+                                        properties.trusted = true;
+                                        properties.parsed_profile = provider.parseProfile(profile);
+
+                                        done();
+                                    });
+                                });
+                            }
+                            else
+                            {
+                                provider.load(properties.value, function (err, profile, token, refreshToken) {
+
+                                    if (err)
+                                    {
+                                        return done({
+                                            "fail": true,
+                                            "err": err
+                                        });
+                                    }
+
+                                    if (!profile)
+                                    {
+                                        return done({
+                                            "skip": true,
+                                            "message": "Could not load profile for identifier: " + properties.value
+                                        });
+                                    }
+
+                                    properties.profile = profile;
+                                    properties.profile_identifier = provider.profileIdentifier(profile);
+                                    properties.token = token;
+                                    properties.refresh_token = refreshToken;
+                                    properties.trusted = true;
+                                    properties.parsed_profile = provider.parseProfile(profile);
+
+                                    done();
+                                });
+                            }
+                        };
+
+                        var phaseCloudCMS = function (req, provider, properties, done) {
+                            var domain = req.gitana.datastore("principals");
+
+                            var profile = properties.profile;
+                            var token = properties.token;
+                            var refreshToken = properties.refreshToken;
+
+                            auth.syncProfile(req, res, domain, providerId, provider, profile, token, refreshToken, function (err, gitanaUser, platform, appHelper, key) {
+
+                                if (err)
+                                {
+                                    return done({
+                                        "fail": true,
+                                        "err": err
+                                    });
+                                }
+
+                                if (!gitanaUser)
+                                {
+                                    return done({
+                                        "nouser": true,
+                                        "err": err
+                                    });
+                                }
+
+                                properties.gitana_user = gitanaUser;
+                                properties.gitana_user_id = gitanaUser.getId();
+                                properties.gitana_platform = platform;
+                                properties.gitana_apphelper = appHelper;
+                                properties.gitana_key = key;
+                                properties.gitana_access_token = platform.getDriver().getAuthInfo()["accessToken"];
+                                properties.gitana_refresh_token = platform.getDriver().getAuthInfo()["refreshToken"];
+                                properties.gitana_ticket = platform.getDriver().getAuthInfo().getTicket();
+
+                                if (properties.gitana_platform)
+                                {
+                                    properties.userGitana = properties.gitana_platform;
+                                }
+                                if (properties.gitana_apphelper)
+                                {
+                                    properties.userGitana = properties.gitana_apphelper;
+                                }
+
+                                done();
+                            });
+                        };
+
+                        var syncPropertiesToReq = function (req, properties) {
+                            req.provider_properties = {};
+                            for (var k in properties)
+                            {
+                                req.provider_properties[k] = properties[k];
+                            }
+                        };
+
+
+                        // if the result is trusted AND we have a profile, then we can skip verifying and loading the
+                        // profile from the provider
+
+                        if (properties.trusted && properties.profile)
+                        {
+                            syncPropertiesToReq(req, properties);
+
+                            return phaseCloudCMS(req, provider, properties, function (result) {
+
+                                if (result)
+                                {
+                                    return next(result);
+                                }
+
+                                syncPropertiesToReq(req, properties);
+
+                                next();
+                            });
+                        }
+
+                        phaseProvider(req, provider, properties, function (result) {
+
+                            if (result)
+                            {
+                                return next(result);
+                            }
+
+                            // must be trusted at this point and have a profile
+                            if (!properties.trusted || !properties.profile)
+                            {
+                                return next({
+                                    "skip": true,
+                                    "message": "A trusted profile could not be obtained from provider"
+                                });
+                            }
+
+                            syncPropertiesToReq(req, properties);
+
+                            phaseCloudCMS(req, provider, properties, function (result) {
+
+                                if (result)
+                                {
+                                    return next(result);
+                                }
+
+                                syncPropertiesToReq(req, properties);
+
+                                next();
+                            });
+                        });
+                    });
+                });
+            });
+        };
     };
 
     return r;

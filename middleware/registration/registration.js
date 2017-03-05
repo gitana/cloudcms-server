@@ -4,6 +4,8 @@ var http = require('http');
 var util = require("../../util/util");
 var Gitana = require("gitana");
 var duster = require("../../duster/index");
+var async = require("async");
+var auth = require("../../util/auth");
 
 /**
  * Registration middleware.
@@ -12,250 +14,216 @@ var duster = require("../../duster/index");
  */
 exports = module.exports = function()
 {
-    var handleRegistration = function(req, res, next)
+    var acquireProperty = function(obj, propertyNames)
     {
-        var successUri = req.query.successUri  || req.query.successUrl || req.query.success || "/";
-        var failureUri = req.query.failureUri || req.query.failureUrl || req.query.failure || "/";
-        var redirect = true;
-        if(req.query.redirect && req.query.redirect === "false")
+        var value = null;
+
+        for (var i = 0; i < propertyNames.length; i++)
         {
-            redirect = false;
+            value = obj[propertyNames[i]];
+            if (value)
+            {
+                break;
+            }
         }
+
+        return value;
+    };
+
+    var handleRegistration = function(req, res, next, configuration)
+    {
+        if (!configuration) {
+            configuration = {};
+        }
+
+        var successUrl = acquireProperty(req.query, ["success", "successUrl", "successURL", "successRedirect"]);
+        var failureUrl = acquireProperty(req.query, ["failure", "failureUrl", "failureURL", "failureRedirect"]);
+
+        // from session
+        var providerId = req.session.registration_provider_id;
+        var userObject = req.session.registration_user_object;
+        var providerUserId = req.session.registration_user_identifier;
+        var token = req.session.registration_token;
+        var refreshToken = req.session.registration_refresh_token;
+
+        var options = configuration.options;
+        if (!options) {
+            options = {};
+        }
+
+        // var platform = req.gitana.platform();
 
         // registration info
         var form = req.body;
 
-        // validation
-        var errors = [];
-
-        // check for missing password
-        if (!form.password)
-        {
-            errors.push({
-                "field": "password",
-                "error": "Field 'password' is missing"
-            });
-        }
-
-        // check for missing verify
-        if (!form.passwordVerify)
-        {
-            errors.push({
-                "field": "passwordVerify",
-                "error": "Field 'passwordVerify' is missing"
-            });
-        }
-
-        // check that passwords match
-        if (form.password != form.passwordVerify)
-        {
-            errors.push({
-                "field": "password",
-                "error": "The passwords do not match."
-            });
-        }
-
-        // check email provided
-        if (!form.email)
-        {
-            errors.push({
-                "field": "email",
-                "error": "Field 'email' is missing"
-            });
-        }
-
-        // check for email validity
-        if (form.email)
-        {
-            var re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-            if (!re.test(form.email))
-            {
-                errors.push({
-                    "field": "email",
-                    "error": "The provided email is not valid"
-                });
-            }
-        }
-
-        // check username
-        if (!form.username)
-        {
-            errors.push({
-                "field": "username",
-                "error": "Field 'username' is missing"
-            });
-        }
-
         // gitana instance
         var gitana = req.gitana;
 
-        // check if a user already exists with this username
-        Chain(gitana.datastore("principals")).trap(function() {
+        // domain
+        var domain = req.gitana.datastore("principals");
 
-            // not found
-            p();
+        // validation functions
+        var errors = [];
+        var fns = [];
 
-        }).readPrincipal(form.username).then(function() {
-
-            // found
-            errors.push({
-                "field": "username",
-                "error": "A user already exists for this username."
-            });
-
-            p();
-
-        });
-
-        var p = function()
+        if (options.passwords)
         {
-            if (errors && errors.length > 0)
-            {
-                if(req.flash)
-                {
-                    req.flash("formErrors", errors);
-                }
+            fns.push(function(gitana, form, errors) {
+                return function (done) {
 
-                if(redirect)
-                {
-                    res.redirect(failureUri);
-                }
-                else
-                {
-                    res.status(200).type("application/json").send(JSON.stringify({"ok": false, "err": errors}));
-                }
-                return;
-            }
-
-            var errHandler = function(err) {
-
-                console.log("ERR: " + JSON.stringify(err));
-
-                if(redirect)
-                {
-                    res.redirect(failureUri);
-                }
-                else
-                {
-                    res.status(200).type("application/json").send(JSON.stringify({"ok": false, "err": err}));
-                }
-                return;
-            };
-
-            var userObject = {};
-
-            var fromProvider = false;
-            if (req.session)
-            {
-                var providerInfo = req.session.lastProviderInfo;
-                if (providerInfo)
-                {
-                    fromProvider = true;
-
-                    var _userObject = providerInfo.userObject;
-                    if (_userObject)
+                    // ensure we have a "password" field
+                    if (!form.password)
                     {
-                        for (var k in _userObject) {
-                            userObject[k] = _userObject[k];
-                        }
+                        errors.push({
+                            "field": "password",
+                            "error": "Field 'password' is missing"
+                        });
                     }
-                }
-            }
 
-            userObject.name = form.username;
-            userObject.email = form.email;
-            if (form.firstName)
-            {
-                userObject.firstName = form.firstName;
-            }
-            if (form.lastName)
-            {
-                userObject.lastName = form.lastName;
-            }
-            if (form.password)
-            {
-                userObject.password = form.password;
-            }
-
-            var completionFn = function(principal)
-            {
-                if (req.session)
-                {
-                    delete req.session.lastProviderInfo;
-                }
-
-                // add the user to the "appusers" team for the stack
-                var teamKey = "appusers-" + gitana.application().getId();
-                Chain(gitana.stack()).trap(errHandler).readTeam(teamKey).addMember(principal).then(function() {
-                    if(redirect)
+                    // ensure we have a "passwordVerify" field
+                    if (!form.passwordVerify)
                     {
-                        res.redirect(successUri);
+                        errors.push({
+                            "field": "passwordVerify",
+                            "error": "Field 'passwordVerify' is missing"
+                        });
                     }
-                    else
+
+                    // check that passwords match
+                    if (form.password !== form.passwordVerify)
                     {
-                        res.status(200).type("application/json").send(JSON.stringify({"ok": true, "userId": principal._doc}));
+                        errors.push({
+                            "field": "password",
+                            "error": "The passwords do not match."
+                        });
                     }
-                });
-            };
 
-            var domain = req.gitana.datastore("principals");
-            var platform = req.gitana.platform();
+                    done();
+                }
+            }(gitana, form, errors));
+        }
 
-            if (fromProvider)
-            {
-                var providerInfo = req.session.lastProviderInfo;
+        if (options.email)
+        {
+            fns.push(function(gitana, form, errors) {
 
-                var providerId = providerInfo.providerId;
-                var providerUserId = providerInfo.providerUserId;
-                var token = providerInfo.token;
-                var tokenSecret = providerInfo.tokenSecret;
-                var profile = providerInfo.profile;
+                return function(done) {
 
-                Chain(platform).readDirectory(domain.defaultDirectoryId).then(function() {
+                    // check email provided
+                    if (!form.email)
+                    {
+                        errors.push({
+                            "field": "email",
+                            "error": "Field 'email' is missing"
+                        });
+                    }
 
-                    //console.log("USER OBJECT: " + JSON.stringify(userObject, null, "  "));
-
-                    this.createUserForProvider(providerId, providerUserId, userObject, token, null, tokenSecret, profile, domain, function(err, data) {
-
-                        if (err)
+                    // check for email validity
+                    if (form.email)
+                    {
+                        var re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+                        if (!re.test(form.email))
                         {
-                            console.log("Create User for Provider failed: " + JSON.stringify(err));
-
-                            if(redirect)
-                            {
-                                res.redirect(failureUri);
-                            }
-                            else
-                            {
-                                res.status(200).type("application/json").send(JSON.stringify({"ok": false, "err": err}));
-                            }
-                            return;
-                        }
-
-                        // read the user back
-                        domain.readPrincipal(data.user._doc).then(function() {
-
-                            var user = this;
-
-                            // sync avatar
-                            var lib = require("../authentication/authentication").getProvider(providerId);
-
-                            lib.handleSyncAvatar(req, profile, user, function(err) {
-                                completionFn(user);
+                            errors.push({
+                                "field": "email",
+                                "error": "The provided email is not valid"
                             });
+                        }
+                    }
 
+                    done();
+                };
+            }(gitana, form, errors));
+        }
+
+        if (options.username)
+        {
+            fns.push(function(gitana, form, errors) {
+
+                return function(done) {
+
+                    // check username
+                    if (!form.username)
+                    {
+                        errors.push({
+                            "field": "username",
+                            "error": "Field 'username' is missing"
+                        });
+                    }
+
+                    done();
+                }
+            }(gitana, form, errors));
+
+            fns.push(function(gitana, form, errors, domain) {
+
+                return function(done) {
+
+                    // check if a user already exists with this username
+                    Chain(domain).trap(function () {
+                        done();
+                        return false;
+                    }).readPrincipal(form.username).then(function () {
+
+                        // found
+                        errors.push({
+                            "field": "username",
+                            "error": "A user already exists for this username."
                         });
 
+                        done();
                     });
+                }
+            }(gitana, form, errors, domain));
+        }
+
+        async.series(fns, function() {
+
+            if (errors && errors.length > 0)
+            {
+                if (req.flash)
+                {
+                    req.flash("errors", errors);
+                }
+
+                if (failureUrl)
+                {
+                    return res.redirect(failureUrl);
+                }
+
+                return res.status(200).type("application/json").send(JSON.stringify({
+                    "ok": false,
+                    "err": errors
+                }));
+            }
+
+            // copy in properties
+            for (var k in form) {
+                userObject[k] = form[k];
+            }
+
+            if (providerId)
+            {
+                auth.createUserForProvider(domain, providerId, providerUserId, token, refreshToken, userObject, function (err, gitanaUser) {
+
+                    if (err) {
+                        return res.redirect(failureUrl);
+                    }
+
+                    res.redirect(successUrl);
                 });
             }
             else
             {
-                Chain(domain).trap(errHandler).createUser(userObject).then(function() {
-                    completionFn(this);
+                Chain(domain).trap(function(e) {
+                    res.redirect(failureUrl);
+                    return false;
+                }).createUser(userObject).then(function() {
+                    res.redirect(successUrl);
                 });
+
             }
-        };
+        });
     };
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -267,10 +235,7 @@ exports = module.exports = function()
     var r = {};
 
     /**
-     * Handles deployment commands.
-     *
-     * This handler looks for commands to the server and intercepts them.  These are handled through a separate
-     * codepath whose primary responsibility is to get the files down to disk so that they can be virtually hosted.
+     * Handles registration.
      *
      * @return {Function}
      */
@@ -284,7 +249,7 @@ exports = module.exports = function()
 
                 if (req.url.indexOf("/register") === 0)
                 {
-                    handleRegistration(req, res, next);
+                    handleRegistration(req, res, next, configuration);
                     handled = true;
                 }
             }

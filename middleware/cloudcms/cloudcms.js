@@ -286,8 +286,16 @@ exports = module.exports = function()
     var handleLogout = function(req, res, next)
     {
         var redirectUri = req.query["redirectUri"];
+        if (!redirectUri) {
+            redirectUri = req.query["redirectURI"];
+        }
+        if (!redirectUri) {
+            redirectUri = req.query["redirect"];
+        }
 
-        req.logout();
+        if (req.logout) {
+            req.logout();
+        }
 
         var ticket = req.query["ticket"];
         if (ticket)
@@ -295,7 +303,19 @@ exports = module.exports = function()
             Gitana.disconnect(ticket);
         }
 
-        if (redirectUri) {
+        // sso layer
+        if (req.sso_provider)
+        {
+            req.sso_provider.logout(req, res);
+        }
+        if (req.sso_gitana_user_key)
+        {
+            Gitana.disconnect(req.sso_gitana_user_key);
+        }
+
+        // redirect?
+        if (redirectUri)
+        {
             res.redirect(redirectUri);
             return;
         }

@@ -88,10 +88,9 @@ exports = module.exports = function(engineConfig)
 
             if (!exists)
             {
-                callback({
+                return callback({
                     "doesNotExist": true
                 });
-                return;
             }
             else
             {
@@ -99,33 +98,21 @@ exports = module.exports = function(engineConfig)
 
                     if (err) {
                         err.doesNotExist = true;
-                        callback(err);
-                        return;
+                        return callback(err);
                     }
 
                     if (!stats) {
                         err.doesNotExist = true;
-                        callback(err);
-                        return;
-                    }
-
-                    if (stats.size === 0) {
-                        var err = {
-                            "message": "Stats was size zero for file: " + filePath,
-                            "zeroSize": true
-                        };
-                        callback(err);
-                        return;
+                        return callback(err);
                     }
 
                     // read the file
-                    readFile(filePath, function (err, data) {
+                    //readFile(filePath, function (err, data) {
 
-                        if (err) {
-                            err.readFailed = true;
-                            callback(err);
-                            return;
-                        }
+                    //    if (err) {
+                    //        err.readFailed = true;
+                    //        return callback(err);
+                    //    }
 
                         util.applyResponseContentType(res, cacheInfo, filePath);
 
@@ -140,7 +127,7 @@ exports = module.exports = function(engineConfig)
                             callback(err);
                         });
 
-                    });
+                    //});
                 });
             }
         });

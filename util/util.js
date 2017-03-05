@@ -979,10 +979,6 @@ var applyResponseContentType = exports.applyResponseContentType = function(respo
         }
     }
 
-    if (contentType) {
-        response.setHeader("Content-Type", contentType);
-    }
-
     // if still nothing, what can we guess from the filename mime?
     if (!contentType && filename)
     {
@@ -998,10 +994,7 @@ var applyResponseContentType = exports.applyResponseContentType = function(respo
 
     if (contentType)
     {
-        try {
-            response.setHeader("Content-Type", contentType);
-        }
-        catch (e) { }
+        setHeader("Content-Type", contentType);
     }
 
     return contentType;
