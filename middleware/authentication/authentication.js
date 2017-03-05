@@ -197,7 +197,7 @@ exports = module.exports = function()
 
                                     var domain = req.gitana.datastore("principals");
 
-                                    auth.syncProfile(req, res, domain, providerId, provider, profile, info.token, info.refreshToken, function(err, gitanaUser, platform, appHelper, key) {
+                                    auth.syncProfile(req, res, domain, providerId, provider, profile, info.token, info.refreshToken, function(err, gitanaUser, platform, appHelper, key, driver) {
 
                                         if (err) {
                                             return handleFailure(res, providerConfig);
@@ -231,27 +231,14 @@ exports = module.exports = function()
                                             return handleFailure(res, providerConfig);
                                         }
 
-                                        //var appuserAccessToken = req.gitana.getDriver().getAuthInfo()["accessToken"];
-                                        //var userAccessToken = platform.getDriver().getAuthInfo()["accessToken"];
-
-                                        //console.log("a.1: " + appuserAccessToken);
-                                        //console.log("a.2: " + userAccessToken);
-
-                                        //var ticket1 = req.gitana.getDriver().getAuthInfo().getTicket();
-                                        //var ticket2 = platform.getDriver().getAuthInfo().getTicket();
-
-                                        //console.log("b.1: " + ticket1);
-                                        //console.log("b.2: " + ticket2);
-                                        //console.log(ticket1 == ticket2);
-
                                         // redirect
                                         var url = providerConfig.successRedirect;
 
                                         if (providerConfig.passTicket || providerConfig.passTokens)
                                         {
-                                            var accessToken = gitanaUser.getDriver().getAuthInfo()["accessToken"];
-                                            var refreshToken = gitanaUser.getDriver().getAuthInfo()["refreshToken"];
-                                            var ticket = gitanaUser.getDriver().getAuthInfo().getTicket();
+                                            var accessToken = driver.getAuthInfo()["accessToken"];
+                                            var refreshToken = driver.getAuthInfo()["refreshToken"];
+                                            var ticket = driver.getAuthInfo().getTicket();
 
                                             var params = [];
                                             if (providerConfig.passTicket)

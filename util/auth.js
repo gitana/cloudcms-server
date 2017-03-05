@@ -345,7 +345,7 @@ var syncProfile = exports.syncProfile = function(req, res, domain, providerId, p
                 return callback(err);
             }
 
-            callback(err, gitanaUser, platform, appHelper, key);
+            callback(err, gitanaUser, platform, appHelper, key, platform.getDriver());
         });
     });
 
@@ -393,6 +393,9 @@ var impersonate = exports.impersonate = function(req, key, targetUser, callback)
 
         var baseURL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT;
 
+        //var ticket1 = req.gitana.getDriver().getAuthInfo().getTicket();  // TICKET #1
+        //console.log("ticket.1: " + ticket1);
+
         request({
             "method": "POST",
             "url": baseURL + "/auth/impersonate/" + targetUser.getDomainId() + "/" + targetUser.getId(),
@@ -403,22 +406,17 @@ var impersonate = exports.impersonate = function(req, key, targetUser, callback)
             "timeout": process.defaultHttpTimeoutMs
         }, function(err, response, json) {
 
-            //var accessToken = json.accessToken;
-            //console.log("z.1: " + accessToken);
-            //var refreshToken = json.refreshToken;
-            var ticket1 = req.gitana.getDriver().getAuthInfo().getTicket();  // TICKET #1
-            console.log("z.1: " + ticket1);
-            var ticket2 = json.ticket;
-            console.log("z.2: " + json.ticket); // TICKET #2
+            //var ticket2 = json.ticket;
+            //console.log("ticket.2: " + ticket2);
 
             // connect as the impersonated user
             var x = {
                 "clientKey": req.gitanaConfig.clientKey,
                 "clientSecret": req.gitanaConfig.clientSecret,
-                "ticket": ticket2,
-                "baseURL": req.gitanaConfig.baseURL//,
-                //"key": key,
-                //"appCacheKey": key
+                "ticket": json.ticket,
+                "baseURL": req.gitanaConfig.baseURL,
+                "key": key,
+                "appCacheKey": key
             };
             if (req.gitanaConfig.application) {
                 x.application = req.gitanaConfig.application;
@@ -431,20 +429,15 @@ var impersonate = exports.impersonate = function(req, key, targetUser, callback)
                     return done(err);
                 }
 
-                var ticket3 = this.getDriver().getAuthInfo().getTicket();  // TICKET #1 !!!!!!!!!!!!!!!!!
-                console.log("z.3: " + ticket3);
-
-                if (ticket3 == ticket1)
-                {
-                    console.log("FUDGE");
-                }
-
                 var platform = this;
                 var appHelper = null;
                 if (x.application) {
                     appHelper = this;
                     platform = this.platform();
                 }
+
+                //var ticket3 = platform.getDriver().getAuthInfo().getTicket();  // TICKET #1 !!!!!!!!!!!!!!!!!
+                //console.log("ticket.3: " + ticket3);
 
                 done(null, platform, appHelper, key);
             });
