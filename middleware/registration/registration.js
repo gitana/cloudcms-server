@@ -204,13 +204,21 @@ exports = module.exports = function()
 
             if (providerId)
             {
-                auth.createUserForProvider(domain, providerId, providerUserId, token, refreshToken, userObject, function (err, gitanaUser) {
+                process.authentication.buildProvider(req, providerId, function(err, provider, providerType, providerConfig) {
 
                     if (err) {
                         return res.redirect(failureUrl);
                     }
 
-                    res.redirect(successUrl);
+                    // create the user
+                    auth.createUserForProvider(domain, providerId, providerUserId, token, refreshToken, userObject, function (err, gitanaUser) {
+
+                        if (err) {
+                            return res.redirect(failureUrl);
+                        }
+
+                        res.redirect(successUrl);
+                    });
                 });
             }
             else

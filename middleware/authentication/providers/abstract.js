@@ -5,6 +5,14 @@
  */
 exports = module.exports = function(providerId, providerType, config)
 {
+    if (!config.properties) {
+        config.properties = {};
+    }
+
+    if (!config.properties.id) {
+        config.properties.id = "id";
+    }
+
     var r = {};
 
     /**
@@ -39,6 +47,7 @@ exports = module.exports = function(providerId, providerType, config)
      */
     r.profileIdentifier = function(profile)
     {
+        return profile[config.properties.id];
     };
 
     /**

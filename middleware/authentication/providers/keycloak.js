@@ -17,6 +17,13 @@ var KeyCloakStrategy = require("./keycloak/index");
  */
 exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
 {
+    if (!config.properties) {
+        config.properties = {};
+    }
+    if (!config.properties.id) {
+        config.properties.id = "username";
+    }
+
     var r = require("./abstract")(PROVIDER_ID, PROVIDER_TYPE, config);
 
     // passport
@@ -29,14 +36,6 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
         "passReqToCallback": true
     }, auth.buildPassportCallback(PROVIDER_TYPE, r));
     passport.use(keycloakStrategy);
-
-    /**
-     * @override
-     */
-    r.profileIdentifier = function(profile)
-    {
-        return profile.username;
-    };
 
     /**
      * @override

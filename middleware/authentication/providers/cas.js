@@ -16,6 +16,13 @@ var CasStrategy = require('passport-cas').Strategy;
  */
 exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
 {
+    if (!config.properties) {
+        config.properties = {};
+    }
+    if (!config.properties.id) {
+        config.properties.id = "name";
+    }
+
     var r = require("./abstract")(PROVIDER_ID, PROVIDER_TYPE, config);
 
     // passport
@@ -26,14 +33,6 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
         "passReqToCallback": true
     }, auth.buildPassportCallback(PROVIDER_TYPE, r));
     passport.use(casStrategy);
-
-    /**
-     * @override
-     */
-    r.profileIdentifier = function(profile)
-    {
-        return profile.username;
-    };
 
     /**
      * @override

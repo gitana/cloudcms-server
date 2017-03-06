@@ -121,26 +121,19 @@ var updateUserForProvider = exports.updateUserForProvider = function(domain, pro
             return callback();
         }
 
-        if (userObject)
-        {
-            for (var k in userObject)
+        Chain(user).then(function() {
+
+            if (userObject)
             {
-                user[k] = userObject[k];
+                for (var k in userObject)
+                {
+                    this[k] = userObject[k];
+                }
             }
-        }
 
-        if (token)
-        {
-            user.token = token;
-        }
-
-        if (refreshToken)
-        {
-            user.refreshToken = refreshToken;
-        }
-
-        user.update().then(function() {
-            callback(null, this);
+            this.update().then(function() {
+                callback(null, this);
+            });
         });
     });
 };
@@ -171,7 +164,6 @@ var createUserForProvider = exports.createUserForProvider = function(domain, pro
 
             // read the user back
             Chain(domain).readPrincipal(data.user._doc).then(function() {
-
                 callback(null, this);
             });
         });
@@ -263,7 +255,8 @@ var syncProfile = exports.syncProfile = function(req, res, domain, providerId, p
     var providerConfig = provider.providerConfiguration();
     var providerUserId = provider.profileIdentifier(profile);
 
-    var key = providerId + "-" + providerUserId;
+    var key = token;
+    //var key = providerId + "-" + providerUserId;
 
     var _syncUser = function(domain, providerId, providerConfig, providerUserId, token, refreshToken, userObject, callback)
     {
@@ -307,7 +300,6 @@ var syncProfile = exports.syncProfile = function(req, res, domain, providerId, p
 
     var _connectUser = function(key, gitanaUser, callback) {
 
-        /*
         var appHelper = Gitana.APPS[key];
         if (appHelper)
         {
@@ -321,7 +313,6 @@ var syncProfile = exports.syncProfile = function(req, res, domain, providerId, p
             console.log("CONNECT USER LOADED FROM CACHE, PLATFORM");
             return callback(null, platform, null, key);
         }
-        */
 
         impersonate(req, key, gitanaUser, function(err, platform, appHelper, key) {
             callback(err, platform, appHelper, key);

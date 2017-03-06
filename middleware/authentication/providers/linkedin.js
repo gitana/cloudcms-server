@@ -25,6 +25,13 @@ if (process.env.CLOUDCMS_AUTH_PROVIDERS_LINKEDIN_ENABLED === "true") {
  */
 exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
 {
+    if (!config.properties) {
+        config.properties = {};
+    }
+    if (!config.properties.id) {
+        config.properties.id = "id";
+    }
+
     var r = require("./abstract")(PROVIDER_ID, PROVIDER_TYPE, config);
 
     // passport
@@ -35,14 +42,6 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
         passReqToCallback: true
     }, auth.buildPassportCallback(PROVIDER_TYPE, r));
     passport.use(linkedinStrategy);
-
-    /**
-     * @override
-     */
-    r.profileIdentifier = function(profile)
-    {
-        return profile.id;
-    };
 
     /**
      * @override

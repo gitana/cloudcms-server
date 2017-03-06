@@ -303,21 +303,10 @@ exports = module.exports = function()
             Gitana.disconnect(ticket);
         }
 
-        // sso layer
-        if (req.sso_provider)
-        {
-            req.sso_provider.logout(req, res);
-        }
-        if (req.sso_gitana_user_key)
-        {
-            Gitana.disconnect(req.sso_gitana_user_key);
-        }
-
         // redirect?
         if (redirectUri)
         {
-            res.redirect(redirectUri);
-            return;
+            return res.redirect(redirectUri);
         }
 
         util.status(res, 200);

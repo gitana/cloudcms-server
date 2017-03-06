@@ -135,14 +135,30 @@ exports = module.exports = function()
         // create handler
         return util.createHandler("authentication", "auth", function(req, res, next, stores, cache, configuration) {
 
+            // set "passTicket" true for all providers
             if (process.env.CLOUDCMS_AUTH_PASS_TICKET === "true")
             {
-                configuration.passTicket = true;
-
-                for (var providerId in configuration.providers) {
-                    configuration.providers[providerId].passTicket = true;
+                for (var providerId in configuration.providers)
+                {
+                    if (!configuration.providers[providerId].config) {
+                        configuration.providers[providerId].config = {};
+                    }
+                    configuration.providers[providerId].config.passTicket = true;
                 }
             }
+
+            // set "passToken" true for all providers
+            if (process.env.CLOUDCMS_AUTH_PASS_TOKEN === "true")
+            {
+                for (var providerId in configuration.providers)
+                {
+                    if (!configuration.providers[providerId].config) {
+                        configuration.providers[providerId].config = {};
+                    }
+                    configuration.providers[providerId].config.passToken = true;
+                }
+            }
+
 
             var handled = false;
 
@@ -337,13 +353,10 @@ exports = module.exports = function()
 
                     if (configuration && configuration.filters && configuration.filters[id])
                     {
-                        var provider = configuration.filters[id].provider;
-                        if (provider && provider.type) {
-                            provider = provider.type;
-                        }
+                        var providerId = configuration.filters[id].provider;
 
-                        failureRedirect = configuration.providers[provider].failureRedirect;
-                        registrationRedirect = configuration.providers[provider].registrationRedirect;
+                        failureRedirect = configuration.providers[providerId].config.failureRedirect;
+                        registrationRedirect = configuration.providers[providerId].config.registrationRedirect;
                     }
 
                     // if no user, redirect to registration url?
@@ -387,7 +400,7 @@ exports = module.exports = function()
 
                 if (!configuration.filters) {
                     return next({
-                        "outcome": "skip",
+                        "skip": true,
                         "message": "Cannot find filter configuration: " + id
                     });
                 }
@@ -396,7 +409,7 @@ exports = module.exports = function()
                 if (!filterConfig)
                 {
                     return next({
-                        "outcome": "skip",
+                        "skip": true,
                         "message": "Cannot find filter configuration: " + id
                     });
                 }
@@ -410,7 +423,7 @@ exports = module.exports = function()
                 if (!adapterId)
                 {
                     return next({
-                        "outcome": "skip",
+                        "skip": true,
                         "message": "Filter configuration: " + id + " must define an adapter"
                     });
                 }
@@ -443,7 +456,6 @@ exports = module.exports = function()
                         });
                     }
 
-
                     ///
                     /// PROVIDER DESCRIPTOR
                     ///
@@ -452,7 +464,7 @@ exports = module.exports = function()
                     if (!providerId)
                     {
                         return next({
-                            "outcome": "skip",
+                            "skip": true,
                             "message": "Filter configuration: " + id + " must define a provider"
                         });
                     }
@@ -615,11 +627,11 @@ exports = module.exports = function()
 
                                 if (properties.gitana_platform)
                                 {
-                                    properties.userGitana = properties.gitana_platform;
+                                    properties.gitana_user_connection = properties.gitana_platform;
                                 }
                                 if (properties.gitana_apphelper)
                                 {
-                                    properties.userGitana = properties.gitana_apphelper;
+                                    properties.gitana_user_connection = properties.gitana_apphelper;
                                 }
 
                                 done();
@@ -631,6 +643,12 @@ exports = module.exports = function()
                             for (var k in properties)
                             {
                                 req.provider_properties[k] = properties[k];
+                            }
+
+                            if (req.provider_properties.gitana_user_connection)
+                            {
+                                req.gitana_user_connection = req.provider_properties.gitana_user_connection;
+                                req.gitana_user = req.provider_properties.gitana_user;
                             }
                         };
 
