@@ -14,11 +14,11 @@ module.exports = function(adapterId, adapterType, config)
         var value = null;
         if (config.header)
         {
-            value = req.headers[config.header];
+            value = req.headers[config.header.toLowerCase()];
         }
         else if (config.cookie)
         {
-            value = req.cookies[config.cookie];
+            value = req.cookies[config.cookie.toLowerCase()];
         }
 
         if (!value)
@@ -28,7 +28,7 @@ module.exports = function(adapterId, adapterType, config)
 
         // unpack the jwt
 
-        var trusted = false;
+        var trusted = config.trusted ? true : false;
 
         var object = null;
         if (config.secret)
@@ -57,17 +57,13 @@ module.exports = function(adapterId, adapterType, config)
         result.trusted = trusted;
 
         // extra things
-        result.token = null;
+        result.token = value;
         result.refresh_token = null;
 
         result.profile = profile;
         result.profile_identifier = profile[userIdField];
 
-        // allow for config override
-        if (typeof(config.trusted) !== "undefined")
-        {
-            result.trusted = config.trust;
-        }
+        result.trusted = trusted;
 
         return result;
     };

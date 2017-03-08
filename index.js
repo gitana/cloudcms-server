@@ -217,12 +217,15 @@ exports = module.exports = function()
     // object that we hand back
     var r = {};
 
-    r.init = function(callback)
+    r.init = function(app, callback)
     {
-        process.cache = cache;
-        process.broadcast = broadcast;
-        process.locks = locks;
-        process.authentication = authentication;
+        process.cache = app.cache = cache;
+        process.broadcast = app.broadcast = broadcast;
+        process.locks = app.locks = locks;
+        process.authentication = app.authentication = authentication;
+
+        // app specific
+        app.auth = process.authentication.auth;
 
         var fns = [
             locks.init,
@@ -240,13 +243,6 @@ exports = module.exports = function()
     {
         // app config interceptor
         applyApplicationConfiguration(app);
-
-        // bind process variables
-        app.cache = process.cache;
-        app.broadcast = process.broadcast;
-        app.locks = process.locks;
-        app.authentication = process.authentication;
-        app.auth = process.authentication.auth;
 
         // sets locale onto the request
         app.use(locale.localeInterceptor());

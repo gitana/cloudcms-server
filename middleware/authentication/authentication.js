@@ -649,6 +649,13 @@ exports = module.exports = function()
                             {
                                 req.gitana_user_connection = req.provider_properties.gitana_user_connection;
                                 req.gitana_user = req.provider_properties.gitana_user;
+                                req.gitana_user_ticket = req.provider_properties.gitana_ticket;
+                                req.gitana_user_access_token = req.provider_properties.gitana_access_token;
+
+                                delete req.provider_properties.gitana_user_connection;
+                                delete req.provider_properties.gitana_user;
+                                delete req.provider_properties.gitana_ticket;
+                                delete req.provider_properties.gitana_access_token;
                             }
                         };
 

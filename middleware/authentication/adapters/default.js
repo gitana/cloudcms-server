@@ -35,10 +35,10 @@ module.exports = function(adapterId, adapterType, config)
     {
         var value = null;
         if (config.header) {
-            value = req.headers[config.header];
+            value = req.headers[config.header.toLowerCase()];
         }
         else if (config.cookie) {
-            value = req.cookies[config.cookie];
+            value = req.cookies[config.cookie.toLowerCase()];
         }
 
         if (!value) {
@@ -47,12 +47,7 @@ module.exports = function(adapterId, adapterType, config)
 
         var result = {};
         result.value = value;
-        result.trusted = false;
-
-        // allow for config override
-        if (typeof(config.trusted) !== "undefined") {
-            result.trusted = config.trust;
-        }
+        result.trusted = config.trusted ? true: false;
 
         return result;
     };

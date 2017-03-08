@@ -5,6 +5,9 @@ var request = require("request");
 var http = require("http");
 var https = require("https");
 
+// least-recently-used cache of size 100
+var SYNC_USER_CACHE = require("lru-cache")(100);
+
 exports = module.exports;
 
 // additional methods for Gitana driver
@@ -256,10 +259,30 @@ var syncProfile = exports.syncProfile = function(req, res, domain, providerId, p
     var providerUserId = provider.profileIdentifier(profile);
 
     var key = token;
-    //var key = providerId + "-" + providerUserId;
 
-    var _syncUser = function(domain, providerId, providerConfig, providerUserId, token, refreshToken, userObject, callback)
-    {
+    var _syncUser = function(key, domain, providerId, providerConfig, providerUserId, token, refreshToken, userObject, callback) {
+        var gitanaUser = SYNC_USER_CACHE.get(key);
+        if (gitanaUser)
+        {
+            return callback(null, gitanaUser);
+        }
+
+        __syncUser(key, domain, providerId, providerConfig, providerUserId, token, refreshToken, userObject, function(err, gitanaUser) {
+
+            if (err) {
+                return callback(err);
+            }
+
+            if (gitanaUser) {
+                SYNC_USER_CACHE.set(key, gitanaUser);
+            }
+
+            callback(null, gitanaUser);
+        });
+    };
+
+    var __syncUser = function(key, domain, providerId, providerConfig, providerUserId, token, refreshToken, userObject, callback) {
+
         // do we already have a gitana user?
         findUserForProvider(domain, providerId, providerUserId, function (err, gitanaUser) {
 
@@ -303,14 +326,14 @@ var syncProfile = exports.syncProfile = function(req, res, domain, providerId, p
         var appHelper = Gitana.APPS[key];
         if (appHelper)
         {
-            console.log("CONNECT USER LOADED FROM CACHE, APPS");
+            // console.log("CONNECT USER LOADED FROM CACHE, APPS");
             return callback(null, appHelper.platform(), appHelper, key);
         }
 
-        var platform = Gitana.PLATFORM_CACHE[key];
+        var platform = Gitana.PLATFORM_CACHE(key);
         if (platform)
         {
-            console.log("CONNECT USER LOADED FROM CACHE, PLATFORM");
+            // console.log("CONNECT USER LOADED FROM CACHE, PLATFORM");
             return callback(null, platform, null, key);
         }
 
@@ -319,7 +342,11 @@ var syncProfile = exports.syncProfile = function(req, res, domain, providerId, p
         });
     };
 
-    _syncUser(domain, providerId, providerConfig, providerUserId, token, refreshToken, userObject, function(err, gitanaUser) {
+    // TODO: this is slow because at minimum it does a findProviderUser call
+    var t1 = new Date().getTime();
+    _syncUser(key, domain, providerId, providerConfig, providerUserId, token, refreshToken, userObject, function(err, gitanaUser) {
+        var t2 = new Date().getTime();
+        console.log("TIME: " + (t2-t1));
 
         if (err) {
             return callback(err);
@@ -354,7 +381,6 @@ var impersonate = exports.impersonate = function(req, key, targetUser, callback)
     var grantImpersonator = function(done)
     {
         Chain(targetUser).trap(function(e) {
-            console.log(JSON.stringify(e));
             done();
             return false;
         }).grantAuthority(currentUserId, "impersonator").then(function () {
@@ -384,9 +410,6 @@ var impersonate = exports.impersonate = function(req, key, targetUser, callback)
 
         var baseURL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT;
 
-        //var ticket1 = req.gitana.getDriver().getAuthInfo().getTicket();  // TICKET #1
-        //console.log("ticket.1: " + ticket1);
-
         request({
             "method": "POST",
             "url": baseURL + "/auth/impersonate/" + targetUser.getDomainId() + "/" + targetUser.getId(),
@@ -397,20 +420,17 @@ var impersonate = exports.impersonate = function(req, key, targetUser, callback)
             "timeout": process.defaultHttpTimeoutMs
         }, function(err, response, json) {
 
-            //var ticket2 = json.ticket;
-            //console.log("ticket.2: " + ticket2);
-
             // connect as the impersonated user
             var x = {
                 "clientKey": req.gitanaConfig.clientKey,
                 "clientSecret": req.gitanaConfig.clientSecret,
                 "ticket": json.ticket,
                 "baseURL": req.gitanaConfig.baseURL,
-                "key": key,
-                "appCacheKey": key
+                "key": key
             };
             if (req.gitanaConfig.application) {
                 x.application = req.gitanaConfig.application;
+                x.appCacheKey = key;
             }
             Gitana.connect(x, function (err) {
 
@@ -426,9 +446,6 @@ var impersonate = exports.impersonate = function(req, key, targetUser, callback)
                     appHelper = this;
                     platform = this.platform();
                 }
-
-                //var ticket3 = platform.getDriver().getAuthInfo().getTicket();  // TICKET #1 !!!!!!!!!!!!!!!!!
-                //console.log("ticket.3: " + ticket3);
 
                 done(null, platform, appHelper, key);
             });

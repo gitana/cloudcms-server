@@ -460,7 +460,7 @@ exports = module.exports = function()
 
         var updateSetCookieValue = function(value)
         {
-            console.log("Using cookie domain: " + cookieDomain);
+            // console.log("Using cookie domain: " + cookieDomain);
 
             // replace the domain with the host
             var i = value.toLowerCase().indexOf("domain=");
@@ -534,6 +534,16 @@ exports = module.exports = function()
 
         util.setHeader(res, "X-Powered-By", "Cloud CMS Application Server");
 
+        // if the incoming request didn't have an "Authorization" header
+        // and we have a logged in Gitana User via Auth, then set authorization header to Bearer Access Token
+        if (!req.headers["authorization"])
+        {
+            if (req.gitana_user_access_token)
+            {
+                req.headers["authorization"] = "Bearer " + req.gitana_user_access_token;
+            }
+        }
+
         proxyServer.web(req, res);
     });
     var proxyHandler = proxyHandlerServer.listeners('request')[0];
@@ -560,10 +570,9 @@ exports = module.exports = function()
 
                     if (!err && readStream)
                     {
-                        util.sendFile(res, readStream, function (err) {
+                        return util.sendFile(res, readStream, function (err) {
                             // done!
                         });
-                        return;
                     }
 
                     _handleWrapCacheWriter(req, res, function(err) {
@@ -602,14 +611,6 @@ exports = module.exports = function()
                 var path = "/repositories/" + repositoryId + "/branches/" + branchId + "/nodes/" + nodeId;
 
                 _handleInvalidate(host, path, function(err) {
-
-                    /*
-                    if (!err)
-                    {
-                        console.log("Proxy invalidated path: " + path);
-                    }
-                    */
-
                     invalidationDone(err);
                 });
 
