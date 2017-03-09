@@ -67,6 +67,11 @@ exports = module.exports = function()
          */
         var isUIConfigAlreadyFaulted = function(req, rootStore, directoryPath, uiConfigId, callback)
         {
+            // if we're running in development, always consider it NOT faulted
+            if (process.env.CLOUDCMS_APPSERVER_MODE !== "production") {
+                return callback(null, false);
+            }
+
             var uiConfigJsonPath = path.join(directoryPath, "/uiconfig.json");
 
             rootStore.existsFile(uiConfigJsonPath, function (exists) {
@@ -131,7 +136,7 @@ exports = module.exports = function()
                         "exists": (uiConfig ? true : false)
                     };
 
-                    console.log("DOWNLOADED: " + JSON.stringify(uiConfig, null, "  "));
+                    // console.log("DOWNLOADED: " + JSON.stringify(uiConfig, null, "  "));
 
                     // write ui config
                     var uiConfigJsonPath = path.join(directoryPath, "/uiconfig.json");
