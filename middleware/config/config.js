@@ -128,7 +128,13 @@ exports = module.exports = function()
             removeOldUIConfigDirectory(req, rootStore, directoryPath, function(err) {
 
                 // query to see if there are any ui config for this
-                Chain(req.gitana.platform()).readUIConfig(uiConfigId).then(function() {
+                Chain(req.gitana.platform()).trap(function(e) {
+                    // failed to read the UI config
+                    done({
+                        "message": "Unable to read UI config: " + uiConfigId
+                    });
+                    return false;
+                }).readUIConfig(uiConfigId).then(function() {
 
                     var uiConfig = this;
 
