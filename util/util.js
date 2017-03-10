@@ -149,7 +149,16 @@ var rmdirRecursiveSync = function(directoryOrFilePath)
 
 var executeCommands = exports.executeCommands = function(commands, logMethod, callback)
 {
-    var terminal = require('child_process').spawn('bash');
+    var terminal = null;
+
+    if (isWindows())
+    {
+        terminal = require('child_process').spawn('cmd');
+    }
+    else
+    {
+        terminal = require('child_process').spawn('bash');
+    }
 
     logMethod("Running commands: " + JSON.stringify(commands));
 
