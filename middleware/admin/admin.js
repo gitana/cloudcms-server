@@ -115,7 +115,7 @@ exports = module.exports = function()
                     if (!credentials || credentials.name !== configuration.username || credentials.pass !== configuration.password)
                     {
                         res.statusCode = 401;
-                        res.setHeader('WWW-Authenticate', 'Basic realm="admin"');
+                        util.setHeader(res, 'WWW-Authenticate', 'Basic realm="admin"');
                         res.end('Admin access denied');
                         return;
                     }

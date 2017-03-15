@@ -144,8 +144,8 @@ exports = module.exports = function()
                     var filepath = "/tmp/" + filename;
                     heapdump.writeSnapshot(filepath);
 
-                    res.setHeader("Content-disposition", "attachment; filename=" + filename);
-                    res.setHeader("Content-Type", "text/heapsnapshot");
+                    util.setHeader(res, "Content-disposition", "attachment; filename=" + filename);
+                    util.setHeader(res, "Content-Type", "text/heapsnapshot");
 
                     var filestream = fs.createReadStream(filepath);
                     filestream.pipe(res);

@@ -105,7 +105,7 @@ exports = module.exports = function()
                                     }
 
                                     // always remove pragma
-                                    util.removeHeader("Pragma");
+                                    util.removeHeader(res, "Pragma");
 
                                     if (expires)
                                     {

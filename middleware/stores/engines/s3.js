@@ -237,7 +237,7 @@ exports = module.exports = function(engineConfig)
             }
 
             // set Content-Disposition when file is sent
-            res.setHeader("Content-Disposition", contentDisposition);
+            util.setHeader(res, "Content-Disposition", contentDisposition);
 
             util.status(res, 200);
             util.sendFile(res, stream, function(err) {

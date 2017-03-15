@@ -106,28 +106,18 @@ exports = module.exports = function(engineConfig)
                         return callback(err);
                     }
 
-                    // read the file
-                    //readFile(filePath, function (err, data) {
+                    util.applyResponseContentType(res, cacheInfo, filePath);
 
-                    //    if (err) {
-                    //        err.readFailed = true;
-                    //        return callback(err);
-                    //    }
+                    var options = {};
 
-                        util.applyResponseContentType(res, cacheInfo, filePath);
+                    res.sendFile(filePath, options, function (err) {
 
-                        var options = {};
+                        if (err) {
+                            err.sendFailed = true;
+                        }
 
-                        res.sendFile(filePath, options, function (err) {
-
-                            if (err) {
-                                err.sendFailed = true;
-                            }
-
-                            callback(err);
-                        });
-
-                    //});
+                        callback(err);
+                    });
                 });
             }
         });

@@ -1102,6 +1102,7 @@ exports = module.exports = function()
                             else
                             {
                                 util.applyDefaultContentTypeCaching(res, cacheInfo);
+                                //util.applyResponseContentType(res, cacheInfo, filePath);
 
                                 contentStore.sendFile(res, filePath, cacheInfo, function(err) {
 
@@ -1262,7 +1263,7 @@ exports = module.exports = function()
                         if (!err && filePath && cacheInfo)
                         {
                             // disable the accept-ranges header
-                            res.setHeader("Accept-Ranges", "none");
+                            util.setHeader(res, "Accept-Ranges", "none");
 
                             if (useContentDispositionResponse)
                             {

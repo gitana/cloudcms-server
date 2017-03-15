@@ -31,7 +31,7 @@
     "dustjs-helpers": "^1.7.3",
     "dustjs-linkedin": "^2.7.4",
     "errorhandler": "^1.4.3",
-    "express": "^4.14.0",
+    "express": "^4.15.2",
     "express-session": "^1.14.1",
     "express-useragent": "^1.0.4",
     "gitana": "^1.0.240",

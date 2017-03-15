@@ -1003,7 +1003,7 @@ var applyResponseContentType = exports.applyResponseContentType = function(respo
 
     if (contentType)
     {
-        setHeader("Content-Type", contentType);
+        setHeader(response, "Content-Type", contentType);
     }
 
     return contentType;
