@@ -9,6 +9,9 @@ var async = require("async");
 var temp = require("temp");
 var onHeaders = require("on-headers");
 var sha1 = require("sha1");
+var klaw = require("klaw");
+var targz = require("tar.gz");
+var archiver = require("archiver");
 
 var http = require("http");
 var https = require("https");
@@ -1621,3 +1624,41 @@ var hashSignature = exports.hashSignature = function(text)
 {
     return sha1(text);
 };
+
+var walkDirectory = exports.walkDirectory = function(dirPath, callback)
+{
+    var items = [];
+
+    var walker = klaw(dirPath);
+    walker.on("data", function(item) {
+        items.push(item);
+    });
+    walker.on("end", function() {
+        callback(null, items);
+    });
+};
+
+var extractTarGz = exports.extractTarGz = function(tarGzFilePath, extractionPath, callback)
+{
+    targz().extract(tarGzFilePath, extractionPath, function(err){
+        callback(err);
+    });
+};
+
+var zip = exports.zip = function(directoryPath, writableStream)
+{
+    var archive = archiver("zip");
+    archive.on('error', function(err){
+        throw err;
+    });
+
+    archive.pipe(writableStream);
+    archive.bulk([{
+        expand: true,
+        cwd: directoryPath,
+        src: ['**/*'],
+        dest: "/"
+    }]);
+    archive.finalize();
+};
+
