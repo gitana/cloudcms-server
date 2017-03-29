@@ -97,10 +97,15 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
     /**
      * @override
      */
-    r.load = function(token, callback)
+    r.load = function(properties, callback)
     {
-        facebookStrategy.userProfile(token, function(err, user) {
-            callback(err, user);
+        facebookStrategy.userProfile(properties.token, function(err, profile) {
+
+            if (err) {
+                return callback(err);
+            }
+
+            callback(null, profile);
         });
     };
 

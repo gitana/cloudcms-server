@@ -89,15 +89,15 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
     /**
      * @override
      */
-    r.load = function(token, callback)
+    r.load = function(properties, callback)
     {
-        keycloakStrategy.userProfile(token, function(err, profile) {
+        keycloakStrategy.userProfile(properties.token, function(err, profile) {
 
             if (err) {
                 return callback(err);
             }
 
-            callback(null, profile, token, null);
+            callback(null, profile);
         });
     };
 

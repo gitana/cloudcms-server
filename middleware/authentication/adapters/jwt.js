@@ -41,31 +41,38 @@ module.exports = function(adapterId, adapterType, config)
             object = jwt.decode(value);
         }
 
-        // TODO: how do we get the "profile"
-        var profile = object;
-
-        // pick off user id
-        var userIdField = config.field;
-        if (!userIdField)
-        {
-            userIdField = "preferred_username";
+        // TODO: the profile is assumed to be contained inside of the payload object
+        var profileField = config.profile_field;
+        if (!profileField) {
+            profileField = "profile";
         }
 
-        var result = {};
+        var profile = object[profileField];
 
-        result.value = value;
-        result.trusted = trusted;
+        // pick off user id
+        var user_identifier_field = config.field;
+        if (!user_identifier_field)
+        {
+            user_identifier_field = "preferred_username";
+        }
 
-        // extra things
-        result.token = value;
-        result.refresh_token = null;
+        var user_identifier = object[user_identifier_field];
 
-        result.profile = profile;
-        result.profile_identifier = profile[userIdField];
+        var properties = {};
 
-        result.trusted = trusted;
+        // required
+        properties.token = value;
+        properties.trusted = trusted;
 
-        return result;
+        if (profile) {
+            properties.profile = profile;
+        }
+
+        if (user_identifier) {
+            properties.user_identifier = user_identifier;
+        }
+
+        return properties;
     };
 
     return r;

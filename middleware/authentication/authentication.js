@@ -223,8 +223,8 @@ exports = module.exports = function()
                                         {
                                             if (providerConfig.registrationRedirect)
                                             {
-                                                var parsedProfile = provider.parseProfile(profile);
-                                                var profileIdentifier = provider.profileIdentifier(profile);
+                                                var userObject = provider.parseProfile(profile);
+                                                var userIdentifier = provider.userIdentifier(profile);
 
                                                 var redirectUrl = providerConfig.registrationRedirect;
 
@@ -234,9 +234,9 @@ exports = module.exports = function()
                                                 }
                                                 else
                                                 {
-                                                    req.session.registration_user_object = parsedProfile;
                                                     req.session.registration_provider_id = providerId;
-                                                    req.session.registration_user_identifier = profileIdentifier;
+                                                    req.session.registration_user_object = userObject;
+                                                    req.session.registration_user_identifier = userIdentifier;
                                                     req.session.registration_token = info.token;
                                                     req.session.registration_refresh_token = info.refresh_token;
 
@@ -368,9 +368,9 @@ exports = module.exports = function()
                         }
                         else
                         {
-                            req.session.registration_user_object = properties.parsed_profile;
+                            req.session.registration_user_object = properties.user_object;
                             req.session.registration_provider_id = properties.provider_id;
-                            req.session.registration_user_identifier = properties.profile_identifier;
+                            req.session.registration_user_identifier = properties.user_identifier;
                             req.session.registration_token = properties.token;
                             req.session.registration_refresh_token = properties.refresh_token;
 
@@ -490,14 +490,13 @@ exports = module.exports = function()
 
                         // properties looks like this:
                         //
-                        //     value                        the raw string collected from HTTP
+                        //     token                        the raw string collected from HTTP
                         //     trusted                      whether this identifier can be trusted and verification is not needed
                         //
                         // optional:
                         //
                         //     profile                      the user profile extracted from identifier
-                        //     profile_identifier           the user profile ID (corresponds to providerUserId)
-                        //     token                        access token
+                        //     user_identifier              the user ID (corresponds to providerUserId)
                         //     refresh_token                refresh token
 
                         // store provider ID
@@ -512,7 +511,7 @@ exports = module.exports = function()
 
                             if (!properties.trusted)
                             {
-                                provider.verify(properties.value, function (err, verified) {
+                                provider.verify(properties, function (err, verified, profile) {
 
                                     if (err)
                                     {
@@ -526,11 +525,28 @@ exports = module.exports = function()
                                     {
                                         return done({
                                             "skip": true,
-                                            "message": "Unable to verify user for token: " + properties.value
+                                            "message": "Unable to verify user for token: " + properties.token
                                         });
                                     }
 
-                                    provider.load(properties.value, function (err, profile, token, refreshToken) {
+                                    // if we were able to load a profile from the verify step, then don't bother
+                                    // with the call to load()
+                                    if (profile)
+                                    {
+                                        properties.trusted = true;
+                                        properties.profile = profile;
+
+                                        if (!properties.user_identifier)
+                                        {
+                                            properties.user_identifier = provider.userIdentifier(profile);
+                                        }
+
+                                        properties.user_object = provider.parseProfile(profile);
+
+                                        return done();
+                                    }
+
+                                    provider.load(properties, function (err, profile) {
 
                                         if (err)
                                         {
@@ -544,16 +560,19 @@ exports = module.exports = function()
                                         {
                                             return done({
                                                 "skip": true,
-                                                "message": "Could not load profile for identifier: " + properties.value
+                                                "message": "Could not load profile for token: " + properties.token
                                             });
                                         }
 
-                                        properties.profile = profile;
-                                        properties.profile_identifier = provider.profileIdentifier(profile);
-                                        properties.token = token;
-                                        properties.refresh_token = refreshToken;
                                         properties.trusted = true;
-                                        properties.parsed_profile = provider.parseProfile(profile);
+                                        properties.profile = profile;
+
+                                        if (!properties.user_identifier)
+                                        {
+                                            properties.user_identifier = provider.userIdentifier(profile);
+                                        }
+
+                                        properties.user_object = provider.parseProfile(profile);
 
                                         done();
                                     });
@@ -561,7 +580,7 @@ exports = module.exports = function()
                             }
                             else
                             {
-                                provider.load(properties.value, function (err, profile, token, refreshToken) {
+                                provider.load(properties, function (err, profile) {
 
                                     if (err)
                                     {
@@ -575,16 +594,19 @@ exports = module.exports = function()
                                     {
                                         return done({
                                             "skip": true,
-                                            "message": "Could not load profile for identifier: " + properties.value
+                                            "message": "Could not load profile for token: " + properties.token
                                         });
                                     }
 
-                                    properties.profile = profile;
-                                    properties.profile_identifier = provider.profileIdentifier(profile);
-                                    properties.token = token;
-                                    properties.refresh_token = refreshToken;
                                     properties.trusted = true;
-                                    properties.parsed_profile = provider.parseProfile(profile);
+                                    properties.profile = profile;
+
+                                    if (!properties.user_identifier)
+                                    {
+                                        properties.user_identifier = provider.userIdentifier(profile);
+                                    }
+
+                                    properties.user_object = provider.parseProfile(profile);
 
                                     done();
                                 });
@@ -629,6 +651,7 @@ exports = module.exports = function()
                                 {
                                     properties.gitana_user_connection = properties.gitana_platform;
                                 }
+
                                 if (properties.gitana_apphelper)
                                 {
                                     properties.gitana_user_connection = properties.gitana_apphelper;
@@ -659,6 +682,18 @@ exports = module.exports = function()
                             }
                         };
 
+                        // if the result is NOT trusted, we can check our TRUSTED_PROFILES cache to see if we can
+                        // reuse a previously trusted profile (so as to avoid going over the wire)
+                        if (!properties.trusted && properties.token)
+                        {
+                            var trustedProfile = auth.readTrustedProfile(properties.token);
+                            if (trustedProfile)
+                            {
+                                // console.log("reusing trusted profile for token: " + properties.token);
+                                properties.trusted = true;
+                                properties.profile = trustedProfile;
+                            }
+                        }
 
                         // if the result is trusted AND we have a profile, then we can skip verifying and loading the
                         // profile from the provider
@@ -695,6 +730,10 @@ exports = module.exports = function()
                                     "message": "A trusted profile could not be obtained from provider"
                                 });
                             }
+
+                            // store onto cache
+                            // console.log("writing trusted profile for token: " + properties.token);
+                            auth.writeTrustedProfile(properties.token, properties.profile);
 
                             syncPropertiesToReq(req, properties);
 

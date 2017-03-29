@@ -8,6 +8,9 @@ var https = require("https");
 // least-recently-used cache of size 100
 var SYNC_USER_CACHE = require("lru-cache")(100);
 
+// trusted profile cache size 100
+var TRUSTED_PROFILE_CACHE = require("lru-cache")(100);
+
 exports = module.exports;
 
 // additional methods for Gitana driver
@@ -179,7 +182,7 @@ var buildPassportCallback = exports.buildPassportCallback = function(providerId,
     {
         var info = {};
         info.providerId = providerId;
-        info.providerUserId = provider.profileIdentifier(profile);
+        info.providerUserId = provider.userIdentifier(profile);
         info.token = token;
         info.refreshToken = refreshToken;
 
@@ -256,7 +259,7 @@ var syncProfile = exports.syncProfile = function(req, res, domain, providerId, p
 {
     var userObject = provider.parseProfile(profile);
     var providerConfig = provider.providerConfiguration();
-    var providerUserId = provider.profileIdentifier(profile);
+    var providerUserId = provider.userIdentifier(profile);
 
     var key = token;
 
@@ -478,4 +481,14 @@ var impersonate = exports.impersonate = function(req, key, targetUser, callback)
             });
         });
     });
+};
+
+var readTrustedProfile = exports.readTrustedProfile = function(identifier)
+{
+    return TRUSTED_PROFILE_CACHE.get(identifier);
+};
+
+var writeTrustedProfile = exports.writeTrustedProfile = function(identifier, profile)
+{
+    TRUSTED_PROFILE_CACHE.set(identifier, profile);
 };

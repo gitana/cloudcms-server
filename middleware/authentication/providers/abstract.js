@@ -40,12 +40,12 @@ exports = module.exports = function(providerId, providerType, config)
     };
 
     /**
-     * Given the user profile received from the authentication provider, this extracts the providerUserId which uniquely
-     * identifies the user.
+     * Given the user profile acquired from the authenticaiton provider, extract the
+     * user identifier (which serves as the providerUserId).
      *
      * @param profile
      */
-    r.profileIdentifier = function(profile)
+    r.userIdentifier = function(profile)
     {
         return profile[config.properties.id];
     };
@@ -99,30 +99,31 @@ exports = module.exports = function(providerId, providerType, config)
     };
 
     /**
-     * Verifies that a token describes an authenticated user against the authentication provider.
+     * Verifies that what we know about a user from their request attribuets describes an authenticated user
+     * against the authentication provider.
      *
-     * @param token
+     * @param properties
      * @param callback (err, valid)
      */
-    r.verify = function(token, callback)
+    r.verify = function(properties, callback)
     {
-        this.load(token, function(err, user) {
+        this.load(properties, function(err, profile) {
 
             if (err) {
                 return callback(err);
             }
 
-            callback(null, true, user);
+            callback(null, true, profile);
         });
     };
 
     /**
-     * Loads a user profile from the authentication provider for the given authentication token.
+     * Loads a user profile from the authentication provider given what we know about them from the adapter.
      *
-     * @param token
+     * @param properties
      * @param callback (err, profile)
      */
-    r.load = function(token, callback)
+    r.load = function(properties, callback)
     {
     };
 
