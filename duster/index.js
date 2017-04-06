@@ -18,6 +18,10 @@ if (process.env.CLOUDCMS_APPSERVER_MODE !== "production") {
     dust.config.whitespace = true;
 }
 
+if (process.env.DUST_DEBUG_LEVEL) {
+    dust.debugLevel = (process.env.DUST_DEBUG_LEVEL + "").toUpperCase();
+}
+
 /**
  * Override Dust's isThenable() function so that Gitana driver chainable objects aren't included.
  *
