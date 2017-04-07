@@ -568,9 +568,9 @@ exports = module.exports = function()
 
             var pageFilePath = path.join(pageBasePath, "page.html");
 
-            util.safeReadStream(contentStore, pageFilePath, function (err, stream) {
+            util.safeReadFile(contentStore, pageFilePath, function (err, file) {
                 releaseLockFn();
-                callback(err, stream);
+                callback(err, file);
             });
         });
     };
@@ -1000,9 +1000,9 @@ exports = module.exports = function()
             var pageBasePath = path.join("wcm", "repositories", req.repositoryId, "branches", req.branchId, "pages", pageCacheKey);
 
             // is this already in cache?
-            handleCachePageRead(req, descriptor, pageBasePath, function(err, readStream) {
+            handleCachePageRead(req, descriptor, pageBasePath, function(err, file) {
 
-                if (!err && readStream)
+                if (!err && file)
                 {
                     // yes, we found it in cache, so we'll simply pipe it back from disk
                     req.log("WCM Page Cache Hit: " + offsetPath);
@@ -1014,7 +1014,7 @@ exports = module.exports = function()
 
                     util.status(res, 200);
                     util.applyResponseContentType(res, null, offsetPath);
-                    readStream.pipe(res);
+                    res.send(file.toString());
                     return;
                 }
 
