@@ -277,7 +277,7 @@ exports = module.exports = function()
         return cacheInfo;
     };
 
-    var safeRemove = exports.safeRemove = function(contentStore, filePath, callback)
+    var safeRemove = function(contentStore, filePath, callback)
     {
         contentStore.deleteFile(filePath, function(err) {
             callback(err);
@@ -1047,7 +1047,8 @@ exports = module.exports = function()
 
     r.toCacheFilePath = toCacheFilePath;
     r.buildCacheInfo = buildCacheInfo;
-
+    r.safeRemove = safeRemove;
+    
     r.download = function(contentStore, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, callback)
     {
         // claim a lock around this node for this server
