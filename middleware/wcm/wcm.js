@@ -2,6 +2,7 @@ var path = require('path');
 var fs = require('fs');
 var http = require('http');
 var util = require("../../util/util");
+var cloudcms = require("../../util/cloudcms");
 var duster = require("../../duster/index");
 var async = require("async");
 
@@ -516,7 +517,7 @@ exports = module.exports = function()
         return enabled;
     };
 
-    var handleCachePageWrite = function(req, descriptor, pageBasePath, dependencies, text, callback)
+    var handleCachePageWrite = function(req, res, descriptor, pageBasePath, dependencies, text, callback)
     {
         // mark the rendition
         if (dependencies)
@@ -547,9 +548,26 @@ exports = module.exports = function()
                     return callback(err);
                 }
 
-                releaseLockFn();
+                var cacheInfo = cloudcms.buildCacheInfo(res);                
+                if (cacheInfo)
+                {
+                    if (!cacheInfo.mimetype)
+                    {
+                        cacheInfo.mimetype = "text/html";
+                    }
+                }
+                else
+                {
+                    cacheInfo = {
+                        mimetype: "text/html"
+                    }
+                }
 
-                callback();
+                var cacheFilePath = cloudcms.toCacheFilePath(pageFilePath);
+                contentStore.writeFile(cacheFilePath, JSON.stringify(cacheInfo, null, "    "), function (err) {
+                    releaseLockFn();
+                    callback();
+                });
             });
         });
     };
@@ -567,10 +585,13 @@ exports = module.exports = function()
         _LOCK(contentStore, _lock_identifier(pageBasePath), function(releaseLockFn) {
 
             var pageFilePath = path.join(pageBasePath, "page.html");
+            var cacheFilePath = cloudcms.toCacheFilePath(pageFilePath);
 
-            util.safeReadFile(contentStore, pageFilePath, function (err, file) {
-                releaseLockFn();
-                callback(err, file);
+            contentStore.readFile(cacheFilePath, function(err, cacheInfoString) {    
+                util.safeReadStream(contentStore, pageFilePath, function (err, stream) {
+                    releaseLockFn();
+                    callback(err, stream, cacheInfoString ? JSON.parse(cacheInfoString) : null);
+                });
             });
         });
     };
@@ -1000,9 +1021,9 @@ exports = module.exports = function()
             var pageBasePath = path.join("wcm", "repositories", req.repositoryId, "branches", req.branchId, "pages", pageCacheKey);
 
             // is this already in cache?
-            handleCachePageRead(req, descriptor, pageBasePath, function(err, file) {
+            handleCachePageRead(req, descriptor, pageBasePath, function(err, readStream, cacheInfo) {
 
-                if (!err && file)
+                if (!err && readStream)
                 {
                     // yes, we found it in cache, so we'll simply pipe it back from disk
                     req.log("WCM Page Cache Hit: " + offsetPath);
@@ -1013,8 +1034,8 @@ exports = module.exports = function()
                     }
 
                     util.status(res, 200);
-                    util.applyResponseContentType(res, null, offsetPath);
-                    res.send(file.toString());
+                    util.applyResponseContentType(res, cacheInfo, offsetPath);
+                    readStream.pipe(res);
                     return;
                 }
 
@@ -1075,7 +1096,7 @@ exports = module.exports = function()
                         // we now have the result (text) and the dependencies that this page flagged (dependencies)
                         // use these to write to the page cache
                         // don't wait for this to complete, assume it completes in background
-                        handleCachePageWrite(req, descriptor, pageBasePath, dependencies, text, function(err) {
+                        handleCachePageWrite(req, res, descriptor, pageBasePath, dependencies, text, function(err) {
                             //res.status(200);
                             //res.send(text);
                         });
@@ -1090,7 +1111,6 @@ exports = module.exports = function()
                         util.applyResponseContentType(res, null, offsetPath);
                         util.setHeaderOnce(res, "cloudcms-dust-execution-time", stats.dustExecutionTime);
                         res.send(text);
-
                     });
                 };
                 runDust();

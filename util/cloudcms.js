@@ -1045,6 +1045,9 @@ exports = module.exports = function()
 
     var r = {};
 
+    r.toCacheFilePath = toCacheFilePath;
+    r.buildCacheInfo = buildCacheInfo;
+
     r.download = function(contentStore, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, callback)
     {
         // claim a lock around this node for this server

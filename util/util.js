@@ -1003,14 +1003,10 @@ var applyResponseContentType = exports.applyResponseContentType = function(respo
     }
 
     // TODO: should we look for ";charset=" and strip out?
-    
+
     if (contentType)
     {
         setHeader(response, "Content-Type", contentType);
-    }
-    else
-    {
-        setHeader(response, "Content-Type", "text/html");
     }
 
     return contentType;
