@@ -277,7 +277,7 @@ exports = module.exports = function()
         return cacheInfo;
     };
 
-    var safeRemove = function(contentStore, filePath, callback)
+    var safeRemove = exports.safeRemove = function(contentStore, filePath, callback)
     {
         contentStore.deleteFile(filePath, function(err) {
             callback(err);

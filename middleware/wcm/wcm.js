@@ -517,6 +517,18 @@ exports = module.exports = function()
         return enabled;
     };
 
+    var cleanup = function(store, pageFilePath, cacheFilePath, afterCleanup)
+    {
+        cloudcms.safeRemove(store, pageFilePath, function() {
+            cloudcms.safeRemove(store, cacheFilePath, function() {
+
+                if (afterCleanup) {
+                    afterCleanup();
+                }
+            });
+        });
+    };
+
     var handleCachePageWrite = function(req, res, descriptor, pageBasePath, dependencies, text, callback)
     {
         // mark the rendition
@@ -534,37 +546,48 @@ exports = module.exports = function()
         }
 
         var contentStore = req.stores.content;
+        var pageFilePath = path.join(pageBasePath, "page.html");
+        var cacheFilePath = cloudcms.toCacheFilePath(pageFilePath);
 
         // take out a lock so that only one "request" can write to cache at a time for this path
         _LOCK(contentStore, _lock_identifier(pageBasePath), function(releaseLockFn) {
 
-            var pageFilePath = path.join(pageBasePath, "page.html");
-
+            // write page file
             contentStore.writeFile(pageFilePath, text, function (err) {
 
                 if (err)
                 {
-                    releaseLockFn();
-                    return callback(err);
+                    // failed to write page file, start cleanup
+                    return cleanup(contentStore, pageFilePath, cacheFilePath, function() {
+                        releaseLockFn();
+                        callback(err);
+                    });
                 }
 
-                var cacheInfo = cloudcms.buildCacheInfo(res);                
-                if (cacheInfo)
-                {
-                    if (!cacheInfo.mimetype)
-                    {
-                        cacheInfo.mimetype = "text/html";
-                    }
-                }
-                else
+                var cacheInfo = cloudcms.buildCacheInfo(res);
+                if (!cacheInfo)
                 {
                     cacheInfo = {
-                        mimetype: "text/html"
-                    }
+                        "mimetype": "text/html"
+                    };
+                }
+                if (!cacheInfo.mimetype)
+                {
+                    cacheInfo.mimetype = "text/html";
                 }
 
-                var cacheFilePath = cloudcms.toCacheFilePath(pageFilePath);
+                // write cache info file
                 contentStore.writeFile(cacheFilePath, JSON.stringify(cacheInfo, null, "    "), function (err) {
+
+                    if (err)
+                    {
+                        // failed to write page file, start cleanup
+                        return cleanup(contentStore, pageFilePath, cacheFilePath, function() {
+                            releaseLockFn();
+                            callback(err);
+                        });
+                    }
+
                     releaseLockFn();
                     callback();
                 });
@@ -580,17 +603,56 @@ exports = module.exports = function()
         }
 
         var contentStore = req.stores.content;
+        var pageFilePath = path.join(pageBasePath, "page.html");
+        var cacheFilePath = cloudcms.toCacheFilePath(pageFilePath);
 
         // take out a lock so that only one "request" can read from cache at a time for this path
         _LOCK(contentStore, _lock_identifier(pageBasePath), function(releaseLockFn) {
 
-            var pageFilePath = path.join(pageBasePath, "page.html");
-            var cacheFilePath = cloudcms.toCacheFilePath(pageFilePath);
+            contentStore.readFile(cacheFilePath, function(err, cacheInfoString) {
 
-            contentStore.readFile(cacheFilePath, function(err, cacheInfoString) {    
+                if (err)
+                {
+                    // failed to write page file, start cleanup
+                    return cleanup(contentStore, pageFilePath, cacheFilePath, function() {
+                        releaseLockFn();
+                        callback(err);
+                    });
+                }
+
                 util.safeReadStream(contentStore, pageFilePath, function (err, stream) {
+
+                    if (err)
+                    {
+                        // failed to write page file, start cleanup
+                        return cleanup(contentStore, pageFilePath, cacheFilePath, function() {
+                            releaseLockFn();
+                            callback(err);
+                        });
+                    }
+
+                    // make sure cache info is valid
+                    // we do this in case a non-JSON string comes back, we don't want to bomb out the server
+                    var cacheInfo = null;
+                    try {
+                        cacheInfo = JSON.parse(cacheInfoString)
+                    } catch (e) {
+                        // swallow
+                    }
+
+                    if (!cacheInfo)
+                    {
+                        // failed to write page file, start cleanup
+                        return cleanup(contentStore, pageFilePath, cacheFilePath, function() {
+                            releaseLockFn();
+                            callback({
+                                "message": "Failed to parse cache info for path: " + cacheFilePath
+                            });
+                        });
+                    }
+
                     releaseLockFn();
-                    callback(err, stream, cacheInfoString ? JSON.parse(cacheInfoString) : null);
+                    callback(null, stream, cacheInfo);
                 });
             });
         });
@@ -1035,8 +1097,7 @@ exports = module.exports = function()
 
                     util.status(res, 200);
                     util.applyResponseContentType(res, cacheInfo, offsetPath);
-                    readStream.pipe(res);
-                    return;
+                    return readStream.pipe(res);
                 }
 
                 // otherwise, we need to run dust...

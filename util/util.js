@@ -1193,20 +1193,17 @@ var safeReadFile = exports.safeReadFile = function(contentStore, filePath, callb
     contentStore.existsFile(filePath, function(exists) {
 
         if (!exists) {
-            callback();
-            return;
+            return callback();
         }
 
         contentStore.fileStats(filePath, function (err, stats) {
 
             if (err) {
-                callback();
-                return;
+                return callback();
             }
 
             if (stats.size === 0) {
-                callback();
-                return;
+                return callback();
             }
 
             contentStore.readFile(filePath, function (err, data) {
