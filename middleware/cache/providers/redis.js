@@ -11,6 +11,8 @@ exports = module.exports = function(cacheConfig)
 {
     var client = null;
 
+    var debug = false;
+
     var r = {};
 
     r.init = function(callback)
@@ -27,9 +29,13 @@ exports = module.exports = function(cacheConfig)
             redisEndpoint = process.env.CLOUDCMS_CACHE_REDIS_ENDPOINT;
         }
 
-        var redisOptions = {};
+        debug = cacheConfig.debug;
 
-        //redis.debug_mode = true;
+        if (typeof(debug) === "undefined") {
+            debug = false;
+        }
+
+        var redisOptions = {};
 
         client = redis.createClient(redisPort, redisEndpoint, redisOptions);
 
@@ -41,14 +47,18 @@ exports = module.exports = function(cacheConfig)
         if (seconds <= -1)
         {
             client.set([key, JSON.stringify(value)], function(err, reply) {
-                console.log("[redis] write -> reply = " + reply);
+                if (debug) {
+                    console.log("[redis] write -> reply = " + reply);
+                }
                 callback(err, reply);
             });
         }
         else
         {
             client.set([key, JSON.stringify(value), "EX", seconds], function(err, reply) {
-                console.log("[redis] write.ex -> reply = " + reply);
+                if (debug) {
+                    console.log("[redis] write.ex -> reply = " + reply);
+                }
                 callback(err, reply);
             });
         }
@@ -58,7 +68,9 @@ exports = module.exports = function(cacheConfig)
     {
         client.get([key], function(err, reply) {
 
-            console.log("[redis] read -> reply = " + reply);
+            if (debug) {
+                console.log("[redis] read -> reply = " + reply);
+            }
             
             var result = null;
             try
@@ -84,9 +96,13 @@ exports = module.exports = function(cacheConfig)
     
     r.keys = function(prefix, callback)
     {
-        console.log('[redis] prefix = ' + prefix);
+        if (debug) {
+            console.log('[redis] prefix = ' + prefix);
+        }
         client.keys([prefix + '*'], function(err, reply) {
-            console.log("[redis] keys -> reply = " + reply);
+            if (debug) {
+                console.log("[redis] keys -> reply = " + reply);
+            }
             callback(err, reply);
         });
     };
