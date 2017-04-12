@@ -11,6 +11,21 @@ exports = module.exports = function(cacheConfig)
 {
     var client = null;
 
+    var loggingLevels = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3, NONE: 4 };
+    var NONE = 'NONE', ERROR = 'ERROR', WARN = 'WARN', INFO = 'INFO', DEBUG = 'DEBUG';
+    var debugLevel = INFO;
+    
+    if (process.env.CLOUDCMS_CACHE_REDIS_DEBUG_LEVEL) {
+        debugLevel = (process.env.CLOUDCMS_CACHE_REDIS_DEBUG_LEVEL + "").toUpperCase();
+    }
+    
+    var log = function(message, type) {
+        type = type || INFO;
+        if (loggingLevels[type] >= loggingLevels[debugLevel]) {
+            console.log('[REDIS:' + type + '] ' + message);
+        }
+    };
+
     var r = {};
 
     r.init = function(callback)
@@ -41,14 +56,14 @@ exports = module.exports = function(cacheConfig)
         if (seconds <= -1)
         {
             client.set([key, JSON.stringify(value)], function(err, reply) {
-                console.log("[redis] write -> reply = " + reply);
+                log("write -> reply = " + reply, INFO);
                 callback(err, reply);
             });
         }
         else
         {
             client.set([key, JSON.stringify(value), "EX", seconds], function(err, reply) {
-                console.log("[redis] write.ex -> reply = " + reply);
+                log("write.ex -> reply = " + reply, INFO);
                 callback(err, reply);
             });
         }
@@ -58,7 +73,7 @@ exports = module.exports = function(cacheConfig)
     {
         client.get([key], function(err, reply) {
 
-            console.log("[redis] read -> reply = " + reply);
+            log("read -> reply = " + reply, INFO);
             
             var result = null;
             try
@@ -84,9 +99,9 @@ exports = module.exports = function(cacheConfig)
     
     r.keys = function(prefix, callback)
     {
-        console.log('[redis] prefix = ' + prefix);
+        log('prefix = ' + prefix, INFO);
         client.keys([prefix + '*'], function(err, reply) {
-            console.log("[redis] keys -> reply = " + reply);
+            log("[keys -> reply = " + reply, INFO);
             callback(err, reply);
         });
     };
