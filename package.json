@@ -80,7 +80,8 @@
     "tar.gz": "^1.0.5",
     "temp": "^0.8.3",
     "toobusy-js": "^0.5.1",
-    "watch": "^0.19.2"
+    "watch": "^0.19.2",
+    "basic-logger": "^0.4.4"
   },
   "devDependencies": {},
   "optionalDependencies": {},

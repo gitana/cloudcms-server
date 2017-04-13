@@ -1,6 +1,7 @@
 var path = require("path");
 
 var redis = require("redis");
+var Logger = require('basic-logger');
 
 /**
  * Redis distributed cache.
@@ -11,21 +12,18 @@ exports = module.exports = function(cacheConfig)
 {
     var client = null;
 
-    var loggingLevels = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3, NONE: 4 };
-    var NONE = 'NONE', ERROR = 'ERROR', WARN = 'WARN', INFO = 'INFO', DEBUG = 'DEBUG';
-    var debugLevel = INFO;
+    var log = new Logger({
+        showMillis: false,
+        showTimestamp: true,
+        prefix: "REDIS"
+    });
     
+    var debugLevel = 'info';
     if (process.env.CLOUDCMS_CACHE_REDIS_DEBUG_LEVEL) {
-        debugLevel = (process.env.CLOUDCMS_CACHE_REDIS_DEBUG_LEVEL + "").toUpperCase();
+        debugLevel = (process.env.CLOUDCMS_CACHE_REDIS_DEBUG_LEVEL + "").toLowerCase()
     }
+    Logger.setLevel(debugLevel, true);
     
-    var log = function(message, type) {
-        type = type || INFO;
-        if (loggingLevels[type] >= loggingLevels[debugLevel]) {
-            console.log('[REDIS:' + type + '] ' + message);
-        }
-    };
-
     var r = {};
 
     r.init = function(callback)
@@ -56,14 +54,14 @@ exports = module.exports = function(cacheConfig)
         if (seconds <= -1)
         {
             client.set([key, JSON.stringify(value)], function(err, reply) {
-                log("write -> reply = " + reply, INFO);
+                log.info("write -> reply = " + reply);
                 callback(err, reply);
             });
         }
         else
         {
             client.set([key, JSON.stringify(value), "EX", seconds], function(err, reply) {
-                log("write.ex -> reply = " + reply, INFO);
+                log.info("write.ex -> reply = " + reply);
                 callback(err, reply);
             });
         }
@@ -73,7 +71,7 @@ exports = module.exports = function(cacheConfig)
     {
         client.get([key], function(err, reply) {
 
-            log("read -> reply = " + reply, INFO);
+            log.info("read -> reply = " + reply);
             
             var result = null;
             try
@@ -99,9 +97,9 @@ exports = module.exports = function(cacheConfig)
     
     r.keys = function(prefix, callback)
     {
-        log('prefix = ' + prefix, INFO);
+        log.info('prefix = ' + prefix);
         client.keys([prefix + '*'], function(err, reply) {
-            log("[keys -> reply = " + reply, INFO);
+            log.info("[keys -> reply = " + reply);
             callback(err, reply);
         });
     };
