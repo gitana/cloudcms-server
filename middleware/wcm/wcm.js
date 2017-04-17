@@ -23,9 +23,6 @@ exports = module.exports = function()
     var WCM_PAGES = "wcmPages";
     var WCM_PAGES_CACHE_TIME = "wcmPagesTime";
 
-    // retry in 30 seconds if Cloud CMS unavailable for page cache reload
-    var WCM_PAGES_CACHE_RETRY_TIME_MS = 30 * 1000;
-
     var isEmpty = function(thing)
     {
         return (typeof(thing) === "undefined") || (thing === null);
@@ -247,10 +244,13 @@ exports = module.exports = function()
 
     var preloadPages = function(req, finished)
     {
-        var WCM_CACHE_TIMEOUT_MS = getPagesRetryTimeout();
+        var WCM_PAGES_CACHE_TTL = getPagesCacheTTL();
 
         // for debugging, force to 10 seconds
-        // WCM_CACHE_TIMEOUT_MS = 10 * 1000;
+        // WCM_PAGES_CACHE_TTL = 10 * 1000;
+
+        // retry in 30 seconds if Cloud CMS unavailable for page cache reload
+        var WCM_PAGES_CACHE_RETRY_TIME_MS = getPagesCacheRetryTimeout();
 
         // set driver timeout to 30 seconds
         var Gitana = require("gitana");
@@ -280,10 +280,10 @@ exports = module.exports = function()
                     {
                         console.log("a1: " + cachedPages);
                         console.log("a2: " + JSON.stringify(cachedPagesTime));
-                        console.log("a3: " + (cachedPagesTime.ms + WCM_CACHE_TIMEOUT_MS));
+                        console.log("a3: " + (cachedPagesTime.ms + WCM_PAGES_CACHE_TTL));
                         console.log("a4: " + now);
-                        console.log("a5: " + WCM_CACHE_TIMEOUT_MS);
-                        console.log("a6: " + ((cachedPagesTime.ms + WCM_CACHE_TIMEOUT_MS) < now));
+                        console.log("a5: " + WCM_PAGES_CACHE_TTL);
+                        console.log("a6: " + ((cachedPagesTime.ms + WCM_PAGES_CACHE_TTL) < now));
                     }
 
                     // if we received cachedPages, try to determine whether they're dirty (in which case we should reload)
@@ -301,7 +301,7 @@ exports = module.exports = function()
                     }
                     if (cachedPages && cachedPagesTime && cachedPagesTime.ms > -1)
                     {
-                        if ((cachedPagesTime.ms + WCM_CACHE_TIMEOUT_MS) < now)
+                        if ((cachedPagesTime.ms + WCM_PAGES_CACHE_TTL) < now)
                         {
                             load = true;
                         }
@@ -340,7 +340,7 @@ exports = module.exports = function()
                                     }
                                     if (cachedPages && cachedPagesTime && cachedPagesTime.ms > -1)
                                     {
-                                        if (cachedPagesTime.ms + WCM_CACHE_TIMEOUT_MS < now)
+                                        if (cachedPagesTime.ms + WCM_PAGES_CACHE_TTL < now)
                                         {
                                             load = true;
                                         }
@@ -608,22 +608,40 @@ exports = module.exports = function()
         return enabled;
     };
 
-    var getPagesRetryTimeout = function()
+    var getPagesCacheTTL = function()
     {
         if (!process.configuration.wcm) {
             process.configuration.wcm = {};
         }
 
-        if (!(process.configuration.wcm.pagesRetryTimeout) || process.configuration.wcm.pagesRetryTimeout === -1)
+        if (!(process.configuration.wcm.pageCacheTTL) || process.configuration.wcm.pageCacheTTL === -1)
         {
             // assume 60 seconds (development mode)
-            process.configuration.wcm.pagesRetryTimeout = 60 * 1000;
+            process.configuration.wcm.pageCacheTTL = 60 * 1000;
 
             // in production, assume 24 hours
-            process.configuration.wcm.pagesRetryTimeout = (24 * 60 * 60) * 1000;
+            if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
+            {
+                process.configuration.wcm.pageCacheTTL = (24 * 60 * 60) * 1000;
+            }
         }
 
         return process.configuration.wcm.pagesRetryTimeout;
+    };
+
+    var getPagesCacheRetryTimeout = function()
+    {
+        if (!process.configuration.wcm) {
+            process.configuration.wcm = {};
+        }
+
+        if (!(process.configuration.wcm.pageCacheRetryTimeout) || process.configuration.wcm.pageCacheRetryTimeout === -1)
+        {
+            // default to 30 seconds
+            process.configuration.wcm.pageCacheRetryTimeout = 30 * 1000;
+        }
+
+        return process.configuration.wcm.pageCacheRetryTimeout;
     };
 
 
