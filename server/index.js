@@ -160,7 +160,8 @@ var SETTINGS = {
     },
     "wcm": {
         "enabled": false,
-        "cache": false
+        "cache": false,
+        "pagesRetryTimeout": undefined
     },
     "serverTags": {
         "enabled": false

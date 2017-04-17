@@ -247,16 +247,14 @@ exports = module.exports = function()
 
     var preloadPages = function(req, finished)
     {
-        // assume 120 seconds (for development mode)
-        var WCM_CACHE_TIMEOUT_MS = 120 * 1000;
-        if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
-        {
-            // for production, set to 24 hours
-            WCM_CACHE_TIMEOUT_MS = (24 * 60 * 60) * 1000;
-        }
+        var WCM_CACHE_TIMEOUT_MS = getPagesRetryTimeout();
 
-        // set driver timeout to 60 seconds
-        // Gitana.HTTP_TIMEOUT = 60 * 1000;
+        // for debugging, force to 10 seconds
+        // WCM_CACHE_TIMEOUT_MS = 10 * 1000;
+
+        // set driver timeout to 30 seconds
+        var Gitana = require("gitana");
+        Gitana.HTTP_TIMEOUT = 30 * 1000;
 
         var ensureInvalidate = function(callback) {
 
@@ -365,17 +363,10 @@ exports = module.exports = function()
                                             // if we have cached pages, just use those
                                             if (cachedPages)
                                             {
-                                                if (cachedPagesTime && cachedPagesTime.ms > -1)
-                                                {
-                                                    req.log("Falling back to using cached pages, will retain for " + WCM_PAGES_CACHE_RETRY_TIME_MS + " ms before trying again");
-                                                    req.cache.write(WCM_PAGES_CACHE_TIME, {
-                                                        "ms": (cachedPagesTime.ms + WCM_PAGES_CACHE_RETRY_TIME_MS)
-                                                    });
-
-                                                    return finished(null, cachedPages);
-                                                }
-
-                                                req.log("Falling back to using cached pages");
+                                                req.log("Falling back to using cached pages, will retain for " + WCM_PAGES_CACHE_RETRY_TIME_MS + " ms before trying again");
+                                                req.cache.write(WCM_PAGES_CACHE_TIME, {
+                                                    "ms": (new Date().getTime() + WCM_PAGES_CACHE_RETRY_TIME_MS)
+                                                });
 
                                                 return finished(null, cachedPages);
                                             }
@@ -616,6 +607,25 @@ exports = module.exports = function()
 
         return enabled;
     };
+
+    var getPagesRetryTimeout = function()
+    {
+        if (!process.configuration.wcm) {
+            process.configuration.wcm = {};
+        }
+
+        if (!(process.configuration.wcm.pagesRetryTimeout) || process.configuration.wcm.pagesRetryTimeout === -1)
+        {
+            // assume 60 seconds (development mode)
+            process.configuration.wcm.pagesRetryTimeout = 60 * 1000;
+
+            // in production, assume 24 hours
+            process.configuration.wcm.pagesRetryTimeout = (24 * 60 * 60) * 1000;
+        }
+
+        return process.configuration.wcm.pagesRetryTimeout;
+    };
+
 
     var cleanup = function(store, pageFilePath, cacheFilePath, afterCleanup)
     {
