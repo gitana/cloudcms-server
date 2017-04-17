@@ -252,8 +252,7 @@ exports = module.exports = function()
         if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
         {
             // for production, set to 24 hours
-            //WCM_CACHE_TIMEOUT_MS = (60 * 60 * 24) * 1000;
-            WCM_CACHE_TIMEOUT_MS = 10 * 1000;
+            WCM_CACHE_TIMEOUT_MS = (24 * 60 * 60) * 1000;
         }
 
         // set driver timeout to 60 seconds
