@@ -21,6 +21,10 @@ exports = module.exports = function()
 {
     // cache keys
     var WCM_PAGES = "wcmPages";
+    var WCM_PAGES_CACHE_TIME = "wcmPagesTime";
+
+    // retry in 30 seconds if Cloud CMS unavailable for page cache reload
+    var WCM_PAGES_CACHE_RETRY_TIME_MS = 30 * 1000;
 
     var isEmpty = function(thing)
     {
@@ -241,16 +245,20 @@ exports = module.exports = function()
         callback(null, discoveredPage, discoveredTokens, discoveredPageOffsetPath);
     };
 
-    // assume 120 seconds (for development mode)
-    var WCM_CACHE_TIMEOUT_SECONDS = 120;
-    if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
-    {
-        // for production, set to 24 hours
-        WCM_CACHE_TIMEOUT_SECONDS = 60 * 60 * 24;
-    }
-
     var preloadPages = function(req, finished)
     {
+        // assume 120 seconds (for development mode)
+        var WCM_CACHE_TIMEOUT_MS = 120 * 1000;
+        if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
+        {
+            // for production, set to 24 hours
+            //WCM_CACHE_TIMEOUT_MS = (60 * 60 * 24) * 1000;
+            WCM_CACHE_TIMEOUT_MS = 10 * 1000;
+        }
+
+        // set driver timeout to 60 seconds
+        // Gitana.HTTP_TIMEOUT = 60 * 1000;
+
         var ensureInvalidate = function(callback) {
 
             // allow for forced invalidation via req param
@@ -266,172 +274,265 @@ exports = module.exports = function()
 
         ensureInvalidate(function() {
 
-            req.cache.read(WCM_PAGES, function (err, pages) {
+            var now = new Date().getTime();
 
-                if (pages) {
-                    return finished(null, pages);
-                }
+            req.cache.read(WCM_PAGES, function (err, cachedPages) {
+                req.cache.read(WCM_PAGES_CACHE_TIME, function(err, cachedPagesTime) {
 
-                req.application(function(err, application) {
+                    if (cachedPages)
+                    {
+                        console.log("a1: " + cachedPages);
+                        console.log("a2: " + JSON.stringify(cachedPagesTime));
+                        console.log("a3: " + (cachedPagesTime.ms + WCM_CACHE_TIMEOUT_MS));
+                        console.log("a4: " + now);
+                        console.log("a5: " + WCM_CACHE_TIMEOUT_MS);
+                        console.log("a6: " + ((cachedPagesTime.ms + WCM_CACHE_TIMEOUT_MS) < now));
+                    }
 
-                    var loadingPagesCacheKey = application._doc + "-wcm-loading-pages";
+                    // if we received cachedPages, try to determine whether they're dirty (in which case we should reload)
+                    // or whether we can serve them back
+                    var load = (cachedPages ? false : true);
+                    if (cachedPages && !cachedPagesTime)
+                    {
+                        cachedPages = null;
+                        load = true;
+                    }
+                    if (cachedPages && typeof(cachedPagesTime.ms) === "undefined")
+                    {
+                        cachedPages = null;
+                        load = true;
+                    }
+                    if (cachedPages && cachedPagesTime && cachedPagesTime.ms > -1)
+                    {
+                        if ((cachedPagesTime.ms + WCM_CACHE_TIMEOUT_MS) < now)
+                        {
+                            load = true;
+                        }
+                    }
+                    if (!load && cachedPages)
+                    {
+                        return finished(null, cachedPages);
+                    }
 
-                    // take out a preloading lock so that only one thread proceeds at a time here
-                    _LOCK(null, loadingPagesCacheKey, function (releaseLockFn) {
 
-                        // check again inside lock in case another request preloaded this before we arrived
-                        req.cache.read(WCM_PAGES, function (err, pages) {
+                    // at this point, we MAY need to reload pages
+                    // we take out a lock and so that only one thread loads at at time per application
 
-                            if (pages)
-                            {
-                                releaseLockFn();
-                                return finished(null, pages);
-                            }
+                    req.application(function (err, application) {
 
-                            req.log("Loading Web Pages into cache");
+                        var loadingPagesCacheKey = application._doc + "-wcm-loading-pages";
+                        _LOCK(null, loadingPagesCacheKey, function (releaseLockFn) {
 
-                            // error handler
-                            var errorHandler = function (err) {
+                            // check again inside lock in case another request preloaded this before we arrived
+                            req.cache.read(WCM_PAGES, function (err, cachedPages) {
+                                req.cache.read(WCM_PAGES_CACHE_TIME, function (err, cachedPagesTime) {
 
-                                req.log("Error while loading web pages: " + JSON.stringify(err));
-                                console.trace();
+                                    // if we received cachedPages, try to determine whether they're dirty (in which case we should reload)
+                                    // or whether we can serve them back
 
-                                return finished(err);
-                            };
-
-                            // load all wcm pages from the server
-                            req.branch(function (err, branch) {
-
-                                if (err)
-                                {
-                                    // release the lock
-                                    releaseLockFn();
-
-                                    // fire the error handler
-                                    return errorHandler(err);
-                                }
-
-                                // build out pages
-                                pages = {};
-
-                                branch.trap(function (err) {
-
-                                    // release the lock
-                                    releaseLockFn();
-
-                                    // fire the error handler
-                                    errorHandler(err);
-
-                                    return false;
-                                }).then(function () {
-
-                                    var fns = [];
-
-                                    // load all of the pages
-                                    this.trap(function(err) {
-
-                                        // release the lock
-                                        releaseLockFn();
-
-                                        // fire the error handler
-                                        errorHandler(err);
-
-                                        return false;
-
-                                    }).queryNodes({
-                                        "_type": "wcm:page"
-                                    }, {
-                                        "limit": -1
-                                    }).each(function () {
-
-                                        // THIS = wcm:page
-                                        var page = this;
-
-                                        // if the page has a template
-                                        if (page.template)
+                                    var load = (cachedPages ? false : true);
+                                    if (cachedPages && !cachedPagesTime)
+                                    {
+                                        cachedPages = null;
+                                        load = true;
+                                    }
+                                    if (cachedPages && typeof(cachedPagesTime.ms) === "undefined")
+                                    {
+                                        cachedPages = null;
+                                        load = true;
+                                    }
+                                    if (cachedPages && cachedPagesTime && cachedPagesTime.ms > -1)
+                                    {
+                                        if (cachedPagesTime.ms + WCM_CACHE_TIMEOUT_MS < now)
                                         {
-                                            var fn = function (branch, page) {
-                                                return function (allDone) {
-
-                                                    var completionFn = function () {
-
-                                                        if (page.templatePath)
-                                                        {
-                                                            if (page.uris)
-                                                            {
-                                                                // merge into our pages collection
-                                                                for (var i = 0; i < page.uris.length; i++)
-                                                                {
-                                                                    pages[page.uris[i]] = page;
-                                                                }
-                                                            }
-                                                        }
-
-                                                        allDone();
-                                                    };
-
-                                                    // is the template a GUID or a path to the template file?
-                                                    if ((page.template.indexOf("/") > -1) || (page.template.indexOf(".") > -1))
-                                                    {
-                                                        page.templatePath = page.template;
-                                                        completionFn();
-                                                    }
-                                                    else
-                                                    {
-                                                        // load the template
-                                                        Chain(branch).trap(function (e2) {
-                                                            // skip it
-                                                            completionFn();
-                                                            return false;
-                                                        }).readNode(page.template).then(function () {
-
-                                                            // THIS = wcm:template
-                                                            var template = this;
-
-                                                            if (template.path)
-                                                            {
-                                                                page.templatePath = template.path;
-                                                            }
-
-                                                            //
-                                                            // // try to download the "default" attachment if it exists
-                                                            // this.trap(function() {
-                                                            // return false;
-                                                            // }).attachment("default").download(function(text) {
-                                                            // console.log("DOWNLOADED TEXT: " + text);
-                                                            // page.tempateText = text;
-                                                            // });
-                                                            //
-
-                                                            completionFn();
-
-                                                        });
-                                                    }
-                                                };
-                                            }(branch, page);
-                                            fns.push(fn);
+                                            load = true;
                                         }
+                                    }
+                                    if (!load && cachedPages)
+                                    {
+                                        releaseLockFn();
+                                        return finished(null, cachedPages);
+                                    }
 
-                                    }).then(function () {
+                                    req.log("Loading Web Pages into cache");
 
-                                        console.log("Processing " + fns.length + " web pages");
+                                    // handles after the load either completed or failed
+                                    var afterHandler = function (err, loadedPages) {
 
-                                        async.series(fns, function (err) {
+                                        if (err)
+                                        {
+                                            req.log("Error while loading web pages: " + JSON.stringify(err));
 
-                                            console.log("Web Page processing complete");
-                                            for (var uri in pages)
+                                            // if we have cached pages, just use those
+                                            if (cachedPages)
                                             {
-                                                req.log("Loaded Web Page -> " + uri);
+                                                if (cachedPagesTime && cachedPagesTime.ms > -1)
+                                                {
+                                                    req.log("Falling back to using cached pages, will retain for " + WCM_PAGES_CACHE_RETRY_TIME_MS + " ms before trying again");
+                                                    req.cache.write(WCM_PAGES_CACHE_TIME, {
+                                                        "ms": (cachedPagesTime.ms + WCM_PAGES_CACHE_RETRY_TIME_MS)
+                                                    });
+
+                                                    return finished(null, cachedPages);
+                                                }
+
+                                                req.log("Falling back to using cached pages");
+
+                                                return finished(null, cachedPages);
                                             }
 
-                                            req.cache.write(WCM_PAGES, pages, WCM_CACHE_TIMEOUT_SECONDS);
+                                            req.log("No cached pages were present, throwing error");
 
+                                            return finished(err);
+                                        }
+
+                                        // hand back the loaded pages
+                                        return finished(null, loadedPages);
+                                    };
+
+                                    // load all wcm pages from the server
+                                    req.branch(function (err, branch) {
+
+                                        if (err)
+                                        {
+                                            // release the lock
                                             releaseLockFn();
 
-                                            finished(null, pages);
+                                            // fire the error handler with no loaded pages
+                                            return afterHandler(err);
+                                        }
 
+                                        // build out pages
+                                        var loadedPages = {};
+
+                                        var queryTimeMs = new Date().getTime();
+
+                                        branch.trap(function (err) {
+
+                                            // release the lock
+                                            releaseLockFn();
+
+                                            // fire the error handler with no loaded pages
+                                            afterHandler(err);
+
+                                            return false;
+                                        }).then(function () {
+
+                                            var fns = [];
+
+                                            req.log("Querying for WCM web pages");
+
+                                            // load all of the pages
+                                            this.trap(function (err) {
+
+                                                // release the lock
+                                                releaseLockFn();
+
+                                                // fire the error handler with no loaded pages
+                                                afterHandler(err);
+
+                                                return false;
+
+                                            }).queryNodes({
+                                                "_type": "wcm:page"
+                                            }, {
+                                                "limit": -1
+                                            }).each(function () {
+
+                                                // THIS = wcm:page
+                                                var page = this;
+
+                                                // if the page has a template
+                                                if (page.template)
+                                                {
+                                                    var fn = function (branch, page) {
+                                                        return function (allDone) {
+
+                                                            var completionFn = function () {
+
+                                                                if (page.templatePath)
+                                                                {
+                                                                    if (page.uris)
+                                                                    {
+                                                                        // merge into our pages collection
+                                                                        for (var i = 0; i < page.uris.length; i++)
+                                                                        {
+                                                                            loadedPages[page.uris[i]] = page;
+                                                                        }
+                                                                    }
+                                                                }
+
+                                                                allDone();
+                                                            };
+
+                                                            // is the template a GUID or a path to the template file?
+                                                            if ((page.template.indexOf("/") > -1) || (page.template.indexOf(".") > -1))
+                                                            {
+                                                                page.templatePath = page.template;
+                                                                completionFn();
+                                                            }
+                                                            else
+                                                            {
+                                                                // load the template
+                                                                Chain(branch).trap(function (e2) {
+                                                                    // skip it
+                                                                    completionFn();
+                                                                    return false;
+                                                                }).readNode(page.template).then(function () {
+
+                                                                    // THIS = wcm:template
+                                                                    var template = this;
+
+                                                                    if (template.path)
+                                                                    {
+                                                                        page.templatePath = template.path;
+                                                                    }
+
+                                                                    //
+                                                                    // // try to download the "default" attachment if it exists
+                                                                    // this.trap(function() {
+                                                                    // return false;
+                                                                    // }).attachment("default").download(function(text) {
+                                                                    // console.log("DOWNLOADED TEXT: " + text);
+                                                                    // page.tempateText = text;
+                                                                    // });
+                                                                    //
+
+                                                                    completionFn();
+
+                                                                });
+                                                            }
+                                                        };
+                                                    }(branch, page);
+                                                    fns.push(fn);
+                                                }
+
+                                            }).then(function () {
+
+                                                req.log("Loading " + fns.length + " web pages");
+
+                                                async.series(fns, function (err) {
+
+                                                    for (var uri in loadedPages)
+                                                    {
+                                                        req.log("Loaded Web Page -> " + uri);
+                                                    }
+
+                                                    req.log("Web Page loading complete");
+
+                                                    // write to cache
+                                                    req.cache.write(WCM_PAGES, loadedPages);
+                                                    req.cache.write(WCM_PAGES_CACHE_TIME, {
+                                                        "ms": queryTimeMs
+                                                    });
+
+                                                    releaseLockFn();
+
+                                                    afterHandler(null, loadedPages);
+                                                });
+
+                                            });
                                         });
-
                                     });
                                 });
                             });

@@ -158,14 +158,19 @@ exports = module.exports = function()
 
                     if (err)
                     {
+                        /*
                         var configString = "null";
                         if (gitanaConfig) {
                             configString = JSON.stringify(gitanaConfig);
                         }
+                        */
 
                         // console.log("Cannot connect to Cloud CMS for path: " + req.path + ", config: " + configString + ", message: " + JSON.stringify(err));
 
                         // send back error
+                        if (!err.status) {
+                            err.status = 503;
+                        }
                         util.status(res, err.status);
                         res.send(err.output);
                         res.end();
