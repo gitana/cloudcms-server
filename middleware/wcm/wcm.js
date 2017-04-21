@@ -165,9 +165,13 @@ exports = module.exports = function()
                 else
                 {
                     // check for exact match
-                    if (pattern === value)
+                    if (matchCase() && pattern === value)
                     {
                         // exact match
+                    }
+                    else if (!matchCase() && (pattern+"").toLowerCase() === (value+"").toLowerCase())
+                    {
+                        // case insensitive match
                     }
                     else
                     {
@@ -319,7 +323,7 @@ exports = module.exports = function()
 
                         var loadingPagesCacheKey = application._doc + "-wcm-loading-pages";
                         _LOCK(null, loadingPagesCacheKey, function (releaseLockFn) {
-
+                            
                             // check again inside lock in case another request preloaded this before we arrived
                             req.cache.read(WCM_PAGES, function (err, cachedPages) {
                                 req.cache.read(WCM_PAGES_CACHE_TIME, function (err, cachedPagesTime) {
@@ -538,6 +542,19 @@ exports = module.exports = function()
     // PAGE CACHE (WITH DEPENDENCIES)
     //
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    var matchCase = function()
+    {
+        if (!process.configuration.wcm) {
+            process.configuration.wcm = {};
+        }
+
+        if (typeof(process.configuration.wcm.matchCase) === "undefined") {
+            process.configuration.wcm.matchCase = true;
+        }
+
+        return process.configuration.wcm.matchCase;
+    };  
 
     var isEnabled = function()
     {
