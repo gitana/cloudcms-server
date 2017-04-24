@@ -564,7 +564,7 @@ exports = module.exports = function()
         return util.createHandler("deployment", function(req, res, next, stores, cache, configuration) {
 
             // if virtual hosts aren't enabled, then we don't allow for deployment operations
-            if (!configuration.virtualHost.enabled)
+            if (!configuration || !configuration.virtualHost || !configuration.virtualHost.enabled)
             {
                 return next();
             }
