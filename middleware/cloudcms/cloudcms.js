@@ -1120,29 +1120,39 @@ exports = module.exports = function()
                             if (err && err.invalidateGitanaDriver)
                             {
                                 console.log("Found err.invalidateGitanaDriver true");
-                                if (req.gitanaConfig && req.domainKey)
+                                if (req.gitanaConfig)
                                 {
                                     // at this point, our gitana driver's auth token was pronounced dead and we need to invalidate
                                     // to get a new one, so blow things away here
                                     // in terms of the current request, it is allowed to do the fallback
                                     // however the next request will go to the gitana.json and attempt to login
                                     // if that fails and virtual driver mode, then a new gitana.json will be pulled down
-                                    console.log("Disconnecting: " + req.gitanaConfig.key);
-                                    try
+                                    if (req.gitanaConfig.key)
                                     {
-                                        Gitana.disconnect(req.gitanaConfig.key);
+                                        console.log("Disconnecting driver: " + req.gitanaConfig.key);
+                                        try
+                                        {
+                                            Gitana.disconnect(req.gitanaConfig.key);
+                                        }
+                                        catch (e)
+                                        {
+                                        }
                                     }
-                                    catch (e) { }
 
                                     // remove from cache
-                                    console.log("Remove from cache: " + req.virtualHost);
-                                    try
+                                    if (req.virtualHost)
                                     {
-                                        process.driverConfigCache.invalidate(req.virtualHost, function () {
-                                            // all done
-                                        });
+                                        console.log("Remove driver cache for virtual host: " + req.virtualHost);
+                                        try
+                                        {
+                                            process.driverConfigCache.invalidate(req.virtualHost, function () {
+                                                // all done
+                                            });
+                                        }
+                                        catch (e)
+                                        {
+                                        }
                                     }
-                                    catch (e) { }
                                 }
                             }
 
