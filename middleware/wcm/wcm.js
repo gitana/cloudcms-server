@@ -643,7 +643,7 @@ exports = module.exports = function()
             }
         }
 
-        return process.configuration.wcm.pagesRetryTimeout;
+        return process.configuration.wcm.pageCacheTTL;
     };
 
     var getPagesCacheRetryTimeout = function()
