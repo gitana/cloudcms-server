@@ -1240,13 +1240,7 @@ exports = module.exports = function()
                         offsetPath += "index.html";
                     }
 
-                    if (res.statusCode) {
-                        util.status(res, res.statusCode);
-                    }
-                    else
-                    {
-                        util.status(res, 200);
-                    }
+                    util.status(res, res.statusCode);
                     util.applyResponseContentType(res, cacheInfo, offsetPath);
                     return readStream.pipe(res);
                 }
@@ -1319,14 +1313,7 @@ exports = module.exports = function()
                         }
 
                         // send back results right away
-                        if (res.statusCode) {
-                            // 
-                            util.status(res, res.statusCode);
-                        }
-                        else
-                        {
-                            util.status(res, 200);
-                        }
+                        util.status(res, res.statusCode);
                         util.applyResponseContentType(res, null, offsetPath);
                         util.setHeaderOnce(res, "cloudcms-dust-execution-time", stats.dustExecutionTime);
                         res.send(text);
