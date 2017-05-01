@@ -123,8 +123,14 @@ var updateUserForProvider = exports.updateUserForProvider = function(domain, pro
             return callback(err);
         }
 
-        if (!user) {
+        if (!user)
+        {
             return callback();
+        }
+
+        if (!userObject)
+        {
+            return callback(null, user);
         }
 
         Chain(user).then(function() {
@@ -133,11 +139,33 @@ var updateUserForProvider = exports.updateUserForProvider = function(domain, pro
             {
                 for (var k in userObject)
                 {
-                    this[k] = userObject[k];
+                    if (k === "name")
+                    {
+                        // skip
+                    }
+                    else if (k === "_doc")
+                    {
+                        // skip
+                    }
+                    else
+                    {
+                        if (!userObject[k])
+                        {
+                            delete this[k];
+                        }
+                        else
+                        {
+                            this[k] = userObject[k];
+                        }
+                    }
                 }
             }
 
-            this.update().then(function() {
+            this.trap(function(e) {
+                console.log("Failed on updateUserForProvider: " + e);
+                callback(e);
+                return false;
+            }).update().then(function() {
                 callback(null, this);
             });
         });
