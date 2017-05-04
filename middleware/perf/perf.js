@@ -14,6 +14,9 @@ var util = require("../../util/util");
  */
 exports = module.exports = function()
 {
+    // some time in the past
+    var EXPIRED_DATE = "Mon, 7 Apr 2012, 16:00:00 GMT";
+
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
     // RESULTING OBJECT
@@ -87,7 +90,7 @@ exports = module.exports = function()
                                         if (cacheSettings.seconds === 0)
                                         {
                                             cacheControl = "no-cache,no-store,max-age=0,s-maxage=0,must-revalidate";
-                                            expires = "Mon, 7 Apr 2012, 16:00:00 GMT"; // some time in the past
+                                            expires = EXPIRED_DATE;
                                         }
                                         else if (cacheSettings.seconds > 0)
                                         {
@@ -238,7 +241,7 @@ exports = module.exports = function()
                                                             if (cacheSettings.seconds === 0)
                                                             {
                                                                 cacheControl = "no-cache,no-store,max-age=0,s-maxage=0,must-revalidate";
-                                                                expires = "Mon, 7 Apr 2012, 16:00:00 GMT"; // some time in the past
+                                                                expires = EXPIRED_DATE;
                                                             }
                                                             else if (cacheSettings.seconds > 0)
                                                             {
