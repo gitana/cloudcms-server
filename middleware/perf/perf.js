@@ -15,7 +15,7 @@ var util = require("../../util/util");
 exports = module.exports = function()
 {
     // some time in the past
-    var EXPIRED_DATE = "Mon, 7 Apr 2012, 16:00:00 GMT";
+    var ALREADY_EXPIRED_DATE = "Mon, 7 Apr 2012, 16:00:00 GMT";
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
@@ -90,7 +90,7 @@ exports = module.exports = function()
                                         if (cacheSettings.seconds === 0)
                                         {
                                             cacheControl = "no-cache,no-store,max-age=0,s-maxage=0,must-revalidate";
-                                            expires = EXPIRED_DATE;
+                                            expires = ALREADY_EXPIRED_DATE;
                                         }
                                         else if (cacheSettings.seconds > 0)
                                         {
@@ -146,7 +146,7 @@ exports = module.exports = function()
         return util.createInterceptor("perf", function(req, res, next, stores, cache, configuration) {
 
             // NOTE: if we're not in production mode, we don't do any of this
-            if (process.env.CLOUDCMS_APPSERVER_MODE == "production" || TEST_MODE)
+            if (process.env.CLOUDCMS_APPSERVER_MODE === "production" || TEST_MODE)
             {
                 // if req.query.invalidate, don't bother
                 if (util.isInvalidateTrue(req))
@@ -241,7 +241,7 @@ exports = module.exports = function()
                                                             if (cacheSettings.seconds === 0)
                                                             {
                                                                 cacheControl = "no-cache,no-store,max-age=0,s-maxage=0,must-revalidate";
-                                                                expires = EXPIRED_DATE;
+                                                                expires = ALREADY_EXPIRED_DATE;
                                                             }
                                                             else if (cacheSettings.seconds > 0)
                                                             {
@@ -284,8 +284,8 @@ exports = module.exports = function()
                         if (!cacheControl)
                         {
                             // set to no-cache
-                            cacheControl = "max-age=0, no-cache, no-store";
-                            expires = "Mon, 7 Apr 2012, 16:00:00 GMT"; // some time in the past
+                            cacheControl = "no-cache,no-store,max-age=0,s-maxage=0,must-revalidate";
+                            expires = ALREADY_EXPIRED_DATE;
                         }
 
                         if (cacheControl && expires)
@@ -312,6 +312,31 @@ exports = module.exports = function()
 
             next();
         });
+    };
+
+    /**
+     * Supports development no-cache.
+     *
+     * @return {Function}
+     */
+    r.developmentPerformanceInterceptor = function()
+    {
+        return function(req, res, next)
+        {
+            // NOTE: if we're not in production mode, we don't do any of this
+            if (process.env.CLOUDCMS_APPSERVER_MODE === "production" || TEST_MODE)
+            {
+                return next();
+            }
+
+            util.setHeaderOnce(res, "Cache-Control", "no-cache,no-store,max-age=0,s-maxage=0,must-revalidate");
+            util.setHeaderOnce(res, "Expires", ALREADY_EXPIRED_DATE);
+
+            // always remove pragma
+            util.removeHeader(res, "Pragma");
+
+            next();
+        }
     };
 
     return r;

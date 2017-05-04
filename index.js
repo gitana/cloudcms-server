@@ -288,6 +288,11 @@ exports = module.exports = function()
         app.use(perf.mimeTypePerformanceInterceptor());
     };
 
+    r.perf3 = function(app)
+    {
+        app.use(perf.developmentPerformanceInterceptor());
+    };
+
     var applyApplicationConfiguration = r.applyApplicationConfiguration = function(app)
     {
         // binds req.config describing the proper app config to use for the request's current application

@@ -835,6 +835,9 @@ var startSlave = function(config, afterStartFn)
                         // MIMETYPE BASED PERFORMANCE CACHING
                         main.perf2(app);
 
+                        // DEVELOPMENT BASED PERFORMANCE CACHING
+                        main.perf3(app);
+
                         // standard body parsing + a special cloud cms body parser that makes a last ditch effort for anything
                         // that might be JSON (regardless of content type)
                         app.use(function (req, res, next) {
