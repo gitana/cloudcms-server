@@ -32,7 +32,7 @@ exports = module.exports = function()
     /**
      * Supports pre-proxy caching of resources based on file path.
      *
-     * Supports config like:
+     * Configuration looks like:
      *
      * {
      *    "perf": {
@@ -58,8 +58,7 @@ exports = module.exports = function()
                 // if req.query.invalidate, don't bother
                 if (util.isInvalidateTrue(req))
                 {
-                    next();
-                    return;
+                    return next();
                 }
 
                 var paths = configuration.paths;
@@ -80,21 +79,19 @@ exports = module.exports = function()
 
                                     if (typeof(cacheSettings) !== "undefined")
                                     {
-                                        if (cacheSettings.seconds === -1)
+                                        if (cacheSettings.seconds <= -1)
                                         {
                                             cacheSettings.seconds = MAXAGE_ONE_YEAR_SECONDS;
                                         }
 
                                         if (cacheSettings.seconds === 0)
                                         {
-                                            cacheControl = "no-cache,no-store,max-age=0,s-maxage=0";
-                                            //pragma = "no-cache";
+                                            cacheControl = "no-cache,no-store,max-age=0,s-maxage=0,must-revalidate";
                                             expires = "Mon, 7 Apr 2012, 16:00:00 GMT"; // some time in the past
                                         }
                                         else if (cacheSettings.seconds > 0)
                                         {
-                                            cacheControl = "public, max-age=" + cacheSettings.seconds;
-                                            //pragma = "public";
+                                            cacheControl = "public,max-age=" + cacheSettings.seconds + ",s-maxage=" + cacheSettings.seconds;
                                             expires = new Date(Date.now() + (cacheSettings.seconds * 1000)).toUTCString();
                                         }
                                     }
@@ -104,13 +101,13 @@ exports = module.exports = function()
                                         util.setHeaderOnce(res, "Cache-Control", cacheControl);
                                     }
 
-                                    // always remove pragma
-                                    util.removeHeader(res, "Pragma");
-
                                     if (expires)
                                     {
                                         util.setHeaderOnce(res, "Expires", expires);
                                     }
+
+                                    // always remove pragma
+                                    util.removeHeader(res, "Pragma");
                                 }
                             }
                         }
@@ -125,9 +122,19 @@ exports = module.exports = function()
     /**
      * Supports post-proxy caching of resources based on mimetype.
      *
-     *   /hosts
-     *     /<host>
-     *       /public
+     * Configuration looks like:
+     *
+     * {
+     *    "perf": {
+     *       "enabled": true,
+     *       "types": [{
+     *          "regex": "text/html",
+     *          "cache": {
+     *              "seconds": 60 (or 0 for no cache and -1 for 1 year)
+     *          }
+     *       }]
+     *    }
+     * }
      *
      * @return {Function}
      */
@@ -192,12 +199,10 @@ exports = module.exports = function()
 
                         // if we have a cache key, then we set headers to ALWAYS cache
                         var cacheControl = null;
-                        var pragma = null;
-                        var expires = "";
+                        var expires = null;
                         if (key)
                         {
                             cacheControl = "public, max-age=" + MAXAGE_ONE_MONTH_SECONDS;
-                            pragma = "public";
                             expires = new Date(Date.now() + (MAXAGE_ONE_MONTH_SECONDS * 1000)).toUTCString();
                         }
                         else if (extension)
@@ -207,34 +212,67 @@ exports = module.exports = function()
                             if (ext)
                             {
                                 var mimetype = util.lookupMimeType(ext);
-                                //var mimetype = mime.lookup(ext);
                                 if (mimetype)
                                 {
-                                    var isCSS = ("text/css" == mimetype);
-                                    var isImage = (mimetype.indexOf("image/") > -1);
-                                    var isJS = ("text/javascript" == mimetype) || ("application/javascript" == mimetype);
-                                    var isHTML = ("text/html" == mimetype);
-                                    var isFont = ("application/font-woff" == mimetype);
-
-                                    // html
-                                    if (isHTML)
+                                    // walk through all configured types
+                                    var types = configuration.types;
+                                    if (types)
                                     {
-                                        // leave no-cache for HTML
-                                        /*
-                                        var MAXAGE_ZERO_SECONDS = 0;
+                                        for (var i = 0; i < types.length; i++)
+                                        {
+                                            if (types[i].regex && types[i].cache)
+                                            {
+                                                var regex = new RegExp(types[i].regex);
+                                                if (regex.test(mimetype))
+                                                {
+                                                    var cacheSettings = types[i].cache;
+                                                    if (cacheSettings)
+                                                    {
+                                                        if (typeof(cacheSettings) !== "undefined")
+                                                        {
+                                                            if (cacheSettings.seconds <= -1)
+                                                            {
+                                                                cacheSettings.seconds = MAXAGE_ONE_YEAR_SECONDS;
+                                                            }
 
-                                        cacheControl = "public, max-age=" + MAXAGE_ZERO_SECONDS;
-                                        pragma = "public";
-                                        expires = new Date(Date.now() + (MAXAGE_ZERO_SECONDS * 1000)).toUTCString();
-                                        */
+                                                            if (cacheSettings.seconds === 0)
+                                                            {
+                                                                cacheControl = "no-cache,no-store,max-age=0,s-maxage=0,must-revalidate";
+                                                                expires = "Mon, 7 Apr 2012, 16:00:00 GMT"; // some time in the past
+                                                            }
+                                                            else if (cacheSettings.seconds > 0)
+                                                            {
+                                                                cacheControl = "public,max-age=" + cacheSettings.seconds + ",s-maxage=" + cacheSettings.seconds;
+                                                                expires = new Date(Date.now() + (cacheSettings.seconds * 1000)).toUTCString();
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
 
-                                    // css, images and js get 1 year
-                                    if (isCSS || isImage || isJS || isFont)
+                                    // if we didn't set anything via configuration, apply a default?
+                                    if (!cacheControl)
                                     {
-                                        cacheControl = "public, max-age=" + MAXAGE_ONE_YEAR_SECONDS;
-                                        pragma = "public";
-                                        expires = new Date(Date.now() + (MAXAGE_ONE_YEAR_SECONDS * 1000)).toUTCString();
+                                        var isCSS = ("text/css" == mimetype);
+                                        var isImage = (mimetype.indexOf("image/") > -1);
+                                        var isJS = ("text/javascript" == mimetype) || ("application/javascript" == mimetype);
+                                        var isHTML = ("text/html" == mimetype);
+                                        var isFont = ("application/font-woff" == mimetype);
+
+                                        // html
+                                        if (isHTML)
+                                        {
+                                            // leave no-cache for HTML
+                                        }
+
+                                        // css, images and js get 1 year
+                                        if (isCSS || isImage || isJS || isFont)
+                                        {
+                                            cacheControl = "public, max-age=" + MAXAGE_ONE_YEAR_SECONDS;
+                                            expires = new Date(Date.now() + (MAXAGE_ONE_YEAR_SECONDS * 1000)).toUTCString();
+                                        }
                                     }
                                 }
                             }
@@ -244,14 +282,16 @@ exports = module.exports = function()
                         {
                             // set to no-cache
                             cacheControl = "max-age=0, no-cache, no-store";
-                            pragma = "no-cache";
                             expires = "Mon, 7 Apr 2012, 16:00:00 GMT"; // some time in the past
                         }
 
-                        if (cacheControl && pragma && expires) {
+                        if (cacheControl && expires)
+                        {
                             util.setHeaderOnce(res, "Cache-Control", cacheControl);
-                            util.setHeaderOnce(res, "Pragma", pragma);
                             util.setHeaderOnce(res, "Expires", expires);
+
+                            // always remove pragma
+                            util.removeHeader(res, "Pragma");
                         }
 
                         // set new url
