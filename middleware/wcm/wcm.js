@@ -280,6 +280,7 @@ exports = module.exports = function()
             req.cache.read(WCM_PAGES, function (err, cachedPages) {
                 req.cache.read(WCM_PAGES_CACHE_TIME, function(err, cachedPagesTime) {
 
+                    /*
                     if (cachedPages)
                     {
                         console.log("a1: " + cachedPages);
@@ -289,6 +290,7 @@ exports = module.exports = function()
                         console.log("a5: " + WCM_PAGES_CACHE_TTL);
                         console.log("a6: " + ((cachedPagesTime.ms + WCM_PAGES_CACHE_TTL) < now));
                     }
+                    */
 
                     // if we received cachedPages, try to determine whether they're dirty (in which case we should reload)
                     // or whether we can serve them back
