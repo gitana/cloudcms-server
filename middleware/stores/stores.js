@@ -238,12 +238,36 @@ exports = module.exports = function()
                     {
                         var fn = function(moduleJsonFilePath) {
                             return function(done) {
+
+                                // the "match" function above uses regex and could find things like module-json.js, so we filter here
+                                if (!moduleJsonFilePath.toLowerCase().endsWith("module.json"))
+                                {
+                                    return done();
+                                }
+
                                 stores.modules.readFile(moduleJsonFilePath, function(err, data) {
-                                    var moduleJson = JSON.parse("" + data);
+
+                                    if (err)
+                                    {
+                                        return done();
+                                    }
+
+                                    var moduleJson = null;
+
+                                    try
+                                    {
+                                        moduleJson = JSON.parse("" + data);
+                                    }
+                                    catch (e)
+                                    {
+                                        console.log("Failed to parse module: " + moduleJsonFilePath + ", data: " + data + ", err: " + e);
+                                        return done();
+                                    }
 
                                     var moduleDirectoryPath = path.dirname(moduleJsonFilePath);
                                     var moduleVersion = null;
-                                    if (moduleJson.version) {
+                                    if (moduleJson.version)
+                                    {
                                         moduleVersion = moduleJson.version;
                                     }
 
@@ -253,7 +277,8 @@ exports = module.exports = function()
                                         "id": moduleJson.name
                                     };
 
-                                    if (moduleVersion) {
+                                    if (moduleVersion)
+                                    {
                                         moduleDescriptor.version = moduleVersion;
                                     }
 
