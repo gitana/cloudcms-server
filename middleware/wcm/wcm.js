@@ -1239,7 +1239,7 @@ exports = module.exports = function()
                     // log cache hit
                     if (isPageCacheEnabled(req))
                     {
-                        req.log("WCM Page Cache Hit: " + offsetPath);
+                        req.log("WCM Page Cache Hit: " + req.url);
                     }
 
                     // set "cloudcms-cache-hit" header
@@ -1260,7 +1260,7 @@ exports = module.exports = function()
                 // log cache miss
                 if (isPageCacheEnabled(req))
                 {
-                    req.log("WCM Page Cache Miss: " + offsetPath);
+                    req.log("WCM Page Cache Miss: " + req.url);
                 }
 
                 // set "cloudcms-cache-hit" header
@@ -1327,7 +1327,7 @@ exports = module.exports = function()
                         // log cache miss
                         if (isPageCacheEnabled(req))
                         {
-                            req.log("WCM Page Cache Write: " + offsetPath);
+                            req.log("WCM Page Cache Write: " + req.url);
                         }
 
                         // set "cloudcms-cache-hit" header
