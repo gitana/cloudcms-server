@@ -158,7 +158,7 @@ module.exports = function(app, dust)
             "userQuery": JSON.stringify(userQuery)
         });
 
-        var finishHandler = function(context, err)
+        var finishQueryHandler = function(context)
         {
             tracker.finish(context);
         };
@@ -255,7 +255,7 @@ module.exports = function(app, dust)
                         return end(chunk2, context);
                     }
 
-                    var handleResults = function(array)
+                    var handleQueryResults = function(array)
                     {
                         if (array.length > 0)
                         {
@@ -309,7 +309,13 @@ module.exports = function(app, dust)
                             }
 
                             support.renderFragment(newContext, fragmentId, requirements, chunk2, bodies, function(err) {
-                                finishHandler(newContext, err);
+
+                                if (err) {
+                                    console.log("Caught error in handleQuery/renderFragment: " + err);
+                                    return end(chunk2, newContext, err);
+                                }
+
+                                finishQueryHandler(newContext);
                             });
                         }
                         else
@@ -340,20 +346,30 @@ module.exports = function(app, dust)
                             var newContext = context.push(resultObject);
 
                             support.renderFragment(newContext, fragmentId, requirements, chunk2, bodies, function(err) {
-                                finishHandler(newContext, err);
+
+                                if (err) {
+                                    console.log("Caught error in handleQuery/renderFragment: " + err);
+                                    return end(chunk2, newContext, err);
+                                }
+
+                                finishQueryHandler(newContext);
                             });
                         }
                     };
 
                     var doQuery = function(branch, query, pagination)
                     {
-                        Chain(branch).queryNodes(query, pagination).then(function() {
+                        Chain(branch).trap(function(err) {
+                            console.log("Caught error in handleQuery: " + err);
+                            end(chunk, context, err);
+                            return false;
+                        }).queryNodes(query, pagination).then(function() {
 
                             _convertToArray(this, function(array) {
                                 _filterWithAuthorityChecks(array, context, branch, role, function(array) {
                                     _enhanceQueryResults(array, function(array) {
                                         _trackQueryResults(array, context, function(array) {
-                                            handleResults(array);
+                                            handleQueryResults(array);
                                         });
                                     });
                                 });
@@ -367,7 +383,9 @@ module.exports = function(app, dust)
                         var page = context.get("helpers")["page"];
 
                         Chain(page).trap(function(err) {
-                            console.log("ERR: " + JSON.stringify(err));
+                            console.log("Caught error in handleQuery: " + err);
+                            end(chunk, context, err);
+                            return false;
                         }).queryRelatives(query, {
                             "type": "wcm:page_has_content"
                         }, pagination).then(function() {
@@ -376,7 +394,7 @@ module.exports = function(app, dust)
                                 _filterWithAuthorityChecks(array, context, branch, role, function(array) {
                                     _enhanceQueryResults(array, function(array) {
                                         _trackQueryResults(array, context, function(array) {
-                                            handleResults(array);
+                                            handleQueryResults(array);
                                         });
                                     });
                                 });
@@ -490,7 +508,11 @@ module.exports = function(app, dust)
                     pagination.skip = skip;
                 }
 
-                branch.searchNodes(text, pagination).each(function() {
+                Chain(branch).trap(function(err){
+                    console.log("Caught error in handleSearch: " + err);
+                    end(chunk, context, err);
+                    return false;
+                }).searchNodes(text, pagination).each(function() {
 
                     // enhance node information
                     enhanceNode(this);
@@ -585,7 +607,11 @@ module.exports = function(app, dust)
                     return end(chunk, context);
                 }
 
-                branch.readNode(nodeId).then(function() {
+                Chain(branch).trap(function(err) {
+                    console.log("Caught error in handleAssociations: " + err);
+                    end(chunk, context, err);
+                    return false;
+                }).readNode(nodeId).then(function() {
 
                     var pagination = {};
                     if (!isDefined(limit)) {
@@ -782,7 +808,11 @@ module.exports = function(app, dust)
                     return end(chunk, context);
                 }
 
-                branch.readNode(fromNodeId).then(function() {
+                Chain(branch).trap(function(err){
+                    console.log("Caught error in handleRelatives: " + err);
+                    end(chunk, context, err);
+                    return false;
+                }).readNode(fromNodeId).then(function() {
 
                     // first query for relatives
                     var query = {};
@@ -872,12 +902,16 @@ module.exports = function(app, dust)
 
                     };
 
-                    this.queryRelatives(query, config, pagination).then(function() {
+                    Chain(this).trap(function(err) {
+                        console.log("Caught error in handleRelatives/queryRelatives: " + err);
+                        end(chunk, context, err);
+                        return false;
+                    }).queryRelatives(query, config, pagination).then(function () {
 
-                        _convertToArray(this, function(array) {
-                            _filterWithAuthorityChecks(array, context, branch, role, function(array) {
-                                _enhanceQueryResults(array, function(array) {
-                                    _trackQueryResults(array, context, function(array) {
+                        _convertToArray(this, function (array) {
+                            _filterWithAuthorityChecks(array, context, branch, role, function (array) {
+                                _enhanceQueryResults(array, function (array) {
+                                    _trackQueryResults(array, context, function (array) {
                                         handleResults(array);
                                     });
                                 });
@@ -885,7 +919,6 @@ module.exports = function(app, dust)
                         });
 
                     });
-
                 });
             });
         });
@@ -985,13 +1018,21 @@ module.exports = function(app, dust)
                     // select by ID or select by Path
                     if (id)
                     {
-                        branch.readNode(id).then(function() {
+                        Chain(branch).trap(function(err) {
+                            console.log("Caught error in handleContent: " + err);
+                            end(chunk, context, err);
+                            return false;
+                        }).readNode(id).then(function() {
                             f(this);
                         });
                     }
                     else if (contentPath)
                     {
-                        branch.readNode("root", contentPath).then(function() {
+                        Chain(branch).trap(function(err) {
+                            console.log("Caught error in handleContent: " + err);
+                            end(chunk, context, err);
+                            return false;
+                        }).readNode("root", contentPath).then(function() {
                             f(this);
                         });
                     }
@@ -1027,7 +1068,11 @@ module.exports = function(app, dust)
                 }
 
                 // read the definition
-                branch.readDefinition(definition).then(function() {
+                Chain(branch).trap(function(err) {
+                    console.log("Caught error in handleForm: " + err);
+                    end(chunk, context, err);
+                    return false;
+                }).readDefinition(definition).then(function() {
                     var schema = this;
 
                     // if a form is specified, read the form

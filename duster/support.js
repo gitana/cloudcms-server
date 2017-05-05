@@ -130,9 +130,15 @@ exports = module.exports = function(dust)
      *
      * @param chunk
      * @param context
+     * @param err
      */
-    var end = r.end = function(chunk, context)
+    var end = r.end = function(chunk, context, err)
     {
+        if (err)
+        {
+            chunk.setError(err);
+
+        }
         chunk.end();
     };
 

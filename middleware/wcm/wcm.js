@@ -1235,7 +1235,15 @@ exports = module.exports = function()
                 if (!err && readStream)
                 {
                     // yes, we found it in cache, so we'll simply pipe it back from disk
-                    req.log("WCM Page Cache Hit: " + offsetPath);
+
+                    // log cache hit
+                    if (isPageCacheEnabled(req))
+                    {
+                        req.log("WCM Page Cache Hit: " + offsetPath);
+                    }
+
+                    // set "cloudcms-cache-hit" header
+                    util.setHeaderOnce(res, "cloudcms-cache-hit", "true");
 
                     // SPECIAL HANDLING FOR OFFSET PATH "/" TO SUPPORT HTML CONTENT TYPE HEADER
                     if (offsetPath === "/") {
@@ -1248,6 +1256,15 @@ exports = module.exports = function()
                 }
 
                 // otherwise, we need to run dust...
+
+                // log cache miss
+                if (isPageCacheEnabled(req))
+                {
+                    req.log("WCM Page Cache Miss: " + offsetPath);
+                }
+
+                // set "cloudcms-cache-hit" header
+                util.setHeaderOnce(res, "cloudcms-cache-hit", "false");
 
                 var runDust = function()
                 {
@@ -1301,10 +1318,20 @@ exports = module.exports = function()
                             return;
                         }
 
+                        // log cache miss
+                        if (isPageCacheEnabled(req))
+                        {
+                            req.log("WCM Page Cache Write: " + offsetPath);
+                        }
+
+                        // set "cloudcms-cache-hit" header
+                        util.setHeaderOnce(res, "cloudcms-cache-write", "true");
+
                         // we now have the result (text) and the dependencies that this page flagged (dependencies)
                         // use these to write to the page cache
                         // don't wait for this to complete, assume it completes in background
                         handleCachePageWrite(req, res, descriptor, pageBasePath, dependencies, text, function(err) {
+
                             //res.status(200);
                             //res.send(text);
                         });
