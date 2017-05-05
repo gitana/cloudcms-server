@@ -1243,7 +1243,7 @@ exports = module.exports = function()
                     }
 
                     // set "cloudcms-cache-hit" header
-                    util.setHeaderOnce(res, "cloudcms-cache-hit", "true");
+                    util.setHeaderOnce(res, "cloudcms-wcm-cache-hit", "true");
 
                     // SPECIAL HANDLING FOR OFFSET PATH "/" TO SUPPORT HTML CONTENT TYPE HEADER
                     if (offsetPath === "/") {
@@ -1264,7 +1264,7 @@ exports = module.exports = function()
                 }
 
                 // set "cloudcms-cache-hit" header
-                util.setHeaderOnce(res, "cloudcms-cache-hit", "false");
+                util.setHeaderOnce(res, "cloudcms-wcm-cache-hit", "false");
 
                 var runDust = function()
                 {
@@ -1311,11 +1311,17 @@ exports = module.exports = function()
                         {
                             // something screwed up during the dust execution
                             // it might be a bad template
-                            req.log("Failed to process dust template: " + page.templatePath + " for model: " + JSON.stringify(model, null, "  "));
+                            req.log("Failed to process dust template: " + page.templatePath + " for model: " + JSON.stringify(model, null, "  ") + ", err: " + err);
 
-                            util.status(res, 500);
-                            res.send(err);
-                            return;
+                            // assume a 500 error code
+                            if (!err.status) {
+                                err.status = 500;
+                            }
+                            if (!err.message) {
+                                err.message = "There was a problem rendering this web page, please contact your administrator";
+                            }
+
+                            return next(err);
                         }
 
                         // log cache miss
@@ -1325,7 +1331,7 @@ exports = module.exports = function()
                         }
 
                         // set "cloudcms-cache-hit" header
-                        util.setHeaderOnce(res, "cloudcms-cache-write", "true");
+                        util.setHeaderOnce(res, "cloudcms-wcm-cache-write", "true");
 
                         // we now have the result (text) and the dependencies that this page flagged (dependencies)
                         // use these to write to the page cache

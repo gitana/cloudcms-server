@@ -16,7 +16,7 @@ module.exports = function(app, dust)
 
     // helper functions
     var isDefined = support.isDefined;
-    var resolveVariables = support.resolveVariables;
+    //var resolveVariables = support.resolveVariables;
     var map = support.map;
     var end = support.end;
     var _MARK_INSIGHT = support._MARK_INSIGHT;
@@ -361,7 +361,7 @@ module.exports = function(app, dust)
                     {
                         Chain(branch).trap(function(err) {
                             console.log("Caught error in handleQuery: " + err);
-                            end(chunk, context, err);
+                            end(chunk2, context, err);
                             return false;
                         }).queryNodes(query, pagination).then(function() {
 
@@ -384,7 +384,7 @@ module.exports = function(app, dust)
 
                         Chain(page).trap(function(err) {
                             console.log("Caught error in handleQuery: " + err);
-                            end(chunk, context, err);
+                            end(chunk2, context, err);
                             return false;
                         }).queryRelatives(query, {
                             "type": "wcm:page_has_content"
@@ -1012,7 +1012,7 @@ module.exports = function(app, dust)
                 req.branch(function(err, branch) {
 
                     if (err) {
-                        return end(chunk, context);
+                        return end(chunk2, context);
                     }
 
                     // select by ID or select by Path
@@ -1020,7 +1020,7 @@ module.exports = function(app, dust)
                     {
                         Chain(branch).trap(function(err) {
                             console.log("Caught error in handleContent: " + err);
-                            end(chunk, context, err);
+                            end(chunk2, context, err);
                             return false;
                         }).readNode(id).then(function() {
                             f(this);
@@ -1030,7 +1030,7 @@ module.exports = function(app, dust)
                     {
                         Chain(branch).trap(function(err) {
                             console.log("Caught error in handleContent: " + err);
-                            end(chunk, context, err);
+                            end(chunk2, context, err);
                             return false;
                         }).readNode("root", contentPath).then(function() {
                             f(this);
@@ -1315,9 +1315,8 @@ module.exports = function(app, dust)
                 dust.render(templatePath, subContext, function (err, out) {
 
                     if (err) {
-                        log("Error while rendering include for: " + templatePath);
-                        log(err);
-                        return end(chunk2, subContext);
+                        log("Error while rendering include for: " + templatePath + ", err: " + (err && err.message ? err.message : err));
+                        return end(chunk2, subContext, err);
                     }
 
                     chunk2.write(out);

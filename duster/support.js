@@ -137,8 +137,8 @@ exports = module.exports = function(dust)
         if (err)
         {
             chunk.setError(err);
-
         }
+
         chunk.end();
     };
 
