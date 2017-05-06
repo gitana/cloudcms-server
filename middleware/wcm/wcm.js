@@ -627,6 +627,19 @@ exports = module.exports = function()
         return enabled;
     };
 
+    var getPageCacheConfig = function(req)
+    {
+        if (!process.configuration.wcm) {
+            process.configuration.wcm = {};
+        }
+
+        if (!process.configuration.wcm.cacheConfig) {
+            process.configuration.wcm.cacheConfig = {};
+        }
+
+        return process.configuration.wcm.cacheConfig;
+    };
+
     var getPagesCacheTTL = function()
     {
         if (!process.configuration.wcm) {
@@ -1220,6 +1233,37 @@ exports = module.exports = function()
 
             if (req.branchId) {
                 descriptor.branchId = req.branchId;
+            }
+
+            // support stripping out specific parameters
+            var pageCacheConfig = getPageCacheConfig(req);
+            if (pageCacheConfig.cacheKey)
+            {
+                var cacheKeyConfig = pageCacheConfig.cacheKey;
+
+                if (cacheKeyConfig.excludeParams)
+                {
+                    for (var i = 0; i < cacheKeyConfig.excludeParams.length; i++)
+                    {
+                        delete descriptor.params[cacheKeyConfig.excludeParams[i]];
+                    }
+                }
+                // support including only specific parameters
+                if (cacheKeyConfig.includeParams)
+                {
+                    var keepers = {};
+
+                    for (var i = 0; i < cacheKeyConfig.includeParams.length; i++)
+                    {
+                        var v = descriptor.params[cacheKeyConfig.includeParams[i]];
+                        if (v)
+                        {
+                            keepers[cacheKeyConfig.includeParams[i]] = v;
+                        }
+                    }
+
+                    descriptor.params = keepers;
+                }
             }
 
             // generate a page cache key from the descriptor (and store on the descriptor)
