@@ -161,13 +161,13 @@ var SETTINGS = {
     "wcm": {
         "enabled": false,
         "cache": false,
-        "cacheTimeout": undefined,
         "cacheKey": {
             "params": {
                 "include": [],
                 "exclude": []
             }
         },
+        "pageCacheTTL": undefined,
         "pageCacheRetryTimeout": undefined
     },
     "serverTags": {

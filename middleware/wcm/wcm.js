@@ -250,9 +250,6 @@ exports = module.exports = function()
     {
         var WCM_PAGES_CACHE_TTL = getPagesCacheTTL();
 
-        // for debugging, force to 10 seconds
-        // WCM_PAGES_CACHE_TTL = 10 * 1000;
-
         // retry in 30 seconds if Cloud CMS unavailable for page cache reload
         var WCM_PAGES_CACHE_RETRY_TIME_MS = getPagesCacheRetryTimeout();
 
@@ -1251,26 +1248,26 @@ exports = module.exports = function()
             var cacheKeyConfig = getPageCacheKeyConfig(req);
             if (cacheKeyConfig.params)
             {
-                // exclude
-                if (cacheKeyConfig.params.exclude && cacheKeyConfig.params.exclude.length > 0)
+                // excludes
+                if (cacheKeyConfig.params.excludes && cacheKeyConfig.params.excludes.length > 0)
                 {
-                    for (var i = 0; i < cacheKeyConfig.params.exclude.length; i++)
+                    for (var i = 0; i < cacheKeyConfig.params.excludes.length; i++)
                     {
-                        delete descriptor.params[cacheKeyConfig.params.exclude[i]];
+                        delete descriptor.params[cacheKeyConfig.params.excludes[i]];
                     }
                 }
 
                 // include
-                if (cacheKeyConfig.params.include && cacheKeyConfig.params.include.length > 0)
+                if (cacheKeyConfig.params.includes && cacheKeyConfig.params.includes.length > 0)
                 {
                     var keepers = {};
 
-                    for (var i = 0; i < cacheKeyConfig.params.include.length; i++)
+                    for (var i = 0; i < cacheKeyConfig.params.includes.length; i++)
                     {
-                        var v = descriptor.params[cacheKeyConfig.params.include[i]];
+                        var v = descriptor.params[cacheKeyConfig.params.includes[i]];
                         if (v)
                         {
-                            keepers[cacheKeyConfig.params.include[i]] = v;
+                            keepers[cacheKeyConfig.params.includes[i]] = v;
                         }
                     }
 
