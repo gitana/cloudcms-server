@@ -627,17 +627,29 @@ exports = module.exports = function()
         return enabled;
     };
 
-    var getPageCacheConfig = function(req)
+    var getPageCacheKeyConfig = function(req)
     {
         if (!process.configuration.wcm) {
             process.configuration.wcm = {};
         }
 
-        if (!process.configuration.wcm.cacheConfig) {
-            process.configuration.wcm.cacheConfig = {};
+        if (!process.configuration.wcm.cacheKey) {
+            process.configuration.wcm.cacheKey = {};
         }
 
-        return process.configuration.wcm.cacheConfig;
+        if (!process.configuration.wcm.cacheKey.params) {
+            process.configuration.wcm.cacheKey.params = {};
+        }
+
+        if (!process.configuration.wcm.cacheKey.params.include) {
+            process.configuration.wcm.cacheKey.params.include = [];
+        }
+
+        if (!process.configuration.wcm.cacheKey.params.exclude) {
+            process.configuration.wcm.cacheKey.params.exclude = [];
+        }
+
+        return process.configuration.wcm.cacheKey;
     };
 
     var getPagesCacheTTL = function()
@@ -1236,29 +1248,29 @@ exports = module.exports = function()
             }
 
             // support stripping out specific parameters
-            var pageCacheConfig = getPageCacheConfig(req);
-            if (pageCacheConfig.cacheKey)
+            var cacheKeyConfig = getPageCacheKeyConfig(req);
+            if (cacheKeyConfig.params)
             {
-                var cacheKeyConfig = pageCacheConfig.cacheKey;
-
-                if (cacheKeyConfig.excludeParams)
+                // exclude
+                if (cacheKeyConfig.params.exclude && cacheKeyConfig.params.exclude.length > 0)
                 {
-                    for (var i = 0; i < cacheKeyConfig.excludeParams.length; i++)
+                    for (var i = 0; i < cacheKeyConfig.params.exclude.length; i++)
                     {
-                        delete descriptor.params[cacheKeyConfig.excludeParams[i]];
+                        delete descriptor.params[cacheKeyConfig.params.exclude[i]];
                     }
                 }
-                // support including only specific parameters
-                if (cacheKeyConfig.includeParams)
+
+                // include
+                if (cacheKeyConfig.params.include && cacheKeyConfig.params.include.length > 0)
                 {
                     var keepers = {};
 
-                    for (var i = 0; i < cacheKeyConfig.includeParams.length; i++)
+                    for (var i = 0; i < cacheKeyConfig.params.include.length; i++)
                     {
-                        var v = descriptor.params[cacheKeyConfig.includeParams[i]];
+                        var v = descriptor.params[cacheKeyConfig.params.include[i]];
                         if (v)
                         {
-                            keepers[cacheKeyConfig.includeParams[i]] = v;
+                            keepers[cacheKeyConfig.params.include[i]] = v;
                         }
                     }
 

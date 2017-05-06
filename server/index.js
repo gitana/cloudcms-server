@@ -162,6 +162,12 @@ var SETTINGS = {
         "enabled": false,
         "cache": false,
         "cacheTimeout": undefined,
+        "cacheKey": {
+            "params": {
+                "include": [],
+                "exclude": []
+            }
+        },
         "pageCacheRetryTimeout": undefined
     },
     "serverTags": {

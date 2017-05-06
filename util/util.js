@@ -1367,6 +1367,8 @@ var generatePageCacheKey = exports.generatePageCacheKey = function(descriptor) {
     }
     */
 
+    //console.log("KEY CONSTRUCTION STRING: " + str);
+
     // calculate a signature to serve as a page cache key
     return hashSignature(str);
 };
