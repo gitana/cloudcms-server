@@ -1249,25 +1249,25 @@ exports = module.exports = function()
             if (cacheKeyConfig.params)
             {
                 // excludes
-                if (cacheKeyConfig.params.excludes && cacheKeyConfig.params.excludes.length > 0)
+                if (cacheKeyConfig.params.exclude && cacheKeyConfig.params.exclude.length > 0)
                 {
-                    for (var i = 0; i < cacheKeyConfig.params.excludes.length; i++)
+                    for (var i = 0; i < cacheKeyConfig.params.exclude.length; i++)
                     {
-                        delete descriptor.params[cacheKeyConfig.params.excludes[i]];
+                        delete descriptor.params[cacheKeyConfig.params.exclude[i]];
                     }
                 }
 
                 // include
-                if (cacheKeyConfig.params.includes && cacheKeyConfig.params.includes.length > 0)
+                if (cacheKeyConfig.params.include && cacheKeyConfig.params.include.length > 0)
                 {
                     var keepers = {};
 
-                    for (var i = 0; i < cacheKeyConfig.params.includes.length; i++)
+                    for (var i = 0; i < cacheKeyConfig.params.include.length; i++)
                     {
-                        var v = descriptor.params[cacheKeyConfig.params.includes[i]];
+                        var v = descriptor.params[cacheKeyConfig.params.include[i]];
                         if (v)
                         {
-                            keepers[cacheKeyConfig.params.includes[i]] = v;
+                            keepers[cacheKeyConfig.params.include[i]] = v;
                         }
                     }
 
