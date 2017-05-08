@@ -161,10 +161,11 @@ var SETTINGS = {
     "wcm": {
         "enabled": false,
         "cache": false,
+        "matchCase": true,
         "cacheKey": {
             "params": {
-                "include": [],
-                "exclude": []
+                "includes": [],
+                "excludes": []
             }
         },
         "pageCacheTTL": undefined,

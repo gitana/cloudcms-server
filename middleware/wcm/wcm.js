@@ -638,12 +638,12 @@ exports = module.exports = function()
             process.configuration.wcm.cacheKey.params = {};
         }
 
-        if (!process.configuration.wcm.cacheKey.params.include) {
-            process.configuration.wcm.cacheKey.params.include = [];
+        if (!process.configuration.wcm.cacheKey.params.includes) {
+            process.configuration.wcm.cacheKey.params.includes = [];
         }
 
-        if (!process.configuration.wcm.cacheKey.params.exclude) {
-            process.configuration.wcm.cacheKey.params.exclude = [];
+        if (!process.configuration.wcm.cacheKey.params.excludes) {
+            process.configuration.wcm.cacheKey.params.excludes = [];
         }
 
         return process.configuration.wcm.cacheKey;
@@ -1249,25 +1249,25 @@ exports = module.exports = function()
             if (cacheKeyConfig.params)
             {
                 // excludes
-                if (cacheKeyConfig.params.exclude && cacheKeyConfig.params.exclude.length > 0)
+                if (cacheKeyConfig.params.excludes && cacheKeyConfig.params.excludes.length > 0)
                 {
-                    for (var i = 0; i < cacheKeyConfig.params.exclude.length; i++)
+                    for (var i = 0; i < cacheKeyConfig.params.excludes.length; i++)
                     {
-                        delete descriptor.params[cacheKeyConfig.params.exclude[i]];
+                        delete descriptor.params[cacheKeyConfig.params.excludes[i]];
                     }
                 }
 
                 // include
-                if (cacheKeyConfig.params.include && cacheKeyConfig.params.include.length > 0)
+                if (cacheKeyConfig.params.includes && cacheKeyConfig.params.includes.length > 0)
                 {
                     var keepers = {};
 
-                    for (var i = 0; i < cacheKeyConfig.params.include.length; i++)
+                    for (var i = 0; i < cacheKeyConfig.params.includes.length; i++)
                     {
-                        var v = descriptor.params[cacheKeyConfig.params.include[i]];
+                        var v = descriptor.params[cacheKeyConfig.params.includes[i]];
                         if (v)
                         {
-                            keepers[cacheKeyConfig.params.include[i]] = v;
+                            keepers[cacheKeyConfig.params.includes[i]] = v;
                         }
                     }
 
