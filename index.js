@@ -10,6 +10,10 @@ var util = require("./util/util");
 var http = require('http');
 var https = require('https');
 
+// by default, set up Gitana driver so that it limits to five concurrent HTTP requests back to Cloud CMS API at at time
+var Gitana = require("gitana");
+Gitana.HTTP_WORK_QUEUE_SIZE = 5;
+
 // default http timeout
 process.defaultHttpTimeoutMs = 120000; // 2 minutes
 

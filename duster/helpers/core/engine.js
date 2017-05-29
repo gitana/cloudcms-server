@@ -169,7 +169,8 @@ module.exports = function(app, dust)
             support.loadFragment(context, fragmentId, requirements, function(err, fragmentText) {
 
                 // if we found a fragment, stream it back
-                if (!err && fragmentText) {
+                if (!err && fragmentText)
+                {
                     chunk2.write(fragmentText);
                     return chunk2.end();
                 }
@@ -206,7 +207,7 @@ module.exports = function(app, dust)
                     nearArray[1] = parseFloat(nearArray[1]);
 
                     query["loc"] = {
-                        "$near" : {
+                        "$near": {
                             "lat": nearArray[0],
                             "long": nearArray[1]
                         }
@@ -219,7 +220,8 @@ module.exports = function(app, dust)
                 };
 
                 var pagination = {};
-                if (!isDefined(limit)) {
+                if (!isDefined(limit))
+                {
                     limit = DEFAULT_PAGINATION_LIMIT;
                 }
                 pagination.limit = limit;
@@ -249,14 +251,14 @@ module.exports = function(app, dust)
                 }
 
                 var req = context.get("req");
-                req.branch(function(err, branch) {
+                req.branch(function (err, branch) {
 
-                    if (err) {
+                    if (err)
+                    {
                         return end(chunk2, context);
                     }
 
-                    var handleQueryResults = function(array)
-                    {
+                    var handleQueryResults = function (array) {
                         if (array.length > 0)
                         {
                             for (var i = 0; i < array.length; i++)
@@ -265,10 +267,13 @@ module.exports = function(app, dust)
                             }
                         }
 
-                        if (orderResultsByList && util.isArray(orderResultsByList)) {
+                        if (orderResultsByList && util.isArray(orderResultsByList))
+                        {
                             var newArray = [];
-                            for( var i = 0 ; i < orderResultsByList.length ; i++ ){
-                                for( var j = 0 ; j < array.length ; j++ ){
+                            for (var i = 0; i < orderResultsByList.length; i++)
+                            {
+                                for (var j = 0; j < array.length; j++)
+                                {
                                     if (array[j]._doc == orderResultsByList[i])
                                     {
                                         newArray.push(array[j]);
@@ -308,9 +313,10 @@ module.exports = function(app, dust)
                                 newContext = context.push({});
                             }
 
-                            support.renderFragment(newContext, fragmentId, requirements, chunk2, bodies, function(err) {
+                            support.renderFragment(newContext, fragmentId, requirements, chunk2, bodies, function (err) {
 
-                                if (err) {
+                                if (err)
+                                {
                                     console.log("Caught error in handleQuery/renderFragment: " + err);
                                     return end(chunk2, newContext, err);
                                 }
@@ -345,9 +351,10 @@ module.exports = function(app, dust)
 
                             var newContext = context.push(resultObject);
 
-                            support.renderFragment(newContext, fragmentId, requirements, chunk2, bodies, function(err) {
+                            support.renderFragment(newContext, fragmentId, requirements, chunk2, bodies, function (err) {
 
-                                if (err) {
+                                if (err)
+                                {
                                     console.log("Caught error in handleQuery/renderFragment: " + err);
                                     return end(chunk2, newContext, err);
                                 }
@@ -357,18 +364,17 @@ module.exports = function(app, dust)
                         }
                     };
 
-                    var doQuery = function(branch, query, pagination)
-                    {
-                        Chain(branch).trap(function(err) {
+                    var doQuery = function (branch, query, pagination) {
+                        Chain(branch).trap(function (err) {
                             console.log("Caught error in handleQuery: " + err);
                             end(chunk2, context, err);
                             return false;
-                        }).queryNodes(query, pagination).then(function() {
+                        }).queryNodes(query, pagination).then(function () {
 
-                            _convertToArray(this, function(array) {
-                                _filterWithAuthorityChecks(array, context, branch, role, function(array) {
-                                    _enhanceQueryResults(array, function(array) {
-                                        _trackQueryResults(array, context, function(array) {
+                            _convertToArray(this, function (array) {
+                                _filterWithAuthorityChecks(array, context, branch, role, function (array) {
+                                    _enhanceQueryResults(array, function (array) {
+                                        _trackQueryResults(array, context, function (array) {
                                             handleQueryResults(array);
                                         });
                                     });
@@ -378,22 +384,21 @@ module.exports = function(app, dust)
                         });
                     };
 
-                    var doQueryPageHasContents = function(branch, query, pagination)
-                    {
+                    var doQueryPageHasContents = function (branch, query, pagination) {
                         var page = context.get("helpers")["page"];
 
-                        Chain(page).trap(function(err) {
+                        Chain(page).trap(function (err) {
                             console.log("Caught error in handleQuery: " + err);
                             end(chunk2, context, err);
                             return false;
                         }).queryRelatives(query, {
                             "type": "wcm:page_has_content"
-                        }, pagination).then(function() {
+                        }, pagination).then(function () {
 
-                            _convertToArray(this, function(array) {
-                                _filterWithAuthorityChecks(array, context, branch, role, function(array) {
-                                    _enhanceQueryResults(array, function(array) {
-                                        _trackQueryResults(array, context, function(array) {
+                            _convertToArray(this, function (array) {
+                                _filterWithAuthorityChecks(array, context, branch, role, function (array) {
+                                    _enhanceQueryResults(array, function (array) {
+                                        _trackQueryResults(array, context, function (array) {
                                             handleQueryResults(array);
                                         });
                                     });
