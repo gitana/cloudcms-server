@@ -269,6 +269,9 @@ var SETTINGS = {
     },
     "renditions": {
         "enabled": true
+    },
+    "gitana": {
+        "httpWorkQueueSize": 5
     }
 };
 

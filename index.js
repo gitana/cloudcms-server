@@ -12,7 +12,6 @@ var https = require('https');
 
 // by default, set up Gitana driver so that it limits to five concurrent HTTP requests back to Cloud CMS API at at time
 var Gitana = require("gitana");
-Gitana.HTTP_WORK_QUEUE_SIZE = 5;
 
 // default http timeout
 process.defaultHttpTimeoutMs = 120000; // 2 minutes
@@ -223,6 +222,19 @@ exports = module.exports = function()
 
     r.init = function(app, callback)
     {
+        if (process.configuration && process.configuration.gitana)
+        {
+            if (typeof(process.configuration.gitana.httpWorkQueueSize) !== "undefined")
+            {
+                if (process.configuration.gitana.httpWorkQueueSize > -1)
+                {
+                    Gitana.HTTP_WORK_QUEUE_SIZE = process.configuration.gitana.httpWorkQueueSize;
+
+                    console.log("Limiting Gitana Driver HTTP work queue to size: " + Gitana.HTTP_WORK_QUEUE_SIZE);
+                }
+            }
+        }
+
         process.cache = app.cache = cache;
         process.broadcast = app.broadcast = broadcast;
         process.locks = app.locks = locks;
