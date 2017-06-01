@@ -39,12 +39,20 @@ exports = module.exports = function()
         var successUrl = acquireProperty(req.query, ["success", "successUrl", "successURL", "successRedirect"]);
         var failureUrl = acquireProperty(req.query, ["failure", "failureUrl", "failureURL", "failureRedirect"]);
 
+        var providerId;
+        var userObject = {};
+        var providerUserId;
+        var token;
+        var refreshToken;
+
         // from session
-        var providerId = req.session.registration_provider_id;
-        var userObject = req.session.registration_user_object;
-        var providerUserId = req.session.registration_user_identifier;
-        var token = req.session.registration_token;
-        var refreshToken = req.session.registration_refresh_token;
+        if (req.session) {
+            providerId = req.session.registration_provider_id;
+            userObject = req.session.registration_user_object;
+            providerUserId = req.session.registration_user_identifier;
+            token = req.session.registration_token;
+            refreshToken = req.session.registration_refresh_token;
+        }
 
         var options = configuration.options;
         if (!options) {
@@ -201,7 +209,6 @@ exports = module.exports = function()
             for (var k in form) {
                 userObject[k] = form[k];
             }
-
             if (providerId)
             {
                 process.authentication.buildProvider(req, providerId, function(err, provider, providerType, providerConfig) {
