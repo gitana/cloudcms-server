@@ -139,14 +139,15 @@ var handleRegister = function(req, res)
             "email": form.email,
             "password": form.password
         }).then(function() {
+            var user = this;
 
             // add the user to the "appusers" team for the stack
             var teamKey = "appusers-" + gitana.application().getId();
-            Chain(gitana.stack()).trap(errHandler).readTeam(teamKey).addMember(this).then(function() {
+            Chain(gitana.stack()).trap(errHandler).readTeam(teamKey).addMember(user).then(function() {
 
                 res.send({
                     "ok": true,
-                    "user": this
+                    "user": user
                 });
 
             });
