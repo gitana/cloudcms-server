@@ -214,27 +214,63 @@ exports = module.exports = function()
                 process.authentication.buildProvider(req, providerId, function(err, provider, providerType, providerConfig) {
 
                     if (err) {
-                        return res.redirect(failureUrl);
+                        if (failureUrl) {
+                            return res.redirect(failureUrl);
+                        }
+
+                        return res.status(200).type("application/json").send(JSON.stringify({
+                            "ok": false,
+                            "err": err
+                        }));
                     }
 
                     // create the user
                     auth.createUserForProvider(domain, providerId, providerUserId, token, refreshToken, userObject, function (err, gitanaUser) {
 
                         if (err) {
-                            return res.redirect(failureUrl);
+                            if (failureUrl) {
+                                return res.redirect(failureUrl);
+                            }
+
+                            return res.status(200).type("application/json").send(JSON.stringify({
+                                "ok": false,
+                                "err": err
+                            }));
                         }
 
-                        res.redirect(successUrl);
+                        if (successUrl) {
+                            return res.redirect(successUrl);
+                        }
+
+                        return res.status(200).type("application/json").send(JSON.stringify({
+                            "ok": true,
+                            "userObject": userObject
+                        }));
                     });
                 });
             }
             else
             {
-                Chain(domain).trap(function(e) {
-                    res.redirect(failureUrl);
+                Chain(domain).trap(function(err) {
+                    if (failureUrl) {
+                        res.redirect(failureUrl);
+                    } else {
+                        return res.status(200).type("application/json").send(JSON.stringify({
+                            "ok": false,
+                            "err": err
+                        }));
+                    }
                     return false;
                 }).createUser(userObject).then(function() {
-                    res.redirect(successUrl);
+                    if (successUrl) {
+                        res.redirect(successUrl);
+                        return;
+                    }
+
+                    res.status(200).type("application/json").send(JSON.stringify({
+                        "ok": true,
+                        "userObject": userObject
+                    }));
                 });
 
             }
