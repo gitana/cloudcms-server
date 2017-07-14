@@ -189,6 +189,7 @@ exports = module.exports = function()
     var perf = require("./middleware/perf/perf");
     var proxy = require("./middleware/proxy/proxy");
     var registration = require("./middleware/registration/registration");
+    var resources = require("./middleware/resources/resources");
     var runtime = require("./middleware/runtime/runtime");
     var serverTags = require("./middleware/server-tags/server-tags");
     var storeService = require("./middleware/stores/stores");
@@ -461,6 +462,9 @@ exports = module.exports = function()
 
         // handles calls to the modules service
         app.use(modules.handler());
+
+        // handles calls to resources
+        app.use(resources.handler());
 
         // handles thirdparty browser libraries that are included with cloudcms-server
         app.use(libraries.handler());

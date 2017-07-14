@@ -242,7 +242,19 @@ exports = module.exports = function(dust)
         if (fragmentDependencies)
         {
             renditions.markRendition(req, fragmentDescriptor, fragmentDependencies, function (err) {
-                // all done, nothing to do
+
+                // if we got an error writing the rendition, then we have to roll back and invalidate disk cache
+                if (err)
+                {
+                    var fragmentFolderPath = path.join(fragmentsBasePath, fragmentCacheKey);
+
+                    console.log("Caught error on fragment markRendition, invalidating: " + fragmentFolderPath + ", err:" + err);
+
+                    _handleCacheFragmentInvalidate(contentStore, fragmentFolderPath, function() {
+                        // done
+                    });
+                }
+
             });
         }
 
@@ -271,17 +283,23 @@ exports = module.exports = function(dust)
                 return callback(err, fragmentFolderPath);
             }
 
-            stores.content.existsDirectory(fragmentFolderPath, function (exists) {
-
-                if (!exists) {
-                    return callback(null, fragmentFolderPath);
-                }
-
-                stores.content.removeDirectory(fragmentFolderPath, function () {
-                    callback(null, fragmentFolderPath);
-                });
+            _handleCacheFragmentInvalidate(stores.content, fragmentFolderPath, function(err, fragmentFolderPath) {
+                return callback(null, fragmentFolderPath);
             });
+        });
+    };
 
+    var _handleCacheFragmentInvalidate = function(contentStore, fragmentFolderPath, callback)
+    {
+        contentStore.existsDirectory(fragmentFolderPath, function (exists) {
+
+            if (!exists) {
+                return callback();
+            }
+
+            contentStore.removeDirectory(fragmentFolderPath, function () {
+                callback();
+            });
         });
     };
 

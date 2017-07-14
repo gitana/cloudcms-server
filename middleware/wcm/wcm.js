@@ -700,11 +700,22 @@ exports = module.exports = function()
 
     var handleCachePageWrite = function(req, res, descriptor, pageBasePath, dependencies, text, callback)
     {
+        var contentStore = req.stores.content;
+
         // mark the rendition
         if (dependencies)
         {
             renditions.markRendition(req, descriptor, dependencies, function (err) {
-                // all done, nothing to do
+
+                // if we got an error writing the page, then we have to roll back and invalidate disk cache
+                if (err)
+                {
+                    console.log("Caught error on WCM markRendition, invalidating: " + pageBasePath + ", err:" + err);
+                    _handleCachePageInvalidate(contentStore, pageBasePath, function() {
+                        // done
+                    });
+                }
+
             });
         }
 
@@ -714,7 +725,6 @@ exports = module.exports = function()
             return callback();
         }
 
-        var contentStore = req.stores.content;
         var pageFilePath = path.join(pageBasePath, "page.html");
         var cacheFilePath = cloudcms.toCacheFilePath(pageFilePath);
 
@@ -853,23 +863,29 @@ exports = module.exports = function()
                 return callback(err);
             }
 
-            _LOCK(stores.content, _lock_identifier(pageBasePath), function(releaseLockFn) {
+            _handleCachePageInvalidate(stores.content, pageBasePath, function() {
+                callback();
+            });
+        });
+    };
 
-                stores.content.existsDirectory(pageBasePath, function (exists) {
+    var _handleCachePageInvalidate = function(contentStore, pageBasePath, callback)
+    {
+        _LOCK(contentStore, _lock_identifier(pageBasePath), function(releaseLockFn) {
 
-                    if (!exists)
-                    {
-                        releaseLockFn();
-                        return callback();
-                    }
+            contentStore.existsDirectory(pageBasePath, function (exists) {
 
-                    stores.content.removeDirectory(pageBasePath, function () {
-                        releaseLockFn();
-                        callback();
-                    });
+                if (!exists)
+                {
+                    releaseLockFn();
+                    return callback();
+                }
+
+                contentStore.removeDirectory(pageBasePath, function () {
+                    releaseLockFn();
+                    callback();
                 });
             });
-
         });
     };
 
