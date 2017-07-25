@@ -241,75 +241,43 @@ exports = module.exports = function()
     var proxyHost = process.env.GITANA_PROXY_HOST;
     var proxyPort = parseInt(process.env.GITANA_PROXY_PORT, 10);
 
-    var target = proxyScheme + "://" + proxyHost + ":" + proxyPort;
+    if (proxyScheme) {
+        proxyScheme = proxyScheme.toLowerCase();
+    }
+    if (proxyHost) {
+        proxyHost = proxyHost.toLowerCase();
+    }
+
+    var changeOrigin = true;
+
+    var target = proxyScheme + "://" + proxyHost;
+    if (proxyScheme === "https" && proxyPort !== 443) {
+        target += ":" + proxyPort;
+    }
+    else if (proxyScheme === "http" && proxyPort !== 80) {
+        target += ":" + proxyPort;
+    }
+
+    // NOTE: changeOrigin must be true because of the way that we set host to host:port
+    // in http-proxy's common.js line 102, the host is only properly set up if changeOrigin is set to true
+    // this sets the "host" header and it has to match what is set at the network/transport level in a way
+    // (inner workings of Node http request)
+    //
     var proxyConfig = {
         "target": target,
-        "agent": false,
-        "xfwd": true,
-        "proxyTimeout": process.defaultHttpTimeoutMs
+        "agent": http.globalAgent,
+        "xfwd": false,
+        "proxyTimeout": process.defaultHttpTimeoutMs,
+        "changeOrigin": changeOrigin
     };
 
-    /*
-    // BLOCK 1: using Forever Agent
-    if (proxyScheme.toLowerCase() === "https")
-    {
-        proxyConfig.agent = new ForeverAgent.SSL({
-            maxSockets: Infinity,
-            maxFreeSockets: 256,
-            keepAlive: true,
-            keepAliveMsecs: 5000
-        });
-    }
-    else if (proxyScheme.toLowerCase() === "http")
-    {
-        proxyConfig.agent = new ForeverAgent({
-            maxSockets: Infinity,
-            maxFreeSockets: 256,
-            keepAlive: true,
-            keepAliveMsecs: 5000
-        });
-    }
-    */
-
-    /*
-    // BLOCK 2 - using standard http agent
-    if (proxyScheme.toLowerCase() === "https")
-    {
-        proxyConfig.maxSockets = Infinity;
-        proxyConfig.keepAlive = true;
-        proxyConfig.keepAliveMsecs = 5000;
-        proxyConfig.agent = new https.Agent({
-            maxSockets: Infinity,
-            maxFreeSockets: 256,
-            keepAlive: true,
-            keepAliveMsecs: 5000,
-            rejectUnauthorized: false
-        });
-    }
-    else if (proxyScheme.toLowerCase() === "http")
-    {
-        proxyConfig.maxSockets = Infinity;
-        proxyConfig.keepAlive = true;
-        proxyConfig.keepAliveMsecs = 5000;
-        proxyConfig.agent = new http.Agent({
-            maxSockets: Infinity,
-            maxFreeSockets: 256,
-            keepAlive: true,
-            keepAliveMsecs: 5000,
-            rejectUnauthorized: false
-        });
-    }
-    */
-
+    // use https?
     if (proxyScheme.toLowerCase() === "https")
     {
         proxyConfig.agent = https.globalAgent;
     }
-    else if (proxyScheme.toLowerCase() === "http")
-    {
-        proxyConfig.agent = http.globalAgent;
-    }
 
+    // create proxy server instance
     var proxyServer = new httpProxy.createProxyServer(proxyConfig);
 
     // error handling
@@ -337,7 +305,11 @@ exports = module.exports = function()
             // make string from buffer
             var buffer = Buffer.concat(chunks);
             // output buffer
-            console.log("Proxy Response -> " + buffer.toString());
+            console.log("Orig.req.url: " + req.url);
+            console.log("Proxy Status Code -> " + proxyRes.statusCode);
+            console.log("Proxy Status Message -> " + proxyRes.statusMessage);
+            console.log("Proxy Response Headers -> " + JSON.stringify(proxyRes.headers, true, 2));
+            console.log("Proxy Response Data -> " + buffer.toString());
         });
     });
     */
@@ -391,11 +363,11 @@ exports = module.exports = function()
 
         var cloudcmsOrigin = null;
 
-        // determine the domain to set x-forwarded-host to (i.e. the "proxyHostHeader")
+        // determine the domain to set the "host" header on the proxied call
         // this is what we pass to the API server
-        var proxyHostHeader = req.domainHost;
+        var domainName = req.domainHost;
         if (req.virtualHost) {
-            proxyHostHeader = req.virtualHost;
+            domainName = req.virtualHost;
             cloudcmsOrigin = req.virtualHost;
         }
 
@@ -406,7 +378,7 @@ exports = module.exports = function()
         // if the req.headers["x-forwarded-host"] first entry is in the req.headers["referer"] then we consider
         // things to have been CNAME forwarded
         // and so we write cookies back to the req.headers["x-forwarded-host"] first entry domain
-
+        /*
         var xForwardedHost = req.headers["x-forwarded-host"];
         if (xForwardedHost)
         {
@@ -424,25 +396,24 @@ exports = module.exports = function()
                 }
             }
         }
+        */
 
         // we fall back to using http-node-proxy's xfwd support
         // thus, spoof header here on request so that "x-forwarded-host" is set properly
-        req.headers["host"] = proxyHostHeader;
+        //req.headers["host"] = proxyHostHeader;
+
+        // keep alive
+        req.headers["connection"] = "keep-alive";
 
         // set optional "x-cloudcms-origin" header
         if (cloudcmsOrigin)
         {
-            req.headers["X-CLOUDCMS-ORIGIN"] = cloudcmsOrigin;
+            req.headers["x-cloudcms-origin"] = cloudcmsOrigin;
         }
 
         // determine domain to use for cookie rewrites
-
-        // assume cookieDomain to be req.domainHost
-        var cookieDomain = req.domainHost;
-        if (xForwardedHost)
-        {
-            cookieDomain = xForwardedHost;
-        }
+        // assume cookieDomain proxyHostHeader
+        var cookieDomain = domainName;
 
         // allow forced cookie domains
         var forcedCookieDomain = req.headers["cloudcmscookiedomain"];
@@ -460,8 +431,6 @@ exports = module.exports = function()
 
         var updateSetCookieValue = function(value)
         {
-            // console.log("Using cookie domain: " + cookieDomain);
-
             // replace the domain with the host
             var i = value.toLowerCase().indexOf("domain=");
             if (i > -1)
@@ -501,6 +470,9 @@ exports = module.exports = function()
             return value;
         };
 
+        // handles the setting of response headers
+        // we filter off stuff we do not care about
+        // we ensure proper domain on set-cookie (TODO: is this needed anymore?)
         var _setHeader = res.setHeader;
         res.setHeader = function(key, value)
         {
@@ -527,12 +499,6 @@ exports = module.exports = function()
                 }
             }
         };
-
-        util.setHeaderOnce(res, "Cache-Control", "no-store");
-        util.setHeaderOnce(res, "Pragma", "no-cache");
-        util.setHeaderOnce(res, "Expires", "Mon, 7 Apr 2012, 16:00:00 GMT"); // already expired
-
-        util.setHeader(res, "X-Powered-By", "Cloud CMS Application Server");
 
         // if the incoming request didn't have an "Authorization" header
         // and we have a logged in Gitana User via Auth, then set authorization header to Bearer Access Token

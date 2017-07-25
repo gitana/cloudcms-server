@@ -112,8 +112,8 @@ exports = module.exports = function()
             }
 
 
-            util.setHeaderOnce(res, "Pragma", "no-cache");
-            util.setHeaderOnce(res, "Cache-Control", "no-cache");
+            //util.setHeaderOnce(res, "Pragma", "no-cache");
+            util.setHeaderOnce(res, "Cache-Control", "no-cache,no-store,max-age=0,s-maxage=0,must-revalidate");
 
             if (!uri)
             {

@@ -272,6 +272,10 @@ var SETTINGS = {
     },
     "gitana": {
         "httpWorkQueueSize": 5
+    },
+    "proxy": {
+        "enabled": true,
+        "cache": []
     }
 };
 

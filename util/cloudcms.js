@@ -731,6 +731,10 @@ exports = module.exports = function()
                     writeToDisk(contentStore, gitana, uri, filePath, function (err, filePath, responseHeaders) {
 
                         if (err) {
+                            if (err.code === 404) {
+                                return callback();
+                            }
+
                             console.log("ERR: " + err.message + " for URI: " + uri);
                             return callback(err);
                         }
