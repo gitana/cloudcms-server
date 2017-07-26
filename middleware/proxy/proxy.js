@@ -322,14 +322,17 @@ exports = module.exports = function()
         // copy domain host into "x-cloudcms-domainhost"
         if (req.domainHost)
         {
-            req.headers["x-cloudcms-domainhost"] = req.domainHost;
+            req.headers["x-cloudcms-domainhost"] = req.domainHost; // this could be "localhost"
         }
 
         // copy virtual host into "x-cloudcms-virtualhost"
         if (req.virtualHost)
         {
-            req.headers["x-cloudcms-virtualhost"] = req.virtualHost;
+            req.headers["x-cloudcms-virtualhost"] = req.virtualHost; // this could be "root.cloudcms.net" or "abc.cloudcms.net"
         }
+
+        //console.log("req.domainHost = " + req.domainHost);
+        //console.log("req.virtualHost = " + req.virtualHost);
 
         // copy deployment descriptor info
         if (req.descriptor)
@@ -361,15 +364,21 @@ exports = module.exports = function()
             }
         }
 
+        // set optional "x-cloudcms-origin" header
         var cloudcmsOrigin = null;
+        if (req.virtualHost)
+        {
+            cloudcmsOrigin = req.virtualHost;
+        }
+        if (cloudcmsOrigin)
+        {
+            req.headers["x-cloudcms-origin"] = cloudcmsOrigin;
+        }
+
 
         // determine the domain to set the "host" header on the proxied call
         // this is what we pass to the API server
-        var domainName = req.domainHost;
-        if (req.virtualHost) {
-            domainName = req.virtualHost;
-            cloudcmsOrigin = req.virtualHost;
-        }
+        var cookieDomain = req.domainHost;
 
         // if the incoming request is coming off of a CNAME entry that is maintained elsewhere (and they're just
         // forwarding the CNAME request to our machine), then we try to detect this...
@@ -404,16 +413,6 @@ exports = module.exports = function()
 
         // keep alive
         req.headers["connection"] = "keep-alive";
-
-        // set optional "x-cloudcms-origin" header
-        if (cloudcmsOrigin)
-        {
-            req.headers["x-cloudcms-origin"] = cloudcmsOrigin;
-        }
-
-        // determine domain to use for cookie rewrites
-        // assume cookieDomain proxyHostHeader
-        var cookieDomain = domainName;
 
         // allow forced cookie domains
         var forcedCookieDomain = req.headers["cloudcmscookiedomain"];
