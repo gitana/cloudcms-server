@@ -32,10 +32,10 @@ var util = require("../../util/util");
  */
 exports = module.exports = function()
 {
-    var MAXAGE_ONE_YEAR_SECONDS = 31536000;
-    var MAXAGE_ONE_HOUR_SECONDS = 3600;
-    var MAXAGE_ONE_WEEK_SECONDS = 604800;
-    var MAXAGE_ONE_MONTH_SECONDS = 2592000;
+    //var MAXAGE_ONE_YEAR_SECONDS = 31536000;
+    //var MAXAGE_ONE_HOUR_SECONDS = 3600;
+    //var MAXAGE_ONE_WEEK_SECONDS = 604800;
+    //var MAXAGE_ONE_MONTH_SECONDS = 2592000;
 
     var _cacheTTL = function(req)
     {
@@ -267,8 +267,8 @@ exports = module.exports = function()
         "target": target,
         "agent": http.globalAgent,
         "xfwd": false,
-        "proxyTimeout": process.defaultHttpTimeoutMs,
-        "changeOrigin": changeOrigin
+        "proxyTimeout": process.defaultHttpTimeoutMs//,
+        //"changeOrigin": changeOrigin
     };
 
     // use https?
@@ -375,6 +375,8 @@ exports = module.exports = function()
             req.headers["x-cloudcms-origin"] = cloudcmsOrigin;
         }
 
+        // set x-cloudcms-server-version header
+        req.headers["x-cloudcms-server-version"] = process.env.CLOUDCMS_APPSERVER_PACKAGE_VERSION;
 
         // determine the domain to set the "host" header on the proxied call
         // this is what we pass to the API server

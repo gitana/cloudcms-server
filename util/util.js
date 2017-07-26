@@ -16,6 +16,8 @@ var archiver = require("archiver");
 var http = require("http");
 var https = require("https");
 
+var urlTool = require("url");
+
 var VALID_IP_ADDRESS_REGEX_STRING = "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$";
 
 exports = module.exports;
@@ -1661,3 +1663,42 @@ var zip = exports.zip = function(directoryPath, writableStream)
     archive.finalize();
 };
 
+var asURL = exports.asURL = function(protocol, host, port)
+{
+    // make sure port is a number
+    if (typeof(port) === "string") {
+        port = parseInt(port, 10);
+    }
+
+    // protocol lower case
+    protocol = protocol.toLowerCase();
+
+    var url = protocol + "://" + host;
+
+    // if port and default port don't match, then append
+    if (protocol === "https" && port !== 443)
+    {
+        url += ":" + port;
+    }
+    else if (protocol === "http" && port !== 80)
+    {
+        url += ":" + port;
+    }
+
+    return url;
+};
+
+var cleanupURL = exports.cleanupURL = function(url)
+{
+    var _url = urlTool.parse(url);
+
+    // if protocol is "https:" (for example), strip back to "https"
+    var protocol = _url.protocol;
+    var a = protocol.indexOf(":");
+    if (a > -1)
+    {
+        protocol = protocol.substring(0, a);
+    }
+
+    return asURL(protocol, _url.hostname, _url.port);
+};

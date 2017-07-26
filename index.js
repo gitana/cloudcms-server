@@ -6,6 +6,7 @@ var url = require('url');
 var async = require("async");
 
 var util = require("./util/util");
+var legacy = require("./util/legacy");
 
 var http = require('http');
 var https = require('https');
@@ -116,9 +117,9 @@ exports = module.exports = function()
 
     // if there is a "gitana.json" file in the app server base path, we load proxy settings from there if they're
     // not already specified
-    var defaultGitanaProxyHost = "api.cloudcms.com";
-    var defaultGitanaProxyPort = 443;
-    var defaultGitanaProxyScheme = "https";
+    var defaultGitanaProxyScheme = legacy.DEFAULT_GITANA_PROXY_SCHEME;
+    var defaultGitanaProxyHost = legacy.DEFAULT_GITANA_PROXY_HOST;
+    var defaultGitanaProxyPort = legacy.DEFAULT_GITANA_PROXY_PORT;
 
     var gitanaJsonPath = path.join(process.env.CLOUDCMS_APPSERVER_BASE_PATH, "gitana.json");
     if (fs.existsSync(gitanaJsonPath))
@@ -157,7 +158,10 @@ exports = module.exports = function()
         process.env.GITANA_PROXY_PORT = defaultGitanaProxyPort;
     }
 
-    console.log("Gitana Proxy pointed to: " + process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT);
+    // auto-upgrade usage of "api.cloudcms.com" to "api1.cloudcms.com"
+    process.env.GITANA_PROXY_HOST = legacy.autoUpgrade(process.env.GITANA_PROXY_HOST, true);
+
+    console.log("Gitana Proxy pointed to: " + util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT));
 
     // all web modules are included by default
     if (!process.includeWebModule) {

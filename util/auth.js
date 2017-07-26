@@ -439,7 +439,7 @@ var impersonate = exports.impersonate = function(req, key, targetUser, callback)
             agent = https.globalAgent;
         }
 
-        var baseURL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT;
+        var baseURL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT);
 
         request({
             "method": "POST",

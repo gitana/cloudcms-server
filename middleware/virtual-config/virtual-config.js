@@ -2,6 +2,7 @@ var path = require('path');
 var http = require('http');
 var request = require('request');
 var util = require("../../util/util");
+var legacy = require("../../util/legacy");
 
 /**
  * Retrieves virtual driver configuration for hosts from Cloud CMS.
@@ -65,7 +66,7 @@ exports = module.exports = function()
                 {
                     uri += "/" + configuration.virtualDriver.appKey;
                 }
-                var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT + "/virtual/driver/config";
+                var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + "/virtual/driver/config";
                 var qs = {
                     "uri": uri
                 };
@@ -188,8 +189,7 @@ exports = module.exports = function()
                         if (virtualConfig.application) {
                             gitanaJson.application = virtualConfig.application;
                         }
-                        var URL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT;
-                        gitanaJson.baseURL = URL;
+                        gitanaJson.baseURL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT);
 
                         // mark as retrieved from virtual driver
                         gitanaJson._virtual = true;
@@ -245,6 +245,23 @@ exports = module.exports = function()
                         */
                     }
 
+                    // auto-upgrade the host?
+                    if (gitanaJson.baseURL)
+                    {
+                        var newBaseURL = legacy.autoUpgrade(gitanaJson.baseURL, true);
+                        if (newBaseURL !== gitanaJson.baseURL)
+                        {
+                            gitanaJson.baseURL = legacy.autoUpgrade(gitanaJson.baseURL, true);
+                            gitanaJson.baseURL = util.cleanupURL(gitanaJson.baseURL);
+
+                            // write the gitana.json file
+                            rootStore.writeFile("gitana.json", JSON.stringify(gitanaJson, null, "   "), function (err) {
+                                // nada
+                            });
+                        }
+
+                    }
+
                     // otherwise, fine!
                     callback(null, gitanaJson);
 
@@ -270,7 +287,7 @@ exports = module.exports = function()
 
             // defaults
             if (!configuration.baseURL) {
-                configuration.baseURL = process.env.GITANA_PROXY_SCHEME + "://" + process.env.GITANA_PROXY_HOST + ":" + process.env.GITANA_PROXY_PORT;
+                configuration.baseURL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT);
             }
             if (!configuration.key) {
                 configuration.key = "virtual";
