@@ -1,6 +1,6 @@
 var path = require("path");
 var util = require("../../util/util");
-var dns = require("dns");
+//var dns = require("dns");
 
 /**
  * Sets req.domainHost onto request.
@@ -10,7 +10,6 @@ var dns = require("dns");
  */
 exports = module.exports = function()
 {
-    /*
     var push = function(candidates, text)
     {
         if (text)
@@ -30,7 +29,6 @@ exports = module.exports = function()
             }
         }
     };
-    */
 
     /*
     var cnameCache = {};
@@ -132,6 +130,13 @@ exports = module.exports = function()
                     req.virtualHost = _virtualHost;
                 }
 
+                /*
+                for (var k in req.headers) {
+                    console.log("Header: " + k + " = " + req.headers[k]);
+                }
+                console.log("Conclude - domainHost: " + req.domainHost + ", virtualHost: " + req.virtualHost);
+                */
+
                 // virtualHost is the host that we manage on disk
                 // multiple real-world hosts might map into the same virtual host
                 // for example, "abc.cloudcms.net and "def.cloudcms.net" could connect to Cloud CMS as a different tenant
@@ -141,17 +146,6 @@ exports = module.exports = function()
             };
 
             var _virtualHost = process.env.CLOUDCMS_VIRTUAL_HOST;
-            if (!_virtualHost)
-            {
-                // CUSTOM HOST HEADER
-                if (process.configuration && process.configuration.host)
-                {
-                    if (process.configuration.host.hostHeader)
-                    {
-                        _virtualHost = req.header[process.configuration.host.hostHeader];
-                    }
-                }
-            }
             if (!_virtualHost)
             {
                 // support for host mapping
@@ -169,7 +163,65 @@ exports = module.exports = function()
                 return handleCompletion(req, res, next, _virtualHost);
             }
 
+            // we couldn't pick something off so we have to figure it out based on the slew of headers we're provided
+
+            // assume hostname
             _virtualHost = req.hostname;
+
+            // see if we can process for a virtual host domain
+            var virtualHostDomain = process.env.CLOUDCMS_VIRTUAL_HOST_DOMAIN;
+            if (virtualHostDomain)
+            {
+                // collect all of the candidates
+                var candidates = [];
+
+                // X-FORWARDED-HOST
+                if (req.header("x-forwarded-host"))
+                {
+                    var xForwardedHost = req.header("x-forwarded-host");
+                    push(candidates, xForwardedHost);
+                }
+
+                // CUSTOM HOST HEADER
+                if (process.configuration && process.configuration.host)
+                {
+                    if (process.configuration.host.hostHeader)
+                    {
+                        var customHost = req.header[process.configuration.host.hostHeader];
+                        push(candidates, customHost);
+                    }
+                }
+
+                // REQ.HOSTNAME
+                push(candidates, req.hostname);
+
+                // find the one that is for our virtualHostDomain
+                for (var x = 0; x < candidates.length; x++)
+                {
+                    // keep only those that are subdomains of our intended parent virtualHostDomain (i.e. "cloudcms.net")
+                    if (candidates[x].toLowerCase().indexOf(virtualHostDomain) > -1)
+                    {
+                        _virtualHost = candidates[x];
+                        break;
+                    }
+                }
+
+                // if none, take first one that is not an IP address
+                if (!_virtualHost)
+                {
+                    if (candidates.length > 0)
+                    {
+                        for (var i = 0; i < candidates.length; i++)
+                        {
+                            if (!util.isIPAddress(candidates[i]))
+                            {
+                                _virtualHost = candidates[i];
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
 
             /*
             // check if there is a cname entry for this host
