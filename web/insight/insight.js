@@ -49,6 +49,8 @@
         return;
     }
 
+    var ALREADY_EXPIRED_DATE = "Mon, 7 Apr 2012, 16:00:00 GMT";
+
     var CLASS_INSIGHT = "insight";
     var ATTR_DATA_INSIGHT_ID = "data-insight-id";
     var ATTR_DATA_INSIGHT_NODE = "data-insight-node";
@@ -1071,7 +1073,7 @@
                 else if (days == 0)
                 {
                     // expired cookie
-                    expirationString = ";expires=Thu, 01 Jan 1970 00:00:01 GMT";
+                    expirationString = ";expires=" + ALREADY_EXPIRED_DATE;
                 }
                 else if (days > 0)
                 {

@@ -248,8 +248,6 @@ exports = module.exports = function()
         proxyHost = proxyHost.toLowerCase();
     }
 
-    var changeOrigin = true;
-
     var target = proxyScheme + "://" + proxyHost;
     if (proxyScheme === "https" && proxyPort !== 443) {
         target += ":" + proxyPort;
@@ -267,8 +265,8 @@ exports = module.exports = function()
         "target": target,
         "agent": http.globalAgent,
         "xfwd": false,
-        "proxyTimeout": process.defaultHttpTimeoutMs//,
-        //"changeOrigin": changeOrigin
+        "proxyTimeout": process.defaultHttpTimeoutMs,
+        "changeOrigin": true
     };
 
     // use https?
