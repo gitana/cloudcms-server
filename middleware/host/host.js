@@ -190,16 +190,22 @@ exports = module.exports = function()
     {
         if (host)
         {
-            // strip out port if it's somehow on host
-            if (host.indexOf(":") > -1)
+            // strip out http:// or https:// if it's on the host
+            if (host.indexOf("://") > -1)
             {
-                host = host.substring(0, host.indexOf(":"));
+                host = host.substring(host.indexOf("://") + 3);
             }
 
             // strip out cdr from first "/" if it's somehow on host
             if (host.indexOf("/") > -1)
             {
                 host = host.substring(host.indexOf("/"));
+            }
+
+            // strip out port if it's somehow on host
+            if (host.indexOf(":") > -1)
+            {
+                host = host.substring(0, host.indexOf(":"));
             }
         }
 
