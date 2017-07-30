@@ -241,11 +241,13 @@ exports = module.exports = function()
                     req.domainHost = domainHost;
                     req.virtualHost = virtualHost;
 
+                    /*
                     // debug
                     for (var k in req.headers) {
                         console.log("Header: " + k + " = " + req.headers[k]);
                     }
                     console.log("Conclude - domainHost: " + req.domainHost + ", virtualHost: " + req.virtualHost);
+                    */
 
                     return next();
                 });
