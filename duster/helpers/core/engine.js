@@ -569,6 +569,8 @@ module.exports = function(app, dust)
         var sortDirection = context.resolve(params.sortDirection);
         var limit = context.resolve(params.limit);
         var skip = context.resolve(params.skip);
+        var nodeSort = context.resolve(params.nodeSort);
+        var nodeSortDirection = context.resolve(params.nodeSortDirection);
 
         // as
         var as = context.resolve(params.as);
@@ -588,7 +590,7 @@ module.exports = function(app, dust)
         }
         if (isDefined(skip))
         {
-            limit = parseInt(skip);
+            skip = parseInt(skip);
         }
 
         // TRACKER: START
@@ -685,8 +687,11 @@ module.exports = function(app, dust)
                             };
                         }
 
-                        var cf = function()
+                        var cf = function(sortedArray)
                         {
+                            if (sortedArray) {
+                                resultObject[as || "rows"] = sortedArray;
+                            }
                             var newContext = context.push(resultObject);
 
                             chunk.render(bodies.block, newContext);
@@ -725,18 +730,38 @@ module.exports = function(app, dust)
 
                             otherNodeIdToAssociations[otherNodeId].push(array[z]);
                         }
+
+                        pagination = {
+                            limit: otherNodeIds.length
+                        };
+                        if (nodeSort)
+                        {
+                            if (typeof(nodeSortDirection) !== "undefined")
+                            {
+                                sortDirection = parseInt(nodeSortDirection, 10);
+                            }
+                            else
+                            {
+                                sortDirection = 1;
+                            }
+
+                            pagination.sort = {};
+                            pagination.sort[nodeSort] = sortDirection;
+                        }
+                        var otherNodeIdToAssociationsSorted = [];
                         Chain(node.getBranch()).queryNodes({
                             "_doc": {
                                 "$in": otherNodeIds
                             }
-                        }, {
-                            "limit": otherNodeIds.length
-                        }).each(function() {
+                        }, pagination).each(function() {
 
                             var associations_array = otherNodeIdToAssociations[this._doc];
                             for (var z = 0; z < associations_array.length; z++)
                             {
                                 associations_array[z].other = JSON.parse(JSON.stringify(this));
+
+                                // sorting by node properties (not association properties)
+                                otherNodeIdToAssociationsSorted.push(associations_array[z]);
                             }
 
                             // enhance node information
@@ -746,8 +771,12 @@ module.exports = function(app, dust)
                             tracker.produces(context, "node", this._doc);
 
                         }).then(function() {
-
-                            cf();
+                            if (pagination.sort) {
+                                cf(otherNodeIdToAssociationsSorted);
+                            }
+                            else{
+                                cf();
+                            }
                         });
                     });
                 });
