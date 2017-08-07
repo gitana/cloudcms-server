@@ -60,7 +60,8 @@ exports = module.exports = function()
                     // we have something in cache
                     completionFunction(null, cachedValue.config);
                 }
-            } else
+            }
+            else
             {
                 rootStore.existsFile("gitana.json", function (exists)
                 {

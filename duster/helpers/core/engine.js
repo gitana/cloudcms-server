@@ -1034,7 +1034,7 @@ module.exports = function(app, dust)
                     var newContext = context.push(newContextObject);
                     //newContext.get("content").attachments = attachments;
 
-                    support.renderFragment(newContext, fragmentId, requirements, chunk, bodies, function(err) {
+                    support.renderFragment(newContext, fragmentId, requirements, chunk2, bodies, function(err) {
                         finishHandler(newContext, err);
                     });
 

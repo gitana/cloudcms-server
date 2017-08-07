@@ -238,8 +238,16 @@ exports = module.exports = function()
                         domainHost = cleanupHost(domainHost);
                     }
 
+                    if (!virtualHost)
+                    {
+                        virtualHost = process.env.CLOUDCMS_STANDALONE_HOST;
+                    }
+
                     req.domainHost = domainHost;
                     req.virtualHost = virtualHost;
+
+                    //console.log("R1: " + req.domainHost);
+                    //console.log("V1: " + req.virtualHost);
 
                     /*
                     // debug

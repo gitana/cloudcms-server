@@ -194,8 +194,7 @@ exports = module.exports = function()
                             webStore.listFiles("public_build", function (err, filenames) {
 
                                 if (err) {
-                                    done(err);
-                                    return;
+                                    return done(err);
                                 }
 
                                 if (filenames && filenames.length > 0) {
