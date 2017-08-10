@@ -1,7 +1,6 @@
 var path = require('path');
 var fs = require('fs');
 var util = require("./util");
-var uuid = require("node-uuid");
 
 exports = module.exports;
 

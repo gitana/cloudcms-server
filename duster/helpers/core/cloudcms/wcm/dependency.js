@@ -53,7 +53,7 @@ module.exports = function(app, dust, callback)
         var key = context.resolve(params.key);
         var value = context.resolve(params.value);
 
-        return map(chunk, function(chunk) {
+        return map(chunk, function(chunk2) {
 
             // TRACKER: START
             tracker.start(context);
@@ -74,8 +74,8 @@ module.exports = function(app, dust, callback)
                 console.log("Unknown type for @dependency tag: " + type);
             }
 
-            // keep going
-            end(chunk, context);
+            // render whatever is inside the tag and keep going
+            return chunk2.render( bodies.block, context );
         });
     };
 

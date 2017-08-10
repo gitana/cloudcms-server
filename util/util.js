@@ -3,7 +3,7 @@ var path = require("path");
 var mkdirp = require('mkdirp');
 var request = require("request");
 var mime = require("mime");
-var uuid = require("node-uuid");
+var uuidv4 = require("uuid/v4");
 var os = require("os");
 var async = require("async");
 var temp = require("temp");
@@ -924,7 +924,7 @@ var replaceAll = exports.replaceAll = function(text, find, replace)
 
 var createTempDirectory = exports.createTempDirectory = function(callback)
 {
-    var tempDirectory = path.join(os.tmpdir(), "/tmp-" + uuid.v4());
+    var tempDirectory = path.join(os.tmpdir(), "/tmp-" + guid());
 
     mkdirs(tempDirectory, function(err) {
         callback(err, tempDirectory);
@@ -1513,7 +1513,7 @@ var countOpenHandles = exports.countOpenHandles = function(callback)
 
 var guid = exports.guid = function()
 {
-    return uuid.v4();
+    return uuidv4();
 };
 
 var bytesToSize = exports.bytesToSize = function(bytes)

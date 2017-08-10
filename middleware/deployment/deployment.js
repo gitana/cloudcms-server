@@ -2,7 +2,7 @@ var path = require('path');
 var fs = require('fs');
 var http = require('http');
 var util = require("../../util/util");
-var uuid = require("node-uuid");
+var uuidv4 = require("uuid/v4");
 var Gitana = require("gitana");
 var duster = require("../../duster/index");
 
@@ -38,7 +38,7 @@ exports = module.exports = function()
         }
 
         // otherwise, we generate a host
-        var host = uuid.v4() + "-hosted." + descriptor.domain;
+        var host = uuidv4() + "-hosted." + descriptor.domain;
 
         callback(null, host);
     };
