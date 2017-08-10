@@ -9,6 +9,10 @@ var tracker = require("../../../../tracker");
  */
 module.exports = function(app, dust, callback)
 {
+    var support = require("../../../../support")(dust);
+    var map = support.map;
+    var end = support.end;
+    
     /**
      * Flags a dependency for a page.
      *
@@ -52,7 +56,7 @@ module.exports = function(app, dust, callback)
         return map(chunk, function(chunk) {
 
             // TRACKER: START
-            context = tracker.start(context);
+            tracker.start(context);
 
             if (!type || type === "produces" || type === "produce" || type === "p") {
 
