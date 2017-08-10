@@ -143,10 +143,10 @@ exports = module.exports = function()
             }, function(err, response, body) {
 
                 console.log("Response error: " + JSON.stringify(err));
-                console.log("Response: " + response);
-                console.log("Body: " + JSON.stringify(body));
+                console.log("Response: " + JSON.stringify(response,null,2));
+                console.log("Body: " + JSON.stringify(body,null,2));
 
-                if (err)
+                if (err || (response && response.body && response.body.error))
                 {
                     if (failureUrl)
                     {
@@ -157,10 +157,12 @@ exports = module.exports = function()
                         res.status(500);
                         res.json({
                             "ok": false,
-                            "err": err,
+                            "err": err || response.body.message,
                             "message": body
                         });
                     }
+
+                    return;
                 }
 
                 if (successUrl)
