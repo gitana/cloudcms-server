@@ -571,6 +571,8 @@ module.exports = function(app, dust)
         var skip = context.resolve(params.skip);
         var nodeSort = context.resolve(params.nodeSort);
         var nodeSortDirection = context.resolve(params.nodeSortDirection);
+        var nodeSkip = context.resolve(params.nodeSkip);
+        var nodeLimit = context.resolve(params.nodeLimit);
 
         // as
         var as = context.resolve(params.as);
@@ -591,6 +593,14 @@ module.exports = function(app, dust)
         if (isDefined(skip))
         {
             skip = parseInt(skip);
+        }
+        if (isDefined(nodeLimit))
+        {
+            nodeLimit = parseInt(nodeLimit);
+        }
+        if (isDefined(nodeSkip))
+        {
+            nodeSkip = parseInt(nodeSkip);
         }
 
         // TRACKER: START
@@ -732,7 +742,8 @@ module.exports = function(app, dust)
                         }
 
                         pagination = {
-                            limit: otherNodeIds.length
+                            limit: nodeLimit || limit || otherNodeIds.length,
+                            skip: nodeSkip || skip || 0
                         };
                         if (nodeSort)
                         {
