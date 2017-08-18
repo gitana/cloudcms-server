@@ -701,6 +701,7 @@ module.exports = function(app, dust)
                         {
                             if (sortedArray) {
                                 resultObject[as || "rows"] = sortedArray;
+                                resultObject.total = sortedArray.length;
                             }
                             var newContext = context.push(resultObject);
 
@@ -742,8 +743,8 @@ module.exports = function(app, dust)
                         }
 
                         pagination = {
-                            limit: nodeLimit || limit || otherNodeIds.length,
-                            skip: nodeSkip || skip || 0
+                            limit: nodeLimit || otherNodeIds.length,
+                            skip: nodeSkip || 0
                         };
                         if (nodeSort)
                         {
@@ -1100,7 +1101,8 @@ module.exports = function(app, dust)
         var list = context.resolve(params.list);
         var successUrl = context.resolve(params.success);
         var errorUrl = context.resolve(params.error);
-
+        var formId = context.resolve(params.formId);
+        
         return map(chunk, function(chunk) {
 
             var gitana = context.get("gitana");
@@ -1189,7 +1191,7 @@ module.exports = function(app, dust)
                             "config": {}
                         };
 
-                        var divId = "form" + new Date().getTime();
+                        var divId = formId || "form" + new Date().getTime();
 
                         chunk.write("<div id='" + divId + "'></div>");
                         chunk.write("<script src='/_lib/formhelper/formhelper.js'></script>");
