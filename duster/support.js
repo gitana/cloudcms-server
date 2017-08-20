@@ -223,6 +223,12 @@ exports = module.exports = function(dust)
 
     var handleCacheFragmentWrite = r.handleCacheFragmentWrite = function(context, fragmentDescriptor, fragmentDependencies, requirements, text, callback)
     {
+        // if fragment cache not enabled, return right away
+        if (!isFragmentCacheEnabled())
+        {
+            return callback();
+        }
+
         var req = context.get("req");
 
         var contentStore = req.stores.content;
@@ -256,12 +262,6 @@ exports = module.exports = function(dust)
                 }
 
             });
-        }
-
-        // if fragment cache not enabled, just mark the rendition and return
-        if (!isFragmentCacheEnabled())
-        {
-            return callback();
         }
 
         // disk location

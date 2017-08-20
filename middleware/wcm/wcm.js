@@ -702,6 +702,12 @@ exports = module.exports = function()
     {
         var contentStore = req.stores.content;
 
+        // if page cache isn't enabled, return right away
+        if (!isPageCacheEnabled(req))
+        {
+            return callback();
+        }
+
         // mark the rendition
         if (dependencies)
         {
@@ -717,12 +723,6 @@ exports = module.exports = function()
                 }
 
             });
-        }
-
-        // if page cache isn't enabled, just mark renditions and return
-        if (!isPageCacheEnabled(req))
-        {
-            return callback();
         }
 
         var pageFilePath = path.join(pageBasePath, "page.html");

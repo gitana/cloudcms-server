@@ -1066,7 +1066,7 @@ var applyDefaultContentTypeCaching = exports.applyDefaultContentTypeCaching = fu
     setHeaderOnce(response, 'Cache-Control', cacheControl);
 
     // overwrite the expires header
-    setHeader(response, 'Expires', expires);
+    setHeaderOnce(response, 'Expires', expires);
 
     // remove pragma, this isn't used anymore
     removeHeader(response, "Pragma");
@@ -1447,11 +1447,7 @@ var status = exports.status = function(res, code)
     {
         // don't include cache headers
         setHeaderOnce(res, "Cache-Control", "no-cache,no-store,max-age=0,s-maxage=0,must-revalidate");
-        //setHeaderOnce(res, "Pragma", "no-cache");
         setHeaderOnce(res, "Expires", "Mon, 7 Apr 2012, 16:00:00 GMT"); // already expired
-        //removeHeader(res, "Cache-Control");
-        //removeHeader(res, "Pragma");
-        //removeHeader(res, "Expires");
     }
 
     return res;

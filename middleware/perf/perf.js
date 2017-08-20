@@ -28,6 +28,8 @@ exports = module.exports = function()
     var MAXAGE_ONE_WEEK_SECONDS = 604800;
     var MAXAGE_ONE_MONTH_SECONDS = 2592000;
 
+    var MAXAGE_DEFAULT_SECONDS = 60; // one minute
+
     var TEST_MODE = false;
 
     var r = {};
@@ -75,43 +77,54 @@ exports = module.exports = function()
                             if (regex.test(req.path))
                             {
                                 var cacheSettings = paths[i].cache;
-                                if (cacheSettings)
+                                if (typeof(cacheSettings) === "undefined")
                                 {
-                                    var cacheControl = null;
-                                    var expires = null;
-
-                                    if (typeof(cacheSettings) !== "undefined")
-                                    {
-                                        if (cacheSettings.seconds <= -1)
-                                        {
-                                            cacheSettings.seconds = MAXAGE_ONE_YEAR_SECONDS;
-                                        }
-
-                                        if (cacheSettings.seconds === 0)
-                                        {
-                                            cacheControl = "no-cache,no-store,max-age=0,s-maxage=0,must-revalidate";
-                                            expires = ALREADY_EXPIRED_DATE;
-                                        }
-                                        else if (cacheSettings.seconds > 0)
-                                        {
-                                            cacheControl = "public,max-age=" + cacheSettings.seconds + ",s-maxage=" + cacheSettings.seconds;
-                                            expires = new Date(Date.now() + (cacheSettings.seconds * 1000)).toUTCString();
-                                        }
-                                    }
-
-                                    if (cacheControl)
-                                    {
-                                        util.setHeaderOnce(res, "Cache-Control", cacheControl);
-                                    }
-
-                                    if (expires)
-                                    {
-                                        util.setHeaderOnce(res, "Expires", expires);
-                                    }
-
-                                    // always remove pragma
-                                    util.removeHeader(res, "Pragma");
+                                    cacheSettings = {
+                                        "seconds": MAXAGE_DEFAULT_SECONDS
+                                    };
                                 }
+
+                                if (typeof(cacheSettings.seconds) === "undefined")
+                                {
+                                    cacheSettings.seconds = MAXAGE_DEFAULT_SECONDS;
+                                }
+
+                                if (typeof(cacheSettings.seconds) === "undefined")
+                                {
+                                    cacheSettings.seconds = MAXAGE_DEFAULT_SECONDS;
+                                }
+
+                                if (cacheSettings.seconds <= -1)
+                                {
+                                    cacheSettings.seconds = MAXAGE_ONE_YEAR_SECONDS;
+                                }
+
+                                var cacheControl = null;
+                                var expires = null;
+
+                                if (cacheSettings.seconds === 0)
+                                {
+                                    cacheControl = "no-cache,no-store,max-age=0,s-maxage=0,must-revalidate";
+                                    expires = ALREADY_EXPIRED_DATE;
+                                }
+                                else if (cacheSettings.seconds > 0)
+                                {
+                                    cacheControl = "public,max-age=" + cacheSettings.seconds + ",s-maxage=" + cacheSettings.seconds;
+                                    expires = new Date(Date.now() + (cacheSettings.seconds * 1000)).toUTCString();
+                                }
+
+                                if (cacheControl)
+                                {
+                                    util.setHeaderOnce(res, "Cache-Control", cacheControl);
+                                }
+
+                                if (expires)
+                                {
+                                    util.setHeaderOnce(res, "Expires", expires);
+                                }
+
+                                // always remove pragma
+                                util.removeHeader(res, "Pragma");
                             }
                         }
                     }
@@ -229,26 +242,32 @@ exports = module.exports = function()
                                                 if (regex.test(mimetype))
                                                 {
                                                     var cacheSettings = types[i].cache;
-                                                    if (cacheSettings)
+                                                    if (typeof(cacheSettings) === "undefined")
                                                     {
-                                                        if (typeof(cacheSettings) !== "undefined")
-                                                        {
-                                                            if (cacheSettings.seconds <= -1)
-                                                            {
-                                                                cacheSettings.seconds = MAXAGE_ONE_YEAR_SECONDS;
-                                                            }
+                                                        cacheSettings = {
+                                                            "seconds": MAXAGE_DEFAULT_SECONDS
+                                                        };
+                                                    }
 
-                                                            if (cacheSettings.seconds === 0)
-                                                            {
-                                                                cacheControl = "no-cache,no-store,max-age=0,s-maxage=0,must-revalidate";
-                                                                expires = ALREADY_EXPIRED_DATE;
-                                                            }
-                                                            else if (cacheSettings.seconds > 0)
-                                                            {
-                                                                cacheControl = "public,max-age=" + cacheSettings.seconds + ",s-maxage=" + cacheSettings.seconds;
-                                                                expires = new Date(Date.now() + (cacheSettings.seconds * 1000)).toUTCString();
-                                                            }
-                                                        }
+                                                    if (typeof(cacheSettings.seconds) === "undefined")
+                                                    {
+                                                        cacheSettings.seconds = MAXAGE_DEFAULT_SECONDS;
+                                                    }
+
+                                                    if (cacheSettings.seconds <= -1)
+                                                    {
+                                                        cacheSettings.seconds = MAXAGE_ONE_YEAR_SECONDS;
+                                                    }
+
+                                                    if (cacheSettings.seconds === 0)
+                                                    {
+                                                        cacheControl = "no-cache,no-store,max-age=0,s-maxage=0,must-revalidate";
+                                                        expires = ALREADY_EXPIRED_DATE;
+                                                    }
+                                                    else if (cacheSettings.seconds > 0)
+                                                    {
+                                                        cacheControl = "public,max-age=" + cacheSettings.seconds + ",s-maxage=" + cacheSettings.seconds;
+                                                        expires = new Date(Date.now() + (cacheSettings.seconds * 1000)).toUTCString();
                                                     }
                                                 }
                                             }
@@ -267,13 +286,13 @@ exports = module.exports = function()
                                         // html
                                         if (isHTML)
                                         {
-                                            // leave no-cache for HTML
+                                            // don't touch html
                                         }
 
                                         // css, images and js get 1 year
                                         if (isCSS || isImage || isJS || isFont)
                                         {
-                                            cacheControl = "public, max-age=" + MAXAGE_ONE_YEAR_SECONDS;
+                                            cacheControl = "public,max-age=" + MAXAGE_ONE_YEAR_SECONDS + ",s-maxage=" + MAXAGE_ONE_YEAR_SECONDS;
                                             expires = new Date(Date.now() + (MAXAGE_ONE_YEAR_SECONDS * 1000)).toUTCString();
                                         }
                                     }
@@ -281,31 +300,44 @@ exports = module.exports = function()
                             }
                         }
 
+                        // NO: we want to leave cache control untouched so that download stream middleware can handle it
+                        // such as the cloudcms-server preview download or perhaps a custom middleware piece
+                        /*
                         if (!cacheControl)
                         {
                             // set to no-cache
                             cacheControl = "no-cache,no-store,max-age=0,s-maxage=0,must-revalidate";
                             expires = ALREADY_EXPIRED_DATE;
                         }
+                        */
 
-                        if (cacheControl && expires)
+                        if (cacheControl)
                         {
                             util.setHeaderOnce(res, "Cache-Control", cacheControl);
-                            util.setHeaderOnce(res, "Expires", expires);
-
-                            // always remove pragma
-                            util.removeHeader(res, "Pragma");
                         }
+
+                        if (expires)
+                        {
+                            util.setHeaderOnce(res, "Expires", expires);
+                        }
+
+                        // always remove pragma
+                        util.removeHeader(res, "Pragma");
 
                         // set new url
-                        var newUrl = path.join(dir, originalFilename);
-                        if (extension) {
-                            newUrl += "." + extension
+                        if (originalFilename)
+                        {
+                            var newUrl = path.join(dir, originalFilename);
+                            if (extension)
+                            {
+                                newUrl += "." + extension
+                            }
+                            if (queryString)
+                            {
+                                newUrl += "?" + queryString;
+                            }
+                            req.url = newUrl;
                         }
-                        if (queryString) {
-                            newUrl += "?" + queryString;
-                        }
-                        req.url = newUrl;
                     }
                 }
             }
