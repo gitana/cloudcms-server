@@ -97,6 +97,10 @@ exports = module.exports = function()
                         }
                         else
                         {
+                            // make sure we update baseURL
+                            config.baseURL = configuration.virtualDriver.baseURL;
+
+                            // hand back
                             callback(null, config);
                         }
                     }
@@ -193,7 +197,12 @@ exports = module.exports = function()
                         if (virtualConfig.application) {
                             gitanaJson.application = virtualConfig.application;
                         }
-                        gitanaJson.baseURL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT);
+                        if (virtualConfig.baseURL) {
+                            gitanaJson.baseURL = virtualConfig.baseURL;
+                        }
+                        if (!gitanaJson.baseURL) {
+                            gitanaJson.baseURL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT);
+                        }
 
                         // mark as retrieved from virtual driver
                         gitanaJson._virtual = true;

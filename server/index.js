@@ -110,6 +110,14 @@ var SETTINGS = {
             "templates": "app",
             "modules": "app"
         },
+        "virtual": {
+            "root": "tmp",
+            "config": "tmp",
+            "web": "tmp",
+            "content": "tmp",
+            "templates": "tmp",
+            "modules": "tmp"
+        },
         "oneteam": {
             "root": "hosts_fs",
             "config": "app",

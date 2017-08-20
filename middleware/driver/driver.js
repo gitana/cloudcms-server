@@ -44,6 +44,9 @@ exports = module.exports = function()
 
             if (err)
             {
+                // log as much as we can
+                req.log("Error connecting driver (domainHost=" + req.domainHost + ", virtualHost: " + req.virtualHost + ", config: " + JSON.stringify(gitanaConfig) + ", err: " + JSON.stringify(err));
+
                 var completionFn = function() {
 
                     // either
