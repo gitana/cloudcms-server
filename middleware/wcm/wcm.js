@@ -700,13 +700,13 @@ exports = module.exports = function()
 
     var handleCachePageWrite = function(req, res, descriptor, pageBasePath, dependencies, text, callback)
     {
-        var contentStore = req.stores.content;
-
         // if page cache isn't enabled, return right away
         if (!isPageCacheEnabled(req))
         {
             return callback();
         }
+
+        var contentStore = req.stores.content;
 
         // mark the rendition
         if (dependencies)

@@ -66,7 +66,11 @@ exports = module.exports = function()
                 {
                     uri += "/" + configuration.virtualDriver.appKey;
                 }
-                var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + "/virtual/driver/config";
+                var URL = configuration.virtualDriver.baseURL;
+                if (!URL) {
+                    URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT);
+                }
+                URL += "/virtual/driver/config";
                 var qs = {
                     "uri": uri
                 };
