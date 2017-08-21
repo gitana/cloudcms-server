@@ -215,7 +215,7 @@ exports.execute = function(req, store, filePath, model, callback)
 
         if (err)
         {
-            console.log("An error was caught while rendering dust template: " + templatePath + ", error: " + err);
+            req.log("An error was caught while rendering dust template: " + templatePath + ", error: " + JSON.stringify(err, null, "  "));
         }
 
         // clean up - help out the garbage collector

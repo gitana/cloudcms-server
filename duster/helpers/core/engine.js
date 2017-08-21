@@ -141,6 +141,9 @@ module.exports = function(app, dust)
             skip = parseInt(skip);
         }
 
+        // DEBUG
+        var forceError = context.resolve(params["forceError"]);
+
         var requirements = support.buildRequirements(context, {
             "type": type,
             "sort": sort,
@@ -253,9 +256,18 @@ module.exports = function(app, dust)
                 var req = context.get("req");
                 req.branch(function (err, branch) {
 
+                    // DEBUG: force error
+                    if (forceError)
+                    {
+                        console.log("FORCE ERROR");
+                        err = {
+                            "message": "Force error"
+                        };
+                    }
+
                     if (err)
                     {
-                        return end(chunk2, context);
+                        return end(chunk2, context, err);
                     }
 
                     var handleQueryResults = function (array) {
@@ -484,7 +496,7 @@ module.exports = function(app, dust)
             req.branch(function(err, branch) {
 
                 if (err) {
-                    return end(chunk, context);
+                    return end(chunk, context, err);
                 }
 
                 // TODO: use a "find" to limit to a range of nodes (for page scope)?
@@ -621,7 +633,7 @@ module.exports = function(app, dust)
             req.branch(function(err, branch) {
 
                 if (err) {
-                    return end(chunk, context);
+                    return end(chunk, context, err);
                 }
 
                 Chain(branch).trap(function(err) {
@@ -851,7 +863,7 @@ module.exports = function(app, dust)
             req.branch(function(err, branch) {
 
                 if (err) {
-                    return end(chunk, context);
+                    return end(chunk, context, err);
                 }
 
                 Chain(branch).trap(function(err){
@@ -1058,7 +1070,7 @@ module.exports = function(app, dust)
                 req.branch(function(err, branch) {
 
                     if (err) {
-                        return end(chunk2, context);
+                        return end(chunk2, context, err);
                     }
 
                     // select by ID or select by Path
@@ -1111,7 +1123,7 @@ module.exports = function(app, dust)
             req.branch(function(err, branch) {
 
                 if (err) {
-                    return end(chunk, context);
+                    return end(chunk, context, err);
                 }
 
                 // read the definition

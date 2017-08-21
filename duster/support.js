@@ -138,8 +138,10 @@ exports = module.exports = function(dust)
         {
             chunk.setError(err);
         }
-
-        chunk.end();
+        else
+        {
+            chunk.end();
+        }
     };
 
     var _MARK_INSIGHT = r._MARK_INSIGHT = function(node, result)
@@ -217,7 +219,7 @@ exports = module.exports = function(dust)
         // disk location
         var fragmentFilePath = path.join(fragmentsBasePath, fragmentCacheKey, "fragment.html");
         util.safeReadStream(contentStore, fragmentFilePath, function(err, stream) {
-            callback(err, stream, fragmentFilePath);
+            callback(err, stream, fragmentFilePath, fragmentCacheKey);
         });
     };
 
@@ -267,7 +269,7 @@ exports = module.exports = function(dust)
         // disk location
         var fragmentFilePath = path.join(fragmentsBasePath, fragmentCacheKey, "fragment.html");
         contentStore.writeFile(fragmentFilePath, text, function(err) {
-            callback(err, fragmentFilePath);
+            callback(err, fragmentFilePath, fragmentCacheKey);
         });
     };
 
@@ -317,12 +319,14 @@ exports = module.exports = function(dust)
 
         var req = context.get("req");
 
-        handleCacheFragmentRead(context, fragmentId, requirements, function(err, readStream, readPath) {
+        handleCacheFragmentRead(context, fragmentId, requirements, function(err, readStream, readPath, fragmentCacheKey) {
 
             if (!err && readStream)
             {
+                var req = context.get("req");
+
                 // yes, we found it in cache, so we'll simply pipe it back from disk
-                req.log("Dust Fragment Cache Hit - path: " + readPath);
+                req.log("Fragment Cache Hit: " + req.url + "#" + fragmentCacheKey);
 
                 // read stream in
                 var bufs = [];
@@ -385,15 +389,16 @@ exports = module.exports = function(dust)
                 fragmentDependencies.produces = tracker.produces;
 
                 // write to cache
-                handleCacheFragmentWrite(context, fragmentDescriptor, fragmentDependencies, requirements, text, function(err, writtenPath) {
+                handleCacheFragmentWrite(context, fragmentDescriptor, fragmentDependencies, requirements, text, function(err, writtenPath, writtenCacheKey) {
+
+                    var req = context.get("req");
 
                     if (err) {
-                        console.log("Fragment cache write failed");
-                        console.log(err);
+                        req.log("Fragment Cache Write Failed for URL: " + req.url + ", err: " + JSON.stringify(err, null, "  "));
                         return callback(err);
                     }
 
-                    console.log("Successfully wrote to cache - path: " + writtenPath + " (" + text.length + " chars)");
+                    req.log("Fragment Cache Write: " + req.url + "#" + writtenCacheKey);
 
                     callback();
                 });
