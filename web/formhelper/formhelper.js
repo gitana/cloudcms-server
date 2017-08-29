@@ -1,7 +1,6 @@
 window.GenerateForm = function(json)
 {
     var helper = json.helper;
-
     var config = JSON.parse(JSON.stringify(json));
 
     var action = helper.action;
@@ -29,7 +28,7 @@ window.GenerateForm = function(json)
         },
         "buttons": {
             "submit": {
-                "title": "Submit",
+                "title": helper.submitTitle || "Submit",
                 "click": function(e) {
                     e.preventDefault();
 

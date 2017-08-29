@@ -1114,6 +1114,7 @@ module.exports = function(app, dust)
         var successUrl = context.resolve(params.success);
         var errorUrl = context.resolve(params.error);
         var formId = context.resolve(params.formId);
+        var submitTitle = context.resolve(params.submitTitle);
         
         return map(chunk, function(chunk) {
 
@@ -1185,6 +1186,7 @@ module.exports = function(app, dust)
                         config.helper = {};
                         config.helper.method = "POST";
                         config.helper.action = action;
+                        config.helper.submitTitle = submitTitle;
                         if (list)
                         {
                             config.helper.list = list;
@@ -1204,7 +1206,7 @@ module.exports = function(app, dust)
                         };
 
                         var divId = formId || "form" + new Date().getTime();
-
+                        
                         chunk.write("<div id='" + divId + "'></div>");
                         chunk.write("<script src='/_lib/formhelper/formhelper.js'></script>");
 
