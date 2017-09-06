@@ -32,9 +32,13 @@ window.GenerateForm = function(json)
                 "click": function(e) {
                     e.preventDefault();
 
+                    var data = this.getValue();
+                    if (grecaptcha) {
+                        data.grecaptchaResponse = grecaptcha.getResponse();
+                    }
                     var promise = this.ajaxSubmit({
                         "dataType": "json",
-                        "data": JSON.stringify(this.getValue()),
+                        "data": JSON.stringify(data),
                         "contentType": 'application/json; charset=UTF-8'
                     });
                     promise.done(function(data, textStatus, jqXHR) {
