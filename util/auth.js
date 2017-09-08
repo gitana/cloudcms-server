@@ -231,35 +231,47 @@ var buildPassportCallback = exports.buildPassportCallback = function(providerId,
  */
 var syncUser = exports.syncUser = function(domain, providerId, providerUserId, token, refreshToken, userObject, callback)
 {
-    findUserForProvider(domain, providerId, providerUserId, function(err, gitanaUser) {
+    // take out a lock
+    _LOCK([domain._doc, providerId, providerUserId], function (releaseLockFn) {
 
-        if (err) {
-            return callback(err);
-        }
+        findUserForProvider(domain, providerId, providerUserId, function (err, gitanaUser) {
 
-        // if we already found the user, update it
-        if (gitanaUser)
-        {
-            return updateUserForProvider(domain, providerId, providerUserId, token, refreshToken, userObject, function(err, gitanaUser) {
-
-                if (err) {
-                    return callback(err);
-                }
-
-                gitanaUser.reload().then(function() {
-                    callback(null, this);
-                });
-            });
-        }
-
-        // create
-        createUserForProvider(domain, providerId, providerUserId, token, refreshToken, userObject, function(err, gitanaUser) {
-
-            if (err) {
+            if (err)
+            {
+                releaseLockFn();
                 return callback(err);
             }
 
-            callback(err, gitanaUser);
+            // if we already found the user, update it
+            if (gitanaUser)
+            {
+                return updateUserForProvider(domain, providerId, providerUserId, token, refreshToken, userObject, function (err, gitanaUser) {
+
+                    if (err)
+                    {
+                        releaseLockFn();
+                        return callback(err);
+                    }
+
+                    gitanaUser.reload().then(function () {
+                        releaseLockFn();
+                        callback(null, this);
+                    });
+                });
+            }
+
+            // create
+            createUserForProvider(domain, providerId, providerUserId, token, refreshToken, userObject, function (err, gitanaUser) {
+
+                if (err)
+                {
+                    releaseLockFn();
+                    return callback(err);
+                }
+
+                releaseLockFn();
+                callback(err, gitanaUser);
+            });
         });
     });
 };
@@ -283,6 +295,11 @@ var syncAttachment = exports.syncAttachment = function(gitanaUser, attachmentId,
     });
 };
 
+var _LOCK = function(lockIdentifiers, workFunction)
+{
+    process.locks.lock(lockIdentifiers.join("_"), workFunction);
+};
+
 var syncProfile = exports.syncProfile = function(req, res, domain, providerId, provider, profile, token, refreshToken, callback)
 {
     var userObject = provider.parseProfile(profile);
@@ -298,17 +315,23 @@ var syncProfile = exports.syncProfile = function(req, res, domain, providerId, p
             return callback(null, gitanaUser);
         }
 
-        __syncUser(key, domain, providerId, providerConfig, providerUserId, token, refreshToken, userObject, function(err, gitanaUser) {
+        // take out a lock
+        _LOCK([domain._doc, providerId, providerUserId], function (releaseLockFn) {
 
-            if (err) {
-                return callback(err);
-            }
+            __syncUser(key, domain, providerId, providerConfig, providerUserId, token, refreshToken, userObject, function(err, gitanaUser) {
 
-            if (gitanaUser) {
-                SYNC_USER_CACHE.set(key, gitanaUser);
-            }
+                if (err) {
+                    releaseLockFn();
+                    return callback(err);
+                }
 
-            callback(null, gitanaUser);
+                if (gitanaUser) {
+                    SYNC_USER_CACHE.set(key, gitanaUser);
+                }
+
+                releaseLockFn();
+                return callback(null, gitanaUser);
+            });
         });
     };
 
@@ -373,11 +396,7 @@ var syncProfile = exports.syncProfile = function(req, res, domain, providerId, p
         });
     };
 
-    // TODO: this is slow because at minimum it does a findProviderUser call
-    var t1 = new Date().getTime();
     _syncUser(key, domain, providerId, providerConfig, providerUserId, token, refreshToken, userObject, function(err, gitanaUser) {
-        var t2 = new Date().getTime();
-        console.log("TIME: " + (t2-t1));
 
         if (err) {
             return callback(err);
