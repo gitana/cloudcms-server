@@ -316,7 +316,7 @@ var syncProfile = exports.syncProfile = function(req, res, domain, providerId, p
         }
 
         // take out a lock
-        _LOCK([domain._doc, providerId, providerUserId], function (releaseLockFn) {
+        _LOCK([domain._doc, providerId, providerUserId], function(releaseLockFn) {
 
             __syncUser(key, domain, providerId, providerConfig, providerUserId, token, refreshToken, userObject, function(err, gitanaUser) {
 
