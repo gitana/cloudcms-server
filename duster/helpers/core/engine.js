@@ -109,6 +109,8 @@ module.exports = function(app, dust)
         // locale
         var locale = context.resolve(params.locale) || context.get("req").acceptLanguage;
 
+        var emptyResultCode = context.resolve(params.emptyResultCode);
+        
         // whether to cache this fragment
         var cache = context.resolve(params.cache);
         if (typeof(cache) === "undefined" || !cache)
@@ -294,6 +296,15 @@ module.exports = function(app, dust)
                                 }
                             }
                             array = newArray;
+                        }
+
+                        if (array.length === 0 && emptyResultCode)
+                        {
+                            console.log("Query results were empty and dust tag configured to override HTTP response code to: " + emptyResultCode);
+                            return end(chunk2, context, {
+                                "message": "empty query results",
+                                "status": emptyResultCode
+                            });
                         }
 
                         if (keepOne)
