@@ -140,6 +140,22 @@ exports = module.exports = function()
                 }
             }
 
+            if (req.method.toLowerCase() === "post" || req.method.toLowerCase() === "get") {
+                
+                if (req.url.indexOf("/_admin/driverConfigCache/reset") === 0 || req.url.indexOf("/_admin/driverConfigCache/invalidate") === 0)
+                {
+                    assertAuthenticated(req, res, function() {
+
+                        process.driverConfigCache.invalidate(req.virtualHost, function (err) {
+                            completionFn(req.virtualHost, res, err);
+                        });
+
+                    });
+
+                    handled = true;
+                }
+            }
+
             if (!handled)
             {
                 next();
