@@ -142,7 +142,7 @@ exports = module.exports = function()
 
             if (req.method.toLowerCase() === "post" || req.method.toLowerCase() === "get") {
                 
-                if (req.url.indexOf("/_admin/driverConfigCache/reset") === 0 || req.url.indexOf("/_admin/driverConfigCache/invalidate") === 0)
+                if (req.url.indexOf("/_admin/driverconfigcache/reset") === 0 || req.url.indexOf("/_admin/driverconfigcache/invalidate") === 0)
                 {
                     assertAuthenticated(req, res, function() {
 
