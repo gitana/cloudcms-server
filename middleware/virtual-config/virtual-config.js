@@ -173,7 +173,7 @@ exports = module.exports = function()
                         if (!virtualConfig)
                         {
                             // mark that it failed
-                            process.cache.write(CACHE_KEY, SENTINEL_NOT_FOUND_VALUE, 120, function() {
+                            process.cache.write(CACHE_KEY, SENTINEL_NOT_FOUND_VALUE, 60, function() {
                                 callback({
                                     "message": "No virtual config found for host"
                                 });
@@ -209,7 +209,31 @@ exports = module.exports = function()
 
                         // write the gitana.json file
                         rootStore.writeFile("gitana.json", JSON.stringify(gitanaJson, null, "   "), function (err) {
-                            callback(err, gitanaJson);
+
+                            // if we failed to write the file, then delete and call back with error
+                            if (err)
+                            {
+                                return rootStore.deleteFile("gitana.json", function() {
+                                    callback(err);
+                                });
+                            }
+
+                            // make sure the file wrote successfully
+                            // check stats, ensure non-error and file size > 0
+                            rootStore.fileStats("gitana.json", function(err, stats) {
+
+                                // if we failed to read stats, then delete and call back with error
+                                if (err || stats.size === 0)
+                                {
+                                    return rootStore.deleteFile("gitana.json", function() {
+                                        callback({
+                                            "message": "There was a problem writing the driver configuration file.  Please reload."
+                                        });
+                                    });
+                                }
+
+                                callback(null, gitanaJson);
+                            });
                         });
                     });
                 });
@@ -225,59 +249,61 @@ exports = module.exports = function()
                         return callback(err);
                     }
 
-                    var gitanaJson = JSON.parse(data.toString());
+                    // make sure not size 0
+                    rootStore.fileStats("gitana.json", function(err, stats) {
 
-                    // sanity check - is this for the right environment?
-                    if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
-                    {
-                        // we're in production mode
-
-                        var baseURL = gitanaJson.baseURL;
-                        if (baseURL && baseURL.indexOf("localhost") > -1)
+                        if (err)
                         {
-                            // bad - kill it off and then load from remote
+                            return callback(err);
+                        }
+
+                        // if we failed to read stats or file size 0, then delete and call back with error
+                        if (err || stats.size === 0)
+                        {
                             return rootStore.deleteFile("gitana.json", function() {
-                                loadFromRemote();
+                                callback({
+                                    "message": "There was a problem writing the driver configuration file.  Please reload."
+                                });
                             });
                         }
-                    }
-                    else
-                    {
-                        // we're in dev mode
 
-                        /*
-                        var baseURL = gitanaJson.baseURL;
-                        if (baseURL && baseURL.indexOf("localhost") === -1)
+                        var gitanaJson = JSON.parse(data.toString());
+
+                        // sanity check - is this for the right environment?
+                        if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
                         {
-                            // bad - kill it off and then load from remote
-                            rootStore.deleteFile("gitana.json", function() {
-                                loadFromRemote();
-                            });
-                            return;
-                        }
-                        */
-                    }
+                            // we're in production mode
 
-                    // auto-upgrade the host?
-                    if (gitanaJson.baseURL)
-                    {
-                        var newBaseURL = legacy.autoUpgrade(gitanaJson.baseURL, true);
-                        if (newBaseURL !== gitanaJson.baseURL)
+                            var baseURL = gitanaJson.baseURL;
+                            if (baseURL && baseURL.indexOf("localhost") > -1)
+                            {
+                                // bad - kill it off and then load from remote
+                                return rootStore.deleteFile("gitana.json", function() {
+                                    loadFromRemote();
+                                });
+                            }
+                        }
+
+                        // auto-upgrade the host?
+                        if (gitanaJson.baseURL)
                         {
-                            gitanaJson.baseURL = legacy.autoUpgrade(gitanaJson.baseURL, true);
-                            gitanaJson.baseURL = util.cleanupURL(gitanaJson.baseURL);
+                            var newBaseURL = legacy.autoUpgrade(gitanaJson.baseURL, true);
+                            if (newBaseURL !== gitanaJson.baseURL)
+                            {
+                                gitanaJson.baseURL = legacy.autoUpgrade(gitanaJson.baseURL, true);
+                                gitanaJson.baseURL = util.cleanupURL(gitanaJson.baseURL);
 
-                            // write the gitana.json file
-                            rootStore.writeFile("gitana.json", JSON.stringify(gitanaJson, null, "   "), function (err) {
-                                // nada
-                            });
+                                // write the gitana.json file
+                                rootStore.writeFile("gitana.json", JSON.stringify(gitanaJson, null, "   "), function (err) {
+                                    // nada
+                                });
+                            }
+
                         }
 
-                    }
-
-                    // otherwise, fine!
-                    callback(null, gitanaJson);
-
+                        // otherwise, fine!
+                        callback(null, gitanaJson);
+                    });
                 });
             }
             else

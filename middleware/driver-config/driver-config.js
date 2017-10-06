@@ -67,31 +67,51 @@ exports = module.exports = function()
                 {
                     if (exists)
                     {
-                        rootStore.readFile("gitana.json", function (err, data)
-                        {
+                        // read and ensure size > 0
+                        rootStore.fileStats("gitana.json", function(err, stats) {
 
+                            // if we failed to read stats, then delete and call back with error
                             if (err)
                             {
-                                completionFunction(err);
-                                return;
+                                return rootStore.deleteFile("gitana.json", function() {
+                                    callback(err);
+                                });
                             }
 
-                            var gitanaConfig = null;
-                            try
+                            // if size 0, delete and callback with error
+                            if (stats.size === 0)
                             {
-                                gitanaConfig = JSON.parse(data.toString());
-                            }
-                            catch (e)
-                            {
-                                console.log("Error reading gitana.json file");
-                                completionFunction();
-                                return;
+                                return rootStore.deleteFile("gitana.json", function() {
+                                    callback({
+                                        "message": "There was a problem reading the driver configuration file.  Please reload."
+                                    });
+                                });
                             }
 
-                            process.driverConfigCache.write(holder.virtualHost, {
-                                "config": gitanaConfig
-                            }, function(err) {
-                                completionFunction(null, gitanaConfig);
+                            rootStore.readFile("gitana.json", function (err, data)
+                            {
+                                if (err)
+                                {
+                                    return completionFunction(err);
+                                }
+
+                                var gitanaConfig = null;
+                                try
+                                {
+                                    gitanaConfig = JSON.parse(data.toString());
+                                }
+                                catch (e)
+                                {
+                                    console.log("Error reading gitana.json file");
+                                    completionFunction();
+                                    return;
+                                }
+
+                                process.driverConfigCache.write(holder.virtualHost, {
+                                    "config": gitanaConfig
+                                }, function(err) {
+                                    completionFunction(null, gitanaConfig);
+                                });
                             });
                         });
                     }
