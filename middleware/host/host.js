@@ -246,17 +246,6 @@ exports = module.exports = function()
                     req.domainHost = domainHost;
                     req.virtualHost = virtualHost;
 
-                    //console.log("R1: " + req.domainHost);
-                    //console.log("V1: " + req.virtualHost);
-
-                    /*
-                    // debug
-                    for (var k in req.headers) {
-                        console.log("Header: " + k + " = " + req.headers[k]);
-                    }
-                    console.log("Conclude - domainHost: " + req.domainHost + ", virtualHost: " + req.virtualHost);
-                    */
-
                     return next();
                 });
             });

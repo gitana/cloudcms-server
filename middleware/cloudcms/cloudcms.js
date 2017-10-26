@@ -787,8 +787,10 @@ exports = module.exports = function()
                 var virtualizedPath = null;
                 var virtualizedNode = null;
                 var virtualizedNodeExtra = null;
+                var virtualizedUriExtra = null;
                 var previewPath = null;
                 var previewNode = null;
+                var previewUriExtra = null;
                 if (offsetPath.indexOf("/static/path/") === 0)
                 {
                     virtualizedPath = offsetPath.substring(13);
@@ -946,7 +948,19 @@ exports = module.exports = function()
                 else if ((offsetPath.indexOf("/static") === 0) || (offsetPath.indexOf("/preview") === 0))
                 {
                     var isStatic = (offsetPath.indexOf("/static") === 0);
+                    if (isStatic) {
+                        virtualizedUriExtra = offsetPath.substring(7);
+                        if (virtualizedUriExtra.indexOf("/") === 0) {
+                            virtualizedUriExtra = virtualizedUriExtra.substring(1);
+                        }
+                    }
                     var isPreview = (offsetPath.indexOf("/preview") === 0);
+                    if (isPreview) {
+                        previewUriExtra = offsetPath.substring(8);
+                        if (previewUriExtra.indexOf("/") === 0) {
+                            previewUriExtra = previewUriExtra.substring(1);
+                        }
+                    }
 
                     var _repositoryId = req.query["repository"];
                     if (_repositoryId)
@@ -1201,7 +1215,7 @@ exports = module.exports = function()
                         nodePath = previewPath;
                     }
 
-                    if (!previewId)
+                    if (!previewUriExtra && !previewId)
                     {
                         previewId = req.query["name"];
                     }
