@@ -169,7 +169,7 @@ exports = module.exports = function()
                 safeRemove(contentStore, filePath, function (err) {
                     safeRemove(contentStore, cacheFilePath, function (err) {
                         callback();
-                    })
+                    });
                 });
             };
 
@@ -179,31 +179,45 @@ exports = module.exports = function()
                 if (!exists)
                 {
                     // clean up
-                    invalidate();
-                    return;
+                    return invalidate();
                 }
 
-                // there is something on disk
-                // we should serve it back (if we can)
+                // check the file size on disk
+                // if size 0, invalidate
+                contentStore.fileStats(filePath, function(err, stats) {
 
-                var cacheInfo = JSON.parse(cacheInfoString);
-                if (isCacheInfoValid(cacheInfo)) {
-                    // all good!
-
-                    // clean up here in case charset is part of mimetype
-                    if (cacheInfo.mimetype) {
-                        var x = cacheInfo.mimetype.indexOf(";");
-                        if (x > -1) {
-                            cacheInfo.mimetype = cacheInfo.mimetype.substring(0, x);
-                        }
+                    if (err || !stats || stats.size === 0)
+                    {
+                        // clean up
+                        return invalidate();
                     }
 
-                    callback(null, cacheInfo);
-                }
-                else {
-                    // bad cache file
-                    invalidate();
-                }
+                    // there is something on disk
+                    // we should serve it back (if we can)
+
+                    var cacheInfo = JSON.parse(cacheInfoString);
+                    if (isCacheInfoValid(cacheInfo))
+                    {
+                        // all good!
+
+                        // clean up here in case charset is part of mimetype
+                        if (cacheInfo.mimetype)
+                        {
+                            var x = cacheInfo.mimetype.indexOf(";");
+                            if (x > -1)
+                            {
+                                cacheInfo.mimetype = cacheInfo.mimetype.substring(0, x);
+                            }
+                        }
+
+                        callback(null, cacheInfo);
+                    }
+                    else
+                    {
+                        // bad cache file
+                        invalidate();
+                    }
+                });
             });
         });
     };
