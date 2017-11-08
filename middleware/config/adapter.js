@@ -32,18 +32,16 @@ module.exports = function(configStore)
 
             if (!exists)
             {
-                callback({
+                return callback({
                     "message": "Unable to find config file: " + path
                 });
-                return;
             }
 
             configStore.readFile(path, function(err, data) {
 
                 if (err)
                 {
-                    callback(err);
-                    return;
+                    return callback(err);
                 }
 
                 try
@@ -69,8 +67,7 @@ module.exports = function(configStore)
 
             if (!exists)
             {
-                callback();
-                return;
+                return callback();
             }
 
             // collect all of the page configs under this path
@@ -172,10 +169,9 @@ module.exports = function(configStore)
 
             if (!exists)
             {
-                callback({
+                return callback({
                     "message": "Unable to find directory: " + dirPath
                 });
-                return;
             }
 
             // collect all of the page configs under this path
@@ -316,8 +312,7 @@ module.exports = function(configStore)
 
             if (err)
             {
-                callback(err);
-                return;
+                return callback(err);
             }
 
             // wrap as registry
@@ -326,33 +321,44 @@ module.exports = function(configStore)
             // all done
             callback(null, registry);
 
-            if (process.env.CLOUDCMS_APPSERVER_MODE !== "production")
+            var _watchLog = function(text) {
+                console.log("[Configuration Watch] " + text);
+            };
+
+            if (process.env.CLOUDCMS_APPSERVER_CONFIG_WATCH === "true" || process.env.CLOUDCMS_APPSERVER_CONFIG_WATCH === true)
             {
+                _watchLog("Setting up live watch...");
+
                 // set a watch
                 // watch for changes and when they happen, reload context
                 (function (registry) {
 
-                    var first = true;
-
                     configStore.watchDirectory("/", function () {
 
-                        if (!first)
-                        {
+                        _watchLog("Detected changes on disk - reloading...");
 
-                            var t1 = new Date().getTime();
+                        var t1 = new Date().getTime();
 
-                            // reload context
-                            loadContext(function (err, context) {
+                        // reload context
+                        loadContext(function (err, context) {
+
+                            if (err) {
+                                return _watchLog("Failed to load configuration context: " + err);
+                            }
+
+                            try
+                            {
                                 compileContextToRegistry(context);
                                 registry.reloadContext(context);
+
                                 var t2 = new Date().getTime();
-
-                                _log("Reloaded context in: " + (t2 - t1) + " ms");
-                            });
-                        }
-
-                        first = false;
-
+                                _watchLog("Reloaded context in: " + (t2 - t1) + " ms");
+                            }
+                            catch (e)
+                            {
+                                _watchLog("Caught error while compiling and reloading context: " + err);
+                            }
+                        });
                     });
 
                 })(registry);
@@ -423,7 +429,7 @@ module.exports = function(configStore)
         {
             context.pageCount++;
         }
-        _log(" -> Page count: " + context.pageCount);
+        //_log(" -> Page count: " + context.pageCount);
 
         // compiled page count
         context.compiledPageCount = 0;
@@ -431,7 +437,7 @@ module.exports = function(configStore)
         {
             context.compiledPageCount++;
         }
-        _log(" -> Compiled page count: " + context.compiledPageCount);
+        //_log(" -> Compiled page count: " + context.compiledPageCount);
 
         // gadget bindings count
         context.gadgetCount = 0;
@@ -439,7 +445,7 @@ module.exports = function(configStore)
         {
             context.gadgetCount++;
         }
-        _log(" -> Gadget count: " + context.gadgetCount);
+        //_log(" -> Gadget count: " + context.gadgetCount);
 
         // blocks count
         context.blockCount = 0;
@@ -447,7 +453,7 @@ module.exports = function(configStore)
         {
             context.blockCount++;
         }
-        _log(" -> Block count: " + context.blockCount);
+        //_log(" -> Block count: " + context.blockCount);
 
 
 

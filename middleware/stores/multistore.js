@@ -294,7 +294,20 @@ exports = module.exports = function(originalStores)
                 return;
             }
 
-            stores[0].watchDirectory(directoryPath, onChange);
+            var fns = [];
+            for (var i = 0; i < stores.length; i++)
+            {
+                var fn = function(s, directoryPath) {
+                    return function(done) {
+                        s.watchDirectory(directoryPath, onChange);
+                        done();
+                    }
+                }(stores[i], directoryPath);
+                fns.push(fn);
+            }
+            async.series(fns, function() {
+                // done
+            });
         });
     };
 

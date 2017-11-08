@@ -218,7 +218,7 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
 
     r.watchDirectory = function(directoryPath, onChange)
     {
-        debugStart("Start store.watchDirectory");
+        debugStart("Start store.watchDirectory: " + _enginePath(directoryPath));
         engine.watchDirectory(_enginePath(directoryPath), function(f, curr, prev) {
             debugFinish("Finish store.watchDirectory");
             onChange(f, curr, prev);
