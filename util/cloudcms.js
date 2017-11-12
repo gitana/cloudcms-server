@@ -705,7 +705,12 @@ exports = module.exports = function()
                 return callback(err);
             }
 
-            var filePath = path.join(contentDirectoryPath, "previews", previewId);
+            var filePath = contentDirectoryPath;
+            if (nodePath) {
+                filePath = path.join(contentDirectoryPath, "paths", nodePath);
+            }
+
+            filePath = path.join(filePath, "previews", previewId);
 
             var doWork = function() {
 
