@@ -80,9 +80,14 @@ exports = module.exports = function()
             sourcePath = "/";
         }
 
+        var sourceBranch = moduleConfig.source.branch;
+        if (!sourceBranch) {
+            sourceBranch = "master";
+        }
+
         if ("github" === sourceType || "bitbucket" == sourceType)
         {
-            util.gitCheckout(host, sourceType, sourceUrl, sourcePath, "modules/" + moduleId, false, req.log, function (err) {
+            util.gitCheckout(host, sourceType, sourceUrl, sourcePath, sourceBranch, "modules/" + moduleId, false, req.log, function (err) {
 
                 // invalidate any caching within the stores layer
                 storeService.invalidate(host);

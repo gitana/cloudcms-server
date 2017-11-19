@@ -227,7 +227,7 @@ var gitInit = function(directoryPath, logMethod, callback)
     });
 };
 
-var gitPull = function(directoryPath, gitUrl, sourceType, logMethod, callback)
+var gitPull = function(directoryPath, gitUrl, sourceType, sourceBranch, logMethod, callback)
 {
     var username = null;
     var password = null;
@@ -260,7 +260,19 @@ var gitPull = function(directoryPath, gitUrl, sourceType, logMethod, callback)
 
     var commands = [];
     commands.push("cd " + directoryPath);
-    commands.push("git pull " + gitUrl);
+
+    if (!sourceBranch || sourceBranch.toLowerCase().trim() === "master")
+    {
+        commands.push("git pull " + gitUrl);
+    }
+    else
+    {
+        // if non-master branch, we do this a little differently
+        commands.push("git fetch " + gitUrl + " " + sourceBranch + ":" + sourceBranch);
+        commands.push("git checkout " + sourceBranch);
+    }
+
+    // run the commands
     executeCommands(commands, logMethod, function(err) {
         callback(err);
     });
@@ -271,7 +283,7 @@ var gitPull = function(directoryPath, gitUrl, sourceType, logMethod, callback)
  *
  * @type {*}
  */
-exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, offsetPath, moveToPublic, logMethod, callback)
+exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, sourceBranch, offsetPath, moveToPublic, logMethod, callback)
 {
     // this gets a little confusing, so here is what we have:
     //
@@ -321,7 +333,7 @@ exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, offsetPat
                 }
 
                 // perform a git pull of the repository
-                gitPull(tempRootDirectoryPath, gitUrl, sourceType, logMethod, function (err) {
+                gitPull(tempRootDirectoryPath, gitUrl, sourceType, sourceBranch, logMethod, function (err) {
 
                     if (err) {
                         return callback(err);

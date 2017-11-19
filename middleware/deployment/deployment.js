@@ -165,8 +165,7 @@ exports = module.exports = function()
             storeService.produce(host, function(err, stores) {
 
                 if (err) {
-                    callback(err);
-                    return;
+                    return callback(err);
                 }
 
                 var rootStore = stores.root;
@@ -174,10 +173,9 @@ exports = module.exports = function()
 
                     if (allocated)
                     {
-                        callback({
+                        return callback({
                             "message": "The application for host: " + host + " is already deployed"
                         });
-                        return;
                     }
 
                     req.log("Deploying application: " + descriptor.application.id + " to host: " + host);
@@ -219,9 +217,13 @@ exports = module.exports = function()
                         if (!sourcePath) {
                             sourcePath = "/";
                         }
+                        var sourceBranch = (descriptor.source ? descriptor.source.branch : null);
+                        if (!sourceBranch) {
+                            sourceBranch = "master";
+                        }
                         if ("github" === sourceType || "bitbucket" == sourceType)
                         {
-                            util.gitCheckout(host, sourceType, sourceUrl, sourcePath, null, true, req.log, function (err) {
+                            util.gitCheckout(host, sourceType, sourceUrl, sourcePath, sourceBranch, null, true, req.log, function (err) {
 
                                 if (err) {
                                     return callback(err, host);
@@ -261,18 +263,16 @@ exports = module.exports = function()
             storeService.produce(host, function(err, stores) {
 
                 if (err) {
-                    callback(err);
-                    return;
+                    return callback(err);
                 }
 
                 var rootStore = stores.root;
                 rootStore.allocated(function (allocated) {
 
                     if (!allocated) {
-                        callback({
+                        return callback({
                             "message": "The application is not currently deployed."
                         });
-                        return;
                     }
 
                     req.log("Undeploying application: " + descriptor.application.id + " from host: " + host);
@@ -317,8 +317,7 @@ exports = module.exports = function()
 
             console.log("H1: " + host);
             if (err) {
-                callback(err);
-                return;
+                return callback(err);
             }
 
             // construct a "root" store for this host
@@ -326,8 +325,7 @@ exports = module.exports = function()
             storeService.produce(host, function(err, stores) {
 
                 if (err) {
-                    callback(err);
-                    return;
+                    return callback(err);
                 }
 
                 var rootStore = stores.root;
@@ -389,8 +387,7 @@ exports = module.exports = function()
             storeService.produce(host, function(err, stores) {
 
                 if (err) {
-                    callback(err);
-                    return;
+                    return callback(err);
                 }
 
                 var rootStore = stores.root;
@@ -447,8 +444,7 @@ exports = module.exports = function()
         storeService.produce(host, function(err, stores) {
 
             if (err) {
-                callback(err);
-                return;
+                return callback(err);
             }
 
             var rootStore = stores.root;
@@ -460,8 +456,7 @@ exports = module.exports = function()
                     rootStore.readFile("descriptor.json", function (err, data) {
 
                         if (err) {
-                            callback(err);
-                            return;
+                            return callback(err);
                         }
 
                         r.descriptor = JSON.parse(data);
@@ -471,8 +466,7 @@ exports = module.exports = function()
                         parseHost(r.descriptor, function (err, host) {
 
                             if (err) {
-                                callback(err);
-                                return;
+                                return callback(err);
                             }
 
                             var hostPort = host;
@@ -509,8 +503,7 @@ exports = module.exports = function()
         storeService.produce(host, function(err, stores) {
 
             if (err) {
-                callback(err);
-                return;
+                return callback(err);
             }
 
             var rootStore = stores.root;
@@ -518,9 +511,7 @@ exports = module.exports = function()
 
                 if (!allocated) {
                     // not deployed, skip out
-                    callback();
-
-                    return;
+                    return callback();
                 }
 
                 // remove host directory

@@ -198,8 +198,8 @@ exports = module.exports = function()
                             extension = null;
                             car = filename;
                         }
-                        var regex1 = new RegExp("-[0-9a-f]{32}$");
-                        var regex2 = new RegExp("-[0-9]{13}$");
+                        var regex1 = new RegExp("-[0-9a-f]{32}$"); // md5
+                        var regex2 = new RegExp("-[0-9]{13}$"); // timestamp
                         if (regex1.test(car) || regex2.test(car))
                         {
                             var x = car.lastIndexOf("-");
@@ -324,19 +324,15 @@ exports = module.exports = function()
                         // always remove pragma
                         util.removeHeader(res, "Pragma");
 
-                        // set new url
-                        if (originalFilename)
+                        // if we found a key, then strip it out from the url going forward
+                        // this adjusts req.url (provided by node http module) and also req.path (which express auto-populates)
+                        if (key)
                         {
-                            var newUrl = path.join(dir, originalFilename);
-                            if (extension)
+                            var z2 = req.url.indexOf(key);
+                            if (z2 > -1)
                             {
-                                newUrl += "." + extension
+                                req.url = req.url.substring(0, z2 - 1) + req.url.substring(z2 + key.length);
                             }
-                            if (queryString)
-                            {
-                                newUrl += "?" + queryString;
-                            }
-                            req.url = newUrl;
                         }
                     }
                 }

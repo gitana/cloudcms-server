@@ -41,7 +41,6 @@ exports = module.exports = function()
                 {
                     req.url = path.join(req.originalUrl, configuration.file);
                     req.path = path.join(req.path, configuration.file);
-                    //req.url = req.originalUrl + configuration.file;
                 }
 
                 next();
