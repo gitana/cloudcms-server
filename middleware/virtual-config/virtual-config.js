@@ -29,8 +29,7 @@ exports = module.exports = function()
 
                 if (err)
                 {
-                    callback(err);
-                    return;
+                    return callback(err);
                 }
 
                 callback(null, this);
