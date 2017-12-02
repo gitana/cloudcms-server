@@ -41,13 +41,19 @@ module.exports = function(adapterId, adapterType, config)
             object = jwt.decode(value);
         }
 
-        // TODO: the profile is assumed to be contained inside of the payload object
+        // allow for the profile field to be picked off the object
+        // otherwise, we simply pass the entire JWT object forward
         var profileField = config.profile_field;
         if (!profileField) {
             profileField = "profile";
         }
-
-        var profile = object[profileField];
+        var profile = null;
+        if (object[profileField]) {
+            profile = object[profileField];
+        }
+        if (!profile) {
+            profile = object;
+        }
 
         // pick off user id
         var user_identifier_field = config.field;

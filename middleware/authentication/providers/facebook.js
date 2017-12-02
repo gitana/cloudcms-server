@@ -3,6 +3,8 @@ var auth = require("../../../util/auth");
 var passport = require("passport");
 var FacebookStrategy = require('passport-facebook').Strategy;
 
+var extend = require("extend-with-super");
+
 if (!process.configuration.providers) {
     process.configuration.providers = {};
 }
@@ -32,7 +34,7 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
         config.properties.id = "id";
     }
 
-    var r = require("./abstract")(PROVIDER_ID, PROVIDER_TYPE, config);
+    var base = require("./abstract")(PROVIDER_ID, PROVIDER_TYPE, config);
 
     // passport
     var facebookStrategy = new FacebookStrategy({
@@ -42,6 +44,10 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
         passReqToCallback: true
     }, auth.buildPassportCallback(PROVIDER_TYPE, r));
     passport.use(facebookStrategy);
+
+    //////
+
+    var r = {};
 
     /**
      * @override
@@ -89,11 +95,6 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
         return userObject;
     };
 
-    r.syncAvatar = function(gitanaUser, profile, callback)
-    {
-        callback();
-    };
-
     /**
      * @override
      */
@@ -109,6 +110,6 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
         });
     };
 
-    return r;
+    return extend(base, r);
 };
 

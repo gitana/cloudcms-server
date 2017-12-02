@@ -126,6 +126,7 @@ exports = module.exports = function()
         registerProvider("google", require("./providers/google"));
         registerProvider("keycloak", require("./providers/keycloak"));
         registerProvider("linkedin", require("./providers/linkedin"));
+        registerProvider("trusted", require("./providers/trusted"));
         registerProvider("twitter", require("./providers/twitter"));
 
         // filter - request adapters
@@ -348,15 +349,25 @@ exports = module.exports = function()
                         };
                     }
 
+                    if (result.err && result.err.message) {
+                        req.log("Auth filter error: " + result.err.message);
+                    }
+
                     var failureRedirect = null;
                     var registrationRedirect = null;
 
                     if (configuration && configuration.filters && configuration.filters[id])
                     {
                         var providerId = configuration.filters[id].provider;
-
-                        failureRedirect = configuration.providers[providerId].config.failureRedirect;
-                        registrationRedirect = configuration.providers[providerId].config.registrationRedirect;
+                        if (providerId)
+                        {
+                            var provider = configuration.providers[providerId];
+                            if (provider && provider.config)
+                            {
+                                failureRedirect = provider.config.failureRedirect;
+                                registrationRedirect = provider.config.registrationRedirect;
+                            }
+                        }
                     }
 
                     // if no user, redirect to registration url?

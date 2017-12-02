@@ -3,6 +3,8 @@ var auth = require("../../../util/auth");
 var passport = require("passport");
 var CasStrategy = require('passport-cas').Strategy;
 
+var extend = require("extend-with-super");
+
 /**
  * "cas" Authentication Provider
  *
@@ -23,7 +25,7 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
         config.properties.id = "name";
     }
 
-    var r = require("./abstract")(PROVIDER_ID, PROVIDER_TYPE, config);
+    var base = require("./abstract")(PROVIDER_ID, PROVIDER_TYPE, config);
 
     // passport
     var casStrategy = new CasStrategy({
@@ -33,6 +35,10 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
         "passReqToCallback": true
     }, auth.buildPassportCallback(PROVIDER_TYPE, r));
     passport.use(casStrategy);
+
+    //////
+
+    var r = {};
 
     /**
      * @override
@@ -56,36 +62,6 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
     /**
      * @override
      */
-    r.parseProfile = function(profile)
-    {
-        var userObject = {};
-
-        if (!userObject.firstName)
-        {
-            userObject.firstName = profile.given_name;
-        }
-
-        if (!userObject.lastName)
-        {
-            userObject.lastName = profile.family_name;
-        }
-
-        if (!userObject.email)
-        {
-            userObject.email = profile.email;
-        }
-
-        return userObject;
-    };
-
-    r.syncAvatar = function(gitanaUser, profile, callback)
-    {
-        callback();
-    };
-
-    /**
-     * @override
-     */
     r.load = function(properties, callback)
     {
         casStrategy.userProfile(properties.token, function(err, profile) {
@@ -98,6 +74,6 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
         });
     };
 
-    return r;
+    return extend(base, r);
 };
 

@@ -3,6 +3,8 @@ var auth = require("../../../util/auth");
 var passport = require("passport");
 var KeyCloakStrategy = require("./keycloak/index");
 
+var extend = require("extend-with-super");
+
 /**
  * "keycloak" Authentication Provider
  *
@@ -24,7 +26,7 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
         config.properties.id = "username";
     }
 
-    var r = require("./abstract")(PROVIDER_ID, PROVIDER_TYPE, config);
+    var base = require("./abstract")(PROVIDER_ID, PROVIDER_TYPE, config);
 
     // passport
     var keycloakStrategy = new KeyCloakStrategy({
@@ -36,6 +38,10 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
         "passReqToCallback": true
     }, auth.buildPassportCallback(PROVIDER_TYPE, r));
     passport.use(keycloakStrategy);
+
+    //////
+
+    var r = {};
 
     /**
      * @override
@@ -61,29 +67,11 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
      */
     r.parseProfile = function(profile)
     {
-        var userObject = {};
+        var userObject = this._super(profile);
 
-        if (!userObject.firstName)
-        {
-            userObject.firstName = profile.given_name;
-        }
-
-        if (!userObject.lastName)
-        {
-            userObject.lastName = profile.family_name;
-        }
-
-        if (!userObject.email)
-        {
-            userObject.email = profile.email;
-        }
+        // TODO: add in any custom extractions
 
         return userObject;
-    };
-
-    r.syncAvatar = function(gitanaUser, profile, callback)
-    {
-        callback();
     };
 
     /**
@@ -101,6 +89,6 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
         });
     };
 
-    return r;
+    return extend(base, r);
 };
 

@@ -3,6 +3,8 @@ var auth = require("../../../util/auth");
 var passport = require("passport");
 var TwitterStrategy = require('passport-twitter').Strategy;
 
+var extend = require("extend-with-super");
+
 if (!process.configuration.providers) {
     process.configuration.providers = {};
 }
@@ -32,7 +34,7 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
         config.properties.id = "id";
     }
 
-    var r = require("./abstract")(PROVIDER_ID, PROVIDER_TYPE, config);
+    var base = require("./abstract")(PROVIDER_ID, PROVIDER_TYPE, config);
 
     // passport
     var twitterStrategy = new TwitterStrategy({
@@ -42,6 +44,10 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
         passReqToCallback: true
     }, auth.buildPassportCallback(PROVIDER_TYPE, r));
     passport.use(twitterStrategy);
+
+    //////
+
+    var r = {};
 
     /**
      * @override
@@ -67,14 +73,16 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
      */
     r.parseProfile = function(profile)
     {
-        var userObject = {};
+        var userObject = this._super(profile);
 
-        // TODO: nothing much is actually provided from twitter
-        // is there anything here we can extract from profile?
+        // TODO: not much provided from Twitter, add any custom extractions?
 
         return userObject;
     };
 
+    /**
+     * @override
+     */
     r.syncAvatar = function(gitanaUser, profile, callback)
     {
         // sync avatar photo
@@ -110,6 +118,6 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
         });
     };
 
-    return r;
+    return extend(base, r);
 };
 

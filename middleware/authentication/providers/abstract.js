@@ -61,6 +61,8 @@ exports = module.exports = function(providerId, providerType, config)
      */
     r.handleAuth = function(req, res, next)
     {
+        // by default, we throw an error
+        throw new Error("This authentication provider does not support handleAuth()");
     };
 
     /**
@@ -74,16 +76,51 @@ exports = module.exports = function(providerId, providerType, config)
      */
     r.handleAuthCallback = function(req, res, next, callback)
     {
+        // by default, we throw an error
+        throw new Error("This authentication provider does not support handleAuthCallback()");
     };
 
     /**
      * Given the authentication adapter's profile, fires the callback with the extracted user object (JSON) and the
      * extracted token and refresh token.
      *
+     * A default implementation is supported here.
+     * A few core properties are supported.
+     *
      * @param profile
      */
     r.parseProfile = function(profile)
     {
+        var userObject = {};
+
+        if (!profile) {
+            return userObject;
+        }
+
+        var userProperties = config.userProperties;
+        if (!userProperties) {
+            userProperties = {};
+            userProperties["firstName"] = "given_name";
+            userProperties["lastName"] = "family_name";
+            userProperties["email"] = "email";
+        }
+
+        for (var userProperty in userProperties)
+        {
+            if (!userObject[userProperty])
+            {
+                var profileProperty = userProperties[userProperty];
+                if (profileProperty)
+                {
+                    if (profile[profileProperty])
+                    {
+                        userObject[userProperty] = profile[profileProperty];
+                    }
+                }
+            }
+        }
+
+        return userObject;
     };
 
     /**
@@ -96,6 +133,11 @@ exports = module.exports = function(providerId, providerType, config)
      */
     r.syncAvatar = function(gitanaUser, profile, callback)
     {
+        // by default, don't do anything
+        // extend this to pull down an image and attach to the user account
+        // see twitter provider for example
+
+        callback();
     };
 
     /**
@@ -125,6 +167,8 @@ exports = module.exports = function(providerId, providerType, config)
      */
     r.load = function(properties, callback)
     {
+        // by default, we throw an error
+        throw new Error("This authentication provider does not support load()");
     };
 
     return r;
