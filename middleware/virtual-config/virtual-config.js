@@ -199,8 +199,9 @@ exports = module.exports = function()
                         if (virtualConfig.baseURL) {
                             gitanaJson.baseURL = virtualConfig.baseURL;
                         }
-                        if (!gitanaJson.baseURL) {
-                            gitanaJson.baseURL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT);
+                        if (!gitanaJson.baseURL)
+                        {
+                            gitanaJson.baseURL = util.cleanupURL(util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT));
                         }
 
                         // mark as retrieved from virtual driver
@@ -287,17 +288,18 @@ exports = module.exports = function()
                         if (gitanaJson.baseURL)
                         {
                             var newBaseURL = legacy.autoUpgrade(gitanaJson.baseURL, true);
+                            newBaseURL = util.cleanupURL(newBaseURL);
                             if (newBaseURL !== gitanaJson.baseURL)
                             {
-                                gitanaJson.baseURL = legacy.autoUpgrade(gitanaJson.baseURL, true);
-                                gitanaJson.baseURL = util.cleanupURL(gitanaJson.baseURL);
+                                console.log("Auto-upgrade gitana.json from: " + gitanaJson.baseURL + ", to: " + newBaseURL);
+
+                                gitanaJson.baseURL = newBaseURL;
 
                                 // write the gitana.json file
                                 rootStore.writeFile("gitana.json", JSON.stringify(gitanaJson, null, "   "), function (err) {
                                     // nada
                                 });
                             }
-
                         }
 
                         // otherwise, fine!
@@ -324,7 +326,8 @@ exports = module.exports = function()
             }
 
             // defaults
-            if (!configuration.baseURL) {
+            if (!configuration.baseURL)
+            {
                 configuration.baseURL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT);
             }
             if (!configuration.key) {

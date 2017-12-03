@@ -49,7 +49,6 @@ exports.autoUpgrade = function(hostOrUrl, verbose)
             hostOrUrl = handleReplaceHost(hostOrUrl, "api1.cloudcms.com", "api.cloudcms.com", verbose, function(oldHost, newHost) {
                 console.log("Adjusting API connection to use Load Balancer: " + oldHost + " to: " + newHost);
             });
-
         }
     }
 

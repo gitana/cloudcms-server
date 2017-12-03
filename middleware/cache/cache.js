@@ -54,7 +54,9 @@ exports = module.exports = function()
 
             // global caches
             process.deploymentDescriptorCache = createNamespacedCache.call(r, "descriptors");
-            process.driverConfigCache = createNamespacedCache.call(r, "driverconfigs");
+            process.driverConfigCache = createNamespacedCache.call(r, "driverconfigs", {
+                "seconds": 120 * 60 // 2 hours (120 minutes * 60 seconds / minute)
+            });
             process.subKeyMapCache = createNamespacedCache.call(r, "keyMap");
 
             // subscribe to node invalidation broadcast events
@@ -107,19 +109,26 @@ exports = module.exports = function()
             config = { 
                 "seconds": -1
             };
-        } else if (typeof(config) === "number" ) {
+        }
+        else if (typeof(config) === "number" )
+        {
             config = {
                 "seconds": config
             }
-        } else if (typeof(config) === "object" ) {
+        }
+        else if (typeof(config) === "object" )
+        {
             config.seconds = config.seconds || -1;
-        } else {
+        }
+        else
+        {
             config = { 
                 "seconds": -1
             };
         }
 
-        if (config.subKeys) {
+        if (config.subKeys)
+        {
             // subKeys (a list of node IDs) are present so store a map for invalidation
             subKeyMapCache().read("keyMapCache", function(err, keyMapCache){
                 var keyMap =  {};
@@ -131,7 +140,7 @@ exports = module.exports = function()
                     keyInverseMap = keyMapCache.keyInverseMapCache || {};
                 }
 
-                for(var i = 0; i < config.subKeys.length; i++)
+                for (var i = 0; i < config.subKeys.length; i++)
                 {
                     // subKeys are node IDs
                     var nodeId = config.subKeys[i];
@@ -379,11 +388,11 @@ exports = module.exports = function()
         });
     };
 
-    var createNamespacedCache = r.createNamespacedCache = function()
+    var createNamespacedCache = r.createNamespacedCache = function(namespace, defaultConfig)
     {
-        var prefixedKey = __prefixedKey.apply(this, arguments);
+        var prefixedKey = __prefixedKey(namespace);
 
-        return require("./wrapper")(this, prefixedKey);
+        return require("./wrapper")(this, prefixedKey, defaultConfig);
     };
 
     /**

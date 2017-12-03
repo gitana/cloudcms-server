@@ -147,7 +147,6 @@ exports = module.exports = function()
 
                 if (!gitanaConfig)
                 {
-                    //req.log("Could not find gitana.json file");
                     return next();
                 }
 
@@ -161,15 +160,6 @@ exports = module.exports = function()
 
                     if (err)
                     {
-                        /*
-                        var configString = "null";
-                        if (gitanaConfig) {
-                            configString = JSON.stringify(gitanaConfig);
-                        }
-                        */
-
-                        // console.log("Cannot connect to Cloud CMS for path: " + req.path + ", config: " + configString + ", message: " + JSON.stringify(err));
-
                         // send back error
                         if (!err.status) {
                             err.status = 503;

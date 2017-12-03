@@ -5,8 +5,12 @@ var path = require("path");
  *
  * @type {*}
  */
-exports = module.exports = function(cache, basePrefix)
+exports = module.exports = function(cache, basePrefix, defaultConfig)
 {
+    if (!defaultConfig) {
+        defaultConfig = {};
+    }
+
     var _toPrefixedKey = function(key)
     {
         var prefixedKey = key;
@@ -26,11 +30,16 @@ exports = module.exports = function(cache, basePrefix)
 
     var r = {};
 
-    r.write = function(key, value, seconds, callback)
+    r.write = function(key, value, config, callback)
     {
+        if (typeof(config) === "function") {
+            callback = config;
+            config = defaultConfig;
+        }
+
         var prefixedKey = _toPrefixedKey(key);
 
-        cache.write(prefixedKey, value, seconds, function(err, res) {
+        cache.write(prefixedKey, value, config, function(err, res) {
 
             if (callback)
             {

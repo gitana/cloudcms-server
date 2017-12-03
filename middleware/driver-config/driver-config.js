@@ -19,10 +19,9 @@ exports = module.exports = function()
     {
         if (!holder.virtualHost)
         {
-            callback({
+            return callback({
                 "message": "Missing host"
             });
-            return;
         }
 
         var completionFunction = function(err, gitanaConfig)
@@ -35,7 +34,7 @@ exports = module.exports = function()
 
             if (gitanaConfig)
             {
-                // overwrite path to gitana.json file
+                // store config
                 holder.gitanaConfig = gitanaConfig;
 
                 // remember that we found this stuff locally
@@ -44,7 +43,6 @@ exports = module.exports = function()
 
             callback();
         };
-
 
         process.driverConfigCache.read(holder.virtualHost, function(err, cachedValue) {
 

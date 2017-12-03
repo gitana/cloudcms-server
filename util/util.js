@@ -1671,26 +1671,39 @@ var zip = exports.zip = function(directoryPath, writableStream)
     archive.finalize();
 };
 
+/**
+ * Converts a protocol, host and optional port into a URL.
+ *
+ * @param {string} protocol
+ * @param {string} host
+ * @param [number|string] port
+ *
+ * @type {Function}
+ */
 var asURL = exports.asURL = function(protocol, host, port)
 {
-    // make sure port is a number
-    if (typeof(port) === "string") {
-        port = parseInt(port, 10);
-    }
-
     // protocol lower case
     protocol = protocol.toLowerCase();
 
     var url = protocol + "://" + host;
 
-    // if port and default port don't match, then append
-    if (protocol === "https" && port !== 443)
+    // port is optional, so check to make sure it isn't null
+    if (port)
     {
-        url += ":" + port;
-    }
-    else if (protocol === "http" && port !== 80)
-    {
-        url += ":" + port;
+        // make sure port is a number
+        if (typeof(port) === "string") {
+            port = parseInt(port, 10);
+        }
+
+        // if port and default port don't match, then append
+        if (protocol === "https" && port !== 443)
+        {
+            url += ":" + port;
+        }
+        else if (protocol === "http" && port !== 80)
+        {
+            url += ":" + port;
+        }
     }
 
     return url;
@@ -1708,5 +1721,6 @@ var cleanupURL = exports.cleanupURL = function(url)
         protocol = protocol.substring(0, a);
     }
 
+    // NOTE: _url.port may be null
     return asURL(protocol, _url.hostname, _url.port);
 };
