@@ -10,7 +10,7 @@ var temp = require("temp");
 var onHeaders = require("on-headers");
 var sha1 = require("sha1");
 var klaw = require("klaw");
-var targz = require("tar.gz");
+var targz = require('targz');
 var archiver = require("archiver");
 
 var http = require("http");
@@ -1649,7 +1649,10 @@ var walkDirectory = exports.walkDirectory = function(dirPath, callback)
 
 var extractTarGz = exports.extractTarGz = function(tarGzFilePath, extractionPath, callback)
 {
-    targz().extract(tarGzFilePath, extractionPath, function(err){
+    targz.decompress({
+        src: tarGzFilePath,
+        dest: extractionPath
+    }, function(err) {
         callback(err);
     });
 };
