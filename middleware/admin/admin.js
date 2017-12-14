@@ -22,7 +22,7 @@ exports = module.exports = function()
             var identifier = ref.substring(z + 3);
 
             var parts = identifier.split("/").reverse();
-
+            
             if (type === "node")
             {
                 var nodeId = parts[0];
@@ -30,6 +30,7 @@ exports = module.exports = function()
                 var repositoryId = parts[2];
 
                 // broadcast invalidation
+                console.log("admin broadcasting node invalidation. ref: " + ref);
                 process.broadcast.publish("node_invalidation", {
                     "ref": ref,
                     "nodeId": nodeId,
@@ -42,6 +43,7 @@ exports = module.exports = function()
             }
             else
             {
+                console.log("admin NOT broadcasting. Event is not a node invalidation. ref: " + ref);
                 callback();
             }
         }

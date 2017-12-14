@@ -249,6 +249,7 @@ exports = module.exports = function(dust)
         // mark the rendition
         if (fragmentDependencies)
         {
+            console.log("marking rendition from dust. fragmentId: " + fragmentDescriptor.fragmentId);
             renditions.markRendition(req, fragmentDescriptor, fragmentDependencies, function (err) {
 
                 // if we got an error writing the rendition, then we have to roll back and invalidate disk cache

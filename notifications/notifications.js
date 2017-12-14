@@ -229,6 +229,8 @@ var handleNotificationMessages = function(items, callback) {
                 }
                 else if (operation === "invalidate_application_page_rendition")
                 {
+                    console.log("invalidate_application_page_rendition event\n" + JSON.stringify(item,null,2));
+
                     var deploymentKey = item.deploymentKey;
                     var applicationId = item.applicationId;
 
@@ -267,11 +269,14 @@ var handleNotificationMessages = function(items, callback) {
 
                     // broadcast invalidation
                     process.broadcast.publish("invalidate_page_rendition", message, function(err) {
+                        console.log("published invalidate_page_rendition message. err:" + err + "\nmessage: " + JSON.stringify(item,null,2));
                         return done(err);
                     });
                 }
                 else if (operation === "invalidate_application_page_renditions")
                 {
+                    console.log("invalidate_application_page_renditions event");
+
                     var invalidations = item.invalidations;
                     if (invalidations && invalidations.length > 0)
                     {
@@ -319,6 +324,7 @@ var handleNotificationMessages = function(items, callback) {
 
                                     // broadcast invalidation
                                     process.broadcast.publish("invalidate_page_rendition", message, function(err) {
+                                        console.log("published invalidate_page_rendition message. err:" + err + "\nmessage: " + JSON.stringify(message,null,2));
                                         z_done(err);
                                     });
 
@@ -349,6 +355,7 @@ var handleNotificationMessages = function(items, callback) {
 
                     // broadcast invalidation
                     process.broadcast.publish("invalidate_all_page_renditions", message, function(err) {
+                        console.log("published invalidate_all_page_renditions message. err:" + err + "\nmessage: " + JSON.stringify(message,null,2));
                         return done(err);
                     });
                 }

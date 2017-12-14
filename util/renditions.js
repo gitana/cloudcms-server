@@ -190,9 +190,11 @@ exports = module.exports = function()
                     if (err)
                     {
                         // failed to add the page rendition
+                        console.log("WARNING: failed to add the page rendition\n" + JSON.stringify(renditionObject,null,2));
                         return callback(err);
                     }
 
+                    console.log("Done writing page rendition\n" + JSON.stringify(renditionObject,null,2));
                     callback();
                 });
 
