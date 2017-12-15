@@ -926,7 +926,7 @@ exports = module.exports = function()
                     invalidationDone = function() { };
                 }
 
-                // console.log("HEARD: invalidate_page_rendition");
+                console.log("HEARD: invalidate_page_rendition");
 
                 var clearFragmentCacheFn = function(message)
                 {

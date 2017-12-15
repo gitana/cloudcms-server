@@ -54,6 +54,9 @@ exports = module.exports = function(cacheConfig)
         if (seconds <= -1)
         {
             client.set([key, JSON.stringify(value)], function(err, reply) {
+                if (err) {
+                    log.error("write error. key: " + key + " value: " + JSON.stringify(value) + ". error:" + err);
+                }
                 log.info("write -> reply = " + reply);
                 callback(err, reply);
             });
@@ -61,6 +64,9 @@ exports = module.exports = function(cacheConfig)
         else
         {
             client.set([key, JSON.stringify(value), "EX", seconds], function(err, reply) {
+                if (err) {
+                    log.error("write.ex error. key: " + key + " value: " + JSON.stringify(value) + ". error:" + err);
+                }
                 log.info("write.ex -> reply = " + reply);
                 callback(err, reply);
             });
@@ -71,7 +77,10 @@ exports = module.exports = function(cacheConfig)
     {
         client.get([key], function(err, reply) {
 
-            log.info("read -> reply = " + reply);
+            if (err) {
+                log.error("read error. key: " + key + ". error:" + err);
+            }
+            log.info("read. key: " + key + " -> reply = " + reply);
             
             var result = null;
             try
@@ -82,6 +91,9 @@ exports = module.exports = function(cacheConfig)
             {
                 result = null;
                 err = ex;
+                if (err) {
+                    log.error("error parsing reply. key: " + key + ". error:" + err);
+                }
             }
 
             callback(err, result);
@@ -90,6 +102,7 @@ exports = module.exports = function(cacheConfig)
 
     r.remove = function(key, callback)
     {
+        log.info("remove. key: " + key);
         client.del([key], function(err) {
             callback(err);
         });
@@ -97,8 +110,11 @@ exports = module.exports = function(cacheConfig)
     
     r.keys = function(prefix, callback)
     {
-        log.info('prefix = ' + prefix);
+        log.info('keys. prefix = ' + prefix);
         client.keys([prefix + '*'], function(err, reply) {
+            if (err) {
+                log.error("error reading prefix: " + prefix + ". error:" + err);
+            }
             log.info("[keys -> reply = " + reply);
             callback(err, reply);
         });

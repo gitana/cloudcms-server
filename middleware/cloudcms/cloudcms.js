@@ -1860,7 +1860,10 @@ exports = module.exports = function()
             console.log("Invalidating node " + nodeId + " for hostname: " + host);
 
             cloudcmsUtil.invalidate(stores.content, repositoryId, branchId, nodeId, paths, function (err) {
-                console.log("invalidate done. err: " + err);
+                if (err) {
+                    console.error("invalidate done. err: " + err);
+                }
+                console.log("invalidate done");
                 callback(err);
             });
         });

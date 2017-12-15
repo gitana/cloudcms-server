@@ -1,6 +1,7 @@
 var path = require("path");
 
 var NRP = require('node-redis-pubsub');
+var Logger = require('basic-logger');
 
 /**
  * Redis broadcast provider.
@@ -10,6 +11,18 @@ var NRP = require('node-redis-pubsub');
 exports = module.exports = function(broadcastConfig)
 {
     var nrp = null;
+
+    var log = new Logger({
+        showMillis: false,
+        showTimestamp: true,
+        prefix: "REDIS BROADCAST"
+    });
+    
+    var debugLevel = 'info';
+    if (process.env.CLOUDCMS_BROADCAST_REDIS_DEBUG_LEVEL) {
+        debugLevel = (process.env.CLOUDCMS_BROADCAST_REDIS_DEBUG_LEVEL + "").toLowerCase()
+    }
+    Logger.setLevel(debugLevel, true);
 
     var r = {};
 
@@ -33,6 +46,8 @@ exports = module.exports = function(broadcastConfig)
             "scope": "broadcast_cache"
         };
 
+        log.info("using config = " + nrpConfig);
+        
         nrp = new NRP(nrpConfig);
 
         callback();
@@ -40,6 +55,7 @@ exports = module.exports = function(broadcastConfig)
 
     r.publish = function(topic, message, callback)
     {
+        log.info("publish wait. topic: " + topic + " message: " + message);        
         nrp.emit(topic, message);
 
         // TODO: how do we measure when redis has completed distributing and firing remote handlers?
@@ -51,6 +67,7 @@ exports = module.exports = function(broadcastConfig)
 
     r.publish = function(topic, message, callback)
     {
+        log.info("publish. topic: " + topic + " message: " + message);        
         nrp.emit(topic, message);
 
         callback();
@@ -58,6 +75,7 @@ exports = module.exports = function(broadcastConfig)
 
     r.subscribe = function(topic, fn, callback)
     {
+        log.info("subscribe. topic: " + topic);        
         nrp.on(topic, fn);
 
         callback();
@@ -65,6 +83,7 @@ exports = module.exports = function(broadcastConfig)
 
     r.unsubscribe = function(topic, fn, callback)
     {
+        log.info("unsubscribe. topic: " + topic);        
         nrp.off(topic, fn);
 
         callback();
