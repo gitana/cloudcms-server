@@ -173,7 +173,8 @@ var SETTINGS = {
         "cacheKey": {
             "params": {
                 "includes": [],
-                "excludes": []
+                "excludes": [],
+                "excludeAll": false
             }
         },
         "pageCacheTTL": undefined,

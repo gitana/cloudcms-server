@@ -1265,7 +1265,13 @@ exports = module.exports = function()
             var cacheKeyConfig = getPageCacheKeyConfig(req);
             if (cacheKeyConfig.params)
             {
-                // excludes
+                // exclude all by default?
+                if (cacheKeyConfig.params.excludeAll)
+                {
+                    descriptor.params = {};
+                }
+
+                // exclude specific parameters
                 if (cacheKeyConfig.params.excludes && cacheKeyConfig.params.excludes.length > 0)
                 {
                     for (var i = 0; i < cacheKeyConfig.params.excludes.length; i++)
@@ -1274,7 +1280,7 @@ exports = module.exports = function()
                     }
                 }
 
-                // include
+                // include specific parameters
                 if (cacheKeyConfig.params.includes && cacheKeyConfig.params.includes.length > 0)
                 {
                     var keepers = {};

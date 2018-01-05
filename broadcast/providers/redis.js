@@ -1,7 +1,8 @@
 var path = require("path");
 
 var NRP = require('node-redis-pubsub');
-var Logger = require('basic-logger');
+
+var logFactory = require("../../util/logger");
 
 /**
  * Redis broadcast provider.
@@ -12,17 +13,14 @@ exports = module.exports = function(broadcastConfig)
 {
     var nrp = null;
 
-    var log = new Logger({
-        showMillis: false,
-        showTimestamp: true,
-        prefix: "REDIS BROADCAST"
-    });
-    
-    var debugLevel = 'info';
+    var logger = logFactory("REDIS BROADCAST");
+
+    // leave this in for legacy-support
+    var logLevel = 'info';
     if (process.env.CLOUDCMS_BROADCAST_REDIS_DEBUG_LEVEL) {
-        debugLevel = (process.env.CLOUDCMS_BROADCAST_REDIS_DEBUG_LEVEL + "").toLowerCase()
+        logLevel = (process.env.CLOUDCMS_BROADCAST_REDIS_DEBUG_LEVEL + "").toLowerCase()
     }
-    Logger.setLevel(debugLevel, true);
+    logger.setLevel(logLevel, true);
 
     var r = {};
 
@@ -46,7 +44,7 @@ exports = module.exports = function(broadcastConfig)
             "scope": "broadcast_cache"
         };
 
-        log.info("using config = " + nrpConfig);
+        logger.info("using config = " + nrpConfig);
         
         nrp = new NRP(nrpConfig);
 
@@ -55,7 +53,7 @@ exports = module.exports = function(broadcastConfig)
 
     r.publish = function(topic, message, callback)
     {
-        log.info("publish wait. topic: " + topic + " message: " + message);        
+        logger.info("publish wait. topic: " + topic + " message: " + message);
         nrp.emit(topic, message);
 
         // TODO: how do we measure when redis has completed distributing and firing remote handlers?
@@ -67,7 +65,7 @@ exports = module.exports = function(broadcastConfig)
 
     r.publish = function(topic, message, callback)
     {
-        log.info("publish. topic: " + topic + " message: " + message);        
+        logger.info("publish. topic: " + topic + " message: " + message);
         nrp.emit(topic, message);
 
         callback();
@@ -75,7 +73,7 @@ exports = module.exports = function(broadcastConfig)
 
     r.subscribe = function(topic, fn, callback)
     {
-        log.info("subscribe. topic: " + topic);        
+        logger.info("subscribe. topic: " + topic);
         nrp.on(topic, fn);
 
         callback();
@@ -83,7 +81,7 @@ exports = module.exports = function(broadcastConfig)
 
     r.unsubscribe = function(topic, fn, callback)
     {
-        log.info("unsubscribe. topic: " + topic);        
+        logger.info("unsubscribe. topic: " + topic);
         nrp.off(topic, fn);
 
         callback();
