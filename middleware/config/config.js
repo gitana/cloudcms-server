@@ -144,8 +144,6 @@ exports = module.exports = function()
                         "exists": (uiConfig ? true : false)
                     };
 
-                    // console.log("DOWNLOADED: " + JSON.stringify(uiConfig, null, "  "));
-
                     // write ui config
                     var uiConfigJsonPath = path.join(directoryPath, "/uiconfig.json");
                     rootStore.writeFile(uiConfigJsonPath, JSON.stringify(uiConfigJson, null, "  "), function(err) {
@@ -444,6 +442,8 @@ exports = module.exports = function()
 
             var projectId = req.query["projectId"];
 
+            var forceInvalidate = (req.query["invalidate"] === "true");
+
             // get the cloud cms application
             retrieveConfigApplication(req, configuration, function(err, application) {
 
@@ -523,51 +523,74 @@ exports = module.exports = function()
                         }
                     }
 
-                    // console.log("User Configuration IDs: " + JSON.stringify(uiConfigIds));
+                    var completionFn = function() {
 
-                    // mount 1 store for each ui config
-                    var uiConfigStores = [];
+                        // mount 1 store for each ui config
+                        var uiConfigStores = [];
 
-                    var fns = [];
-                    for (var i = 0; i < uiConfigIds.length; i++)
-                    {
-                        var fn = function(req, configuration, id, uiConfigStores)
+                        var fns = [];
+                        for (var i = 0; i < uiConfigIds.length; i++)
                         {
-                            return function(done)
+                            var fn = function(req, configuration, id, uiConfigStores)
                             {
-                                bindUIConfigStore(req, configuration, id, function(err, s) {
+                                return function(done)
+                                {
+                                    bindUIConfigStore(req, configuration, id, function(err, s) {
 
-                                    if (err) {
-                                        return done();
-                                    }
+                                        if (err) {
+                                            return done();
+                                        }
 
-                                    if (!s) {
-                                        return done();
-                                    }
+                                        if (!s) {
+                                            return done();
+                                        }
 
-                                    uiConfigStores.push(s);
+                                        uiConfigStores.push(s);
 
-                                    done();
-                                });
+                                        done();
+                                    });
+                                }
+                            }(req, configuration, uiConfigIds[i], uiConfigStores);
+                            fns.push(fn);
+                        }
+
+                        async.series(fns, function() {
+
+                            /*
+                            for (var i = 0; i < uiConfigStores.length; i++)
+                            {
+                                console.log(" > " + uiConfigStores[i].id);
                             }
-                        }(req, configuration, uiConfigIds[i], uiConfigStores);
-                        fns.push(fn);
+                            */
+
+                            // wrap all ui config stores into a single remote config store
+                            req._remote_config_store = multistore(uiConfigStores);
+
+                            next();
+
+                        });
+                    };
+
+                    if (!forceInvalidate || !uiConfigIds || uiConfigIds.length === 0)
+                    {
+                        return completionFn();
                     }
 
-                    async.series(fns, function() {
-
-                        /*
-                         for (var i = 0; i < uiConfigStores.length; i++)
-                         {
-                         console.log(" > " + uiConfigStores[i].id);
-                         }
-                         */
-
-                        // wrap all ui config stores into a single remote config store
-                        req._remote_config_store = multistore(uiConfigStores);
-
-                        next();
-
+                    // process any invalidations first, then proceed
+                    var invalidateFns = [];
+                    for (var i = 0; i < uiConfigIds.length; i++)
+                    {
+                        var invalidateFn = function(host, uiConfigId) {
+                            return function (d) {
+                                invalidateUIConfig(host, uiConfigId, function () {
+                                    d();
+                                });
+                            }
+                        }(req.domainHost, uiConfigIds[i]);
+                        invalidateFns.push(invalidateFn);
+                    }
+                    async.parallel(invalidateFns, function() {
+                        completionFn();
                     });
                 });
             });
@@ -610,7 +633,7 @@ exports = module.exports = function()
         }
 
         // bind listeners for broadcast events
-        bindSubscriptions();
+        //bindSubscriptions();
 
         // config handler
         return util.createHandler("staticConfig", "config", function(req, res, next, stores, cache, configuration) {
