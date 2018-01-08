@@ -1,14 +1,16 @@
 var path = require('path');
 var util = require("../../util/util");
 var async = require("async");
+var multistore = require("../stores/multistore");
 
 exports = module.exports = function()
 {
-    var CACHED_ADAPTERS = {};
+    // storeId -> adapter
+    var ADAPTERS = {};
 
     var bindConfigAdapter = function(configStore, callback)
     {
-        var adapter = CACHED_ADAPTERS[configStore.id];
+        var adapter = ADAPTERS[configStore.id];
         if (adapter)
         {
             callback(null, adapter);
@@ -23,7 +25,7 @@ exports = module.exports = function()
                     return;
                 }
 
-                CACHED_ADAPTERS[configStore.id] = adapter;
+                ADAPTERS[configStore.id] = adapter;
 
                 callback(null, adapter);
             });
@@ -398,9 +400,9 @@ exports = module.exports = function()
      * Given a user ID, looks up their application user settings and figures out which ui config to use.
      * Substitutes req.query.id into the request.
      */
-    r.userRemoteConfigInterceptor = function()
+    r.remoteConfigInterceptor = function()
     {
-        return util.createInterceptor("userRemoteConfig", "config", function(req, res, next, stores, cache, configuration) {
+        return util.createInterceptor("remoteConfig", "config", function(req, res, next, stores, cache, configuration) {
 
             var handle = false;
             if (configuration.remote && configuration.remote.enabled)
@@ -424,14 +426,20 @@ exports = module.exports = function()
                 return next();
             }
 
-            var userId = req.query["userId"];
-            if (!userId) {
+            var principalId = req.query["principalId"];
+            if (!principalId) {
+                principalId = req.query["userId"];
+            }
+            if (!principalId) {
+                principalId = req.query["groupId"];
+            }
+            if (!principalId) {
                 return next();
             }
 
-            var a = userId.indexOf("/");
+            var a = principalId.indexOf("/");
             if (a > -1) {
-                userId = userId.substring(a + 1);
+                principalId = principalId.substring(a + 1);
             }
 
             var projectId = req.query["projectId"];
@@ -439,94 +447,129 @@ exports = module.exports = function()
             // get the cloud cms application
             retrieveConfigApplication(req, configuration, function(err, application) {
 
-                var userSettings = null;
+                // find any settings for the given user or the project (if provided)
+                var q = {
+                    "$or": []
+                };
+
+                // if a user ID is supplied, we fetch UI Config for the user
+                // this allows for project or platform specific user customizations
+                if (principalId) {
+                    q["$or"].push({
+                        "scope": "principal",
+                        "key": principalId
+                    });
+                }
+
+                // if a project ID is supplied, we fetch UI Config for project
+                // this allows for global project customizations
+                if (projectId)
+                {
+                    q["$or"].push({
+                        "scope": "project",
+                        "key": projectId
+                    });
+                }
+                else
+                {
+                    // if no project ID, we fetch UI Config for platform
+                    // this allows for global platform customization
+                    q["$or"].push({
+                        "scope": "platform",
+                        "key": "platform"
+                    });
+                }
+
+                var uiConfigIds = [];
 
                 // find the settings for the given user id
-                Chain(application).querySettings({
-                    "key": userId,
-                    "scope": "user"
-                }, {
-                    "limit": -1
+                var settingsList = [];
+                Chain(application).querySettings(q, {
+                    "limit": 5
                 }).each(function () {
-                    userSettings = this;
-                }).then(function () {
-
-                    if (!userSettings || !userSettings.settings) {
-                        return next();
+                    if (this.settings && this.settings.uiconfigs)
+                    {
+                        settingsList.push(this);
                     }
-
-                    var uiconfigs = userSettings.settings.uiconfigs;
-                    if (!uiconfigs) {
-                        return next();
-                    }
-
-                    var id = uiconfigs["platform"];
+                }).then(function() {
 
                     if (projectId)
                     {
-                        id = uiconfigs["project-" + projectId];
+                        // keep IDs for "project" level
+                        for (var i = 0; i < settingsList.length; i++)
+                        {
+                            if (settingsList[i].settings.uiconfigs.project) {
+                                uiConfigIds.push(settingsList[i].settings.uiconfigs.project);
+                            }
+                        }
+
+                        // keep IDs for user-specific project level
+                        for (var i = 0; i < settingsList.length; i++)
+                        {
+                            if (settingsList[i].settings.uiconfigs["project-" + projectId]) {
+                                uiConfigIds.push(settingsList[i].settings.uiconfigs["project-" + projectId]);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // keep IDs for platform level and user-specific platform level
+                        for (var i = 0; i < settingsList.length; i++)
+                        {
+                            if (settingsList[i].settings.uiconfigs.platform)
+                            {
+                                uiConfigIds.push(settingsList[i].settings.uiconfigs.platform);
+                            }
+                        }
                     }
 
-                    if (!id) {
-                        return next();
+                    // console.log("User Configuration IDs: " + JSON.stringify(uiConfigIds));
+
+                    // mount 1 store for each ui config
+                    var uiConfigStores = [];
+
+                    var fns = [];
+                    for (var i = 0; i < uiConfigIds.length; i++)
+                    {
+                        var fn = function(req, configuration, id, uiConfigStores)
+                        {
+                            return function(done)
+                            {
+                                bindUIConfigStore(req, configuration, id, function(err, s) {
+
+                                    if (err) {
+                                        return done();
+                                    }
+
+                                    if (!s) {
+                                        return done();
+                                    }
+
+                                    uiConfigStores.push(s);
+
+                                    done();
+                                });
+                            }
+                        }(req, configuration, uiConfigIds[i], uiConfigStores);
+                        fns.push(fn);
                     }
 
-                    // adjust request
-                    req.query.id = id;
+                    async.series(fns, function() {
 
-                    // carry on
-                    next();
+                        /*
+                         for (var i = 0; i < uiConfigStores.length; i++)
+                         {
+                         console.log(" > " + uiConfigStores[i].id);
+                         }
+                         */
+
+                        // wrap all ui config stores into a single remote config store
+                        req._remote_config_store = multistore(uiConfigStores);
+
+                        next();
+
+                    });
                 });
-            });
-
-        });
-    };
-
-    /**
-     * Remote Configuration Interceptor
-     *
-     * If a remote configuration ID is provided (req.query.id), this will fault that configuration to disk
-     * (unless it is already faulted) and mount a store.  The store is kept around as req._remote_config_store.
-     */
-    r.remoteConfigInterceptor = function()
-    {
-        return util.createInterceptor("remoteConfig", "config", function(req, res, next, stores, cache, configuration) {
-
-            var handle = false;
-            if (configuration.remote && configuration.remote.enabled)
-            {
-                handle = true;
-            }
-
-            if (!handle)
-            {
-                return next();
-            }
-
-            if (req.url.indexOf("/_config") !== 0)
-            {
-                return next();
-            }
-
-            var uiConfigId = req.query["id"];
-            if (!uiConfigId) {
-                return next();
-            }
-
-            bindUIConfigStore(req, configuration, uiConfigId, function(err, uiConfigStore) {
-
-                if (err) {
-                    return next();
-                }
-
-                if (!uiConfigStore) {
-                    return next();
-                }
-
-                req._remote_config_store = uiConfigStore;
-
-                next();
-
             });
 
         });
@@ -657,13 +700,12 @@ exports = module.exports = function()
         });
     };
 
-
     var invalidateAdapter = r.invalidateAdapter = function(configStore)
     {
-        var adapter = CACHED_ADAPTERS[configStore.id];
+        var adapter = ADAPTERS[configStore.id];
         if (adapter)
         {
-            delete CACHED_ADAPTERS[configStore.id];
+            delete ADAPTERS[configStore.id];
         }
     };
 
@@ -726,7 +768,7 @@ exports = module.exports = function()
 
             var configStore = stores.config;
 
-            delete CACHED_ADAPTERS[configStore.id];
+            delete ADAPTERS[configStore.id];
 
             callback();
         });
@@ -768,6 +810,35 @@ exports = module.exports = function()
                 var uiConfigStore = rootStore.mount(path.join(directoryPath, "config"));
                 console.log("remove adapter: " + uiConfigStore.id);
                 invalidateAdapter(uiConfigStore);
+
+                // walk all adapters and look for any that are mounted on multistores
+                // for any found, get original stores and see if our store is among them
+                // if so, invalidate the multistore adapters as well
+                for (var storeId in ADAPTERS)
+                {
+                    if (storeId.indexOf("multistore://") === 0)
+                    {
+                        var adapter = ADAPTERS[storeId];
+
+                        var match = false;
+                        var adapterStore = adapter.getConfigStore();
+                        var originalStores = adapterStore.getOriginalStores();
+                        for (var i = 0; i < originalStores.length; i++)
+                        {
+                            if (originalStores[i].id === uiConfigStore.id)
+                            {
+                                match = true;
+                                break;
+                            }
+                        }
+
+                        if (match)
+                        {
+                            console.log("remove dependent adapter: " + adapterStore.id);
+                            invalidateAdapter(adapterStore);
+                        }
+                    }
+                }
 
                 callback(err);
             });

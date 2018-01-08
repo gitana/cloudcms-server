@@ -422,9 +422,6 @@ exports = module.exports = function()
         // authorization interceptor
         app.use(authorization.authorizationInterceptor());
 
-        // supports lookup of remote UI Config by user id + project
-        app.use(config.userRemoteConfigInterceptor());
-
         // supports user-configured dynamic configuration
         app.use(config.remoteConfigInterceptor());
 

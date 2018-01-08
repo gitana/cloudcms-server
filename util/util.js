@@ -1465,6 +1465,18 @@ var status = exports.status = function(res, code)
     return res;
 };
 
+var noCacheHeaders = exports.noCacheHeaders = function(res)
+{
+    setHeaderOnce(res, "Cache-Control", "no-cache,no-store,max-age=0,s-maxage=0,must-revalidate");
+    setHeaderOnce(res, "Expires", "Mon, 7 Apr 2012, 16:00:00 GMT"); // already expired
+};
+
+var allCacheHeaders = exports.allCacheHeaders = function(res)
+{
+    setHeaderOnce(res, "Cache-Control", "no-cache,no-store,max-age=0,s-maxage=0,must-revalidate");
+    setHeaderOnce(res, "Expires", "Mon, 7 Apr 2012, 16:00:00 GMT"); // already expired
+};
+
 var isWindows = exports.isWindows = function()
 {
     return /^win/.test(process.platform);

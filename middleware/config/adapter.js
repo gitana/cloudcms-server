@@ -655,6 +655,11 @@ module.exports = function(configStore)
             }
         };
 
+        registry.getConfigStore = function()
+        {
+            return configStore;
+        };
+
         return registry;
     };
 
