@@ -46,7 +46,7 @@ var requestCounter = 0;
 
 // holds configuration settings
 var SETTINGS = {
-    "setup": "single", // single, multiple, cluster
+    "setup": "single", // single, cluster, sticky-cluster
     "name": "Cloud CMS Application Server",
     "socketFunctions": [],
     "routeFunctions": [],

@@ -13,7 +13,7 @@ This looks like:
 
 ````
 {
-    "setup": "single", // single, multiple, cluster
+    "setup": "single", // single, cluster, sticky-cluster
     "name": "Cloud CMS Application Server",
     "socketFunctions": [],
     "routeFunctions": [],

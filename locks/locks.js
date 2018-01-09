@@ -37,7 +37,7 @@ exports = module.exports = function()
         {
             process.env.CLOUDCMS_LOCKS_TYPE = "memory";
 
-            if (process.env.CLOUDCMS_LAUNCHPAD_SETUP === "multiple" || process.env.CLOUDCMS_LAUNCHPAD_SETUP === "cluster")
+            if (process.env.CLOUDCMS_LAUNCHPAD_SETUP === "cluster" || process.env.CLOUDCMS_LAUNCHPAD_SETUP === "sticky-cluster")
             {
                 process.env.CLOUDCMS_LOCKS_TYPE = "cluster";
             }
