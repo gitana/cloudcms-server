@@ -15,7 +15,7 @@ var determineHost = function(item, obj)
         // assume host if specified on the item
         host = item.host;
 
-        // if not specified on the item, assume value imputed based on virtual host being activ
+        // if not specified on the item, assume value imputed based on virtual host being active
         if (process.configuration.virtualHost && process.configuration.virtualHost.enabled)
         {
             if (!host && item.tenantDnsSlug)
@@ -55,7 +55,7 @@ var handleNotificationMessages = function(items, callback) {
         var fn = function(item, i) {
             return function(done) {
 
-                // console.log("WORKING ON ITEM: " + i + ", item: " + JSON.stringify(item, null, "  "));
+                //console.log("WORKING ON ITEM: " + i + ", item: " + JSON.stringify(item, null, "  "));
 
                 var operation = item.operation;
 
@@ -361,7 +361,7 @@ var handleNotificationMessages = function(items, callback) {
                 }
                 else
                 {
-                    console.log("Unknown notification item: " + item.rawMessage);
+                    console.log("Unknown notification item: " + JSON.stringify(item));
 
                     // just assume it's something we can't deal with
                     return done({

@@ -220,12 +220,8 @@ var SETTINGS = {
     },
     "notifications": {
         "enabled": false,
-        "type": "sqs",
+        "type": null,
         "configuration": {
-            "queue": "",
-            "accessKey": "",
-            "secretKey": "",
-            "region": ""
         }
     },
     "broadcast": {
