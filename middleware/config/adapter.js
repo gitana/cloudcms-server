@@ -16,6 +16,22 @@ var _log = function(text)
  */
 module.exports = function(configStore)
 {
+    /**
+     * Reduces a path like:
+     *
+     *    /a/b/c/d/../e/../../f
+     *
+     * to
+     *
+     *    /a/b/f
+     *
+     * @param p
+     */
+    var normalizePath = function(p)
+    {
+        return path.normalize(p);
+    };
+
     var generateSubscriberKey = function() {
 
         var count = 0;
@@ -150,6 +166,7 @@ module.exports = function(configStore)
                             if (!context.pages[pageKey].bindings) {
                                 context.pages[pageKey].bindings = {};
                             }
+
                             context.pages[pageKey].bindings[region] = gadget;
                             context.gadgets[gadgetKey] = gadget;
 
@@ -379,21 +396,52 @@ module.exports = function(configStore)
         }
         if (pageObj["extends"])
         {
-            var ext = pageObj["extends"];
-            if (typeof(ext) == "string")
+            var ext = pageObj["extends"]; // ../_platform-manage
+
+            var p1 = pageKey;
+            var p2 = null;
+            if (ext.indexOf("./") > -1)
+            {
+                // append so that we have a path like "/a/b/../../c/d" -> "/c/d"
+                pageKey = pageKey + "/" + ext;
+
+                // now normalize the path
+
+                ext = normalizePath(pageKey);
+                p2 = ext;
+            }
+
+            if (typeof(ext) === "string")
             {
                 var parentObj = compilePage(context, ext);
-                // strip uris
-                delete parentObj.uri;
-                util.merge(parentObj, obj);
+                if (!parentObj)
+                {
+                    console.log("Page Key 1: " + p1);
+                    console.log("Page Key 2: " + p2);
+
+                    console.error("WARNING: Failed to find parent page: " + ext + " for pageKey: " + p1);
+                }
+                else
+                {
+                    // strip uris
+                    delete parentObj.uri;
+                    util.merge(parentObj, obj);
+                }
             }
             else
             {
                 for (var z = 0; z < ext.length; z++)
                 {
                     var parentObj = compilePage(context, ext[z]);
-                    delete parentObj.uri;
-                    util.merge(parentObj, obj);
+                    if (!parentObj)
+                    {
+                        console.error("WARNING: Failed to find parent page: " + ext + " for pageKey: " + pageKey);
+                    }
+                    else
+                    {
+                        delete parentObj.uri;
+                        util.merge(parentObj, obj);
+                    }
                 }
             }
         }
