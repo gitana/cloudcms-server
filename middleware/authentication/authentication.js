@@ -61,7 +61,6 @@ exports = module.exports = function()
             var providerFactory = PROVIDERS[providerType];
             var provider = providerFactory(providerId, providerType, providerConfig);
 
-
             callback(null, provider, providerType, providerConfig);
         });
     };

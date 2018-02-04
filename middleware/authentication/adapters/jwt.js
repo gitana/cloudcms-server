@@ -62,7 +62,13 @@ module.exports = function(adapterId, adapterType, config)
             user_identifier_field = "preferred_username";
         }
 
-        var user_identifier = object[user_identifier_field];
+        var user_identifier = profile[user_identifier_field];
+
+        // if not found, try "unique_name"
+        if (!user_identifier) {
+
+            user_identifier = profile["unique_name"];
+        }
 
         var properties = {};
 

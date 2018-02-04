@@ -309,6 +309,7 @@ var syncProfile = exports.syncProfile = function(req, res, domain, providerId, p
     var key = token;
 
     var _syncUser = function(key, domain, providerId, providerConfig, providerUserId, token, refreshToken, userObject, callback) {
+
         var gitanaUser = SYNC_USER_CACHE.get(key);
         if (gitanaUser)
         {
