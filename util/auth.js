@@ -70,7 +70,15 @@ Gitana.Directory.prototype.createUserForProvider = function(domain, providerId, 
 
 var directory = function(domain, callback)
 {
-    Chain(domain.getPlatform()).readDirectory(domain.defaultDirectoryId).then(function() {
+    var defaultDirectoryId = domain.defaultDirectoryId;
+    if (!defaultDirectoryId)
+    {
+        defaultDirectoryId = "primary";
+
+        console.error("Domain: " + domain._doc + " is missing property: defaultDirectoryId, assuming 'primary' directory ID");
+    }
+
+    Chain(domain.getPlatform()).readDirectory(defaultDirectoryId).then(function() {
         callback.call(this);
     });
 };
