@@ -21,6 +21,12 @@ module.exports = function(adapterId, adapterType, config)
             value = req.cookies[config.cookie.toLowerCase()];
         }
 
+        // Strip Bearer from JWT if exist
+        if (value.substr(0, 7) === 'Bearer ')
+        {
+            value = value.substr(7)
+        }
+
         if (!value)
         {
             return null;
