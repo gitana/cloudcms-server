@@ -533,7 +533,7 @@ module.exports = function(configStore)
 
             var doBind = function(config, regionName, gadget)
             {
-                var gadgetCopy = JSON.parse(JSON.stringify(gadget));
+                var gadgetCopy = util.clone(gadget, true);
                 gadgetCopy.region = regionName;
                 config.gadgets[gadget.key] = gadgetCopy;
             };

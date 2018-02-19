@@ -37,7 +37,11 @@ exports = module.exports = function()
 
             if (doParse)
             {
-                wrapWithDustParser(webStore, req, res);
+                if (!req.model) {
+                    req.model = {};
+                }
+
+                wrapWithDustParser(webStore, req, res, next);
 
                 return next();
             }
@@ -47,7 +51,7 @@ exports = module.exports = function()
         });
     };
 
-    var wrapWithDustParser = function(webStore, req, res)
+    var wrapWithDustParser = function(webStore, req, res, next)
     {
         var _sendFile = res.sendFile;
         var _send = res.send;
@@ -76,24 +80,30 @@ exports = module.exports = function()
                 }
 
                 text = text.toString();
+
+                /*
                 var z = text.indexOf("{@");
                 if (z === -1)
                 {
                     return _sendFile.call(res, filePath, options, fn);
                 }
-                var model = {};
-                duster.execute(req, webStore, fullFilePath, model, function(err, text) {
+                */
+
+                var model = req.model;
+                if (!model) {
+                    model = {};
+                }
+
+                duster.execute(req, webStore, fullFilePath, model, function (err, text) {
 
                     if (err)
                     {
-                        // use the original method
-                        _sendFile.call(res, filePath, options, fn);
+                        // propagate error out to error page
+                        return next(err);
                     }
-                    else
-                    {
-                        _status.call(res, 200);
-                        _send.call(res, text);
-                    }
+
+                    _status.call(res, 200);
+                    _send.call(res, text);
                 });
 
             });

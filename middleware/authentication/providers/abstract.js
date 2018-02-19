@@ -1,43 +1,17 @@
-/**
- * Abstract implementation of a provider.
- *
- * @type {Function}
- */
-exports = module.exports = function(providerId, providerType, config)
+class AbstractProvider
 {
-    if (!config.properties) {
-        config.properties = {};
+    constructor(req, config)
+    {
+        this.config = config;
+
+        if (!config.properties) {
+            config.properties = {};
+        }
+
+        if (!config.properties.id) {
+            config.properties.id = "id";
+        }
     }
-
-    if (!config.properties.id) {
-        config.properties.id = "id";
-    }
-
-    var r = {};
-
-    /**
-     * @returns {string} the provider ID
-     */
-    r.providerId = function()
-    {
-        return providerId;
-    };
-
-    /**
-     * @returns {string} the provider Type
-     */
-    r.providerType = function()
-    {
-        return providerType;
-    };
-
-    /**
-     * @returns {object} the provider configuration
-     */
-    r.providerConfiguration = function()
-    {
-        return config;
-    };
 
     /**
      * Given the user profile acquired from the authenticaiton provider, extract the
@@ -45,10 +19,10 @@ exports = module.exports = function(providerId, providerType, config)
      *
      * @param profile
      */
-    r.userIdentifier = function(profile)
+    userIdentifier(profile)
     {
-        return profile[config.properties.id];
-    };
+        return profile[this.config.properties.id];
+    }
 
     /**
      * Handles the request when a call is made to "/auth/<providerId>".
@@ -59,11 +33,11 @@ exports = module.exports = function(providerId, providerType, config)
      * @param res
      * @param next
      */
-    r.handleAuth = function(req, res, next)
+    handleAuth(req, res, next)
     {
         // by default, we throw an error
         throw new Error("This authentication provider does not support handleAuth()");
-    };
+    }
 
     /**
      * Handles the request when the authentication provider's login process completes and the user is redirected back
@@ -74,14 +48,14 @@ exports = module.exports = function(providerId, providerType, config)
      * @param next
      * @param callback
      */
-    r.handleAuthCallback = function(req, res, next, callback)
+    handleAuthCallback(req, res, next, callback)
     {
         // by default, we throw an error
         throw new Error("This authentication provider does not support handleAuthCallback()");
-    };
+    }
 
     /**
-     * Given the authentication adapter's profile, fires the callback with the extracted user object (JSON) and the
+     * Given the auth profile, fires the callback with the extracted user object (JSON) and the
      * extracted token and refresh token.
      *
      * A default implementation is supported here.
@@ -89,7 +63,7 @@ exports = module.exports = function(providerId, providerType, config)
      *
      * @param profile
      */
-    r.parseProfile = function(profile)
+    parseProfile(profile)
     {
         var userObject = {};
 
@@ -97,7 +71,7 @@ exports = module.exports = function(providerId, providerType, config)
             return userObject;
         }
 
-        var userProperties = config.userProperties;
+        var userProperties = this.config.userProperties;
         if (!userProperties) {
             userProperties = {};
             userProperties["firstName"] = "given_name";
@@ -121,33 +95,33 @@ exports = module.exports = function(providerId, providerType, config)
         }
 
         return userObject;
-    };
+    }
 
     /**
-     * Given the authentication adapter's profile, loads avatar icon information and stores it onto the given
+     * Given the auth profile, loads avatar icon information and stores it onto the given
      * Gitana User object.
      *
      * @param gitanaUser
      * @param profile
      * @param callback
      */
-    r.syncAvatar = function(gitanaUser, profile, callback)
+    syncAvatar(gitanaUser, profile, callback)
     {
         // by default, don't do anything
         // extend this to pull down an image and attach to the user account
         // see twitter provider for example
 
         callback();
-    };
+    }
 
     /**
-     * Verifies that what we know about a user from their request attribuets describes an authenticated user
+     * Verifies that what we know about a user from their request attributes describes an authenticated user
      * against the authentication provider.
      *
      * @param properties
      * @param callback (err, valid)
      */
-    r.verify = function(properties, callback)
+    verify(properties, callback)
     {
         this.load(properties, function(err, profile) {
 
@@ -157,20 +131,20 @@ exports = module.exports = function(providerId, providerType, config)
 
             callback(null, true, profile);
         });
-    };
+    }
 
     /**
-     * Loads a user profile from the authentication provider given what we know about them from the adapter.
+     * Loads a user profile from the authentication provider given what we know about them from
+     * the identity properties.
      *
      * @param properties
      * @param callback (err, profile)
      */
-    r.load = function(properties, callback)
+    load(properties, callback)
     {
         // by default, we throw an error
         throw new Error("This authentication provider does not support load()");
-    };
+    }
+}
 
-    return r;
-};
-
+module.exports = AbstractProvider;

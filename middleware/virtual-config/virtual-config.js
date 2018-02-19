@@ -59,32 +59,30 @@ exports = module.exports = function()
                 }
 
                 // Basic Authentication request back to server
-                var uri = "http://" + host;
-                // as related above, this adjusts the URL
+                var qs = {};
+                qs.h = host;
+
                 if (configuration.virtualDriver && configuration.virtualDriver.appKey)
                 {
-                    uri += "/" + configuration.virtualDriver.appKey;
+                    qs.a = configuration.virtualDriver.appKey;
                 }
+
+                if (configuration.virtualDriver && configuration.virtualDriver.webhost)
+                {
+                    qs.w = configuration.virtualDriver.webhost;
+                }
+
                 var URL = configuration.virtualDriver.baseURL;
                 if (!URL) {
                     URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT);
                 }
                 URL += "/virtual/driver/config";
-                var qs = {
-                    "uri": uri
-                };
-                if (configuration.virtualDriver && configuration.virtualDriver.webhost)
-                {
-                    qs.w = configuration.virtualDriver.webhost;
-                }
                 var requestConfig = {
                     "url": URL,
                     "qs": qs
                 };
 
                 util.retryGitanaRequest(logMethod, gitana, requestConfig, 2, function(err, response, body) {
-
-                    //console.log("BODY: " + body);
 
                     if (response && response.statusCode === 200 && body)
                     {

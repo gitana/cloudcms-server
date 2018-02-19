@@ -7,6 +7,13 @@ var util = require("../util/util");
 var dust = require("dustjs-linkedin");
 require("dustjs-helpers");
 
+// we always set dust cache to false
+// this is because dust cache is file path dependent (could collide across tenants)s
+dust.config.cache = false;
+
+// instead we manage our own template cache
+var TEMPLATE_CACHE = {};
+
 if (process.env.CLOUDCMS_APPSERVER_MODE === "production") {
     dust.debugLevel = "INFO";
 } else {
@@ -42,9 +49,9 @@ dust.isThenable = function(elem) {
  * @param options
  * @param callback
  */
-dust.onLoad = function(templatePath, options, callback)
+var loadTemplate = dust.onLoad = function(templatePath, options, callback)
 {
-    var log = options.log;
+    //var log = options.log;
 
     // `templateName` is the name of the template requested by dust.render / dust.stream
     // or via a partial include, like {> "hello-world" /}
@@ -57,7 +64,7 @@ dust.onLoad = function(templatePath, options, callback)
 
         if (!exists) {
             return callback({
-                "message": "Dust cannot find file path: " + templatePath
+                "message": "Dust cannot find file: " + templatePath
             });
         }
 
@@ -170,7 +177,7 @@ exports.invalidateCacheForApp = function(applicationId)
     var prefix = applicationId + ":";
 
     var badKeys = [];
-    for (var k in dust.cache)
+    for (var k in TEMPLATE_CACHE)
     {
         if (k.indexOf(prefix) === 0) {
             badKeys.push(k);
@@ -179,7 +186,7 @@ exports.invalidateCacheForApp = function(applicationId)
     for (var i = 0; i < badKeys.length; i++)
     {
         console.log("Removing dust cache key: " + badKeys[i]);
-        delete dust.cache[badKeys[i]];
+        delete TEMPLATE_CACHE[badKeys[i]];
     }
 };
 
@@ -208,32 +215,68 @@ exports.execute = function(req, store, filePath, model, callback)
     // hold on to this instance so that we can get at it once we're done
     var tracker = context.get("__tracker");
 
-    // execute template
-    var t1 = new Date().getTime();
-    dust.render(templatePath, context, function(err, out) {
-        var t2 = new Date().getTime();
+    var executeTemplate = function(template, templatePath, context, callback)
+    {
+        // execute template
+        var t1 = new Date().getTime();
+        dust.render(template, context, function(err, out) {
+            var t2 = new Date().getTime();
 
-        if (err)
-        {
-            req.log("An error was caught while rendering dust template: " + templatePath + ", error: " + JSON.stringify(err, null, "  "));
+            if (err)
+            {
+                req.log("An error was caught while rendering dust template: " + templatePath + ", error: " + JSON.stringify(err, null, "  "));
+            }
+
+            // clean up - help out the garbage collector
+            context.req = null;
+            context.gitana = null;
+            context.user = null;
+
+            var dependencies = {
+                "requires": tracker.requires,
+                "produces": tracker.produces
+            };
+
+            var stats = {
+                "dustExecutionTime": (t2 - t1)
+            };
+
+            // callback with dependencies
+            callback(err, out, dependencies, stats);
+        });
+    };
+
+    // does the template exist in the cache?
+    var templateCacheKey = store.id + "_" + templatePath;
+    var template = TEMPLATE_CACHE[templateCacheKey];
+    if (template)
+    {
+        //console.log("FOUND IN TEMPLATE CACHE: " + templatePath);
+        return executeTemplate(template, templatePath, context, callback);
+    }
+
+    // load and compile template by hand
+    // we do this by hand in case it has a bug in it - we don't want it crashing the entire node process
+    loadTemplate(templatePath, {
+        "store": store
+    }, function(err, text) {
+
+        if (err) {
+            return callback(err);
         }
 
-        // clean up - help out the garbage collector
-        context.req = null;
-        context.gitana = null;
-        context.user = null;
+        // compile and store into dust.cache
+        try {
+            //console.log("WRITE TO TEMPLATE CACHE: " + templatePath);
+            template = dust.loadSource(dust.compile(text));
+            TEMPLATE_CACHE[templateCacheKey] = template;
+        } catch (e) {
+            delete TEMPLATE_CACHE[templateCacheKey];
+            return callback(e);
+        }
 
-        var dependencies = {
-            "requires": tracker.requires,
-            "produces": tracker.produces
-        };
-
-        var stats = {
-            "dustExecutionTime": (t2 - t1)
-        };
-
-        // callback with dependencies
-        callback(err, out, dependencies, stats);
+        // proceed
+        executeTemplate(template, templatePath, context, callback);
     });
 };
 
@@ -257,9 +300,18 @@ var ensureInit = function(store)
         store.watchDirectory("/", function (f, curr, prev) {
 
             console.log("Template changes detected - invalidating dust cache");
-            for (var k in dust.cache)
+            var badKeys = [];
+            for (var k in TEMPLATE_CACHE)
             {
-                delete dust.cache[k];
+                if (k.indexOf(store.id) === 0)
+                {
+                    badKeys.push(k);
+                }
+            }
+            for (var i = 0; i < badKeys.length; i++)
+            {
+                console.log("Invalidating watched key: " + badKeys[i]);
+                delete TEMPLATE_CACHE[badKeys[i]];
             }
 
         });

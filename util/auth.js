@@ -212,12 +212,13 @@ var createUserForProvider = exports.createUserForProvider = function(domain, pro
     });
 };
 
-var buildPassportCallback = exports.buildPassportCallback = function(providerId, provider)
+var buildPassportCallback = exports.buildPassportCallback = function(providerConfig, provider)
 {
     return function(req, token, refreshToken, profile, done)
     {
         var info = {};
-        info.providerId = providerId;
+
+        info.providerId = providerConfig.id;
         info.providerUserId = provider.userIdentifier(profile);
         info.token = token;
         info.refreshToken = refreshToken;
@@ -225,6 +226,7 @@ var buildPassportCallback = exports.buildPassportCallback = function(providerId,
         done(null, profile, info);
     };
 };
+
 
 /**
  * Ensures that the given user exists in Cloud CMS.
@@ -308,26 +310,27 @@ var _LOCK = function(lockIdentifiers, workFunction)
     process.locks.lock(lockIdentifiers.join("_"), workFunction);
 };
 
-var syncProfile = exports.syncProfile = function(req, res, domain, providerId, provider, profile, token, refreshToken, callback)
+var syncProfile = exports.syncProfile = function(req, res, strategy, domain, providerId, provider, profile, token, refreshToken, callback)
 {
     var userObject = provider.parseProfile(profile);
-    var providerConfig = provider.providerConfiguration();
     var providerUserId = provider.userIdentifier(profile);
 
     var key = token;
 
-    var _syncUser = function(key, domain, providerId, providerConfig, providerUserId, token, refreshToken, userObject, callback) {
+    var _syncUser = function(strategy, key, domain, providerId, providerUserId, token, refreshToken, userObject, callback) {
 
+        /*
         var gitanaUser = SYNC_USER_CACHE.get(key);
         if (gitanaUser)
         {
             return callback(null, gitanaUser);
         }
+        */
 
         // take out a lock
         _LOCK([domain._doc, providerId, providerUserId], function(releaseLockFn) {
 
-            __syncUser(key, domain, providerId, providerConfig, providerUserId, token, refreshToken, userObject, function(err, gitanaUser) {
+            __syncUser(strategy, key, domain, providerId, providerUserId, token, refreshToken, userObject, function(err, gitanaUser) {
 
                 if (err) {
                     releaseLockFn();
@@ -344,7 +347,7 @@ var syncProfile = exports.syncProfile = function(req, res, domain, providerId, p
         });
     };
 
-    var __syncUser = function(key, domain, providerId, providerConfig, providerUserId, token, refreshToken, userObject, callback) {
+    var __syncUser = function(strategy, key, domain, providerId, providerUserId, token, refreshToken, userObject, callback) {
 
         // do we already have a gitana user?
         findUserForProvider(domain, providerId, providerUserId, function (err, gitanaUser) {
@@ -355,7 +358,7 @@ var syncProfile = exports.syncProfile = function(req, res, domain, providerId, p
 
             if (gitanaUser)
             {
-                updateUserForProvider(domain, providerId, providerUserId, token, refreshToken, userObject, function (err) {
+                return updateUserForProvider(domain, providerId, providerUserId, token, refreshToken, userObject, function (err) {
 
                     if (err) {
                         return callback(err);
@@ -365,11 +368,16 @@ var syncProfile = exports.syncProfile = function(req, res, domain, providerId, p
                         callback(null, this);
                     });
                 });
-                return;
             }
 
-            if (!providerConfig.autoRegister) {
-                return callback();
+            if (!strategy.autoRegister)
+            {
+                console.log("Sync user did not find a user for providerUserId: " + providerUserId + " but autoRegister is turned off, cannot auto-create the user");
+
+                return callback({
+                    "message": "User not found (autoRegister is disabled, cannot auto-create)",
+                    "noAutoRegister": true
+                });
             }
 
             createUserForProvider(domain, providerId, providerUserId, token, refreshToken, userObject, function (err, gitanaUser) {
@@ -405,7 +413,7 @@ var syncProfile = exports.syncProfile = function(req, res, domain, providerId, p
         });
     };
 
-    _syncUser(key, domain, providerId, providerConfig, providerUserId, token, refreshToken, userObject, function(err, gitanaUser) {
+    _syncUser(strategy, key, domain, providerId, providerUserId, token, refreshToken, userObject, function(err, gitanaUser) {
 
         if (err) {
             return callback(err);

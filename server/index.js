@@ -16,7 +16,8 @@ var session = require('express-session');
 var cookieParser = require('cookie-parser');
 var flash = require("connect-flash");
 
-var passport = require('passport');
+// we don't bind a single passport - instead, we get the constructor here by hand
+var Passport = require("passport").Passport;
 
 var util = require("../util/util");
 
@@ -281,6 +282,13 @@ var SETTINGS = {
     "proxy": {
         "enabled": true,
         "cache": []
+    },
+    "session": {
+        "enabled": false//,
+        //"secret": null,
+        //"type": "file",
+        //"ttl": -1,
+        //"reapInterval": -1
     }
 };
 
@@ -562,8 +570,13 @@ var startSlave = function(config, afterStartFn)
     {
         if (process.configuration.session.enabled)
         {
+            var sessionSecret = process.configuration.session.secret;
+            if (!sessionSecret) {
+                sessionSecret = "secret";
+            }
+
             var sessionConfig = {
-                secret: 'secret',
+                secret: sessionSecret,
                 resave: false,
                 saveUninitialized: false
             };
@@ -571,17 +584,26 @@ var startSlave = function(config, afterStartFn)
             if (process.configuration.session.type === "file")
             {
                 var options = {};
-                if(process.configuration.session.ttl)
+                if (process.configuration.session.ttl)
                 {
                     options.ttl = process.configuration.session.ttl;
                 }
-                if(process.configuration.session.reapInterval)
+                if (process.configuration.session.reapInterval)
                 {
                     options.reapInterval = process.configuration.session.reapInterval;
                 }
                 // session file store
                 var SessionFileStore = require('session-file-store')(session);
                 sessionConfig.store = new SessionFileStore(options);
+            }
+            else if (process.configuration.session.type === "memory" || !process.configuration.session.type)
+            {
+                var options = {};
+                options.checkPeriod = 86400000; // prune expired entries every 24h
+
+                // session memory store
+                var MemoryStore = require('memorystore')(session);
+                sessionConfig.store = new MemoryStore(options);
             }
 
             initializedSession = session(sessionConfig);
@@ -882,11 +904,43 @@ var startSlave = function(config, afterStartFn)
                             app.use(flash());
                         }
 
-                        // passport
-                        app.use(passport.initialize());
+                        // this is the same as calling
+                        // app.use(passport.initialize());
+                        // except we create a new passport each time and store on request to support multitenancy
+                        app.use(function(req, res, next) {
+
+                            var passport = new Passport();
+                            passport._key = "passport-" + req.virtualHost;
+
+                            req._passport = {};
+                            req._passport.instance = passport;
+
+                            if (req.session && req.session[passport._key])
+                            {
+                                // load data from existing session
+                                req._passport.session = req.session[passport._key];
+                            }
+
+                            // add this in
+                            req.passport = req._passport.instance;
+
+                            // passport - serialize and deserialize
+                            req.passport.serializeUser(function(user, done) {
+                                done(null, user);
+                            });
+                            req.passport.deserializeUser(function(user, done) {
+                                done(null, user);
+                            });
+
+                            next();
+                        });
+
+                        // passport session
                         if (initializedSession)
                         {
-                            app.use(passport.session());
+                            app.use(function(req, res, next) {
+                                req.passport.session()(req, res, next);
+                            });
                         }
 
                         // welcome files

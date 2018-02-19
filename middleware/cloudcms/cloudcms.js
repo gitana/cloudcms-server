@@ -18,20 +18,6 @@ var cloudcmsUtil = require("../../util/cloudcms");
  * @type {*}
  */
 
-////////////////////////////////////////////////////////////////////////////
-//
-// Configure Passport to use a Cloud CMS strategy
-//
-////////////////////////////////////////////////////////////////////////////
-
-passport.serializeUser(function(user, done) {
-    done(null, user);
-});
-
-passport.deserializeUser(function(user, done) {
-    done(null, user);
-});
-
 /**
  * Looks up the user by username or email.
  *
@@ -236,7 +222,7 @@ exports = module.exports = function()
             var user = info.user;
 
             // convert to a regular old JS object to be compatible with session serialization
-            user = JSON.parse(JSON.stringify(user));
+            user = util.clone(user, true);
 
             // try to log in to cloud cms with this user
             req.logIn(user, function(err) {
@@ -260,7 +246,7 @@ exports = module.exports = function()
                     }
                     else
                     {
-                        res.redirect(successUrl);
+                        res.reoirect(successUrl);
                     }
                 }
                 else
@@ -285,33 +271,75 @@ exports = module.exports = function()
 
     var handleLogout = function(req, res, next)
     {
-        var redirectUri = req.query["redirectUri"];
-        if (!redirectUri) {
-            redirectUri = req.query["redirectURI"];
-        }
-        if (!redirectUri) {
-            redirectUri = req.query["redirect"];
-        }
-
-        if (req.logout) {
-            req.logout();
-        }
-
-        var ticket = req.query["ticket"];
-        if (ticket)
+        var logoutStrategiesFn = function(req, res, finished)
         {
-            Gitana.disconnect(ticket);
-        }
+            // if we have authentication strategies configured, walk each one
+            // if a strategy has an authenticator, then invoke it's logout function
+            var authenticationService = require("../authentication/authentication");
+            authenticationService.buildStrategies(req, function (err, strategyResults) {
 
-        // redirect?
-        if (redirectUri)
-        {
-            return res.redirect(redirectUri);
-        }
+                if (err || !strategyResults) {
+                    return finished();
+                }
 
-        util.status(res, 200);
-        res.send({
-            "ok": true
+                var fns = [];
+                for (var strategyId in strategyResults)
+                {
+                    var authenticator = strategyResults[strategyId].authenticator;
+                    if (authenticator)
+                    {
+                        var fn = function(req, res, strategyId, authenticator) {
+                            return function(done) {
+                                console.log("Logging out for strategy: " + strategyId);
+                                authenticator.logout(req, res, function () {
+                                    done();
+                                });
+                            }
+                        }(req, res, strategyId, authenticator);
+                        fns.push(fn);
+                    }
+                }
+
+                async.series(fns, function() {
+                    finished();
+                });
+            });
+        };
+
+        logoutStrategiesFn(req, res, function(err) {
+
+            var redirectUri = req.query["redirectUri"];
+            if (!redirectUri)
+            {
+                redirectUri = req.query["redirectURI"];
+            }
+            if (!redirectUri)
+            {
+                redirectUri = req.query["redirect"];
+            }
+
+            // throw this in here for safe measure
+            if (req.logout)
+            {
+                req.logout();
+            }
+
+            var ticket = req.query["ticket"];
+            if (ticket)
+            {
+                Gitana.disconnect(ticket);
+            }
+
+            // redirect?
+            if (redirectUri)
+            {
+                return res.redirect(redirectUri);
+            }
+
+            util.status(res, 200);
+            res.send({
+                "ok": true
+            });
         });
     };
 
@@ -602,13 +630,11 @@ exports = module.exports = function()
                     req.domainId = domain.getId();
                 }
 
-                /*
                 // helper function
-                req.domain = function(callback)
+                req.principalsDomain = function(callback)
                 {
-                    callback(null, domain);
+                    callback(null, Chain(domain));
                 };
-                */
             }
 
             next();
@@ -643,6 +669,56 @@ exports = module.exports = function()
             next();
         });
     };
+
+    var CACHED_APP_SETTINGS = {};
+
+    r.applicationSettingsInterceptor = function()
+    {
+        return util.createInterceptor("applicationSettings", function(req, res, next, stores, cache, configuration) {
+
+            if (req.gitana && req.gitana.datastore)
+            {
+                var application = req.gitana.application();
+                if (application)
+                {
+                    // helper function
+                    req.applicationSettings = function (req, application) {
+                        return function (callback) {
+
+                            var cacheKey = cacheSettingsKey(application.ref(), "application", "application");
+
+                            var x = CACHED_APP_SETTINGS[cacheKey];
+                            if (x)
+                            {
+                                return callback(null, Chain(x));
+                            }
+
+                            Chain(application).trap(function(e){
+                                callback({
+                                    "message": "Failed to find application settings"
+                                });
+                                return false;
+                            }).querySettings({
+                                "scope": "application",
+                                "key": "application"
+                            }).keepOne().then(function() {
+
+                                // store onto cache
+                                CACHED_APP_SETTINGS[cacheKey] = this;
+
+                                // respond
+                                callback(null, this);
+                            });
+                        };
+                    }(req, application);
+                }
+            }
+
+            next();
+
+        });
+    };
+
 
     /**
      * Allows for an in-context menu when connected to Cloud CMS for editing content.
@@ -1869,6 +1945,40 @@ exports = module.exports = function()
         });
     };
 
+    var cacheSettingsKey = function(ref, settingsKey, settingsScope)
+    {
+        var key = ref;
+        if (settingsKey) {
+            key += ":" + settingsKey;
+        }
+        if (settingsScope) {
+            key += ":" + settingsScope;
+        }
+
+        return key;
+    };
+
+    r.invalidateSettings = function(host, ref, settingsKey, settingsScope, callback)
+    {
+        var cacheKey = ref + ":" + settingsKey + ":" + settingsScope;
+
+        var badKeys = [];
+        for (var k in CACHED_APP_SETTINGS)
+        {
+            if (k.startsWith(cacheKey))
+            {
+                badKeys.push(k);
+            }
+        }
+
+        for (var i = 0; i < badKeys.length; i++)
+        {
+            delete CACHED_APP_SETTINGS[badKeys[i]];
+        }
+
+        callback();
+    };
+
     var bound = false;
     var bindSubscriptions = function()
     {
@@ -1903,6 +2013,23 @@ exports = module.exports = function()
                         invalidationDone(err);
                     }
 
+                });
+            });
+
+            process.broadcast.subscribe("settings_invalidation", function (message, channel, invalidationDone) {
+                console.log("cloudcms received settings_invalidation message. " + JSON.stringify(message,null,2));
+
+                if (!invalidationDone) {
+                    invalidationDone = function() { };
+                }
+
+                var ref = message.ref;
+                var settingsKey = message.settingsKey;
+                var settingsScope = message.settingsScope;
+                var host = message.host;
+
+                self.invalidateSettings(host, ref, settingsKey, settingsScope, function(err) {
+                    invalidationDone(err);
                 });
 
             });

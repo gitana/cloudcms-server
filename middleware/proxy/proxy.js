@@ -435,13 +435,13 @@ exports = module.exports = function()
             if (i > -1)
             {
                 var j = value.indexOf(";", i);
-                if (j > -1)
+                if (j === -1)
                 {
-                    value = value.substring(0, i+7) + cookieDomain + value.substring(j);
+                    value = value.substring(0, i);
                 }
                 else
                 {
-                    value = value.substring(0, i+7) + cookieDomain;
+                    value = value.substring(0, i) + value.substring(j);
                 }
             }
 

@@ -36,33 +36,53 @@ exports = module.exports = function()
             configuration = {};
         }
 
-        var successUrl = acquireProperty(req.query, ["success", "successUrl", "successURL", "successRedirect"]);
-        var failureUrl = acquireProperty(req.query, ["failure", "failureUrl", "failureURL", "failureRedirect"]);
+        // registration info
+        var form = req.body;
 
-        var providerId;
-        var userObject = {};
-        var providerUserId;
-        var token;
-        var refreshToken;
+        // these come off the form (potentially)
+        var strategyId = form.strategyId;
+        delete form.strategyId;
+        var providerUserId = form.providerUserId;
+        delete form.providerUserId;
+        var providerId = form.providerId;
+        delete form.providerId;
 
-        // from session
-        if (req.session) {
-            providerId = req.session.registration_provider_id;
-            userObject = req.session.registration_user_object;
-            providerUserId = req.session.registration_user_identifier;
+        // successUrl
+        var successUrl = req.query.successUrl;
+        if (!successUrl) {
+            successUrl = form.successUrl;
+        }
+        if (!successUrl) {
+            successUrl = configuration.successUrl;
+        }
+        delete form.successUrl;
+
+        // failureUrl
+        var failureUrl = req.query.failureUrl;
+        if (!failureUrl) {
+            failureUrl = form.failureUrl;
+        }
+        if (!failureUrl) {
+            failureUrl = configuration.failureUrl;
+        }
+        delete form.failureUrl;
+
+        // these come off session (if available)
+        var token = null;
+        var refreshToken = null;
+        if (req.session)
+        {
+            if (!strategyId) {
+                strategyId = req.session.registration_strategy_id;
+            }
+
+            if (!providerUserId) {
+                providerUserId = req.session.registration_user_identifier;
+            }
+
             token = req.session.registration_token;
             refreshToken = req.session.registration_refresh_token;
         }
-
-        var options = configuration.options;
-        if (!options) {
-            options = {};
-        }
-
-        // var platform = req.gitana.platform();
-
-        // registration info
-        var form = req.body;
 
         // gitana instance
         var gitana = req.gitana;
@@ -74,7 +94,7 @@ exports = module.exports = function()
         var errors = [];
         var fns = [];
 
-        if (options.passwords)
+        if (configuration.validatePasswords)
         {
             fns.push(function(gitana, form, errors) {
                 return function (done) {
@@ -111,7 +131,7 @@ exports = module.exports = function()
             }(gitana, form, errors));
         }
 
-        if (options.email)
+        if (configuration.validateEmail)
         {
             fns.push(function(gitana, form, errors) {
 
@@ -144,7 +164,7 @@ exports = module.exports = function()
             }(gitana, form, errors));
         }
 
-        if (options.username)
+        if (configuration.validateUsername)
         {
             fns.push(function(gitana, form, errors) {
 
@@ -187,9 +207,15 @@ exports = module.exports = function()
 
         async.series(fns, function() {
 
+            // copy in properties
+            var userObject = {};
+            for (var k in form) {
+                userObject[k] = form[k];
+            }
+
             if (errors && errors.length > 0)
             {
-                if (req.flash)
+                if (req.session && req.flash)
                 {
                     req.flash("errors", errors);
                 }
@@ -199,21 +225,29 @@ exports = module.exports = function()
                     return res.redirect(failureUrl);
                 }
 
+                if (configuration.failureHandler)
+                {
+                    var info = {};
+                    info.providerId = providerId;
+                    info.providerUserId = providerUserId;
+
+                    return configuration.failureHandler(req, res, next, errors, strategyId, userObject, info);
+                }
+
                 return res.status(200).type("application/json").send(JSON.stringify({
                     "ok": false,
                     "err": errors
                 }));
             }
 
-            // copy in properties
-            for (var k in form) {
-                userObject[k] = form[k];
-            }
-            if (providerId)
+            if (strategyId)
             {
-                process.authentication.buildProvider(req, providerId, function(err, provider, providerType, providerConfig) {
+                process.authentication.buildStrategy(req, strategyId, function(err, result, strategyId, strategy, adapterId, adapter, providerId, provider, authenticatorId, authenticator) {
 
-                    if (err) {
+                    var providerId = result.providerId;
+
+                    if (err)
+                    {
                         if (failureUrl) {
                             return res.redirect(failureUrl);
                         }

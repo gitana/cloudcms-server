@@ -246,7 +246,7 @@ exports = module.exports = function()
         process.authentication = app.authentication = authentication;
 
         // app specific
-        app.auth = process.authentication.auth;
+        app.filter = process.authentication.filter;
 
         var fns = [
             locks.init,
@@ -344,7 +344,7 @@ exports = module.exports = function()
                 next();
             };
 
-            var configuration = JSON.parse(JSON.stringify(process.configuration));
+            var configuration = util.clone(process.configuration);
 
             if (req.application)
             {
@@ -398,6 +398,9 @@ exports = module.exports = function()
 
             // auto-select the application
             app.use(cloudcms.applicationInterceptor());
+
+            // auto-select the application settings
+            app.use(cloudcms.applicationSettingsInterceptor());
 
             // auto-select which gitana repository to use
             app.use(cloudcms.repositoryInterceptor());

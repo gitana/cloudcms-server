@@ -28,7 +28,7 @@ exports = module.exports = function()
             data = {};
         }
 
-        var x = JSON.parse(JSON.stringify(data));
+        var x = util.clone(data, true);
         x.ok = true;
 
         // respond with ok

@@ -1,10 +1,11 @@
 var auth = require("../../../util/auth");
 
-var passport = require("passport");
 var TwitterStrategy = require('passport-twitter').Strategy;
+var AbstractProvider = require("./abstract");
 
-var extend = require("extend-with-super");
-
+if (!process.configuration) {
+    process.configuration = {};
+}
 if (!process.configuration.providers) {
     process.configuration.providers = {};
 }
@@ -25,45 +26,44 @@ if (process.env.CLOUDCMS_AUTH_PROVIDERS_TWITTER_ENABLED === "true") {
  *
  * @return {Function}
  */
-exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
+class TwitterProvider extends AbstractProvider
 {
-    if (!config.properties) {
-        config.properties = {};
+    constructor(req, config)
+    {
+        super(req, config);
+
+        if (!config.properties) {
+            config.properties = {};
+        }
+        if (!config.properties.id) {
+            config.properties.id = "id";
+        }
+
+        // passport
+        this.twitterStrategy = new TwitterStrategy({
+            consumerKey: config.consumerKey,
+            consumerSecret: config.consumerSecret,
+            callbackURL: config.callbackURL,
+            passReqToCallback: true
+        }, auth.buildPassportCallback(config, provider));
+
+        req.passport.use(this.twitterStrategy);
     }
-    if (!config.properties.id) {
-        config.properties.id = "id";
-    }
-
-    var base = require("./abstract")(PROVIDER_ID, PROVIDER_TYPE, config);
-
-    // passport
-    var twitterStrategy = new TwitterStrategy({
-        consumerKey: config.consumerKey,
-        consumerSecret: config.consumerSecret,
-        callbackURL: config.callbackURL,
-        passReqToCallback: true
-    }, auth.buildPassportCallback(PROVIDER_TYPE, r));
-    passport.use(twitterStrategy);
-
-    //////
-
-    var r = {};
 
     /**
      * @override
      */
-    r.handleAuth = function(req, res, next)
+    handleAuth(req, res, next)
     {
-        passport.authenticate(PROVIDER_TYPE)(req, res, next);
+        req.passport.authenticate("twitter")(req, res, next);
     };
 
     /**
      * @override
      */
-    r.handleAuthCallback = function(req, res, next, cb)
+    handleAuthCallback(req, res, next, cb)
     {
-        passport.authenticate(PROVIDER_TYPE, {
-            failureRedirect: config.failureRedirect,
+        req.passport.authenticate("twitter", {
             session: false
         }, cb)(req, res, next);
     };
@@ -71,7 +71,7 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
     /**
      * @override
      */
-    r.parseProfile = function(profile)
+    parseProfile(profile)
     {
         var userObject = this._super(profile);
 
@@ -83,7 +83,7 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
     /**
      * @override
      */
-    r.syncAvatar = function(gitanaUser, profile, callback)
+    syncAvatar(gitanaUser, profile, callback)
     {
         // sync avatar photo
         if (profile && profile.photos && profile.photos.length > 0)
@@ -105,9 +105,9 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
     /**
      * @override
      */
-    r.load = function(properties, callback)
+    load(properties, callback)
     {
-        twitterStrategy.userProfile(properties.token, function(err, profile) {
+        this.twitterStrategy.userProfile(properties.token, function(err, profile) {
 
             if (err) {
                 return callback(err);
@@ -117,7 +117,6 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
 
         });
     };
+}
 
-    return extend(base, r);
-};
-
+module.exports = TwitterProvider;

@@ -481,11 +481,17 @@ module.exports = function()
                 notifications.type = process.env.CLOUDCMS_NOTIFICATIONS_TYPE;
             }
 
+            if (!notifications.type)
+            {
+                console.error("Notification.type is not configured")
+                return callback();
+            }
+
             var type = notifications.type;
             var configuration = notifications.configuration;
 
             var provider = require("./providers/" + type);
-            provider.start(configuration, function(err) {
+            provider.start(configuration, function (err) {
 
                 if (err)
                 {

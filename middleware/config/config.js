@@ -363,7 +363,7 @@ exports = module.exports = function()
                             }
 
                             // need to make a copy here since we're about to delete elements
-                            p.config.pages[pageKey] = JSON.parse(JSON.stringify(pageConfig.page));
+                            p.config.pages[pageKey] = util.clone(pageConfig.page, true);
                             delete p.config.pages[pageKey].bindings;
                             delete p.config.pages[pageKey].gadgets;
                             delete p.config.pages[pageKey].evaluator;

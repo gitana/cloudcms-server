@@ -318,13 +318,13 @@ module.exports = function(app, dust)
                                 if (as)
                                 {
                                     resultObject = {};
-                                    resultObject[as] = JSON.parse(JSON.stringify(result));
+                                    resultObject[as] = util.clone(result, true);
 
                                     _MARK_INSIGHT(result, resultObject[as]);
                                 }
                                 else
                                 {
-                                    resultObject = JSON.parse(JSON.stringify(result));
+                                    resultObject = util.clone(result, true);
 
                                     _MARK_INSIGHT(result, resultObject);
                                 }
@@ -793,7 +793,7 @@ module.exports = function(app, dust)
                             var associations_array = otherNodeIdToAssociations[this._doc];
                             for (var z = 0; z < associations_array.length; z++)
                             {
-                                associations_array[z].other = JSON.parse(JSON.stringify(this));
+                                associations_array[z].other = util.clone(this, true);
 
                                 // sorting by node properties (not association properties)
                                 otherNodeIdToAssociationsSorted.push(associations_array[z]);
@@ -1055,13 +1055,13 @@ module.exports = function(app, dust)
                     var newContextObject = {};
                     if (as)
                     {
-                        newContextObject[as] = JSON.parse(JSON.stringify(node));
+                        newContextObject[as] = util.clone(node, true);
 
                         _MARK_INSIGHT(node, newContextObject[as]);
                     }
                     else
                     {
-                        newContextObject["content"] = JSON.parse(JSON.stringify(node));
+                        newContextObject["content"] = util.clone(node, true);
 
                         _MARK_INSIGHT(node, newContextObject.content);
                     }

@@ -1,10 +1,11 @@
 var auth = require("../../../util/auth");
 
-var passport = require("passport");
 var GoogleStrategy = require('passport-google-oauth').OAuth2Strategy;
+var AbstractProvider = require("./abstract");
 
-var extend = require("extend-with-super");
-
+if (!process.configuration) {
+    process.configuration = {};
+}
 if (!process.configuration.providers) {
     process.configuration.providers = {};
 }
@@ -23,38 +24,37 @@ if (process.env.CLOUDCMS_AUTH_PROVIDERS_GOOGLE_ENABLED === "true") {
  *    "clientID": "[OAuth2 Client ID]",
  *    "clientSecret": "[OAuth2 Client Secret]",
  *
- * @return {Function}
  */
-exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
+class GoogleProvider extends AbstractProvider
 {
-    if (!config.properties) {
-        config.properties = {};
+    constructor(req, config)
+    {
+        super(req, config);
+
+        if (!config.properties) {
+            config.properties = {};
+        }
+        if (!config.properties.id) {
+            config.properties.id = "id";
+        }
+
+        this.googleStrategy = new GoogleStrategy({
+            clientID: config.clientID,
+            clientSecret: config.clientSecret,
+            callbackURL: config.callbackURL,
+            passReqToCallback: true
+        }, auth.buildPassportCallback(config, this));
+
+        req.passport.use(this.googleStrategy);
+
     }
-    if (!config.properties.id) {
-        config.properties.id = "id";
-    }
-
-    var base = require("./abstract")(PROVIDER_ID, PROVIDER_TYPE, config);
-
-    // passport
-    var googleStrategy = new GoogleStrategy({
-        clientID: config.clientID,
-        clientSecret: config.clientSecret,
-        callbackURL: config.callbackURL,
-        passReqToCallback: true
-    }, auth.buildPassportCallback(PROVIDER_TYPE, r));
-    passport.use(googleStrategy);
-
-    //////
-
-    var r = {};
 
     /**
      * @override
      */
-    r.handleAuth = function(req, res, next)
+    handleAuth(req, res, next)
     {
-        passport.authenticate(PROVIDER_TYPE,{
+        req.passport.authenticate("google",{
             scope:
                 [
                     'profile',
@@ -66,18 +66,17 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
     /**
      * @override
      */
-    r.handleAuthCallback = function(req, res, next, cb)
+    handleAuthCallback(req, res, next, cb)
     {
-        passport.authenticate(PROVIDER_TYPE, {
-            successRedirect: config.successRedirect,
-            failureRedirect: config.failureRedirect
+        req.passport.authenticate("google", {
+            session: false
         }, cb)(req, res, next);
     };
 
     /**
      * @override
      */
-    r.parseProfile = function(profile)
+    parseProfile(profile)
     {
         var userObject = {};
 
@@ -102,18 +101,17 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
     /**
      * @override
      */
-    r.load = function(properties, callback)
+    load(properties, callback)
     {
-        googleStrategy.userProfile(properties.token, function(err, profile) {
+        this.googleStrategy.userProfile(properties.token, function(err, profile) {
 
             if (err) {
                 return callback(err);
             }
 
             callback(null, profile);
-
         });
     };
+}
 
-    return extend(base, r);
-};
+module.exports = GoogleProvider;

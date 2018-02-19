@@ -1,5 +1,5 @@
 var auth = require("../../../util/auth");
-var extend = require("extend-with-super");
+var AbstractProvider = require("./abstract");
 
 /**
  * A simple "trusted" authentication provider that assumes 100% of everything it needs is in the extracted
@@ -7,14 +7,12 @@ var extend = require("extend-with-super");
  *
  * @return {Function}
  */
-exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
+class TrustedProvider extends AbstractProvider
 {
-    var base = require("./abstract")(PROVIDER_ID, PROVIDER_TYPE, config);
+    constructor(req, config)
+    {
+        super(req, config);
+    }
+}
 
-    //////
-
-    var r = {};
-
-    return extend(base, r);
-};
-
+module.exports = TrustedProvider;

@@ -161,7 +161,7 @@ module.exports.process = function(callback)
                         var timestamp = parseInt(headers.timestamp);
 
                         // copy data as item
-                        var item = JSON.parse(JSON.stringify(data));
+                        var item = util.clone(data, true);
                         if (!item)
                         {
                             item = {};

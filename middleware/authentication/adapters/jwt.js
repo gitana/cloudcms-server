@@ -1,91 +1,97 @@
+var AbstractAdapter = require("./abstract");
 var jwt = require("jsonwebtoken");
+
+class JWTAdapter extends AbstractAdapter
+{
+    constructor(req, config)
+    {
+        super(req, config);
+    }
+
+    identify(req, callback)
+    {
+        // call into base method to extract from raw request
+        super.identify(req, function(err, properties) {
+
+            if (err) {
+                return callback(err);
+            }
+
+            if (!properties) {
+                return callback();
+            }
+
+            // the extract JWT token
+            var token = properties.token;
+
+            // if we have a secret configured, then we can "trust" the token
+            var object = null;
+            if (config.secret)
+            {
+                var options = {};
+                if (config.algorithm) {
+                    options.algorithm = [config.algorithm];
+                }
+                if (config.issuer) {
+                    options.issuer = config.issuer;
+                }
+
+                object = jwt.verify(token, config.secret, options);
+                properties.trusted = true;
+            }
+            else
+            {
+                object = jwt.decode(token);
+            }
+
+            // allow for the profile field to be picked off the object
+            // otherwise, we simply pass the entire JWT object forward
+            var profileField = config.profile_field;
+            if (!profileField) {
+                profileField = "profile";
+            }
+            var profile = null;
+            if (object[profileField]) {
+                profile = object[profileField];
+            }
+            if (!profile) {
+                profile = object;
+            }
+
+            // store profile
+            if (profile)
+            {
+                properties.profile = profile;
+
+                // pick off user id
+                var user_identifier_field = config.field;
+                if (!user_identifier_field)
+                {
+                    user_identifier_field = "preferred_username";
+                }
+
+                var user_identifier = profile[user_identifier_field];
+
+                // if not found, try "unique_name"
+                if (!user_identifier) {
+
+                    user_identifier = profile["unique_name"];
+                }
+
+                if (user_identifier)
+                {
+                    properties.user_identifier = user_identifier;
+                }
+            }
+
+            callback(null, properties);
+        });
+    }
+}
 
 /**
  * JWT adapter.
  *
  * @type {*}
  */
-module.exports = function(adapterId, adapterType, config)
-{
-    var r = {};
-
-    r.parse = function(req) {
-
-        var value = null;
-        if (config.header)
-        {
-            value = req.headers[config.header.toLowerCase()];
-        }
-        else if (config.cookie)
-        {
-            value = req.cookies[config.cookie.toLowerCase()];
-        }
-
-        if (!value)
-        {
-            return null;
-        }
-
-        // unpack the jwt
-
-        var trusted = config.trusted ? true : false;
-
-        var object = null;
-        if (config.secret)
-        {
-            object = jwt.verify(value, config.secret);
-            trusted = true;
-        }
-        else
-        {
-            object = jwt.decode(value);
-        }
-
-        // allow for the profile field to be picked off the object
-        // otherwise, we simply pass the entire JWT object forward
-        var profileField = config.profile_field;
-        if (!profileField) {
-            profileField = "profile";
-        }
-        var profile = null;
-        if (object[profileField]) {
-            profile = object[profileField];
-        }
-        if (!profile) {
-            profile = object;
-        }
-
-        // pick off user id
-        var user_identifier_field = config.field;
-        if (!user_identifier_field)
-        {
-            user_identifier_field = "preferred_username";
-        }
-
-        var user_identifier = profile[user_identifier_field];
-
-        // if not found, try "unique_name"
-        if (!user_identifier) {
-
-            user_identifier = profile["unique_name"];
-        }
-
-        var properties = {};
-
-        // required
-        properties.token = value;
-        properties.trusted = trusted;
-
-        if (profile) {
-            properties.profile = profile;
-        }
-
-        if (user_identifier) {
-            properties.user_identifier = user_identifier;
-        }
-
-        return properties;
-    };
-
-    return r;
-};
+module.exports = JWTAdapter;

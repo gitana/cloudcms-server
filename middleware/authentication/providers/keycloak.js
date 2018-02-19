@@ -1,7 +1,7 @@
 var auth = require("../../../util/auth");
 
-var passport = require("passport");
 var KeyCloakStrategy = require("./keycloak/index");
+var AbstractProvider = require("./abstract");
 
 var extend = require("extend-with-super");
 
@@ -17,55 +17,53 @@ var extend = require("extend-with-super");
  *
  * @return {Function}
  */
-exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
+class KeyCloakProvider extends AbstractProvider
 {
-    if (!config.properties) {
-        config.properties = {};
+    constructor(req, config)
+    {
+        super(req, config);
+
+        if (!config.properties) {
+            config.properties = {};
+        }
+        if (!config.properties.id) {
+            config.properties.id = "username";
+        }
+
+        this.keycloakStrategy = new KeyCloakStrategy({
+            "clientID": config.clientID,
+            "clientSecret": config.clientSecret,
+            "realm": config.realm,
+            "auth_server_url": config.auth_server_url,
+            "callbackURL": config.callbackURL,
+            "passReqToCallback": true
+        }, auth.buildPassportCallback(config, this));
+
+        req.passport.use(this.keycloakStrategy);
     }
-    if (!config.properties.id) {
-        config.properties.id = "username";
-    }
-
-    var base = require("./abstract")(PROVIDER_ID, PROVIDER_TYPE, config);
-
-    // passport
-    var keycloakStrategy = new KeyCloakStrategy({
-        "clientID": config.clientID,
-        "clientSecret": config.clientSecret,
-        "realm": config.realm,
-        "auth_server_url": config.auth_server_url,
-        "callbackURL": config.callbackURL,
-        "passReqToCallback": true
-    }, auth.buildPassportCallback(PROVIDER_TYPE, r));
-    passport.use(keycloakStrategy);
-
-    //////
-
-    var r = {};
 
     /**
      * @override
      */
-    r.handleAuth = function(req, res, next)
+    handleAuth(req, res, next)
     {
-        passport.authenticate(PROVIDER_TYPE)(req, res, next);
+        req.passport.authenticate("keycloak")(req, res, next);
     };
 
     /**
      * @override
      */
-    r.handleAuthCallback = function(req, res, next, cb)
+    handleAuthCallback(req, res, next, cb)
     {
-        passport.authenticate(PROVIDER_TYPE, {
-            successRedirect: config.successRedirect,
-            failureRedirect: config.failureRedirect
+        req.passport.authenticate("keycloak", {
+            session: false
         }, cb)(req, res, next);
     };
 
     /**
      * @override
      */
-    r.parseProfile = function(profile)
+    parseProfile(profile)
     {
         var userObject = this._super(profile);
 
@@ -77,9 +75,9 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
     /**
      * @override
      */
-    r.load = function(properties, callback)
+    load(properties, callback)
     {
-        keycloakStrategy.userProfile(properties.token, function(err, profile) {
+        this.keycloakStrategy.userProfile(properties.token, function(err, profile) {
 
             if (err) {
                 return callback(err);
@@ -88,7 +86,6 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
             callback(null, profile);
         });
     };
+}
 
-    return extend(base, r);
-};
-
+module.exports = KeyCloakProvider;

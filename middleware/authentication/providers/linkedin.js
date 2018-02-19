@@ -1,10 +1,11 @@
 var auth = require("../../../util/auth");
 
-var passport = require("passport");
 var LinkedInStrategy = require('passport-linkedin').Strategy;
+var AbstractProvider = require("./abstract");
 
-var extend = require("extend-with-super");
-
+if (!process.configuration) {
+    process.configuration = {};
+}
 if (!process.configuration.providers) {
     process.configuration.providers = {};
 }
@@ -25,46 +26,43 @@ if (process.env.CLOUDCMS_AUTH_PROVIDERS_LINKEDIN_ENABLED === "true") {
  *
  * @return {Function}
  */
-exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
+class LinkedInProvider extends AbstractProvider
 {
-    if (!config.properties) {
-        config.properties = {};
+    constructor(req, config)
+    {
+        super(req, config);
+
+        if (!config.properties) {
+            config.properties = {};
+        }
+        if (!config.properties.id) {
+            config.properties.id = "id";
+        }
+
+        this.linkedinStrategy = new LinkedInStrategy({
+            consumerKey: config.apiKey,
+            consumerSecret: config.apiSecret,
+            callbackURL: config.callbackURL,
+            passReqToCallback: true
+        }, auth.buildPassportCallback(config, provider));
+
+        req.passport.use(this.linkedinStrategy);
     }
-    if (!config.properties.id) {
-        config.properties.id = "id";
-    }
-
-    var base = require("./abstract")(PROVIDER_ID, PROVIDER_TYPE, config);
-
-    // passport
-    var linkedinStrategy = new LinkedInStrategy({
-        consumerKey: config.apiKey,
-        consumerSecret: config.apiSecret,
-        callbackURL: config.callbackURL,
-        passReqToCallback: true
-    }, auth.buildPassportCallback(PROVIDER_TYPE, r));
-    passport.use(linkedinStrategy);
-
-    //////
-
-    var r = {};
 
     /**
      * @override
      */
-    r.handleAuth = function(req, res, next)
+    handleAuth(req, res, next)
     {
-        passport.authenticate(PROVIDER_TYPE)(req, res, next);
+        req.passport.authenticate("linkedin")(req, res, next);
     };
 
     /**
      * @override
      */
-    r.handleAuthCallback = function(req, res, next, cb)
+    handleAuthCallback(req, res, next, cb)
     {
-        passport.authenticate(PROVIDER_TYPE, {
-            successRedirect: config.successRedirect,
-            failureRedirect: config.failureRedirect,
+        req.passport.authenticate("linkedin", {
             session: false
         }, cb)(req, res, next);
     };
@@ -72,7 +70,7 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
     /**
      * @override
      */
-    r.parseProfile = function(profile)
+    parseProfile(profile)
     {
         var userObject = {};
 
@@ -92,9 +90,9 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
     /**
      * @override
      */
-    r.load = function(properties, callback)
+    load(properties, callback)
     {
-        linkedinStrategy.userProfile(properties.token, function(err, profile) {
+        this.linkedinStrategy.userProfile(properties.token, function(err, profile) {
 
             if (err) {
                 return callback(err);
@@ -104,7 +102,6 @@ exports = module.exports = function(PROVIDER_ID, PROVIDER_TYPE, config)
 
         });
     };
+}
 
-    return extend(base, r);
-};
-
+module.exports = LinkedInProvider;

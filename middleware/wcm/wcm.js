@@ -1352,15 +1352,17 @@ exports = module.exports = function()
                     req.helpers.page = page;
 
                     // build the model
-                    var model = {
-                        "page": {},
-                        "template": {
-                            "path": page.templatePath
-                        },
-                        "request": {
-                            "tokens": tokens,
-                            "matchingPath": matchingPath
-                        }
+                    var model = req.model;
+                    if (!model) {
+                        model = {};
+                    }
+                    model.page = {};
+                    model.template = {
+                        "path": page.templatePath
+                    };
+                    model.request = {
+                        "tokens": tokens,
+                        "matchingPath": matchingPath
                     };
 
                     // model stores reference to page descriptor

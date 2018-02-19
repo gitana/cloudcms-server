@@ -18,6 +18,8 @@ var https = require("https");
 
 var urlTool = require("url");
 
+var cloner = require("clone");
+
 var VALID_IP_ADDRESS_REGEX_STRING = "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$";
 
 exports = module.exports;
@@ -1426,7 +1428,7 @@ var enhanceNode = exports.enhanceNode = function(node)
     {
         var attachment = node.getSystemMetadata()["attachments"][id];
 
-        attachments[id] = JSON.parse(JSON.stringify(attachment));
+        attachments[id] = clone(attachment, true);
         attachments[id]["url"] = "/static/node/" + node.getId() + "/" + id;
         attachments[id]["preview32"] = "/static/node/" + node.getId() + "/preview32/?attachment=" + id + "&size=32";
         attachments[id]["preview64"] = "/static/node/" + node.getId() + "/preview64/?attachment=" + id + "&size=64";
@@ -1559,6 +1561,11 @@ var stripQueryStringFromUrl = exports.stripQueryStringFromUrl = function(url)
     return url;
 };
 
+var getCookie = exports.getCookie = function(req, name)
+{
+    return req.cookies[name];
+};
+
 var setCookie = exports.setCookie = function(req, res, name, value, options)
 {
     // if no options are provided, set a few standard options
@@ -1632,11 +1639,13 @@ var isSecure = exports.isSecure = function(req)
         return true;
     }
 
+    /*
     // if browser tells us to upgrade
     if (req.headers["upgrade-insecure-requests"] === "1")
     {
         return true;
     }
+    */
 
     return false;
 };
@@ -1738,4 +1747,20 @@ var cleanupURL = exports.cleanupURL = function(url)
 
     // NOTE: _url.port may be null
     return asURL(protocol, _url.hostname, _url.port);
+};
+
+var clone = exports.clone = function(thing, jsonOnly)
+{
+    if (jsonOnly)
+    {
+        return JSON.parse(JSON.stringify(thing))
+    }
+
+    // use a deeper approach that copies functions
+    return cloner(thing);
+};
+
+var randomInt = exports.randomInt = function(low, high)
+{
+    return Math.floor(Math.random() * (high - low) + low);
 };

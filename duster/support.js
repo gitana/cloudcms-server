@@ -378,7 +378,7 @@ exports = module.exports = function(dust)
                 var fragmentDescriptor = {};
                 var pageDescriptor = context.get("_page_descriptor");
                 if (pageDescriptor) {
-                    fragmentDescriptor = JSON.parse(JSON.stringify(pageDescriptor));
+                    fragmentDescriptor = util.clone(pageDescriptor, true);
                 }
                 fragmentDescriptor.fragmentId = fragmentId;
                 fragmentDescriptor.scope = "FRAGMENT";
