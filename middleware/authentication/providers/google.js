@@ -76,26 +76,32 @@ class GoogleProvider extends AbstractProvider
     /**
      * @override
      */
-    parseProfile(profile)
+    parseProfile(req, profile, callback)
     {
-        var userObject = {};
+        super.parseProfile(req, profile, function(err, userObject, groupsArray) {
 
-        if (!userObject.firstName)
-        {
-            userObject.firstName = profile._json.name.givenName;
-        }
+            if (err) {
+                return callback(err);
+            }
 
-        if (!userObject.lastName)
-        {
-            userObject.lastName = profile._json.name.familyName;
-        }
+            if (!userObject.firstName)
+            {
+                userObject.firstName = profile._json.name.givenName;
+            }
 
-        if (!userObject.gender)
-        {
-            userObject.gender = profile._json.gender;
-        }
+            if (!userObject.lastName)
+            {
+                userObject.lastName = profile._json.name.familyName;
+            }
 
-        return userObject;
+            if (!userObject.gender)
+            {
+                userObject.gender = profile._json.gender;
+            }
+
+            callback(null, userObject, groupsArray);
+
+        });
     };
 
     /**

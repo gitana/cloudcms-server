@@ -70,21 +70,26 @@ class LinkedInProvider extends AbstractProvider
     /**
      * @override
      */
-    parseProfile(profile)
+    parseProfile(req, profile, callback)
     {
-        var userObject = {};
+        super.parseProfile(req, profile, function(err, userObject, groupsArray) {
 
-        if (!userObject.firstName)
-        {
-            userObject.firstName = profile._json.firstName;
-        }
+            if (err) {
+                return callback(err);
+            }
 
-        if (!userObject.lastName)
-        {
-            userObject.lastName = profile._json.lastName;
-        }
+            if (!userObject.firstName)
+            {
+                userObject.firstName = profile._json.firstName;
+            }
 
-        return userObject;
+            if (!userObject.lastName)
+            {
+                userObject.lastName = profile._json.lastName;
+            }
+
+            callback(null, userObject, groupsArray);
+        });
     };
 
     /**

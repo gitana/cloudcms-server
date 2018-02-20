@@ -70,28 +70,33 @@ class FacebookProvider extends AbstractProvider
     /**
      * @override
      */
-    parseProfile(profile)
+    parseProfile(req, profile, callback)
     {
-        var userObject = {};
+        super.parseProfile(req, profile, function(err, userObject, groupsArray) {
 
-        var name = profile.displayName;
-        if (profile._json && profile._json.name)
-        {
-            name = profile._json.name;
-        }
-        if (name)
-        {
-            var x = name.split(" ");
-            if (x.length == 2)
-            {
-                userObject.firstName = x[0];
-                userObject.lastName = x[1];
+            if (err) {
+                return callback(err);
             }
-        }
 
-        userObject.facebookId = profile.id;
+            var name = profile.displayName;
+            if (profile._json && profile._json.name)
+            {
+                name = profile._json.name;
+            }
+            if (name)
+            {
+                var x = name.split(" ");
+                if (x.length == 2)
+                {
+                    userObject.firstName = x[0];
+                    userObject.lastName = x[1];
+                }
+            }
 
-        return userObject;
+            userObject.facebookId = profile.id;
+
+            callback(null, userObject, groupsArray);
+        });
     };
 
     /**

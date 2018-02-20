@@ -71,13 +71,11 @@ class TwitterProvider extends AbstractProvider
     /**
      * @override
      */
-    parseProfile(profile)
+    parseProfile(req, profile, callback)
     {
-        var userObject = this._super(profile);
-
-        // TODO: not much provided from Twitter, add any custom extractions?
-
-        return userObject;
+        super.parseProfile(req, profile, function(err, userObject, groupsArray) {
+            return callback(err, userObject, groupsArray);
+        });
     };
 
     /**

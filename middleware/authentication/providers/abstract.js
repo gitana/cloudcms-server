@@ -61,18 +61,21 @@ class AbstractProvider
      * A default implementation is supported here.
      * A few core properties are supported.
      *
+     * @param req
      * @param profile
      */
-    parseProfile(profile)
+    parseProfile(req, profile, callback)
     {
         var userObject = {};
+        var groupsArray = [];
 
         if (!profile) {
-            return userObject;
+            return callback(null, userObject, groupsArray);
         }
 
         var userProperties = this.config.userProperties;
-        if (!userProperties) {
+        if (!userProperties)
+        {
             userProperties = {};
             userProperties["firstName"] = "given_name";
             userProperties["lastName"] = "family_name";
@@ -94,7 +97,9 @@ class AbstractProvider
             }
         }
 
-        return userObject;
+        // NOTE: no handling of groupsArray
+
+        callback(null, userObject, groupsArray);
     }
 
     /**

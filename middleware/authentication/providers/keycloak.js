@@ -63,13 +63,11 @@ class KeyCloakProvider extends AbstractProvider
     /**
      * @override
      */
-    parseProfile(profile)
+    parseProfile(req, profile, callback)
     {
-        var userObject = this._super(profile);
-
-        // TODO: add in any custom extractions
-
-        return userObject;
+        super.parseProfile(req, profile, function(err, userObject, groupsArray) {
+            callback(err, userObject, groupsArray);
+        });
     };
 
     /**

@@ -404,32 +404,46 @@ exports = module.exports = function()
                         {
                             if (strategy.registrationRedirect)
                             {
-                                var userObject = provider.parseProfile(profile);
-                                var userIdentifier = provider.userIdentifier(profile);
+                                return provider.parseProfile(req, profile, function(err, userObject, groupsArray) {
 
-                                var registrationRedirectUrl = strategy.registrationRedirect;
+                                    if (err) {
+                                        return handleFailure(err, res);
+                                    }
 
-                                if (!req.session)
-                                {
-                                    console.log("Registration redirect requires session");
-                                }
-                                else
-                                {
-                                    req.session.registration_strategy_id = strategyId;
-                                    req.session.registration_user_object = userObject;
-                                    req.session.registration_user_identifier = userIdentifier;
-                                    req.session.registration_token = info.token;
-                                    req.session.registration_refresh_token = info.refresh_token;
+                                    var userIdentifier = provider.userIdentifier(profile);
 
-                                    return res.redirect(registrationRedirectUrl);
-                                }
+                                    var registrationRedirectUrl = strategy.registrationRedirect;
+
+                                    if (!req.session)
+                                    {
+                                        return handleFailure({
+                                            "message": "Registration redirect requires session"
+                                        }, res);
+                                    }
+                                    else
+                                    {
+                                        req.session.registration_strategy_id = strategyId;
+                                        req.session.registration_user_object = userObject;
+                                        req.session.registration_user_identifier = userIdentifier;
+                                        req.session.registration_token = info.token;
+                                        req.session.registration_refresh_token = info.refresh_token;
+
+                                        return res.redirect(registrationRedirectUrl);
+                                    }
+                                });
                             }
                             else if (strategy.registrationHandler)
                             {
-                                var userObject = provider.parseProfile(profile);
-                                var userIdentifier = provider.userIdentifier(profile);
+                                return provider.parseProfile(req, profile, function(err, userObject, groupsArray) {
 
-                                return strategy.registrationHandler(req, res, next, strategyId, userIdentifier, userObject, info);
+                                    if (err) {
+                                        return handleFailure(err, res);
+                                    }
+
+                                    var userIdentifier = provider.userIdentifier(profile);
+
+                                    strategy.registrationHandler(req, res, next, strategyId, userIdentifier, userObject, info);
+                                });
                             }
 
                             return handleFailure(err, res);
@@ -993,9 +1007,17 @@ exports = module.exports = function()
                                             properties.user_identifier = provider.userIdentifier(profile);
                                         }
 
-                                        properties.user_object = provider.parseProfile(profile);
+                                        return provider.parseProfile(req, profile, function(err, userObject, groupsArray) {
 
-                                        return done();
+                                            if (err) {
+                                                return done(err);
+                                            }
+
+                                            properties.user_object = userObject;
+                                            properties.assignments = groupsArray;
+
+                                            done();
+                                        });
                                     }
 
                                     provider.load(properties, function (err, profile) {
@@ -1024,9 +1046,17 @@ exports = module.exports = function()
                                             properties.user_identifier = provider.userIdentifier(profile);
                                         }
 
-                                        properties.user_object = provider.parseProfile(profile);
+                                        return provider.parseProfile(req, profile, function(err, userObject, groupsArray) {
 
-                                        done();
+                                            if (err) {
+                                                return done(err);
+                                            }
+
+                                            properties.user_object = userObject;
+                                            properties.assignments = groupsArray;
+
+                                            done();
+                                        });
                                     });
                                 });
                             }
@@ -1058,9 +1088,17 @@ exports = module.exports = function()
                                         properties.user_identifier = provider.userIdentifier(profile);
                                     }
 
-                                    properties.user_object = provider.parseProfile(profile);
+                                    return provider.parseProfile(req, profile, function(err, userObject, groupsArray) {
 
-                                    done();
+                                        if (err) {
+                                            return done(err);
+                                        }
+
+                                        properties.user_object = userObject;
+                                        properties.assignments = groupsArray;
+
+                                        done();
+                                    });
                                 });
                             }
                         };

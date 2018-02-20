@@ -312,7 +312,10 @@ var _LOCK = function(lockIdentifiers, workFunction)
 
 var syncProfile = exports.syncProfile = function(req, res, strategy, domain, providerId, provider, profile, token, refreshToken, callback)
 {
-    var userObject = provider.parseProfile(profile);
+    var userObject = {};
+    var assignments = [];
+
+    provider.parseProfile(profile, userObject, assignments);
     var providerUserId = provider.userIdentifier(profile);
 
     var key = token;
