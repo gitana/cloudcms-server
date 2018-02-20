@@ -312,131 +312,129 @@ var _LOCK = function(lockIdentifiers, workFunction)
 
 var syncProfile = exports.syncProfile = function(req, res, strategy, domain, providerId, provider, profile, token, refreshToken, callback)
 {
-    var userObject = {};
-    var assignments = [];
+    return provider.parseProfile(req, profile, function(err, userObject, groupsArray) {
 
-    provider.parseProfile(profile, userObject, assignments);
-    var providerUserId = provider.userIdentifier(profile);
+        var providerUserId = provider.userIdentifier(profile);
 
-    var key = token;
+        var key = token;
 
-    var _syncUser = function(strategy, key, domain, providerId, providerUserId, token, refreshToken, userObject, callback) {
+        var _syncUser = function(strategy, key, domain, providerId, providerUserId, token, refreshToken, userObject, callback) {
 
-        /*
-        var gitanaUser = SYNC_USER_CACHE.get(key);
-        if (gitanaUser)
-        {
-            return callback(null, gitanaUser);
-        }
-        */
+            /*
+            var gitanaUser = SYNC_USER_CACHE.get(key);
+            if (gitanaUser)
+            {
+                return callback(null, gitanaUser);
+            }
+            */
 
-        // take out a lock
-        _LOCK([domain._doc, providerId, providerUserId], function(releaseLockFn) {
+            // take out a lock
+            _LOCK([domain._doc, providerId, providerUserId], function(releaseLockFn) {
 
-            __syncUser(strategy, key, domain, providerId, providerUserId, token, refreshToken, userObject, function(err, gitanaUser) {
+                __syncUser(strategy, key, domain, providerId, providerUserId, token, refreshToken, userObject, function(err, gitanaUser) {
+
+                    if (err) {
+                        releaseLockFn();
+                        return callback(err);
+                    }
+
+                    if (gitanaUser) {
+                        SYNC_USER_CACHE.set(key, gitanaUser);
+                    }
+
+                    releaseLockFn();
+                    return callback(null, gitanaUser);
+                });
+            });
+        };
+
+        var __syncUser = function(strategy, key, domain, providerId, providerUserId, token, refreshToken, userObject, callback) {
+
+            // do we already have a gitana user?
+            findUserForProvider(domain, providerId, providerUserId, function (err, gitanaUser) {
 
                 if (err) {
-                    releaseLockFn();
                     return callback(err);
                 }
 
-                if (gitanaUser) {
-                    SYNC_USER_CACHE.set(key, gitanaUser);
+                if (gitanaUser)
+                {
+                    return updateUserForProvider(domain, providerId, providerUserId, token, refreshToken, userObject, function (err) {
+
+                        if (err) {
+                            return callback(err);
+                        }
+
+                        gitanaUser.reload().then(function () {
+                            callback(null, this);
+                        });
+                    });
                 }
 
-                releaseLockFn();
-                return callback(null, gitanaUser);
-            });
-        });
-    };
+                if (!strategy.autoRegister)
+                {
+                    console.log("Sync user did not find a user for providerUserId: " + providerUserId + " but autoRegister is turned off, cannot auto-create the user");
 
-    var __syncUser = function(strategy, key, domain, providerId, providerUserId, token, refreshToken, userObject, callback) {
+                    return callback({
+                        "message": "User not found (autoRegister is disabled, cannot auto-create)",
+                        "noAutoRegister": true
+                    });
+                }
 
-        // do we already have a gitana user?
-        findUserForProvider(domain, providerId, providerUserId, function (err, gitanaUser) {
-
-            if (err) {
-                return callback(err);
-            }
-
-            if (gitanaUser)
-            {
-                return updateUserForProvider(domain, providerId, providerUserId, token, refreshToken, userObject, function (err) {
+                createUserForProvider(domain, providerId, providerUserId, token, refreshToken, userObject, function (err, gitanaUser) {
 
                     if (err) {
                         return callback(err);
                     }
 
-                    gitanaUser.reload().then(function () {
-                        callback(null, this);
-                    });
+                    callback(null, gitanaUser);
                 });
-            }
 
-            if (!strategy.autoRegister)
+            })
+        };
+
+        var _connectUser = function(key, gitanaUser, callback) {
+
+            var appHelper = Gitana.APPS[key];
+            if (appHelper)
             {
-                console.log("Sync user did not find a user for providerUserId: " + providerUserId + " but autoRegister is turned off, cannot auto-create the user");
-
-                return callback({
-                    "message": "User not found (autoRegister is disabled, cannot auto-create)",
-                    "noAutoRegister": true
-                });
+                // console.log("CONNECT USER LOADED FROM CACHE, APPS");
+                return callback(null, appHelper.platform(), appHelper, key);
             }
 
-            createUserForProvider(domain, providerId, providerUserId, token, refreshToken, userObject, function (err, gitanaUser) {
+            var platform = Gitana.PLATFORM_CACHE(key);
+            if (platform)
+            {
+                // console.log("CONNECT USER LOADED FROM CACHE, PLATFORM");
+                return callback(null, platform, null, key);
+            }
 
-                if (err) {
-                    return callback(err);
-                }
-
-                callback(null, gitanaUser);
+            impersonate(req, key, gitanaUser, function(err, platform, appHelper, key) {
+                callback(err, platform, appHelper, key);
             });
+        };
 
-        })
-    };
-
-    var _connectUser = function(key, gitanaUser, callback) {
-
-        var appHelper = Gitana.APPS[key];
-        if (appHelper)
-        {
-            // console.log("CONNECT USER LOADED FROM CACHE, APPS");
-            return callback(null, appHelper.platform(), appHelper, key);
-        }
-
-        var platform = Gitana.PLATFORM_CACHE(key);
-        if (platform)
-        {
-            // console.log("CONNECT USER LOADED FROM CACHE, PLATFORM");
-            return callback(null, platform, null, key);
-        }
-
-        impersonate(req, key, gitanaUser, function(err, platform, appHelper, key) {
-            callback(err, platform, appHelper, key);
-        });
-    };
-
-    _syncUser(strategy, key, domain, providerId, providerUserId, token, refreshToken, userObject, function(err, gitanaUser) {
-
-        if (err) {
-            return callback(err);
-        }
-
-        // no user found
-        if (!gitanaUser) {
-            return callback();
-        }
-
-        _connectUser(key, gitanaUser, function(err, platform, appHelper, key) {
+        _syncUser(strategy, key, domain, providerId, providerUserId, token, refreshToken, userObject, function(err, gitanaUser) {
 
             if (err) {
                 return callback(err);
             }
 
-            callback(err, gitanaUser, platform, appHelper, key, platform.getDriver());
+            // no user found
+            if (!gitanaUser) {
+                return callback();
+            }
+
+            _connectUser(key, gitanaUser, function(err, platform, appHelper, key) {
+
+                if (err) {
+                    return callback(err);
+                }
+
+                callback(err, gitanaUser, platform, appHelper, key, platform.getDriver());
+            });
         });
     });
-
 };
 
 var impersonate = exports.impersonate = function(req, key, targetUser, callback)

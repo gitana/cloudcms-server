@@ -754,6 +754,14 @@ exports = module.exports = function()
                     // if we were supposed to redirect (such as when a "loginUrl" was required for JWT), then we redirect here
                     if (result.adapterFailed)
                     {
+                        // if the adapter failed, then we consider whatever token present to be invalid
+                        // attempt to log out to tear down that state
+                        if (authenticator) {
+                            authenticator.logout(req, res, function() {
+                                // logged out
+                            });
+                        }
+
                         if (adapterFailureRedirect)
                         {
                             return res.redirect(adapterFailureRedirect);
@@ -821,7 +829,7 @@ exports = module.exports = function()
                         return filterDone({
                             "fail": true,
                             "message": "Filter for strategy configuration: " + strategyId + " must define an adapter"
-                        });
+                        }, authenticator);
 
                     }
                     if (!adapter)
@@ -829,7 +837,7 @@ exports = module.exports = function()
                         return filterDone({
                             "fail": true,
                             "message": "Cannot build adapter: " + adapterId
-                        });
+                        }, authenticator);
                     }
 
                     // REQUIRED FOR FILTER
@@ -839,7 +847,7 @@ exports = module.exports = function()
                         return filterDone({
                             "fail": true,
                             "message": "Strategy configuration: " + strategyId + " must define a provider"
-                        });
+                        }, authenticator);
 
                     }
                     if (!provider)
@@ -847,7 +855,7 @@ exports = module.exports = function()
                         return filterDone({
                             "fail": true,
                             "message": "Cannot build provider: " + providerId
-                        });
+                        }, authenticator);
                     }
 
                     // OPTIONAL FOR FILTER
@@ -857,7 +865,7 @@ exports = module.exports = function()
                         return filterDone({
                             "fail": true,
                             "message": "Cannot build authenticator: " + authenticatorId
-                        });
+                        }, authenticator);
                     }
 
 
@@ -883,7 +891,7 @@ exports = module.exports = function()
                                 evt.adapterFailed = true;
                             }
 
-                            return filterDone(evt);
+                            return filterDone(evt, authenticator);
                         }
 
                         if (!properties)
@@ -895,7 +903,7 @@ exports = module.exports = function()
                                     "skip": true,
                                     "noProperties": true,
                                     "message": "Adapter could not extract properties from request"
-                                });
+                                }, authenticator);
                             }
                             else
                             {
@@ -927,7 +935,8 @@ exports = module.exports = function()
                         // store provider ID on the properties
                         properties.provider_id = providerId;
 
-                        var syncPropertiesToReq = function (req, properties) {
+                        var syncPropertiesToReq = function (req, properties)
+                        {
                             req.identity_properties = {};
                             for (var k in properties)
                             {
@@ -1178,7 +1187,7 @@ exports = module.exports = function()
 
                                 if (result)
                                 {
-                                    return filterDone(result);
+                                    return filterDone(result, authenticator);
                                 }
 
                                 syncPropertiesToReq(req, properties);
@@ -1202,7 +1211,7 @@ exports = module.exports = function()
                                 return filterDone({
                                     "skip": true,
                                     "message": "A trusted profile could not be obtained from provider"
-                                });
+                                }, authenticator);
                             }
 
                             // store onto cache
@@ -1215,7 +1224,7 @@ exports = module.exports = function()
 
                                 if (result)
                                 {
-                                    return filterDone(result);
+                                    return filterDone(result, authenticator);
                                 }
 
                                 syncPropertiesToReq(req, properties);

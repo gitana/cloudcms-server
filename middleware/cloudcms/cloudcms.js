@@ -376,6 +376,12 @@ exports = module.exports = function()
                 }
             }
 
+            if (!req.repository) {
+                req.repository = function(callback){
+                    callback();
+                };
+            }
+
             next();
         });
     };
@@ -609,6 +615,12 @@ exports = module.exports = function()
                 });
             }
 
+            if (!req.branch) {
+                req.branch = function(callback){
+                    callback();
+                };
+            }
+
             next();
         });
     };
@@ -634,6 +646,12 @@ exports = module.exports = function()
                 req.principalsDomain = function(callback)
                 {
                     callback(null, Chain(domain));
+                };
+            }
+
+            if (!req.principalsDomain) {
+                req.principalsDomain = function(callback){
+                    callback();
                 };
             }
 
@@ -664,6 +682,12 @@ exports = module.exports = function()
                         callback(null, application);
                     };
                 }(application);
+            }
+
+            if (!req.application) {
+                req.application = function(callback){
+                    callback();
+                };
             }
 
             next();
@@ -712,6 +736,13 @@ exports = module.exports = function()
                         };
                     }(req, application);
                 }
+            }
+
+            // default
+            if (!req.applicationSettings) {
+                req.applicationSettings = function(callback) {
+                    callback();
+                };
             }
 
             next();
