@@ -425,6 +425,7 @@ exports = module.exports = function()
                                         req.session.registration_strategy_id = strategyId;
                                         req.session.registration_user_object = userObject;
                                         req.session.registration_user_identifier = userIdentifier;
+                                        req.session.registration_groups_array = groupsArray;
                                         req.session.registration_token = info.token;
                                         req.session.registration_refresh_token = info.refresh_token;
 
@@ -442,7 +443,7 @@ exports = module.exports = function()
 
                                     var userIdentifier = provider.userIdentifier(profile);
 
-                                    strategy.registrationHandler(req, res, next, strategyId, userIdentifier, userObject, info);
+                                    strategy.registrationHandler(req, res, next, strategyId, userIdentifier, userObject, groupsArray, info);
                                 });
                             }
 
@@ -1023,7 +1024,7 @@ exports = module.exports = function()
                                             }
 
                                             properties.user_object = userObject;
-                                            properties.assignments = groupsArray;
+                                            properties.groups_array = groupsArray;
 
                                             done();
                                         });
@@ -1062,7 +1063,7 @@ exports = module.exports = function()
                                             }
 
                                             properties.user_object = userObject;
-                                            properties.assignments = groupsArray;
+                                            properties.groups_array = groupsArray;
 
                                             done();
                                         });
@@ -1104,7 +1105,7 @@ exports = module.exports = function()
                                         }
 
                                         properties.user_object = userObject;
-                                        properties.assignments = groupsArray;
+                                        properties.groups_array = groupsArray;
 
                                         done();
                                     });
