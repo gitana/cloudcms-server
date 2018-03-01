@@ -88,14 +88,20 @@ exports = module.exports = function()
                     console.log("Backing up: gitana.json to: " + backupFilename);
                     rootStore.writeFile(backupFilename, JSON.stringify(gitanaConfig, null, "  "), function(err) {
                         rootStore.removeFile(originalFilename, function(err) {
-
-                            // remove from cache
-                            process.driverConfigCache.invalidate(req.virtualHost, function() {
-                                completionFn();
-                            });
-
+                            completionFn();
                         });
                     });
+
+                    // do these out of main loop
+                    if (req.virtualHost) {
+                        console.log("Remove driver cache for virtual host: " + req.virtualHost);
+                        process.driverConfigCache.invalidate(req.virtualHost, function() { });
+                    }
+
+                    if (req.domainHost) {
+                        console.log("Remove driver cache for domain host: " + req.domainHost);
+                        process.driverConfigCache.invalidate(req.domainHost, function() { });
+                    }
 
                     return;
                 }

@@ -1991,20 +1991,27 @@ exports = module.exports = function()
 
     r.invalidateSettings = function(host, ref, settingsKey, settingsScope, callback)
     {
-        var cacheKey = ref + ":" + settingsKey + ":" + settingsScope;
-
-        var badKeys = [];
-        for (var k in CACHED_APP_SETTINGS)
+        if (ref)
         {
-            if (k.startsWith(cacheKey))
+            // convert settings ref to application ref
+            var applicationRef = ref.substring(0, ref.lastIndexOf("/"));
+            applicationRef = "application://" + applicationRef.substring(applicationRef.indexOf("://") + 3);
+
+            var cacheKey = applicationRef + ":" + settingsKey + ":" + settingsScope;
+
+            var badKeys = [];
+            for (var k in CACHED_APP_SETTINGS)
             {
-                badKeys.push(k);
+                if (k.startsWith(cacheKey))
+                {
+                    badKeys.push(k);
+                }
             }
-        }
 
-        for (var i = 0; i < badKeys.length; i++)
-        {
-            delete CACHED_APP_SETTINGS[badKeys[i]];
+            for (var i = 0; i < badKeys.length; i++)
+            {
+                delete CACHED_APP_SETTINGS[badKeys[i]];
+            }
         }
 
         callback();
