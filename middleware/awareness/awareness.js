@@ -71,6 +71,13 @@ exports = module.exports = function()
     var handleRegister = function(req, res, user, object, action, seconds, callback)
     {
         var ttl = 10;
+
+        if (!user.id || !object.id || !action.id) {
+            var msg = "user, object and action each should have an id."
+            logger.error("register error. " + msg);
+            return callback(msg);
+        }
+
         // construct a unique key
         var key = user.id + ":" + action.id + ":" + object.id;
         var value = {
@@ -115,19 +122,25 @@ exports = module.exports = function()
                 return callback(err);
             }
 
+            var values = [];
             // get values of the matched keys
-            replies.forEach(function(reply) {
-                logger.info("reply = " + JSON.stringify(reply));
+            replies.forEach(function(key) {
+                logger.info("key = " + JSON.stringify(key));
+
+                client.get(key, function(err, value) {
+                    if (err) {
+                        logger.error("discover error. Cannot find value for key: " + key);
+                    }
+                    else {
+                        logger.info("value for key " + key + " = " + value);
+                        values.push(JSON.stringify(value));
+                    }
+                });
             });
 
-            callback(null, replies);
+            callback(null, values);
         });
     };
 
     return r;
 }();
-
-
-
-
-
