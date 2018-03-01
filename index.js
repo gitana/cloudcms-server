@@ -202,6 +202,7 @@ exports = module.exports = function()
     var virtualFiles = require("./middleware/virtual-files/virtual-files");
     var wcm = require("./middleware/wcm/wcm");
     var welcome = require("./middleware/welcome/welcome");
+    var awareness = require("./middleware/awareness/awareness");
     var userAgent = require('express-useragent');
 
     // services
@@ -493,6 +494,9 @@ exports = module.exports = function()
 
         // handles calls to form controllers
         app.use(form.formHandler());
+
+        // awareness
+        app.use(awareness.awarenessHandler());
 
         // handles runtime status calls
         app.use(runtime.handler());
