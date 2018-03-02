@@ -1,6 +1,7 @@
 var redis = require("redis");
 var util = require("../../util/util");
 var logFactory = require("../../util/logger");
+var async = require("async");
 
 /**
  * Awareness middleware.
@@ -9,7 +10,32 @@ var logFactory = require("../../util/logger");
  */
 exports = module.exports = function()
 {
-    var client = redis.createClient();
+    var _client = null;
+    var getClient = function(){
+        if (_client) {
+            return _client;
+        }
+
+        var redisPort = process.configuration.awareness.redisPort; 
+        if (typeof(redisPort) === "undefined" || !redisPort)
+        {
+            redisPort = process.env.CLOUDCMS_CACHE_REDIS_PORT;
+        }
+
+        var redisHost = process.configuration.awareness.redisHost;
+        if (typeof(redisHost) === "undefined" || !redisHost)
+        {
+            redisHost = process.env.CLOUDCMS_CACHE_REDIS_ENDPOINT;
+        }
+
+        var redisOptions = {};
+
+        //redis.debug_mode = true;
+
+        _client = redis.createClient(redisPort, redisHost, redisOptions);
+        return _client;
+    };
+
     var logger = logFactory("REDIS");
 
     var r = {};
@@ -70,6 +96,7 @@ exports = module.exports = function()
      */
     var handleRegister = function(req, res, user, object, action, seconds, callback)
     {
+        var client = getClient();
         var ttl = 10;
 
         if (!user.id || !object.id || !action.id) {
@@ -113,6 +140,7 @@ exports = module.exports = function()
      */
     var handleDiscover = function(req, res, targetId, callback)
     {
+        var client = getClient();
         var pattern = "*" + targetId + "*";
 
         // get keys with targetId
@@ -122,23 +150,36 @@ exports = module.exports = function()
                 return callback(err);
             }
 
+            // solution1. redis get multiple keys... build array of keys and make a single call - callback in the cb
+            // solution2. use async lib
             var values = [];
+            var fns = [];
+
             // get values of the matched keys
             replies.forEach(function(key) {
                 logger.info("key = " + JSON.stringify(key));
 
-                client.get(key, function(err, value) {
-                    if (err) {
-                        logger.error("discover error. Cannot find value for key: " + key);
-                    }
-                    else {
-                        logger.info("value for key " + key + " = " + value);
-                        values.push(JSON.stringify(value));
-                    }
-                });
+                var fn = function(key, client, values) {
+                    return function(done) {
+                        client.get(key, function(err, value) {
+                            if (err) {
+                                logger.error("discover error. Cannot find value for key: " + key);
+                            }
+                            else {
+                                logger.info("value for key " + key + " = " + value);
+                                values.push(JSON.stringify(value));
+                            }
+                            done();
+                        });
+                    };
+                }(key, client, values);
+                fns.push(fn);
             });
 
-            callback(null, values);
+            async.series(fns, function(err){
+                callback(err, values);
+            });
+
         });
     };
 

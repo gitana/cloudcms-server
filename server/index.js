@@ -289,6 +289,11 @@ var SETTINGS = {
         //"type": "file",
         //"ttl": -1,
         //"reapInterval": -1
+    },
+    "awareness": {
+        "enabled": false,
+        "redisHost": "localhost",
+        "redisPort": 6379
     }
 };
 
