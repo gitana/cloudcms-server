@@ -62,18 +62,20 @@ exports = module.exports = function()
                     var action = info.action;
                     var seconds = info.seconds;
 
-                    return handleRegister(req, res, user, object, action, seconds, function(err) {
+                    return handleRegister(req, res, user, object, action, seconds, function(err, reply) {
+                        // make sure reply is json
+                        res.json(reply);
                         res.status(200);
                         res.end();
                     });
                 }
                 if (req.path.indexOf("/_awareness/discover") === 0)
                 {
-                    var info = req.body;
+                    var targetId = req.body.id;
 
-                    var targetId = info.key;
-
-                    return handleDiscover(req, res, targetId, function(err) {
+                    return handleDiscover(req, res, targetId, function(err, reply) {
+                        // make sure reply is json
+                        res.json(reply);
                         res.status(200);
                         res.end();
                     });
@@ -107,23 +109,23 @@ exports = module.exports = function()
 
         // construct a unique key
         var key = user.id + ":" + action.id + ":" + object.id;
-        var value = {
+        var value = JSON.stringify({
             "user": user,
             "object": object,
             "action": action
-        };
+        });
 
         if (typeof(seconds) == "undefined" || seconds <= -1)
         {
             seconds = ttl;
         }
 
-        client.set([key, JSON.stringify(value), "EX", seconds], function(err, reply) {
+        client.set([key, value, "EX", seconds], function(err, reply) {
             if (err) {
-                logger.error("register error. key: " + key + " value: " + JSON.stringify(value) + ". error:" + err);
+                logger.error("register error. key: " + key + " value: " + value + ". error:" + err);
                 return callback(err);
             }
-            logger.info("reply = " + reply);
+            logger.info("reply = " + reply + ". value = " + value);
                 
             callback(null, reply);
         });
@@ -157,7 +159,7 @@ exports = module.exports = function()
 
             // get values of the matched keys
             replies.forEach(function(key) {
-                logger.info("key = " + JSON.stringify(key));
+                logger.info("key = " + key);
 
                 var fn = function(key, client, values) {
                     return function(done) {
@@ -166,8 +168,8 @@ exports = module.exports = function()
                                 logger.error("discover error. Cannot find value for key: " + key);
                             }
                             else {
+                                values.push(JSON.parse(value));
                                 logger.info("value for key " + key + " = " + value);
-                                values.push(JSON.stringify(value));
                             }
                             done();
                         });
