@@ -292,8 +292,8 @@ var SETTINGS = {
     },
     "awareness": {
         "enabled": false,
-        "redisHost": "localhost",
-        "redisPort": 6379
+        "type": "memory",
+        "config": {}
     }
 };
 
