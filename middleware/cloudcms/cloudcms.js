@@ -700,7 +700,7 @@ exports = module.exports = function()
     {
         return util.createInterceptor("applicationSettings", function(req, res, next, stores, cache, configuration) {
 
-            if (req.gitana && req.gitana.datastore)
+            if (req.gitana && req.gitana.application)
             {
                 var application = req.gitana.application();
                 if (application)
