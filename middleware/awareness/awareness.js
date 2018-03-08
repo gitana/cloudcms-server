@@ -55,7 +55,7 @@ exports = module.exports = function()
                     var seconds = info.seconds;
 
                     return register(user, object, action, seconds, function(err, reply) {
-                        // make sure reply is json
+                        // make sure reply is json                        console.log("\n\n\nMessage from cloudcms-server\nreply: " + reply);
                         res.json(reply);
                         res.status(200);
                         res.end();

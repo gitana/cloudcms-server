@@ -42,7 +42,7 @@ exports = module.exports = function()
 
         valueMap[key] = value;
 
-        callback();
+        callback(null, JSON.stringify(value));
     };
 
     r.discover = function(regexString, callback)
