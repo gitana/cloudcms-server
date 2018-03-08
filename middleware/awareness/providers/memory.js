@@ -45,14 +45,15 @@ exports = module.exports = function()
         callback();
     };
 
-    r.discover = function(targetId, callback)
+    r.discover = function(regexString, callback)
     {
-        // find keys that contain substring targetId
+        var regex = new RegExp(regexString);
+        // find keys that match the regex
         var matchedKeys = [];
 
         for (var key in valueMap)
         {
-            if (key.indexOf(targetId) > -1)
+            if (key.match(regex))
             {
                 matchedKeys.push(key);
             }

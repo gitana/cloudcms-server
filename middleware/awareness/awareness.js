@@ -63,9 +63,11 @@ exports = module.exports = function()
                 }
                 if (req.path.indexOf("/_awareness/discover") === 0)
                 {
-                    var targetId = req.body.id;
+                    // make sure regexString is a string
+                    var reqObj = req.body;                 
+                    var regexString = reqObj.regex;
 
-                    return discover(targetId, function(err, reply) {
+                    return discover(regexString, function(err, reply) {
                         // make sure reply is json
                         res.json(reply);
                         res.status(200);
@@ -86,9 +88,9 @@ exports = module.exports = function()
         });
     };
 
-    var discover = r.discover = function(targetId, callback)
-    {
-        provider.discover(targetId, function(err, value) {
+    var discover = r.discover = function(regexString, callback)
+    {        
+        provider.discover(regexString, function(err, value) {
             callback(err, value);
         });
     };

@@ -70,12 +70,17 @@ exports = module.exports = function()
         });
     };
 
-    r.discover = function(targetId, callback)
+    r.discover = function(regexString, callback)
     {
-        var pattern = "*" + targetId + "*";
-
-        // get keys with targetId
-        client.keys(pattern, function(err, replies) {
+        // construct pattern from regexString for redis
+        // regexString looks like "[0-9]*\\:actionId\\:objectId"
+        var pattern = "*";
+        var cleanString = regexString.replace(/\\/g, '');   // remove all backslashes 
+        var indexOfFirstColon = cleanString.indexOf(":");   
+        pattern += cleanString.substring(indexOfFirstColon);
+        
+        // get matchedKeys
+        client.keys(pattern, function(err, matchedKeys) {
             if (err) {
                 logger.error("discover error. key: " + key + ". error:" + err);
                 return callback(err);
@@ -87,7 +92,7 @@ exports = module.exports = function()
             var fns = [];
 
             // get values of the matched keys
-            replies.forEach(function(key) {
+            matchedKeys.forEach(function(key) {
                 logger.info("key = " + key);
 
                 var fn = function(key, client, values) {
