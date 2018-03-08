@@ -97,7 +97,7 @@ module.exports = function(configStore)
                         return function(done) {
                             var childPath = path.join(dirPath, filename);
 
-                            if (filename.indexOf(".json") > -1)
+                            if (filename.endsWith(".json"))
                             {
                                 loadConfigObject(childPath, function(err, config) {
 
@@ -205,7 +205,7 @@ module.exports = function(configStore)
                         {
                             var childPath = path.join(dirPath, filename);
 
-                            if (filename.indexOf(".json") > -1)
+                            if (filename.endsWith(".json"))
                             {
                                 loadConfigObject(childPath, function(err, config) {
                                     if (config) {
