@@ -1,4 +1,3 @@
-var memored = require("../../temp/memored");
 var clusterlock = require("../../temp/clusterlock");
 
 // use sticky-session library
@@ -25,9 +24,6 @@ module.exports = function(options) {
         if (!sticky.listen(server, server._listenPort))
         {
             // master code
-
-            // start up shared memory
-            memored.setup({purgeInterval: 500});
 
             // start up cluster locks
             clusterlock.setup();
