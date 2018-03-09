@@ -28,8 +28,7 @@ exports = module.exports = function()
         expirationTimeMap[key] = new Date().getTime() + (seconds * 1000);
 
         if (!user.id || !object.id || !action.id) {
-            var msg = "user, object and action each should have an id."
-            logger.error("register error. " + msg);
+            var msg = "Each of user, object and action should have an id."
             return callback(msg);
         }
 
@@ -45,25 +44,30 @@ exports = module.exports = function()
         callback(null, JSON.stringify(value));
     };
 
-    r.discover = function(regexString, callback)
+    r.discover = function(reqObj, callback)
     {
-        var regex = new RegExp(regexString);
-        // find keys that match the regex
-        var matchedKeys = [];
-
-        for (var key in valueMap)
-        {
-            if (key.match(regex))
-            {
-                matchedKeys.push(key);
-            }
-        }
-
-        // read value for all matched keys from memory
         var values = [];
-        matchedKeys.forEach(function(key) {
-            values.push(valueMap[key]);
-        });
+        
+        if (reqObj.regex) 
+        {
+            var regexString = reqObj.regex;
+            var regex = new RegExp(regexString);
+    
+            // find keys that match the regex
+            var matchedKeys = [];
+            for (var key in valueMap)
+            {
+                if (key.match(regex))
+                {
+                    matchedKeys.push(key);
+                }
+            }
+    
+            // read values for all matched keys from memory
+            matchedKeys.forEach(function(key) {
+                values.push(valueMap[key]);
+            });    
+        }
 
         callback(null, values);
     };

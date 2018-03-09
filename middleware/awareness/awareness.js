@@ -27,7 +27,6 @@ exports = module.exports = function()
         provider = require("./providers/" + type);
         logger.info("Provider is required from: ./providers/" + type);
         provider.init(config, function(err){
-            // TODO: anything?
             callback(err);
         });
     };
@@ -45,17 +44,14 @@ exports = module.exports = function()
             {
                 if (req.path.indexOf("/_awareness/register") === 0)
                 {
-                    // get info from req.body which is a json.. user, object, action
                     var info = req.body;
 
-                    // 3 objects; each has an id
                     var user = info.user;
                     var object = info.object;
                     var action = info.action;
                     var seconds = info.seconds;
 
                     return register(user, object, action, seconds, function(err, reply) {
-                        // make sure reply is json                        console.log("\n\n\nMessage from cloudcms-server\nreply: " + reply);
                         res.json(reply);
                         res.status(200);
                         res.end();
@@ -63,12 +59,9 @@ exports = module.exports = function()
                 }
                 if (req.path.indexOf("/_awareness/discover") === 0)
                 {
-                    // make sure regexString is a string
                     var reqObj = req.body;                 
-                    var regexString = reqObj.regex;
 
-                    return discover(regexString, function(err, reply) {
-                        // make sure reply is json
+                    return discover(reqObj, function(err, reply) {
                         res.json(reply);
                         res.status(200);
                         res.end();
@@ -88,9 +81,9 @@ exports = module.exports = function()
         });
     };
 
-    var discover = r.discover = function(regexString, callback)
+    var discover = r.discover = function(reqObj, callback)
     {        
-        provider.discover(regexString, function(err, value) {
+        provider.discover(reqObj, function(err, value) {
             callback(err, value);
         });
     };
