@@ -1,7 +1,6 @@
 var cluster = require("cluster");
 var async = require("async");
 
-var memored = require("../../temp/memored");
 var clusterlock = require("../../temp/clusterlock");
 
 var workers = [];
@@ -85,9 +84,6 @@ module.exports = function(options)
         }
 
         async.parallel(fns, function (err) {
-
-            // start up shared memory
-            memored.setup({purgeInterval: 500});
 
             // start up cluster locks
             clusterlock.setup();
