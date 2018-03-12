@@ -13,6 +13,8 @@ var fs = require("fs");
  */
 exports = module.exports = function()
 {
+    var SENTINEL_NOT_FOUND_VALUE = "null";
+
     var r = {};
 
     var resolveConfig = r.resolveConfig = function(holder, rootStore, callback)
@@ -48,7 +50,7 @@ exports = module.exports = function()
 
             if (cachedValue)
             {
-                if (cachedValue == "null")
+                if (cachedValue === SENTINEL_NOT_FOUND_VALUE)
                 {
                     // null means there verifiably isn't anything on disk (null used as sentinel marker)
                     completionFunction();
@@ -116,7 +118,7 @@ exports = module.exports = function()
                     else
                     {
                         // mark with sentinel
-                        process.driverConfigCache.write(holder.virtualHost, "null", function(err) {
+                        process.driverConfigCache.write(holder.virtualHost, SENTINEL_NOT_FOUND_VALUE, 60, function(err) {
                             completionFunction();
                         });
                     }

@@ -389,7 +389,7 @@ exports = module.exports = function()
                         else
                         {
                             // mark with sentinel
-                            process.driverConfigCache.write(req.virtualHost, SENTINEL_NOT_FOUND_VALUE, function (err)
+                            process.driverConfigCache.write(req.virtualHost, SENTINEL_NOT_FOUND_VALUE, 60, function (err)
                             {
                                 completionFunction();
                             });

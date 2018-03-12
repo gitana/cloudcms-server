@@ -57,7 +57,7 @@ exports = module.exports = function()
             // global caches
             process.deploymentDescriptorCache = createNamespacedCache.call(r, "descriptors");
             process.driverConfigCache = createNamespacedCache.call(r, "driverconfigs", {
-                "seconds": 120 * 60 // 2 hours (120 minutes * 60 seconds / minute)
+                "seconds": 5 * 60 // 5 minutes (5 minutes * (60 seconds / minute) = 300 seconds)
             });
             process.subKeyMapCache = createNamespacedCache.call(r, "keyMap");
 
