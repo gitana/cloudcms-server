@@ -10,6 +10,8 @@ class JWTAdapter extends AbstractAdapter
 
     identify(req, callback)
     {
+        var self = this;
+
         // call into base method to extract from raw request
         super.identify(req, function(err, properties) {
 
@@ -26,17 +28,17 @@ class JWTAdapter extends AbstractAdapter
 
             // if we have a secret configured, then we can "trust" the token
             var object = null;
-            if (config.secret)
+            if (self.config.secret)
             {
                 var options = {};
-                if (config.algorithm) {
+                if (self.config.algorithm) {
                     options.algorithm = [config.algorithm];
                 }
-                if (config.issuer) {
+                if (self.config.issuer) {
                     options.issuer = config.issuer;
                 }
 
-                object = jwt.verify(token, config.secret, options);
+                object = jwt.verify(token, self.config.secret, options);
                 properties.trusted = true;
             }
             else
@@ -46,7 +48,7 @@ class JWTAdapter extends AbstractAdapter
 
             // allow for the profile field to be picked off the object
             // otherwise, we simply pass the entire JWT object forward
-            var profileField = config.profile_field;
+            var profileField = self.config.profile_field;
             if (!profileField) {
                 profileField = "profile";
             }
@@ -64,7 +66,7 @@ class JWTAdapter extends AbstractAdapter
                 properties.profile = profile;
 
                 // pick off user id
-                var user_identifier_field = config.field;
+                var user_identifier_field = self.config.field;
                 if (!user_identifier_field)
                 {
                     user_identifier_field = "preferred_username";

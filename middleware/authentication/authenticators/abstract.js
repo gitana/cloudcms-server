@@ -3,7 +3,7 @@ class AbstractAuthenticator
     constructor(req, config)
     {
         this.req = req;
-        this.config = config;
+        this.config = config || {};
     }
 
     /**

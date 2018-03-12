@@ -2,7 +2,7 @@ class AbstractProvider
 {
     constructor(req, config)
     {
-        this.config = config;
+        this.config = config || {};
 
         if (!config.properties) {
             config.properties = {};

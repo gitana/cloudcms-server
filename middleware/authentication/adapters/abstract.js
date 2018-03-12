@@ -2,7 +2,7 @@ class AbstractAdapter
 {
     constructor(req, config)
     {
-        this.config = config;
+        this.config = config || {};
     }
 
     /**
@@ -34,45 +34,44 @@ class AbstractAdapter
      * @param callback
      */
     identify(req, callback) {
-        var self = this;
 
         var value = null;
 
-        if (req.cookies && config.cookie)
+        if (req.cookies && this.config.cookie)
         {
-            value = req.cookies[config.cookie];
+            value = req.cookies[this.config.cookie];
             if (!value)
             {
-                value = req.cookies[config.cookie.toLowerCase()];
+                value = req.cookies[this.config.cookie.toLowerCase()];
             }
         }
 
-        if (req.headers && config.header)
+        if (req.headers && this.config.header)
         {
-            value = req.headers[config.header];
+            value = req.headers[this.config.header];
             if (!value)
             {
-                value = req.headers[config.header.toLowerCase()];
+                value = req.headers[this.config.header.toLowerCase()];
             }
         }
 
-        if (req.query && config.param)
+        if (req.query && this.config.param)
         {
-            value = req.query[config.param];
+            value = req.query[this.config.param];
             if (!value)
             {
-                value = req.query[config.param.toLowerCase()];
+                value = req.query[this.config.param.toLowerCase()];
             }
         }
 
         if (!value)
         {
-            return null;
+            return callback();
         }
 
         var properties = {};
         properties.token = value;
-        properties.trusted = config.trusted ? true: false;
+        properties.trusted = this.config.trusted ? true: false;
 
         callback(null, properties);
     }
