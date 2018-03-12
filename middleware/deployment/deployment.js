@@ -19,10 +19,9 @@ exports = module.exports = function()
     {
         if (!descriptor.host)
         {
-            callback({
+            return callback({
                 "message": "Missing host in descriptor"
             });
-            return;
         }
 
         callback(null, descriptor.host);
@@ -33,8 +32,7 @@ exports = module.exports = function()
         // if the "host" field is already present on the descriptor, then we reuse that host
         if (descriptor.host)
         {
-            callback(null, descriptor.host);
-            return;
+            return callback(null, descriptor.host);
         }
 
         // otherwise, we generate a host
@@ -47,8 +45,7 @@ exports = module.exports = function()
     {
         if (!descriptor.deployment.clientKey)
         {
-            callback();
-            return;
+            return callback();
         }
 
         var baseURL = "https://api.cloudcms.com";
@@ -90,8 +87,7 @@ exports = module.exports = function()
                 rootStore.deleteFile("gitana.json", function(err) {
 
                     if (err) {
-                        callback(err);
-                        return;
+                        return callback(err);
                     }
 
                     writeIt();
@@ -153,11 +149,22 @@ exports = module.exports = function()
 
     var doDeploy = function(req, descriptor, callback)
     {
+        if (!descriptor) {
+            return callback({
+                "message": "Missing descriptor"
+            });
+        }
+
+        if (!descriptor.application) {
+            return callback({
+                "message": "Missing descriptor application"
+            });
+        }
+
         generateHost(descriptor, function(err, host) {
 
             if (err) {
-                callback(err);
-                return;
+                return callback(err);
             }
 
             // construct a "root" store for this host
@@ -254,8 +261,7 @@ exports = module.exports = function()
         parseHost(descriptor, function(err, host) {
 
             if (err) {
-                callback(err);
-                return;
+                return callback(err);
             }
 
             // construct a "root" store for this host
@@ -340,22 +346,17 @@ exports = module.exports = function()
                     else {
                         rootStore.readFile("descriptor.json", function (err, data) {
 
-                            console.log("H3: " + err);
-                            console.log("H4: " + data);
-
                             if (err) {
-                                callback(err);
-                                return;
+                                return callback(err);
                             }
 
                             data = JSON.parse(data);
 
                             // is it already started?
                             if (data.active) {
-                                callback({
+                                return callback({
                                     "message": "The application is already started"
                                 });
-                                return;
                             }
 
                             data.active = true;
@@ -378,8 +379,7 @@ exports = module.exports = function()
         parseHost(descriptor, function(err, host) {
 
             if (err) {
-                callback(err);
-                return;
+                return callback(err);
             }
 
             // construct a "root" store for this host
@@ -402,18 +402,16 @@ exports = module.exports = function()
                         rootStore.readFile("descriptor.json", function (err, data) {
 
                             if (err) {
-                                callback(err);
-                                return;
+                                return callback(err);
                             }
 
                             data = JSON.parse(data);
 
                             // is it already stopped?
                             if (!data.active) {
-                                callback({
+                                return callback({
                                     "message": "The application is already stopped"
                                 });
-                                return;
                             }
 
                             delete data.active;
@@ -491,11 +489,9 @@ exports = module.exports = function()
     {
         if (!host)
         {
-            callback({
+            return callback({
                 "message": "Missing or empty host"
             });
-
-            return;
         }
 
         // construct a "root" store for this host
@@ -555,7 +551,7 @@ exports = module.exports = function()
         return util.createHandler("deployment", function(req, res, next, stores, cache, configuration) {
 
             // if virtual hosts aren't enabled, then we don't allow for deployment operations
-            if (!configuration || !configuration.virtualHost || !configuration.virtualHost.enabled)
+            if (!process.configuration || !process.configuration.virtualHost || !process.configuration.virtualHost.enabled)
             {
                 return next();
             }

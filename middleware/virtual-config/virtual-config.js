@@ -53,19 +53,19 @@ exports = module.exports = function()
 
                 if (err)
                 {
-                    //console.log("Unable to find virtual driver gitana instance for host: " + host);
-                    //console.log(JSON.stringify(err, null, "   "));
                     return callback(err);
+                }
+
+                // no appkey, cannot load
+                if (!configuration.virtualDriver.appKey)
+                {
+                    return callback();
                 }
 
                 // Basic Authentication request back to server
                 var qs = {};
                 qs.h = host;
-
-                if (configuration.virtualDriver && configuration.virtualDriver.appKey)
-                {
-                    qs.a = configuration.virtualDriver.appKey;
-                }
+                qs.a = configuration.virtualDriver.appKey;
 
                 if (configuration.virtualDriver && configuration.virtualDriver.webhost)
                 {
