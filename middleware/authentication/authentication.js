@@ -745,6 +745,10 @@ exports = module.exports = function()
                         {
                             return loginHandler(req, res, next);
                         }
+                        else if (failureRedirect)
+                        {
+                            return res.redirect(failureRedirect);
+                        }
                         else
                         {
                             // hand back to Node Express
