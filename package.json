@@ -78,7 +78,7 @@
     "serve-favicon": "^2.3.0",
     "session-file-store": "^0.2.1",
     "sha1": "^1.1.1",
-    "socket.io": "^1.4.8",
+    "socket.io": "^2.0.3",
     "ssl-root-cas": "^1.2.2",
     "sticky-session": "^1.1.2",
     "stomp-client": "^0.9.0",
