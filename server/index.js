@@ -305,6 +305,7 @@ SETTINGS.socketTransports = [
     'xhr-polling',
     'jsonp-polling',
     'polling'
+    // websocket
 ];
 
 var exports = module.exports;
@@ -1064,19 +1065,23 @@ var startSlave = function(config, afterStartFn)
                                         // APPLY CUSTOM SOCKET.IO CONFIG
                                         runFunctions(config.socketFunctions, [socket], function (err) {
 
-                                            // INSIGHT SERVER
-                                            if (config.insight && config.insight.enabled)
-                                            {
-                                                console.log("Init Insight to Socket");
-
-                                                require("../insight/insight").init(socket, function () {
-                                                    next();
-                                                });
-                                            }
-                                            else
-                                            {
+                                            require("../middleware/awareness/awareness").init(function() {
                                                 next();
-                                            }
+                                            });
+
+                                            // INSIGHT SERVER
+                                            // if (config.insight && config.insight.enabled)
+                                            // {
+                                            //     console.log("Init Insight to Socket");
+
+                                            //     require("../insight/insight").init(socket, function () {
+                                            //         next();
+                                            //     });
+                                            // }
+                                            // else
+                                            // {
+                                            //     next();
+                                            // }
                                         });
 
                                     });

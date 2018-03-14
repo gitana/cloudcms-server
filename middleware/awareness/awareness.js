@@ -27,50 +27,8 @@ exports = module.exports = function()
         provider = require("./providers/" + type);
         logger.info("Provider is required from: ./providers/" + type);
         provider.init(config, function(err){
+            socketInit(process.IO)
             callback(err);
-        });
-    };
-
-    /**
-     * Provides handlers for awareness operations.
-     *
-     * @return {Function}
-     */
-    r.awarenessHandler = function()
-    {
-        return util.createHandler("awareness", function(req, res, next, stores, cache, configuration) {
-
-            if (req.method.toLowerCase() === "post")
-            {
-                if (req.path.indexOf("/_awareness/register") === 0)
-                {
-                    var info = req.body;
-
-                    var user = info.user;
-                    var object = info.object;
-                    var action = info.action;
-                    var seconds = info.seconds;
-
-                    return register(user, object, action, seconds, function(err, reply) {
-                        res.json(reply);
-                        res.status(200);
-                        res.end();
-                    });
-                }
-                if (req.path.indexOf("/_awareness/discover") === 0)
-                {
-                    var reqObj = req.body;                 
-
-                    return discover(reqObj, function(err, reply) {
-                        res.json(reply);
-                        res.status(200);
-                        res.end();
-                    });
-                }
-            }
-
-            next();
-
         });
     };
 
@@ -85,6 +43,34 @@ exports = module.exports = function()
     {        
         provider.discover(reqObj, function(err, value) {
             callback(err, value);
+        });
+    };
+
+    var socketInit = function(io)
+    {
+        io.on("connection", function(socket) {
+
+            socket.on("register", function(data, callback) {
+                var user = data.user;
+                var object = data.object;
+                var action = data.action;
+                var seconds = data.seconds;
+        
+                register(user, object, action, seconds, function(err, value) {
+                    callback(value);
+                });
+            });
+
+            socket.on("discover", function(data, callback) {
+                var reqObj = {
+                    "regex": data
+                };
+    
+                discover(reqObj, function(err, value) {
+                    callback(value);
+                });
+            });
+
         });
     };
 

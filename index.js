@@ -254,8 +254,7 @@ exports = module.exports = function()
             broadcast.start,
             storeService.init,
             notifications.start,
-            cache.init,
-            awareness.init
+            cache.init
         ];
         async.series(fns, function(err) {
             callback(err);
@@ -495,9 +494,6 @@ exports = module.exports = function()
 
         // handles calls to form controllers
         app.use(form.formHandler());
-
-        // awareness
-        app.use(awareness.awarenessHandler());
 
         // handles runtime status calls
         app.use(runtime.handler());
