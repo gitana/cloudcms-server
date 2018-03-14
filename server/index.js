@@ -304,8 +304,8 @@ process.env.PORT = process.env.PORT || 2999;
 SETTINGS.socketTransports = [
     'xhr-polling',
     'jsonp-polling',
-    'polling'
-    // websocket
+    'polling',
+    'websocket'
 ];
 
 var exports = module.exports;
