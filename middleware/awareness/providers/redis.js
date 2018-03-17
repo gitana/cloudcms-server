@@ -38,7 +38,7 @@ exports = module.exports = function()
     };
 
     r.register = function(user, object, action, seconds, callback) {
-        var TTL = 10;
+        var TTL = 5;
 
         if (!user.id || !object.id || !action.id) {
             var msg = "user, object and action each should have an id."

@@ -50,14 +50,23 @@ exports = module.exports = function()
     {
         io.on("connection", function(socket) {
 
-            socket.on("register", function(data, callback) {
+            socket.on("room", function(info, callback) {
+                var room = info.roomId;
+                var data = info.clientInfo;
+
+                // let you in
+                socket.join(room);
+
+                // tell everyone in room about you
+                io.sockets.in(room).emit("newguy", data);
+
+                // register you
                 var user = data.user;
                 var object = data.object;
                 var action = data.action;
                 var seconds = data.seconds;
-        
                 register(user, object, action, seconds, function(err, value) {
-                    callback(value);
+                    callback("You (socket id: " + socket.id + ") joined room " + room + " and registered.");
                 });
             });
 
@@ -69,6 +78,11 @@ exports = module.exports = function()
                 discover(reqObj, function(err, value) {
                     callback(value);
                 });
+            });
+
+            /*************** TESTING ***************/
+            socket.on('disconnect', function() {
+                console.log('socket ' + socket.id + ' Got disconnect!');
             });
 
         });
