@@ -44,14 +44,19 @@ exports = module.exports = function()
 
             var uri = req.path;
 
-            if (uri.indexOf("/_lib/") !== 0)
+            if (uri.indexOf("/_lib/") === 0 || uri.indexOf("/_lib-") === 0)
             {
+                // ok, it's a library file
+            }
+            else
+            {
+                // it's not a library file
                 return next();
             }
 
             // otherwise, it's a library file
-
-            uri = uri.substring(5);
+            var x1 = uri.indexOf("/", 1);
+            uri = uri.substring(x1);
 
             var doGitanaInject = false;
             var dirPath = "../../web";
