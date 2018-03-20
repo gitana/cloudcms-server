@@ -9,8 +9,9 @@ var logFactory = require("../../util/logger");
 exports = module.exports = function()
 {
     var logger = logFactory("AWARENESS");
-
     var provider = null;
+    var REAP_FREQUENCY = 3000;  // reaps every 3 seconds
+    var LIFE_TIME = 10000;    // 10 seconds -> old enough to reap
 
     var r = {};
     var init = r.init = function(callback) {
@@ -26,23 +27,17 @@ exports = module.exports = function()
 
         provider = require("./providers/" + type);
         logger.info("Provider is required from: ./providers/" + type);
+
         provider.init(config, function(err){
-            socketInit(process.IO)
-            callback(err);
-        });
-    };
+            if (err) {
+                return callback(err);
+            }
 
-    var register = r.register = function(user, object, action, seconds, callback)
-    {
-        provider.register(user, object, action, seconds, function(err, value) {
-            callback(err, value);
-        });
-    };
+            socketInit(process.IO);
 
-    var discover = r.discover = function(reqObj, callback)
-    {        
-        provider.discover(reqObj, function(err, value) {
-            callback(err, value);
+            reaperInit(process.IO, REAP_FREQUENCY, function(err) {
+                callback(err);
+            });
         });
     };
 
@@ -50,14 +45,36 @@ exports = module.exports = function()
     {
         io.on("connection", function(socket) {
 
-            socket.on("register", function(data, callback) {
+            socket.on("room", function(info, callback) {
+                var room = info.roomId;
+                var data = info.clientInfo;
+
                 var user = data.user;
                 var object = data.object;
                 var action = data.action;
-                var seconds = data.seconds;
-        
-                register(user, object, action, seconds, function(err, value) {
-                    callback(value);
+
+                // check if you are new
+                var key = user.id + ":" + action.id + ":" + object.id;
+
+                checkNew(key, function(isNew) {
+
+                    if (isNew) {
+
+                        // register you
+                        register(user, object, action, function(err, value) {
+
+                            // let you in
+                            socket.join(room);
+                            // tell everyone in room about new guy
+                            io.sockets.in(room).emit("updated", data);
+
+                            callback("You (socket id: " + socket.id + ") joined room " + room + " and registered.");
+                        });
+
+                    }
+                    else {
+                        callback("key: " + key + " already registered.");
+                    }
                 });
             });
 
@@ -71,6 +88,77 @@ exports = module.exports = function()
                 });
             });
 
+        });
+    };
+
+    /**
+     * Initialize a reaper that reaps old registrations every 3 seconds.
+     * 
+     * @param {*} callback 
+     */
+    var reaperInit = function(io, frequency, callback) {
+        var reap = function() {
+
+            // ask provider for old guys and remove from storage, return rooms that are updated
+            checkOld(LIFE_TIME, function(rooms) {
+
+                if (rooms && rooms.size > 0) {
+                    logger.info("\nFound old guys in " + rooms.size + " rooms");
+
+                    rooms.forEach(function(roomId) {
+
+                        var roomData = {
+                            "action": {
+                                "id": roomId.split(":")[0]
+                            },
+                            "object": {
+                                "id": roomId.split(":")[1]                            
+                            }
+                        };
+
+                        // then tell everyone in room to discover the updated storage with old guys removed
+                        io.sockets.in(roomId).emit("updated", roomData);
+
+                        rooms.delete(roomId);
+                    });
+                }
+            });
+
+            setTimeout(function() {
+                reap();
+            }, frequency);
+        };
+
+        reap();
+
+        callback();
+    };
+
+    var register = r.register = function(user, object, action, callback)
+    {
+        provider.register(user, object, action, function(err, value) {
+            callback(err, value);
+        });
+    };
+
+    var discover = r.discover = function(reqObj, callback)
+    {        
+        provider.discover(reqObj, function(err, value) {
+            callback(err, value);
+        });
+    };
+
+    var checkNew = r.checkNew = function(key, callback)
+    {
+        provider.checkNew(key, function(result) {
+            callback(result);
+        });
+    };
+
+    var checkOld = r.checkOld = function(lifeTime, callback)
+    {
+        provider.checkOld(lifeTime, function(rooms) {
+            callback(rooms);
         });
     };
 

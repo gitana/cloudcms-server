@@ -37,8 +37,7 @@ exports = module.exports = function()
         callback();
     };
 
-    r.register = function(user, object, action, seconds, callback) {
-        var TTL = 10;
+    r.register = function(user, object, action, callback) {
 
         if (!user.id || !object.id || !action.id) {
             var msg = "user, object and action each should have an id."
@@ -50,15 +49,11 @@ exports = module.exports = function()
         var value = JSON.stringify({
             "user": user,
             "object": object,
-            "action": action
+            "action": action,
+            "time": Date.now()
         });
 
-        if (typeof(seconds) == "undefined" || seconds <= -1)
-        {
-            seconds = TTL;
-        }
-
-        client.set([key, value, "EX", seconds], function(err, reply) {
+        client.set(key, value, function(err, reply) {
             if (err) {
                 return callback(err);
             }
@@ -112,6 +107,71 @@ exports = module.exports = function()
             });
         }
 
+    };
+
+    r.checkOld = function(lifeTime, callback) 
+    {
+        // a set of room ids that are updated
+        var rooms = new Set();
+
+        // for each record, check time
+        client.keys("*", function(err, allKeys) {
+            if (err) {
+                return callback(err);
+            }
+
+            var fns = [];
+            allKeys.forEach(function(key) {
+
+                var fn = function(key, client, rooms) {
+                    return function(done) {
+                        client.get(key, function(err, value) {
+                            if (err) {
+                                logger.error("Cannot find value for key: " + key);
+                            }
+                            else {
+                                // if too old (> 30 seconds), remove from storage
+                                value = JSON.parse(value);
+                                var elapsed = Date.now() - value.time;
+                                if (elapsed > lifeTime) {
+                                    var roomId = value.action.id + ":" + value.object.id;
+                                    rooms.add(roomId);
+
+                                    client.del(key);
+                                }
+                            }
+                            done();
+                        });
+                    };
+                }(key, client, rooms);
+
+                fns.push(fn);
+            });
+
+            async.series(fns, function(err){
+                callback(err, rooms);
+            });
+
+        });
+        
+        callback(rooms);
+    };
+
+    r.checkNew = function(key, callback) 
+    {
+        client.keys(key, function(err, allkeys) {
+            if (allkeys.length < 1) {
+                callback(true);
+            }
+            else {
+                callback(false);
+            }
+        });
+
+        // doesn't work
+        // client.exists(key, function(res) {
+        //     callback(res === 0);
+        // });
     };
 
     return r;
