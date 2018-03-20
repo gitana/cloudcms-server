@@ -64,7 +64,7 @@ exports = module.exports = function()
         callback(null, values);
     };
 
-    r.checkOld = function(now, age, callback) 
+    r.checkOld = function(lifeTime, callback) 
     {
         // a set of room ids that are updated
         var rooms = new Set();
@@ -73,8 +73,8 @@ exports = module.exports = function()
         for (var key in valueMap)
         {
             var value = valueMap[key];
-            var elapsed = now - value.time;
-            if (elapsed > age) {
+            var elapsed = Date.now() - value.time;
+            if (elapsed > lifeTime) {
                 var roomId = value.action.id + ":" + value.object.id;
                 rooms.add(roomId);
 

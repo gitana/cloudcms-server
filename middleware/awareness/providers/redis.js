@@ -109,7 +109,7 @@ exports = module.exports = function()
 
     };
 
-    r.checkOld = function(now, age, callback) 
+    r.checkOld = function(lifeTime, callback) 
     {
         // a set of room ids that are updated
         var rooms = new Set();
@@ -132,8 +132,8 @@ exports = module.exports = function()
                             else {
                                 // if too old (> 30 seconds), remove from storage
                                 value = JSON.parse(value);
-                                var elapsed = now - value.time;
-                                if (elapsed > age) {
+                                var elapsed = Date.now() - value.time;
+                                if (elapsed > lifeTime) {
                                     var roomId = value.action.id + ":" + value.object.id;
                                     rooms.add(roomId);
 
@@ -168,18 +168,10 @@ exports = module.exports = function()
             }
         });
 
-        // NO IDEA WHY THIS DOESN'T WORK?!?!
-
-        // if (client.exists(key) == 1) {
-        //     console.log("key exists");
-
-        //     callback(true);
-        // }
-        // else {
-        //     console.log("key doesn't exist");
-
-        //     callback(false);
-        // }
+        // doesn't work
+        // client.exists(key, function(res) {
+        //     callback(res === 0);
+        // });
     };
 
     return r;

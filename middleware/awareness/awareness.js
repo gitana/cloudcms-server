@@ -11,7 +11,7 @@ exports = module.exports = function()
     var logger = logFactory("AWARENESS");
     var provider = null;
     var REAP_FREQUENCY = 3000;  // reaps every 3 seconds
-    var AGE = 30000;    // 30 seconds -> old enough to reap
+    var LIFE_TIME = 10000;    // 10 seconds -> old enough to reap
 
     var r = {};
     var init = r.init = function(callback) {
@@ -60,16 +60,17 @@ exports = module.exports = function()
 
                     if (isNew) {
 
-                        // let you in
-                        socket.join(room);
-
                         // register you
                         register(user, object, action, function(err, value) {
+
+                            // let you in
+                            socket.join(room);
+                            // tell everyone in room about new guy
+                            io.sockets.in(room).emit("updated", data);
+
                             callback("You (socket id: " + socket.id + ") joined room " + room + " and registered.");
                         });
 
-                        // tell everyone in room about new guy
-                        io.sockets.in(room).emit("updated", data);
                     }
                     else {
                         callback("key: " + key + " already registered.");
@@ -99,7 +100,7 @@ exports = module.exports = function()
         var reap = function() {
 
             // ask provider for old guys and remove from storage, return rooms that are updated
-            checkOld(Date.now(), AGE, function(rooms) {
+            checkOld(LIFE_TIME, function(rooms) {
 
                 if (rooms && rooms.size > 0) {
                     logger.info("\nFound old guys in " + rooms.size + " rooms");
@@ -154,9 +155,9 @@ exports = module.exports = function()
         });
     };
 
-    var checkOld = r.checkOld = function(now, age, callback)
+    var checkOld = r.checkOld = function(lifeTime, callback)
     {
-        provider.checkOld(now, age, function(rooms) {
+        provider.checkOld(lifeTime, function(rooms) {
             callback(rooms);
         });
     };
