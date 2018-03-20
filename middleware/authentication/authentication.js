@@ -739,7 +739,19 @@ exports = module.exports = function()
                         }
                         else if (loginRedirect)
                         {
-                            return res.redirect(loginRedirect);
+                            var requested_url = req.originalUrl;
+
+                            // build the redirect url
+                            var redirectUrl = loginRedirect;
+                            if (redirectUrl.indexOf("?") > -1) {
+                                redirectUrl += "&";
+                            }
+                            else {
+                                redirectUrl += "?";
+                            }
+                            redirectUrl += "requested_url=" + requested_url;
+
+                            return res.redirect(redirectUrl);
                         }
                         else if (loginHandler)
                         {

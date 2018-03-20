@@ -89,14 +89,9 @@ exports = module.exports = function()
                                     cacheSettings.seconds = MAXAGE_DEFAULT_SECONDS;
                                 }
 
-                                if (typeof(cacheSettings.seconds) === "undefined")
-                                {
-                                    cacheSettings.seconds = MAXAGE_DEFAULT_SECONDS;
-                                }
-
                                 if (cacheSettings.seconds <= -1)
                                 {
-                                    cacheSettings.seconds = MAXAGE_ONE_YEAR_SECONDS;
+                                    cacheSettings.seconds = MAXAGE_DEFAULT_SECONDS;
                                 }
 
                                 var cacheControl = null;
@@ -214,6 +209,7 @@ exports = module.exports = function()
                         }
 
                         // if we have a cache key, then we set headers to ALWAYS cache
+                        // this uses a cache of MAXAGE_ONE_MONTH_SECONDS since it has the "key" and can guaranteed to to be unique
                         var cacheControl = null;
                         var expires = null;
                         if (key)
@@ -256,7 +252,7 @@ exports = module.exports = function()
 
                                                     if (cacheSettings.seconds <= -1)
                                                     {
-                                                        cacheSettings.seconds = MAXAGE_ONE_YEAR_SECONDS;
+                                                        cacheSettings.seconds = MAXAGE_DEFAULT_SECONDS;
                                                     }
 
                                                     if (cacheSettings.seconds === 0)
@@ -275,6 +271,7 @@ exports = module.exports = function()
                                     }
 
                                     // if we didn't set anything via configuration, apply a default?
+                                    // this uses a default of MAXAGE_DEFAULT_SECONDS seconds
                                     if (!cacheControl)
                                     {
                                         var isCSS = ("text/css" == mimetype);
@@ -289,11 +286,11 @@ exports = module.exports = function()
                                             // don't touch html
                                         }
 
-                                        // css, images and js get 1 year
+                                        // apply a default for css, images and js
                                         if (isCSS || isImage || isJS || isFont)
                                         {
-                                            cacheControl = "public,max-age=" + MAXAGE_ONE_YEAR_SECONDS + ",s-maxage=" + MAXAGE_ONE_YEAR_SECONDS;
-                                            expires = new Date(Date.now() + (MAXAGE_ONE_YEAR_SECONDS * 1000)).toUTCString();
+                                            cacheControl = "public,max-age=" + MAXAGE_DEFAULT_SECONDS + ",s-maxage=" + MAXAGE_DEFAULT_SECONDS;
+                                            expires = new Date(Date.now() + (MAXAGE_DEFAULT_SECONDS * 1000)).toUTCString();
                                         }
                                     }
                                 }
