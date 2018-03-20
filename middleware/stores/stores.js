@@ -435,8 +435,8 @@ exports = module.exports = function()
                 {
                     findModuleDescriptors(function(moduleDescriptors) {
 
-                        // cache the module descriptors for 60 seconds
-                        process.cache.write("module-descriptors-" + host, moduleDescriptors, 60);
+                        // cache the module descriptors for 30 seconds
+                        process.cache.write("module-descriptors-" + host, moduleDescriptors, 30);
 
                         bindConfigStores(moduleDescriptors, function () {
                             bindTemplateStores(moduleDescriptors, function() {
