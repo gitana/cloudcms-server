@@ -11,7 +11,7 @@ exports = module.exports = function()
     var logger = logFactory("AWARENESS");
     var provider = null;
     var REAP_FREQUENCY = 3000;  // reaps every 3 seconds
-    var LIFE_TIME = 10000;    // 10 seconds -> old enough to reap
+    var LIFE_TIME = 5000;    // 10 seconds -> old enough to reap
 
     var r = {};
     var init = r.init = function(callback) {
@@ -58,23 +58,18 @@ exports = module.exports = function()
 
                 checkNew(key, function(isNew) {
 
-                    if (isNew) {
-
-                        // register you
-                        register(user, object, action, function(err, value) {
-
+                    // register you
+                    register(user, object, action, function(err, value) {
+                        if (isNew) {
                             // let you in
                             socket.join(room);
                             // tell everyone in room about new guy
                             io.sockets.in(room).emit("updated", data);
-
-                            callback("You (socket id: " + socket.id + ") joined room " + room + " and registered.");
-                        });
-
-                    }
-                    else {
-                        callback("key: " + key + " already registered.");
-                    }
+                        }
+                        else {
+                            callback("key: " + key + " already registered.");
+                        }
+                    });
                 });
             });
 
