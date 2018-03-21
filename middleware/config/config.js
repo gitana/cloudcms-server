@@ -612,14 +612,29 @@ exports = module.exports = function()
                     var invalidateFns = [];
                     for (var i = 0; i < uiConfigIds.length; i++)
                     {
-                        var invalidateFn = function(host, uiConfigId) {
-                            return function (d) {
-                                invalidateUIConfig(host, uiConfigId, function () {
-                                    d();
-                                });
-                            }
-                        }(req.domainHost, uiConfigIds[i]);
-                        invalidateFns.push(invalidateFn);
+                        if (req.domainHost)
+                        {
+                            var invalidateFn = function (host, uiConfigId) {
+                                return function (d) {
+                                    invalidateUIConfig(host, uiConfigId, function () {
+                                        d();
+                                    });
+                                }
+                            }(req.domainHost, uiConfigIds[i]);
+                            invalidateFns.push(invalidateFn);
+                        }
+
+                        if (req.virtualHost)
+                        {
+                            var invalidateFn = function (host, uiConfigId) {
+                                return function (d) {
+                                    invalidateUIConfig(host, uiConfigId, function () {
+                                        d();
+                                    });
+                                }
+                            }(req.virtualHost, uiConfigIds[i]);
+                            invalidateFns.push(invalidateFn);
+                        }
                     }
                     async.parallel(invalidateFns, function() {
                         completionFn();
@@ -860,41 +875,40 @@ exports = module.exports = function()
             var rootStore = stores.root;
             var directoryPath = "uiconfigs/" + uiConfigId;
 
-            rootStore.removeDirectory(directoryPath, function(err) {
+            var uiConfigStore = rootStore.mount(path.join(directoryPath, "config"));
+            console.log("remove adapter: " + uiConfigStore.id);
+            invalidateAdapter(uiConfigStore);
 
-                var uiConfigStore = rootStore.mount(path.join(directoryPath, "config"));
-                console.log("remove adapter: " + uiConfigStore.id);
-                invalidateAdapter(uiConfigStore);
-
-                // walk all adapters and look for any that are mounted on multistores
-                // for any found, get original stores and see if our store is among them
-                // if so, invalidate the multistore adapters as well
-                for (var storeId in ADAPTERS)
+            // walk all adapters and look for any that are mounted on multistores
+            // for any found, get original stores and see if our store is among them
+            // if so, invalidate the multistore adapters as well
+            for (var storeId in ADAPTERS)
+            {
+                if (storeId.indexOf("multistore://") === 0)
                 {
-                    if (storeId.indexOf("multistore://") === 0)
+                    var adapter = ADAPTERS[storeId];
+
+                    var match = false;
+                    var adapterStore = adapter.getConfigStore();
+                    var originalStores = adapterStore.getOriginalStores();
+                    for (var i = 0; i < originalStores.length; i++)
                     {
-                        var adapter = ADAPTERS[storeId];
-
-                        var match = false;
-                        var adapterStore = adapter.getConfigStore();
-                        var originalStores = adapterStore.getOriginalStores();
-                        for (var i = 0; i < originalStores.length; i++)
+                        if (originalStores[i].id === uiConfigStore.id)
                         {
-                            if (originalStores[i].id === uiConfigStore.id)
-                            {
-                                match = true;
-                                break;
-                            }
-                        }
-
-                        if (match)
-                        {
-                            console.log("remove dependent adapter: " + adapterStore.id);
-                            invalidateAdapter(adapterStore);
+                            match = true;
+                            break;
                         }
                     }
-                }
 
+                    if (match)
+                    {
+                        console.log("remove dependent adapter: " + adapterStore.id);
+                        invalidateAdapter(adapterStore);
+                    }
+                }
+            }
+
+            rootStore.removeDirectory(directoryPath, function(err) {
                 callback(err);
             });
 

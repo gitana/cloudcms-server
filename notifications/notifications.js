@@ -203,7 +203,6 @@ var handleNotificationMessages = function(items, callback) {
                                             "host": host
                                         }, z_done);
                                     }
-
                                     else
                                     {
                                         z_done();
