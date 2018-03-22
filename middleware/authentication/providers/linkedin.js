@@ -72,7 +72,7 @@ class LinkedInProvider extends AbstractProvider
      */
     parseProfile(req, profile, callback)
     {
-        super.parseProfile(req, profile, function(err, userObject, groupsArray) {
+        super.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
 
             if (err) {
                 return callback(err);
@@ -88,7 +88,7 @@ class LinkedInProvider extends AbstractProvider
                 userObject.lastName = profile._json.lastName;
             }
 
-            callback(null, userObject, groupsArray);
+            callback(null, userObject, groupsArray, mandatoryGroupsArray);
         });
     };
 

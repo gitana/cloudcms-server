@@ -73,8 +73,8 @@ class TwitterProvider extends AbstractProvider
      */
     parseProfile(req, profile, callback)
     {
-        super.parseProfile(req, profile, function(err, userObject, groupsArray) {
-            return callback(err, userObject, groupsArray);
+        super.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
+            return callback(err, userObject, groupsArray, mandatoryGroupsArray);
         });
     };
 

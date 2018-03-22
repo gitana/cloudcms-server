@@ -404,7 +404,7 @@ exports = module.exports = function()
                         {
                             if (strategy.registrationRedirect)
                             {
-                                return provider.parseProfile(req, profile, function(err, userObject, groupsArray) {
+                                return provider.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
 
                                     if (err) {
                                         return handleFailure(err, res);
@@ -426,6 +426,7 @@ exports = module.exports = function()
                                         req.session.registration_user_object = userObject;
                                         req.session.registration_user_identifier = userIdentifier;
                                         req.session.registration_groups_array = groupsArray;
+                                        req.session.registration_mandatory_groups_array = mandatoryGroupsArray;
                                         req.session.registration_token = info.token;
                                         req.session.registration_refresh_token = info.refresh_token;
 
@@ -435,7 +436,7 @@ exports = module.exports = function()
                             }
                             else if (strategy.registrationHandler)
                             {
-                                return provider.parseProfile(req, profile, function(err, userObject, groupsArray) {
+                                return provider.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
 
                                     if (err) {
                                         return handleFailure(err, res);
@@ -443,8 +444,12 @@ exports = module.exports = function()
 
                                     var userIdentifier = provider.userIdentifier(profile);
 
-                                    strategy.registrationHandler(req, res, next, strategyId, userIdentifier, userObject, groupsArray, info);
+                                    strategy.registrationHandler(req, res, next, strategyId, userIdentifier, userObject, groupsArray, mandatoryGroupsArray, info);
                                 });
+                            }
+                            else if (strategy.userSyncErrorHandler)
+                            {
+                                return strategy.userSyncErrorHandler(err, req, res, next);
                             }
 
                             return handleFailure(err, res);
@@ -1033,7 +1038,7 @@ exports = module.exports = function()
                                             properties.user_identifier = provider.userIdentifier(profile);
                                         }
 
-                                        return provider.parseProfile(req, profile, function(err, userObject, groupsArray) {
+                                        return provider.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
 
                                             if (err) {
                                                 return done(err);
@@ -1041,6 +1046,7 @@ exports = module.exports = function()
 
                                             properties.user_object = userObject;
                                             properties.groups_array = groupsArray;
+                                            properties.mandatory_groups_array = mandatoryGroupsArray;
 
                                             done();
                                         });
@@ -1072,7 +1078,7 @@ exports = module.exports = function()
                                             properties.user_identifier = provider.userIdentifier(profile);
                                         }
 
-                                        return provider.parseProfile(req, profile, function(err, userObject, groupsArray) {
+                                        return provider.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
 
                                             if (err) {
                                                 return done(err);
@@ -1080,6 +1086,7 @@ exports = module.exports = function()
 
                                             properties.user_object = userObject;
                                             properties.groups_array = groupsArray;
+                                            properties.mandatory_groups_array = mandatoryGroupsArray;
 
                                             done();
                                         });
@@ -1114,7 +1121,7 @@ exports = module.exports = function()
                                         properties.user_identifier = provider.userIdentifier(profile);
                                     }
 
-                                    return provider.parseProfile(req, profile, function(err, userObject, groupsArray) {
+                                    return provider.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
 
                                         if (err) {
                                             return done(err);
@@ -1122,6 +1129,7 @@ exports = module.exports = function()
 
                                         properties.user_object = userObject;
                                         properties.groups_array = groupsArray;
+                                        properties.mandatory_groups_array = mandatoryGroupsArray;
 
                                         done();
                                     });
