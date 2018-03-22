@@ -142,14 +142,14 @@ exports = module.exports = function()
      */
     var acquireGitanaJson = r.acquireGitanaJson = function(host, rootStore, logMethod, callback)
     {
+        var VCSENTINEL_CACHE_KEY = "vcSentinelFailed-" + host;
+
         rootStore.existsFile("gitana.json", function(exists) {
 
             var loadFromRemote = function() {
 
-                var CACHE_KEY = "vcSentinelFailed-" + host;
-
                 // check cache to see if we already tried to load this in the past few minutes and were sorely disappointed
-                process.cache.read(CACHE_KEY, function (err, failedRecently) {
+                process.cache.read(VCSENTINEL_CACHE_KEY, function (err, failedRecently) {
 
                     if (failedRecently) {
                         return callback({
@@ -169,8 +169,8 @@ exports = module.exports = function()
 
                         if (!virtualConfig)
                         {
-                            // mark that it failed
-                            process.cache.write(CACHE_KEY, SENTINEL_NOT_FOUND_VALUE, 60, function() {
+                            // mark that it failed (5 seconds TTL)
+                            process.cache.write(VCSENTINEL_CACHE_KEY, SENTINEL_NOT_FOUND_VALUE, 5, function() {
                                 callback({
                                     "message": "No virtual config found for host"
                                 });
@@ -265,6 +265,9 @@ exports = module.exports = function()
                             });
                         }
 
+                        // remove vcSentinel if it exists
+                        process.cache.remove(VCSENTINEL_CACHE_KEY);
+
                         var gitanaJson = JSON.parse(data.toString());
 
                         // sanity check - is this for the right environment?
@@ -337,8 +340,7 @@ exports = module.exports = function()
                     if (err.message) {
                         req.log(err.message);
                     }
-                    next();
-                    return;
+                    return next();
                 }
 
                 if (gitanaConfig) {
@@ -354,6 +356,10 @@ exports = module.exports = function()
 
             process.driverConfigCache.read(req.virtualHost, function(err, cachedValue)
             {
+                if (process.env.NULL_DRIVER_CACHE === "true") {
+                    cachedValue = null;
+                }
+
                 if (cachedValue)
                 {
                     if (cachedValue === SENTINEL_NOT_FOUND_VALUE)
@@ -381,15 +387,14 @@ exports = module.exports = function()
                         {
                             process.driverConfigCache.write(req.virtualHost, {
                                 "config": gitanaConfig
-                            }, function (err)
-                            {
+                            }, function (err) {
                                 completionFunction(null, gitanaConfig);
                             });
                         }
                         else
                         {
                             // mark with sentinel
-                            process.driverConfigCache.write(req.virtualHost, SENTINEL_NOT_FOUND_VALUE, 60, function (err)
+                            process.driverConfigCache.write(req.virtualHost, SENTINEL_NOT_FOUND_VALUE, 5, function (err)
                             {
                                 completionFunction();
                             });

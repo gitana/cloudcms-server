@@ -48,6 +48,10 @@ exports = module.exports = function()
 
         process.driverConfigCache.read(holder.virtualHost, function(err, cachedValue) {
 
+            if (process.env.NULL_DRIVER_CACHE === "true") {
+                cachedValue = null;
+            }
+
             if (cachedValue)
             {
                 if (cachedValue === SENTINEL_NOT_FOUND_VALUE)
