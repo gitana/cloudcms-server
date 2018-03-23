@@ -78,7 +78,7 @@ class GoogleProvider extends AbstractProvider
      */
     parseProfile(req, profile, callback)
     {
-        super.parseProfile(req, profile, function(err, userObject, groupsArray) {
+        super.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
 
             if (err) {
                 return callback(err);
@@ -99,7 +99,7 @@ class GoogleProvider extends AbstractProvider
                 userObject.gender = profile._json.gender;
             }
 
-            callback(null, userObject, groupsArray);
+            callback(null, userObject, groupsArray, mandatoryGroupsArray);
 
         });
     };

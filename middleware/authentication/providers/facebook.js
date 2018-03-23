@@ -72,7 +72,7 @@ class FacebookProvider extends AbstractProvider
      */
     parseProfile(req, profile, callback)
     {
-        super.parseProfile(req, profile, function(err, userObject, groupsArray) {
+        super.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
 
             if (err) {
                 return callback(err);
@@ -95,7 +95,7 @@ class FacebookProvider extends AbstractProvider
 
             userObject.facebookId = profile.id;
 
-            callback(null, userObject, groupsArray);
+            callback(null, userObject, groupsArray, mandatoryGroupsArray);
         });
     };
 

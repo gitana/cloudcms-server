@@ -251,7 +251,36 @@ var _LOCK = function(lockIdentifiers, workFunction)
 
 var syncProfile = exports.syncProfile = function(req, res, strategy, domain, providerId, provider, profile, token, refreshToken, callback)
 {
-    return provider.parseProfile(req, profile, function(err, userObject, groupsArray) {
+    return provider.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
+
+        // special handling for mandatory groups
+        if (mandatoryGroupsArray && mandatoryGroupsArray.length > 0)
+        {
+            // clean up white space
+            for (var i = 0; i < mandatoryGroupsArray.length; i++)
+            {
+                mandatoryGroupsArray[i] = mandatoryGroupsArray[i].trim();
+            }
+
+            // make sure our groups Array contains at least one mandatory group
+            var hasMandatoryGroup = false;
+            var mandatoryGroupsMap = {};
+            for (var i = 0; i < mandatoryGroupsArray.length; i++) {
+                mandatoryGroupsMap[mandatoryGroupsArray[i]] = true;
+            }
+            for (var i = 0; i < groupsArray.length; i++) {
+                if (mandatoryGroupsMap[groupsArray[i]]) {
+                    hasMandatoryGroup = true;
+                }
+            }
+            if (!hasMandatoryGroup)
+            {
+                return callback({
+                    "message": "The incoming user does not belong to one of the mandatory groups",
+                    "noMandatoryGroup": true
+                });
+            }
+        }
 
         req.application(function(err, application) {
 
