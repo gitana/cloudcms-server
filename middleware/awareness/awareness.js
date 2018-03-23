@@ -146,7 +146,7 @@ exports = module.exports = function()
 
     /**
      * @param info  user, action, object
-     * @returns     object-lock information 
+     * @returns     object: lockInfo-lockTime and user
      */
     var acquireLock = r.acquireLock = function(info, callback) 
     {
@@ -157,7 +157,7 @@ exports = module.exports = function()
 
     /**
      * @param info  an object contains channelId and userId of the lock
-     * @returns     boolean. Return false if channel isn't locked
+     * @returns     object: releaseInfo
      */
     var releaseLock = r.releaseLock = function(info, callback) 
     {
