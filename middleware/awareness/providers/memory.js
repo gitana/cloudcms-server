@@ -5,94 +5,132 @@
  */
 exports = module.exports = function()
 {
-    var valueMap = null;
+    /*
+    valueMap = {
+        "channelId1": {
+            "user1": {user, time},
+            "user2": {user, time}
+        }
+    };
+    */
+    var valueMap = null;    // key: channelId   value: userMap
+    var lockMap = null;     // key: channelId   value: an object with lockTime and user
 
     var r = {};
 
     r.init = function(config, callback)
     {
         valueMap = {};
+        lockMap = {};
 
         callback();
     };
 
-    r.register = function(user, object, action, callback) 
+    r.register = function(channelId, user, callback)
     {
-        if (!user.id || !object.id || !action.id) {
-            var msg = "Each of user, object and action should have an id."
-            return callback(msg);
+        var userMap = valueMap[channelId];
+        if (!userMap) {
+            userMap = valueMap[channelId] = {};
         }
 
-        var key = user.id + ":" + action.id + ":" + object.id;
         var value = {
             "user": user,
-            "object": object,
-            "action": action,
             "time": Date.now()
         };
 
-        valueMap[key] = value;
+        userMap[user.id] = value;
 
-        callback(null, JSON.stringify(value));
+        callback(JSON.stringify(value));
     };
 
-    r.discover = function(reqObj, callback)
+    r.discover = function(channelId, callback) 
     {
-        var values = [];
-        
-        if (reqObj.regex) 
-        {
-            var regexString = reqObj.regex;
-            var regex = new RegExp(regexString);
-    
-            // find keys that match the regex
-            var matchedKeys = [];
-            for (var key in valueMap)
-            {
-                if (key.match(regex))
-                {
-                    matchedKeys.push(key);
-                }
-            }
-    
-            // read values for all matched keys from memory
-            matchedKeys.forEach(function(key) {
-                values.push(valueMap[key]);
-            });    
+        var userMap = valueMap[channelId];
+
+        var array = [];
+        for (var k in userMap) {
+            array.push(userMap[k]);
         }
 
-        callback(null, values);
+        callback(array);
     };
 
     r.checkOld = function(lifeTime, callback) 
     {
-        // a set of room ids that are updated
-        var rooms = new Set();
+        // a set of channels that are updated
+        var channels = new Set();
 
-        // for each record, check time
-        for (var key in valueMap)
+        for (var channelId in valueMap)
         {
-            var value = valueMap[key];
-            var elapsed = Date.now() - value.time;
-            if (elapsed > lifeTime) {
-                var roomId = value.action.id + ":" + value.object.id;
-                rooms.add(roomId);
-
-                delete valueMap[key];
+            var userMap = valueMap[channelId];
+            for (var user in userMap) {
+                var value = userMap[user];
+                var elapsed = Date.now() - value.time;
+                if (elapsed > lifeTime) {
+                    channels.add(channelId);
+                    delete userMap[user];
+                }    
             }
         }
-
-        callback(rooms);
+        callback(channels);
     };
 
-    r.checkNew = function(key, callback) 
+    r.checkNew = function(channelId, user, callback) 
     {
-        if (valueMap.hasOwnProperty(key)) {
-            callback(false);
-        }
-        else {
+        var userMap = valueMap[channelId];
+        if (!userMap) {
             callback(true);
         }
+        else if (!userMap[user.id]) {
+            callback(true);
+        }
+        else {
+            callback(false);
+        }
+    };
+
+    r.acquireLock = function(info, callback)
+    {
+        var channelId = info.action.id + ":" + info.object.id;
+
+        if (!lockMap[channelId]) {
+            lockMap[channelId] = {
+                "lockTime": Date.now(),
+                "user": info.user
+            };
+        }
+
+        var res = {
+            "acquireInfo": lockMap[channelId],
+        };
+
+        callback(res);
+    };
+
+    r.releaseLock = function(info, callback)
+    {
+        var channelId = info.channelId;
+        var userId = info.userId;
+        var lockInfo = lockMap[channelId];
+
+        var releaseInfo = {};
+
+        // the channel is locked and the releaser possesses the lock
+        if (lockInfo && lockInfo.user.id == userId) 
+        {
+            lockMap[channelId] = undefined;
+            releaseInfo.released = true;
+        }
+        else {
+            releaseInfo.released = false;
+            releaseInfo.lockStatus = lockInfo? "locked" : "unlocked";
+        }
+
+        var res = {
+            "releaseInfo": releaseInfo
+        };
+        
+        callback(res);
     };
 
     return r;
