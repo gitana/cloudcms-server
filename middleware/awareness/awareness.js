@@ -46,40 +46,39 @@ exports = module.exports = function()
         io.on("connection", function(socket) {
 
             socket.on("room", function(info, callback) {
-                var room = info.roomId;
-                var data = info.clientInfo;
 
-                var user = data.user;
-                var object = data.object;
-                var action = data.action;
+                var channelId = info.channelId;
+                var user = info.user;
 
-                // check if you are new
-                var key = user.id + ":" + action.id + ":" + object.id;
+                checkNew(channelId, user, function(isNew) {
 
-                checkNew(key, function(isNew) {
-
-                    // register you
-                    register(user, object, action, function(err, value) {
+                    register(channelId, user, function(value) {
                         if (isNew) {
-                            // let you in
-                            socket.join(room);
-                            // tell everyone in room about new guy
-                            io.sockets.in(room).emit("updated", data);
+                            socket.join(channelId);
+                            io.sockets.in(channelId).emit("updated", channelId);
                         }
                         else {
-                            callback("key: " + key + " already registered.");
+                            callback("User " + user.id + " already registered in channel " + channelId + " .");
                         }
                     });
                 });
             });
 
-            socket.on("discover", function(data, callback) {
-                var reqObj = {
-                    "regex": data
-                };
-    
-                discover(reqObj, function(err, value) {
-                    callback(value);
+            socket.on("discover", function(channelId, callback) {
+                discover(channelId, function(userArray) {
+                    callback(userArray);
+                });
+            });
+
+            socket.on("acquireLock", function(info, callback) {
+                acquireLock(info, function(res) {
+                    callback(res);
+                });
+            });
+
+            socket.on("releaseLock", function(info, callback) {
+                releaseLock(info, function(res) {
+                    callback(res);
                 });
             });
 
@@ -94,27 +93,15 @@ exports = module.exports = function()
     var reaperInit = function(io, frequency, callback) {
         var reap = function() {
 
-            // ask provider for old guys and remove from storage, return rooms that are updated
-            checkOld(LIFE_TIME, function(rooms) {
+            checkOld(LIFE_TIME, function(updatedChannels) {
 
-                if (rooms && rooms.size > 0) {
-                    logger.info("\nFound old guys in " + rooms.size + " rooms");
+                if (updatedChannels && updatedChannels.size > 0) {
+                    logger.info("\nFound old guys in " + updatedChannels.size + " channels");
 
-                    rooms.forEach(function(roomId) {
+                    updatedChannels.forEach(function(channelId) {
+                        io.sockets.in(channelId).emit("updated", channelId);
 
-                        var roomData = {
-                            "action": {
-                                "id": roomId.split(":")[0]
-                            },
-                            "object": {
-                                "id": roomId.split(":")[1]                            
-                            }
-                        };
-
-                        // then tell everyone in room to discover the updated storage with old guys removed
-                        io.sockets.in(roomId).emit("updated", roomData);
-
-                        rooms.delete(roomId);
+                        updatedChannels.delete(channelId);
                     });
                 }
             });
@@ -129,23 +116,23 @@ exports = module.exports = function()
         callback();
     };
 
-    var register = r.register = function(user, object, action, callback)
+    var register = r.register = function(channelId, user, callback)
     {
-        provider.register(user, object, action, function(err, value) {
-            callback(err, value);
+        provider.register(channelId, user, function(value) {
+            callback(value);
         });
     };
 
-    var discover = r.discover = function(reqObj, callback)
+    var discover = r.discover = function(channelId, callback)
     {        
-        provider.discover(reqObj, function(err, value) {
-            callback(err, value);
+        provider.discover(channelId, function(userArray) {
+            callback(userArray);
         });
     };
 
-    var checkNew = r.checkNew = function(key, callback)
+    var checkNew = r.checkNew = function(channelId, user, callback)
     {
-        provider.checkNew(key, function(result) {
+        provider.checkNew(channelId, user, function(result) {
             callback(result);
         });
     };
@@ -154,6 +141,28 @@ exports = module.exports = function()
     {
         provider.checkOld(lifeTime, function(rooms) {
             callback(rooms);
+        });
+    };
+
+    /**
+     * @param info  user, action, object
+     * @returns     object-lock information 
+     */
+    var acquireLock = r.acquireLock = function(info, callback) 
+    {
+        provider.acquireLock(info, function(res) {
+            callback(res);
+        });
+    };
+
+    /**
+     * @param info  an object contains channelId and userId of the lock
+     * @returns     boolean. Return false if channel isn't locked
+     */
+    var releaseLock = r.releaseLock = function(info, callback) 
+    {
+        provider.releaseLock(info, function(res) {
+            callback(res);
         });
     };
 
