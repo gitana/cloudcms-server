@@ -9,23 +9,25 @@ exports = module.exports = function()
 {
     var INVALIDATION_TOPIC = "module-invalidation-topic";
 
-    var notify = function(message, callback)
+    var logFn = function(text)
+    {
+        console.log("[Module Deployment] " + text);
+    };
+
+    var notifyModuleInvalidation = function(message, callback)
     {
         if (process.broadcast)
         {
+            logFn("Notify module invalidation - trigger: " + JSON.stringify(message));
+
             //console.log("[" + cluster.worker.id + "] Notifying: " + JSON.stringify(message));
             process.broadcast.publish(INVALIDATION_TOPIC, message);
 
-            // TODO: is it possible to wait for broadcast to complete?
-            if (callback) {
-                callback();
-            }
+            callback();
         }
         else
         {
-            if (callback) {
-                callback();
-            }
+            callback();
         }
     };
 
@@ -43,8 +45,10 @@ exports = module.exports = function()
     //
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    var doDeploy = function(req, host, moduleId, store, moduleConfig, callback)
+    var doDeploy = function(host, moduleId, moduleConfig, callback)
     {
+        logFn("Start doDeploy, host: " + host + ", module ID: " + moduleId + ", module config: " + JSON.stringify(moduleConfig, null, 2));;
+
         if (!moduleConfig)
         {
             return callback({
@@ -87,17 +91,16 @@ exports = module.exports = function()
 
         if ("github" === sourceType || "bitbucket" == sourceType)
         {
-            util.gitCheckout(host, sourceType, sourceUrl, sourcePath, sourceBranch, "modules/" + moduleId, false, req.log, function (err) {
+            logFn("Begin util.gitCheckout");
+
+            util.gitCheckout(host, sourceType, sourceUrl, sourcePath, sourceBranch, "modules/" + moduleId, false, logFn, function (err) {
+
+                logFn("After util.gitCheckout: " + JSON.stringify(err));
 
                 // invalidate any caching within the stores layer
                 storeService.invalidate(host);
 
-                // broadcast that a module was invalidated (deployed)
-                console.log("Modules Middleware notifying of deploy: " + host);
-                notify({
-                    "command": "deploy",
-                    "host": host
-                });
+                logFn("After store.invalidate");
 
                 callback(err);
             });
@@ -108,41 +111,175 @@ exports = module.exports = function()
         }
     };
 
-    var doUndeploy = function(req, host, moduleId, modulesStore, callback)
+    var doUndeploy = function(host, moduleId, moduleConfig, callback)
     {
-        modulesStore.cleanup(moduleId, function(err) {
+        var logFn = function(text) {
+            console.log(text);
+        };
+
+        logFn("Start doUndeploy, host: " + host + ", module ID: " + moduleId + ", module config: " + JSON.stringify(moduleConfig, null, 2));;
+
+        storeService.produce(host, function(err, stores) {
+
+            logFn("After produce");
 
             // invalidate any caching within the stores layer
             storeService.invalidate(host);
 
-            // broadcast that a module was invalidated (undeployed)
-            console.log("Modules Middleware notifying of undeploy: " + host);
-            notify({
-                "command": "undeploy",
-                "host": host
-            });
+            logFn("After invalidate");
 
-            callback(err);
+            var modulesStore = stores.modules;
+            modulesStore.cleanup(moduleId, function(err) {
+
+                logFn("After cleanup: " + JSON.stringify(err, null, 2));
+
+                callback(err);
+            });
         });
     };
 
-    var doRefresh = function(req, host, moduleId, modulesStore, callback)
+    var doRefresh = function(host, moduleId, moduleConfig, callback)
     {
+        var logFn = function(text) {
+            console.log(text);
+        };
+
+        logFn("Start doRefresh, host: " + host + ", module ID: " + moduleId + ", module config: " + JSON.stringify(moduleConfig, null, 2));;
+
         // invalidate any caching within the stores layer
         storeService.invalidate(host);
 
-        // broadcast that a module was invalidated (undeployed)
-        console.log("Modules Middleware notifying of refresh: " + host);
-        notify({
-            "command": "refresh",
-            "host": host
-        });
+        logFn("After invalidate");
 
         callback();
     };
 
+    var bindSubscriptions = function()
+    {
+        if (process.broadcast)
+        {
+            // LISTEN: "module_deploy"
+            process.broadcast.subscribe("module_deploy", function (message, channel, finished) {
+
+                if (!finished) {
+                    finished = function () {};
+                }
+
+                console.log("HEARD: module_deploy");
+
+                var host = message.host;
+                var moduleId = message.moduleId;
+                var moduleConfig = message.moduleConfig;
+
+                doDeploy(host, moduleId, moduleConfig, function (err) {
+
+                    // invalidate the module
+                    notifyModuleInvalidation({
+                        "host": host
+                    }, function() {
+                        console.log("After notify module invalidation: " + host);
+                        finished(err);
+                    });
+                });
+            });
+
+            // LISTEN: "module_undeploy"
+            process.broadcast.subscribe("module_undeploy", function (message, channel, finished) {
+
+                if (!finished) {
+                    finished = function () {};
+                }
+
+                console.log("HEARD: module_undeploy");
+
+                var host = message.host;
+                var moduleId = message.moduleId;
+                var moduleConfig = message.moduleConfig;
+
+                doUndeploy(host, moduleId, moduleConfig, function (err) {
+
+                    // invalidate the module
+                    notifyModuleInvalidation({
+                        "host": host
+                    }, function() {
+                        console.log("After notify module invalidation: " + host);
+                        finished(err);
+                    });
+                });
+            });
+
+            // LISTEN: "module_refresh"
+            process.broadcast.subscribe("module_refresh", function (message, channel, finished) {
+
+                if (!finished) {
+                    finished = function () {};
+                }
+
+                console.log("HEARD: module_refresh");
+
+                var host = message.host;
+                var moduleId = message.moduleId;
+                var moduleConfig = message.moduleConfig;
+
+                doRefresh(host, moduleId, moduleConfig, function (err) {
+
+                    // invalidate the module
+                    notifyModuleInvalidation({
+                        "host": host
+                    }, function() {
+                        console.log("After notify module invalidation: " + host);
+                        finished(err);
+                    });
+                });
+            });
+
+            // LISTEN: "module_redeploy"
+            process.broadcast.subscribe("module_redeploy", function (message, channel, finished) {
+
+                if (!finished) {
+                    finished = function () {};
+                }
+
+                console.log("HEARD: module_redeploy");
+
+                var host = message.host;
+                var moduleId = message.moduleId;
+                var moduleConfig = message.moduleConfig;
+
+                doUndeploy(host, moduleId, moduleConfig, function(err) {
+
+                    if (err)
+                    {
+                        // invalidate the module
+                        return notifyModuleInvalidation({
+                            "host": host
+                        }, function() {
+                            console.log("After notify module invalidation: " + host);
+                            finished(err);
+                        });
+                    }
+
+                    doDeploy(host, moduleId, moduleConfig, function(err, host) {
+
+                        // invalidate the module
+                        notifyModuleInvalidation({
+                            "host": host
+                        }, function() {
+                            console.log("After notify module invalidation: " + host);
+                            finished(err);
+                        });
+
+                    });
+                });
+            });
+        }
+    };
+
     r.handler = function()
     {
+        // bind listeners for broadcast events
+        bindSubscriptions();
+
         return util.createHandler("modules", function(req, res, next, stores, cache, configuration) {
 
             var handled = false;
@@ -165,8 +302,16 @@ exports = module.exports = function()
                 if (req.url.indexOf("/_modules/_deploy") === 0)
                 {
                     var moduleId = req.query["id"];
+                    var host = req.virtualHost;
+                    var moduleConfig = req.body;
 
-                    doDeploy(req, req.virtualHost, moduleId, stores.modules, req.body, function(err, host) {
+                    console.log("Heard MODULE DEPLOY host: " + host + ", id: " + moduleId + ", config: " + JSON.stringify(moduleConfig));
+
+                    process.broadcast.publish("module_deploy", {
+                        "host": host,
+                        "moduleId": moduleId,
+                        "moduleConfig": moduleConfig
+                    }, function(err) {
 
                         if (err) {
                             res.send({
@@ -174,14 +319,12 @@ exports = module.exports = function()
                                 "message": err.message,
                                 "err": err
                             });
-                            res.end();
-                            return;
+                            return res.end();
                         }
 
                         // respond with ok
                         res.send({
-                            "ok": true,
-                            "host": host
+                            "ok": true
                         });
 
                         res.end();
@@ -192,8 +335,16 @@ exports = module.exports = function()
                 else if (req.url.indexOf("/_modules/_undeploy") === 0)
                 {
                     var moduleId = req.query["id"];
+                    var host = req.virtualHost;
+                    var moduleConfig = req.body;
 
-                    doUndeploy(req, req.virtualHost, moduleId, stores.modules, function(err) {
+                    console.log("Heard MODULE UNDEPLOY host: " + host + ", id: " + moduleId + ", config: " + JSON.stringify(moduleConfig));
+
+                    process.broadcast.publish("module_undeploy", {
+                        "host": host,
+                        "moduleId": moduleId,
+                        "moduleConfig": moduleConfig
+                    }, function(err) {
 
                         if (err) {
                             res.send({
@@ -201,15 +352,16 @@ exports = module.exports = function()
                                 "message": err.message,
                                 "err": err
                             });
-                            res.end();
-                            return;
+                            return res.end();
                         }
 
                         // respond with ok
                         res.send({
                             "ok": true
                         });
+
                         res.end();
+
                     });
 
                     handled = true;
@@ -217,8 +369,16 @@ exports = module.exports = function()
                 else if (req.url.indexOf("/_modules/_redeploy") === 0)
                 {
                     var moduleId = req.query["id"];
+                    var host = req.virtualHost;
+                    var moduleConfig = req.body;
 
-                    doUndeploy(req, req.virtualHost, moduleId, stores.modules, function(err) {
+                    console.log("Heard MODULE REDEPLOY host: " + host + ", id: " + moduleId + ", config: " + JSON.stringify(moduleConfig));
+
+                    process.broadcast.publish("module_redeploy", {
+                        "host": host,
+                        "moduleId": moduleId,
+                        "moduleConfig": moduleConfig
+                    }, function(err) {
 
                         if (err) {
                             res.send({
@@ -226,32 +386,16 @@ exports = module.exports = function()
                                 "message": err.message,
                                 "err": err
                             });
-                            res.end();
-                            return;
+                            return res.end();
                         }
 
-                        doDeploy(req, req.virtualHost, moduleId, stores.modules, req.body, function(err, host) {
-
-                            if (err) {
-                                res.send({
-                                    "ok": false,
-                                    "message": err.message,
-                                    "err": err
-                                });
-                                res.end();
-                                return;
-                            }
-
-                            // respond with ok
-                            res.send({
-                                "ok": true,
-                                "host": host
-                            });
-
-                            res.end();
+                        // respond with ok
+                        res.send({
+                            "ok": true
                         });
 
-                        handled = true;
+                        res.end();
+
                     });
 
                     handled = true;
@@ -259,7 +403,16 @@ exports = module.exports = function()
                 else if (req.url.indexOf("/_modules/_refresh") === 0)
                 {
                     var moduleId = req.query["id"];
-                    doRefresh(req, req.virtualHost, moduleId, stores.modules, function(err) {
+                    var host = req.virtualHost;
+                    var moduleConfig = req.body;
+
+                    console.log("Heard MODULE REFRESH host: " + host + ", id: " + moduleId + ", config: " + JSON.stringify(moduleConfig));
+
+                    process.broadcast.publish("module_refresh", {
+                        "host": host,
+                        "moduleId": moduleId,
+                        "moduleConfig": moduleConfig
+                    }, function(err) {
 
                         if (err) {
                             res.send({
@@ -267,15 +420,16 @@ exports = module.exports = function()
                                 "message": err.message,
                                 "err": err
                             });
-                            res.end();
-                            return;
+                            return res.end();
                         }
 
                         // respond with ok
                         res.send({
                             "ok": true
                         });
+
                         res.end();
+
                     });
 
                     handled = true;

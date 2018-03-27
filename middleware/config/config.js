@@ -790,7 +790,7 @@ exports = module.exports = function()
                     invalidationDone = function() { };
                 }
 
-                var command = message.command;
+                //var command = message.command;
                 var host = message.host;
 
                 handleModuleInvalidation(host, function(err) {

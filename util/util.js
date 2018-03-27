@@ -321,6 +321,7 @@ exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, sourceBra
         var rootStore = stores.root;
 
         // create tempRootDirectoryPath
+        logMethod("[gitCheckout] Create temp directory");
         createTempDirectory(function (err, tempRootDirectoryPath) {
 
             if (err) {
@@ -328,6 +329,7 @@ exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, sourceBra
             }
 
             // initialize git in temp root directory
+            logMethod("[gitCheckout] Initialize git: " + tempRootDirectoryPath);
             gitInit(tempRootDirectoryPath, logMethod, function (err) {
 
                 if (err) {
@@ -335,6 +337,7 @@ exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, sourceBra
                 }
 
                 // perform a git pull of the repository
+                logMethod("[gitCheckout] Git pull: " + gitUrl);
                 gitPull(tempRootDirectoryPath, gitUrl, sourceType, sourceBranch, logMethod, function (err) {
 
                     if (err) {
@@ -404,15 +407,18 @@ exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, sourceBra
                     }
 
                     // copy everything from temp dir into the store
+                    logMethod("[gitCheckout] Copy from temp to store");
                     copyToStore(tempRootDirectoryRelativePath, rootStore, offsetPath, function(err) {
+
+                        logMethod("[gitCheckout] Remove temp dir: " + tempRootDirectoryPath);
 
                         // now remove temp directory
                         rmdir(tempRootDirectoryPath);
 
+                        logMethod("[gitCheckout] Done");
+
                         callback(err);
-
                     });
-
                 });
             });
         });
