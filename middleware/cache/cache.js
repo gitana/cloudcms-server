@@ -23,17 +23,13 @@ exports = module.exports = function()
     {
         var self = this;
 
-        if (!process.env.CLOUDCMS_CACHE_TYPE)
-        {
-            if (process.configuration.setup === "single")
-            {
-                // for single mode
-                process.env.CLOUDCMS_CACHE_TYPE = "memory";
-            }
-            else
-            {
-                // for cluster or sticky-cluster
-                process.env.CLOUDCMS_CACHE_TYPE = "shared-memory";
+        // set up defaults
+        if (!process.env.CLOUDCMS_CACHE_TYPE) {
+
+            process.env.CLOUDCMS_CACHE_TYPE = "memory";
+
+            if (process.configuration.setup !== "single") {
+                process.env.CLOUDCMS_CACHE_TYPE = "redis";
             }
         }
 

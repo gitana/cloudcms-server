@@ -15,15 +15,32 @@ exports = module.exports = function()
 
     var r = {};
     var init = r.init = function(callback) {
-        var type = process.configuration.awareness.type;
-        if (!type) {
-            type = "memory";    // default type to "memory"
+
+        // set up defaults
+        if (!process.env.CLOUDCMS_AWARENESS_TYPE) {
+            process.env.CLOUDCMS_AWARENESS_TYPE = "memory";
+
+            if (process.configuration.setup !== "single") {
+                //process.env.CLOUDCMS_AWARENESS_TYPE = "redis";
+
+                // TODO: for the moment, stick to "memory" until redis is ready
+            }
         }
 
-        var config = process.configuration.awareness.config;
-        if (!config) {
-            config = {};
+        if (!process.configuration.awareness) {
+            process.configuration.awareness = {};
         }
+
+        if (!process.configuration.awareness.type) {
+            process.configuration.awareness.type = process.env.CLOUDCMS_AWARENESS_TYPE;
+        }
+
+        if (!process.configuration.awareness.config) {
+            process.configuration.awareness.config = {};
+        }
+
+        var type = process.configuration.awareness.type;
+        var config = process.configuration.awareness.config;
 
         provider = require("./providers/" + type);
         logger.info("Provider is required from: ./providers/" + type);

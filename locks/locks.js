@@ -33,13 +33,12 @@ exports = module.exports = function()
     {
         var self = this;
 
-        if (!process.env.CLOUDCMS_LOCKS_TYPE)
-        {
+        // set up defaults
+        if (!process.env.CLOUDCMS_LOCKS_TYPE) {
             process.env.CLOUDCMS_LOCKS_TYPE = "memory";
 
-            if (process.env.CLOUDCMS_LAUNCHPAD_SETUP === "cluster" || process.env.CLOUDCMS_LAUNCHPAD_SETUP === "sticky-cluster")
-            {
-                process.env.CLOUDCMS_LOCKS_TYPE = "cluster";
+            if (process.configuration.setup !== "single") {
+                process.env.CLOUDCMS_LOCKS_TYPE = "redis";
             }
         }
 
@@ -47,13 +46,11 @@ exports = module.exports = function()
             process.configuration.locks = {};
         }
 
-        if (!process.configuration.locks.type)
-        {
+        if (!process.configuration.locks.type) {
             process.configuration.locks.type = process.env.CLOUDCMS_LOCKS_TYPE;
         }
 
-        if (!process.configuration.locks.config)
-        {
+        if (!process.configuration.locks.config) {
             process.configuration.locks.config = {};
         }
 

@@ -8,9 +8,13 @@ module.exports = function()
 
         var self = this;
 
-        if (!process.env.CLOUDCMS_BROADCAST_TYPE)
-        {
+        // set up defaults
+        if (!process.env.CLOUDCMS_BROADCAST_TYPE) {
             process.env.CLOUDCMS_BROADCAST_TYPE = "local";
+
+            if (process.env.CLOUDCMS_LAUNCHPAD_SETUP !== "single") {
+                process.env.CLOUDCMS_BROADCAST_TYPE = "redis";
+            }
         }
 
         var config = process.configuration;

@@ -12,14 +12,17 @@ exports = module.exports = function(cacheConfig)
 {
     var client = null;
 
-    var logger = logFactory("REDIS");
+    var logger = logFactory("REDIS CACHE");
 
-    // leave this in for legacy-support
-    var logLevel = 'info';
-    if (process.env.CLOUDCMS_CACHE_REDIS_DEBUG_LEVEL) {
-        logLevel = (process.env.CLOUDCMS_CACHE_REDIS_DEBUG_LEVEL + "").toLowerCase()
+    // allow for global redis default
+    if (typeof(process.env.CLOUDCMS_REDIS_DEBUG_LEVEL) !== "undefined") {
+        logger.setLevel(("" + process.env.CLOUDCMS_REDIS_DEBUG_LEVEL).toLowerCase(), true);
     }
-    logger.setLevel(logLevel, true);
+
+    // allow for redis broadcast specific
+    if (typeof(process.env.CLOUDCMS_CACHE_REDIS_DEBUG_LEVEL) !== "undefined") {
+        logger.setLevel(("" + process.env.CLOUDCMS_CACHE_REDIS_DEBUG_LEVEL).toLowerCase(), true);
+    }
 
     var r = {};
 
@@ -30,11 +33,19 @@ exports = module.exports = function(cacheConfig)
         {
             redisPort = process.env.CLOUDCMS_CACHE_REDIS_PORT;
         }
+        if (typeof(redisPort) === "undefined" || !redisPort)
+        {
+            redisPort = process.env.CLOUDCMS_REDIS_PORT;
+        }
 
         var redisEndpoint = cacheConfig.endpoint;
         if (typeof(redisEndpoint) === "undefined" || !redisEndpoint)
         {
             redisEndpoint = process.env.CLOUDCMS_CACHE_REDIS_ENDPOINT;
+        }
+        if (typeof(redisEndpoint) === "undefined" || !redisEndpoint)
+        {
+            redisEndpoint = process.env.CLOUDCMS_REDIS_ENDPOINT;
         }
 
         var redisOptions = {};

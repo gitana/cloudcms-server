@@ -63,6 +63,7 @@ server.report(function(callback) {
     console.log("Store Configuration: " + process.env.CLOUDCMS_STORE_CONFIGURATION);
     console.log("Broadcast Provider: " + process.env.CLOUDCMS_BROADCAST_TYPE);
     console.log("Cache Provider: " + process.env.CLOUDCMS_CACHE_TYPE);
+    console.log("Locks Provider: " + process.env.CLOUDCMS_LOCKS_TYPE);
     console.log("Temp Directory: " + process.env.CLOUDCMS_TEMPDIR_PATH);
     console.log("LaunchPad Mode: " + process.env.CLOUDCMS_LAUNCHPAD_SETUP);
     console.log("Max Files Detected: " + process.env.CLOUDCMS_MAX_FILES);
