@@ -566,21 +566,18 @@ exports = module.exports = function()
                 // we also hook into the /context call
                 if (req.path === "/" || req.path.indexOf(".html") > -1 || req.path.indexOf(".appcache") > -1 || req.path.indexOf("/context") > -1)
                 {
-                    if (moduleKeys.length > 0)
+                    // compute a hash for the installed modules based on keys
+                    var hugeKey = "modules";
+                    if (moduleKeys && moduleKeys.length > 0)
                     {
-                        // compute a hash for the installed modules based on keys
-                        var hugeKey = "modules-" + moduleKeys.join("-");
-                        var stateKey = hash(hugeKey, {
-                            "algorithm": "md5"
-                        });
-                        util.setCookie(req, res, "cloudcmsModuleStateKey", stateKey, {
-                            "httpOnly": false
-                        });
+                        hugeKey += "-" + moduleKeys.join("-");
                     }
-                    else
-                    {
-                        util.clearCookie(res, "cloudcmsModuleStateKey");
-                    }
+                    var stateKey = hash(hugeKey, {
+                        "algorithm": "md5"
+                    });
+                    util.setCookie(req, res, "cloudcmsModuleStateKey", stateKey, {
+                        "httpOnly": false
+                    });
 
                     // always set cookie for module identifiers
                     util.setCookie(req, res, "cloudcmsModuleIdentifiers", "" + moduleIdArray.join(","), {
