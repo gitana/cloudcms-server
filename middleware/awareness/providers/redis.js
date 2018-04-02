@@ -39,10 +39,6 @@ exports = module.exports = function()
 
     r.register = function(channelId, user, callback) 
     {
-        console.log("\nRedis registering...");
-
-
-
         var key = "vm" + channelId + "/" + user.id;
 
         var value = {
@@ -62,9 +58,6 @@ exports = module.exports = function()
 
     r.discover = function(channelId, callback) 
     {
-        console.log("\nRedis discovering...");
-
-
         var pattern = "vm" + channelId + "*";
         
         client.keys(pattern, function(err, mKeys) {
@@ -108,9 +101,6 @@ exports = module.exports = function()
 
     r.checkOld = function(lifeTime, callback) 
     {
-        console.log("\nRedis checking old...");
-
-
         var channels = new Set();
 
         // for each valueMap (vm) record, check time
@@ -160,10 +150,6 @@ exports = module.exports = function()
 
     r.checkNew = function(channelId, user, callback) 
     {
-        console.log("\nRedis checking new...");
-
-
-
         var key = "vm" + channelId + "/" + user.id;
 
         client.keys(key, function(err, reply) {
@@ -173,6 +159,73 @@ exports = module.exports = function()
             else {
                 callback(false);
             }
+        });
+    };
+
+    r.acquireLock = function(info, callback)
+    {
+        var channelId = info.action.id + ":" + info.object.id;
+        var key = "lm" + channelId;
+
+        client.get(key, function(err, reply) {
+            if (err) {
+                return callback(err);
+            }
+
+            var value = null;
+            if (!reply) {
+                value = {
+                    "lockTime": Date.now(),
+                    "user": info.user
+                };
+
+                client.set(key, JSON.stringify(value));
+            }
+            else {
+                value = JSON.parse(reply);
+            }
+
+            var res = {
+                "acquireInfo": value,
+            };
+    
+            callback(res);
+        });
+
+    };
+
+    r.releaseLock = function(info, callback)
+    {
+        var channelId = info.channelId;
+        var userId = info.userId;
+        
+        var releaseInfo = {};
+
+        var key = "lm" + channelId;
+        client.get(key, function(err, reply) {
+            if (err) {
+                return callback(err);
+            }
+
+            if (reply) {
+                var value = JSON.parse(reply);
+                if (value && value.user.id == userId)
+                {
+                    client.del(key);
+                    releaseInfo.released = true;
+                }
+                else {
+                    releaseInfo.released = false;
+                    releaseInfo.lockStatus = value? "locked" : "unlocked";
+                }
+            }
+
+            var res = {
+                "releaseInfo": releaseInfo
+            };
+            
+            callback(res);
+    
         });
     };
 
