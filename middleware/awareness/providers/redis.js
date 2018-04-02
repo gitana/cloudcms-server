@@ -37,141 +37,143 @@ exports = module.exports = function()
         callback();
     };
 
-    r.register = function(user, object, action, callback) {
+    r.register = function(channelId, user, callback) 
+    {
+        console.log("\nRedis registering...");
 
-        if (!user.id || !object.id || !action.id) {
-            var msg = "user, object and action each should have an id."
-            return callback(msg);
-        }
 
-        // construct a unique key
-        var key = user.id + ":" + action.id + ":" + object.id;
-        var value = JSON.stringify({
+
+        var key = "vm" + channelId + "/" + user.id;
+
+        var value = {
             "user": user,
-            "object": object,
-            "action": action,
             "time": Date.now()
-        });
+        };
 
-        client.set(key, value, function(err, reply) {
+        client.set(key, JSON.stringify(value), function(err, reply) {
             if (err) {
                 return callback(err);
             }
-            callback(null, reply);
+
+            callback(reply);
         });
+        
     };
 
-    r.discover = function(reqObj, callback)
+    r.discover = function(channelId, callback) 
     {
-        if (reqObj.regex) 
-        {
-            // construct pattern from regexString for redis
-            // regexString looks like "[0-9]*\\:actionId\\:objectId"
-            var regexString = reqObj.regex;
-            var pattern = "*";
-            var cleanString = regexString.replace(/\\/g, '');   // remove all backslashes 
-            var indexOfFirstColon = cleanString.indexOf(":");   
-            pattern += cleanString.substring(indexOfFirstColon);
-            
-            // get matchedKeys
-            client.keys(pattern, function(err, matchedKeys) {
-                if (err) {
-                    return callback(err);
-                }
+        console.log("\nRedis discovering...");
 
-                var values = [];
-                var fns = [];
-                // get values of the matched keys
-                matchedKeys.forEach(function(key) {
 
-                    var fn = function(key, client, values) {
-                        return function(done) {
-                            client.get(key, function(err, value) {
-                                if (err) {
-                                    logger.error("discover error. Cannot find value for key: " + key);
-                                }
-                                else {
-                                    values.push(JSON.parse(value));
-                                }
-                                done();
-                            });
-                        };
-                    }(key, client, values);
-                    fns.push(fn);
-                });
-
-                async.series(fns, function(err){
-                    callback(err, values);
-                });
-
-            });
-        }
-
-    };
-
-    r.checkOld = function(lifeTime, callback) 
-    {
-        // a set of room ids that are updated
-        var rooms = new Set();
-
-        // for each record, check time
-        client.keys("*", function(err, allKeys) {
+        var pattern = "vm" + channelId + "*";
+        
+        client.keys(pattern, function(err, mKeys) {
             if (err) {
                 return callback(err);
             }
 
             var fns = [];
-            allKeys.forEach(function(key) {
+            var array = [];
 
-                var fn = function(key, client, rooms) {
+            mKeys.forEach(function(key) {
+
+                var fn = function(key, client, array) {
+                    return function(done) {
+                        client.get(key, function(err, reply) {
+                            if (err) {
+                                return callback(err);
+                            }
+        
+                            array.push(JSON.parse(reply));
+
+                            done();
+                        });
+                    }
+                } (key, client, array);
+
+                fns.push(fn);
+
+            });
+
+            async.series(fns, function(err){
+                if (err) {
+                    return callback(err);
+                }
+    
+                callback(array);
+            });
+        });
+
+    };
+
+    r.checkOld = function(lifeTime, callback) 
+    {
+        console.log("\nRedis checking old...");
+
+
+        var channels = new Set();
+
+        // for each valueMap (vm) record, check time
+        client.keys("vm*", function(err, vmKeys) {
+            if (err) {
+                return callback(err);
+            }
+
+            var fns = [];
+            vmKeys.forEach(function(key) {
+
+                var fn = function(key, client, channels) {
                     return function(done) {
                         client.get(key, function(err, value) {
                             if (err) {
-                                logger.error("Cannot find value for key: " + key);
+                                return callback(err);
                             }
-                            else {
-                                // if too old (> 30 seconds), remove from storage
-                                value = JSON.parse(value);
-                                var elapsed = Date.now() - value.time;
-                                if (elapsed > lifeTime) {
-                                    var roomId = value.action.id + ":" + value.object.id;
-                                    rooms.add(roomId);
+                                            
+                            value = JSON.parse(value);
 
-                                    client.del(key);
-                                }
+                            var elapsed = Date.now() - value.time;
+                            if (elapsed > lifeTime) {
+
+                                // extract channelId from key
+                                var channelId = key.split("/")[0].substring(2);
+                                channels.add(channelId);
+
+                                client.del(key);
                             }
+                            
                             done();
                         });
                     };
-                }(key, client, rooms);
+                }(key, client, channels);
 
                 fns.push(fn);
             });
 
             async.series(fns, function(err){
-                callback(err, rooms);
+                callback(channels);
             });
 
         });
         
-        callback(rooms);
+        callback(channels);
     };
 
-    r.checkNew = function(key, callback) 
+    r.checkNew = function(channelId, user, callback) 
     {
-        client.keys(key, function(err, allkeys) {
-            if (allkeys.length < 1) {
+        console.log("\nRedis checking new...");
+
+
+
+        var key = "vm" + channelId + "/" + user.id;
+
+        client.keys(key, function(err, reply) {
+            if (reply.length < 1) {
                 callback(true);
             }
             else {
                 callback(false);
             }
         });
-
-        // doesn't work
-        // client.exists(key, function(res) {
-        //     callback(res === 0);
-        // });
     };
 
     return r;
