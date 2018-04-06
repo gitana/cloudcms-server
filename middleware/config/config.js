@@ -431,18 +431,36 @@ exports = module.exports = function()
             if (!principalId) {
                 principalId = req.query["groupId"];
             }
-            if (!principalId) {
-                return next();
-            }
-
-            var a = principalId.indexOf("/");
-            if (a > -1) {
-                principalId = principalId.substring(a + 1);
+            if (principalId)
+            {
+                var a = principalId.indexOf("/");
+                if (a > -1)
+                {
+                    principalId = principalId.substring(a + 1);
+                }
             }
 
             var projectId = req.query["projectId"];
 
             var forceInvalidate = (req.query["invalidate"] === "true");
+
+            var includeViews = true;
+            var includeSystemManagedUser = true;
+            var includeSystemManagedGlobal = true;
+
+            var mode = req.query["mode"];
+            if (mode === "global")
+            {
+                includeViews = false;
+                includeSystemManagedGlobal = true;
+                includeSystemManagedUser = false;
+            }
+            else if (mode === "global-and-user")
+            {
+                includeViews = false;
+                includeSystemManagedGlobal = true;
+                includeSystemManagedUser = true;
+            }
 
             // get the cloud cms application
             retrieveConfigApplication(req, configuration, function(err, application) {
@@ -452,44 +470,56 @@ exports = module.exports = function()
                     "$or": []
                 };
 
-                // if a user ID is supplied, we fetch VIEW UI CONFIGs that are explicitly selected within OneTeam UI
-                // these have "scope" user
-                if (principalId) {
-                    q["$or"].push({
-                        "scope": "user",
-                        "key": principalId
-                    });
-                }
-
-                // if a user ID is supplied, we fetch UI Config for the user
-                // this allows for project or platform specific user customizations
-                // these have scope "principal"
-                if (principalId) {
-                    q["$or"].push({
-                        "scope": "principal",
-                        "key": principalId
-                    });
-                }
-
-                // if a project ID is supplied, we fetch UI Config for project
-                // this allows for global project customizations
-                if (projectId)
+                if (includeViews)
                 {
+                    // if a user ID is supplied, we fetch VIEW UI CONFIGs that are explicitly selected within OneTeam UI
+                    // these have "scope" user
+                    if (principalId)
+                    {
+                        q["$or"].push({
+                            "scope": "user",
+                            "key": principalId
+                        });
+                    }
+                }
+
+                if (includeSystemManagedUser)
+                {
+                    // if a user ID is supplied, we fetch system-managed UI Config for the user
+                    // this allows for project or platform specific user customizations
+                    // these have scope "principal"
+                    if (principalId)
+                    {
+                        q["$or"].push({
+                            "scope": "principal",
+                            "key": principalId
+                        });
+                    }
+                }
+
+                if (includeSystemManagedGlobal)
+                {
+                    // if a project ID is supplied, we fetch system-managed UI Config for project
+                    // this allows for global project customizations
                     // these have scope "project"
-                    q["$or"].push({
-                        "scope": "project",
-                        "key": projectId
-                    });
-                }
-                else
-                {
-                    // if no project ID, we fetch UI Config for platform
-                    // this allows for global platform customization
-                    // these have scope "platform"
-                    q["$or"].push({
-                        "scope": "platform",
-                        "key": "platform"
-                    });
+                    if (projectId)
+                    {
+                        // these have scope "project"
+                        q["$or"].push({
+                            "scope": "project",
+                            "key": projectId
+                        });
+                    }
+                    else
+                    {
+                        // if no project ID, we fetch system-managed UI Config for platform
+                        // this allows for global platform customization
+                        // these have scope "platform"
+                        q["$or"].push({
+                            "scope": "platform",
+                            "key": "platform"
+                        });
+                    }
                 }
 
                 var uiConfigIds = [];
@@ -497,7 +527,7 @@ exports = module.exports = function()
                 // find the settings for the given user id
                 var settingsList = [];
                 Chain(application).querySettings(q, {
-                    "limit": 10
+                    "limit": 25
                 }).each(function () {
                     if (this.settings && this.settings.uiconfigs)
                     {
@@ -507,7 +537,31 @@ exports = module.exports = function()
 
                     if (projectId)
                     {
-                        // keep IDs for "user" level (specific ONETEAM VIEW selections)
+                        // SYSTEM MANAGED: keep IDs for global "project" level
+                        for (var i = 0; i < settingsList.length; i++)
+                        {
+                            if (settingsList[i].scope !== "principal")
+                            {
+                                if (settingsList[i].settings.uiconfigs.project)
+                                {
+                                    uiConfigIds.push(settingsList[i].settings.uiconfigs.project);
+                                }
+                            }
+                        }
+
+                        // SYSTEM MANAGED: keep IDs for global project-specific level
+                        for (var i = 0; i < settingsList.length; i++)
+                        {
+                            if (settingsList[i].scope !== "principal")
+                            {
+                                if (settingsList[i].settings.uiconfigs["project-" + projectId])
+                                {
+                                    uiConfigIds.push(settingsList[i].settings.uiconfigs["project-" + projectId]);
+                                }
+                            }
+                        }
+
+                        // VIEW: keep IDs for "user" level (specific ONETEAM VIEW selections)
                         for (var i = 0; i < settingsList.length; i++)
                         {
                             if (settingsList[i].scope === "user") {
@@ -517,25 +571,45 @@ exports = module.exports = function()
                             }
                         }
 
-                        // keep IDs for "project" level
+                        // USER: keep IDs for user "project" level
                         for (var i = 0; i < settingsList.length; i++)
                         {
-                            if (settingsList[i].settings.uiconfigs.project) {
-                                uiConfigIds.push(settingsList[i].settings.uiconfigs.project);
+                            if (settingsList[i].scope === "principal")
+                            {
+                                if (settingsList[i].settings.uiconfigs.project)
+                                {
+                                    uiConfigIds.push(settingsList[i].settings.uiconfigs.project);
+                                }
                             }
                         }
 
-                        // keep IDs for user-specific project level
+                        // USER: keep IDs for user project-specific level
                         for (var i = 0; i < settingsList.length; i++)
                         {
-                            if (settingsList[i].settings.uiconfigs["project-" + projectId]) {
-                                uiConfigIds.push(settingsList[i].settings.uiconfigs["project-" + projectId]);
+                            if (settingsList[i].scope === "principal")
+                            {
+                                if (settingsList[i].settings.uiconfigs["project-" + projectId])
+                                {
+                                    uiConfigIds.push(settingsList[i].settings.uiconfigs["project-" + projectId]);
+                                }
                             }
                         }
                     }
                     else
                     {
-                        // keep IDs for "user" level (specific ONETEAM VIEW selections)
+                        // SYSTEM MANAGED: keep IDs for platform level
+                        for (var i = 0; i < settingsList.length; i++)
+                        {
+                            if (settingsList[i].scope !== "principal")
+                            {
+                                if (settingsList[i].settings.uiconfigs.platform)
+                                {
+                                    uiConfigIds.push(settingsList[i].settings.uiconfigs.platform);
+                                }
+                            }
+                        }
+
+                        // VIEW: keep IDs for "user" level (specific ONETEAM VIEW selections)
                         for (var i = 0; i < settingsList.length; i++)
                         {
                             if (settingsList[i].scope === "user") {
@@ -545,12 +619,15 @@ exports = module.exports = function()
                             }
                         }
 
-                        // keep IDs for platform level and user-specific platform level
+                        // USER: keep IDs for platform level
                         for (var i = 0; i < settingsList.length; i++)
                         {
-                            if (settingsList[i].settings.uiconfigs.platform)
+                            if (settingsList[i].scope === "principal")
                             {
-                                uiConfigIds.push(settingsList[i].settings.uiconfigs.platform);
+                                if (settingsList[i].settings.uiconfigs.platform)
+                                {
+                                    uiConfigIds.push(settingsList[i].settings.uiconfigs.platform);
+                                }
                             }
                         }
                     }
@@ -594,6 +671,10 @@ exports = module.exports = function()
                                 console.log(" > " + uiConfigStores[i].id);
                             }
                             */
+
+                            // the multistore reverses stores, so we have to pre-emptively reverse here
+                            // TODO: does this make sense?
+                            uiConfigStores.reverse();
 
                             // wrap all ui config stores into a single remote config store
                             req._remote_config_store = multistore(uiConfigStores);
