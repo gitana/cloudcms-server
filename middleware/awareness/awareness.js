@@ -1,5 +1,6 @@
 var util = require("../../util/util");
 var logFactory = require("../../util/logger");
+var async = require("async");
 
 /**
  * Awareness middleware.
@@ -10,20 +11,38 @@ exports = module.exports = function()
 {
     var logger = logFactory("AWARENESS");
     var provider = null;
-    var REAP_FREQUENCY = 3000;  // reaps every 3 seconds
-    var LIFE_TIME = 5000;    // 10 seconds -> old enough to reap
+    var REAP_FREQUENCY_MS = 3000; // three seconds
+    var REAP_MAX_AGE_MS = 5000; // five seconds
+
+    // ensure reaper only initializes once
+    var reaperInitialized = false;
+
+    // ensure socket IO only initializes once
+    var socketIOInitialized = false;
+
+    var _LOCK = function(channelId, workFunction)
+    {
+        var lockKey = "awareness_channel_" + channelId;
+
+        process.locks.lock(lockKey, workFunction);
+    };
 
     var r = {};
+
+    /**
+     * This gets called early and should be used to set defaults and instantiate the provider.
+     *
+     * @type {Function}
+     */
     var init = r.init = function(callback) {
 
         // set up defaults
-        if (!process.env.CLOUDCMS_AWARENESS_TYPE) {
+        if (!process.env.CLOUDCMS_AWARENESS_TYPE)
+        {
             process.env.CLOUDCMS_AWARENESS_TYPE = "memory";
 
             if (process.configuration.setup !== "single") {
-                //process.env.CLOUDCMS_AWARENESS_TYPE = "redis";
-
-                // TODO: for the moment, stick to "memory" until redis is ready
+                process.env.CLOUDCMS_AWARENESS_TYPE = "redis";
             }
         }
 
@@ -42,90 +61,263 @@ exports = module.exports = function()
         var type = process.configuration.awareness.type;
         var config = process.configuration.awareness.config;
 
-        provider = require("./providers/" + type);
-        logger.info("Provider is required from: ./providers/" + type);
+        var providerFactory = require("./providers/" + type);
+        provider = new providerFactory(config);
 
-        provider.init(config, function(err){
+        // initialize the provider
+        provider.init(function(err){
+
             if (err) {
                 return callback(err);
             }
 
-            socketInit(process.IO);
+            callback();
+        });
+    };
 
-            reaperInit(process.IO, REAP_FREQUENCY, function(err) {
-                callback(err);
-            });
+    /**
+     * This gets called whenever a new socket is connected to the Cloud CMS server.
+     *
+     * @type {Function}
+     */
+    var initSocketIO = r.initSocketIO = function(callback) {
+
+        // initialize socket IO event handlers so that awareness binds to any new, incoming sockets
+        socketInit(process.IO);
+
+        // ensure the reaper is initialized
+        reaperInit(process.IO, REAP_FREQUENCY_MS, REAP_MAX_AGE_MS, function(err) {
+            callback(err);
         });
     };
 
     var socketInit = function(io)
     {
+        if (socketIOInitialized)
+        {
+            return;
+        }
+
+        socketIOInitialized = true;
+
+        // when a socket.io connection is established, we set up some default listeners for events that the client
+        // may emit to us
         io.on("connection", function(socket) {
 
-            socket.on("room", function(info, callback) {
+            // "register" -> indicates that a user is in a channel
+            socket.on("register", function(channelId, user, dirty, callback) {
 
-                var channelId = info.channelId;
-                var user = info.user;
+                checkRegistered(channelId, user.id, function(err, alreadyRegistered) {
 
-                checkNew(channelId, user, function(isNew) {
+                    if (err) {
+                        return callback(err);
+                    }
 
-                    register(channelId, user, function(value) {
-                        if (isNew) {
+                    // attach socket ID to user
+                    user.socketId = socket.id;
+
+                    // this will either create a new entry or update the old one
+                    // so that the TTL is updated
+                    register(channelId, user, function(err) {
+
+                        if (err) {
+                            return callback(err);
+                        }
+
+                        // if we were already registered, just callback
+                        // however, if "dirty" is set, then we always hand back membership
+                        if (!dirty && alreadyRegistered)
+                        {
+                            return callback();
+                        }
+
+                        if (!alreadyRegistered)
+                        {
+                            // logger.info("New registration - channelId: " + channelId + ",userId=" + user.id + " (" + user.name + ")");
+
                             socket.join(channelId);
-                            io.sockets.in(channelId).emit("updated", channelId);
                         }
-                        else {
-                            callback("User " + user.id + " already registered in channel " + channelId + " .");
-                        }
+
+                        discover(channelId, function(err, userArray) {
+
+                            if (!err) {
+                                logger.info("Discover - channelId: " + channelId + ", userId=" + user.id + " (" + user.name + ") handing back: " + userArray.length);
+                                io.sockets.in(channelId).emit("membershipChanged", channelId, userArray);
+                            }
+
+                            callback();
+                        });
                     });
                 });
             });
 
+            // "discover" -> hand back the users who are in a channel
             socket.on("discover", function(channelId, callback) {
-                discover(channelId, function(userArray) {
-                    callback(userArray);
+                discover(channelId, callback);
+            });
+
+            // "acquireLock"
+            socket.on("acquireLock", function(channelId, user, callback) {
+
+                // attach socket ID to user
+                user.socketId = socket.id;
+
+                // make an attempt to acquire the lock
+                acquireLock(channelId, user, function(err, success) {
+
+                    // if we got an error, then we didn't acquire the lock
+                    if (err) {
+                        return callback(err);
+                    }
+
+                    if (!success)
+                    {
+                        // we didn't acquire the lock, so bail
+                        return callback(null, false);
+                    }
+
+                    // we got the lock
+
+                    // notify everyone in the channel (except us) that someone else acquired the lock
+                    socket.to(channelId).emit("lockAcquired", channelId, user);
+
+                    // fire callback to let the socket called know they succeeded
+                    callback(null, true);
                 });
             });
 
-            socket.on("acquireLock", function(info, callback) {
-                acquireLock(info, function(res) {
-                    callback(res);
+            // "releaseLock"
+            socket.on("releaseLock", function(channelId, userId, callback) {
+
+                // make an attempt to release the lock
+                releaseLock(channelId, userId, function(err, success) {
+
+                    // if we got an error, then we didn't release the lock
+                    if (err) {
+                        return callback(err, false);
+                    }
+
+                    if (!success)
+                    {
+                        // we didn't release the lock, so bail
+                        return callback(null, false);
+                    }
+
+                    // we released the lock
+
+                    // notify everyone in the channel (except us) that someone else acquired the lock
+                    socket.to(channelId).emit("lockReleased", channelId, userId);
+
+                    // fire callback to let the socket called know they succeeded
+                    callback(null, true);
+
                 });
             });
 
-            socket.on("releaseLock", function(info, callback) {
-                releaseLock(info, function(res) {
-                    callback(res);
-                });
+            // "lockInfo" -> requests info about a lock
+            socket.on("lockInfo", function(channelId, callback) {
+                lockInfo(channelId, callback);
+            });
+
+            // "notifyLockOwner" -> notifies the lock owner with a message
+            socket.on("notifyLockOwner", function(channelId, user, message, callback) {
+                notifyLockOwner(socket, channelId, user, message, callback);
             });
 
         });
     };
 
     /**
-     * Initialize a reaper that reaps old registrations every 3 seconds.
-     * 
+     * Starts up a reaper "thread" that wakes up periodically and looks for users in channels whose registrations
+     * have expired.  When expired registrations are found, they are noted.
+     *
+     * Upon completing, any channel members who are in a channel whose membership has changed will be notified.
+     * In addition, any locks held by members who are expired will be released and channel listeners will be notified.
+     *
      * @param {*} callback 
      */
-    var reaperInit = function(io, frequency, callback) {
+    var reaperInit = function(io, frequencyMs, maxAgeMs, callback) {
+
+        if (reaperInitialized) {
+            return callback();
+        }
+
+        reaperInitialized = true;
+
         var reap = function() {
 
-            checkOld(LIFE_TIME, function(updatedChannels) {
+            // reap anything before a calculated time in the past
+            var beforeMs = new Date().getTime() - maxAgeMs;
 
-                if (updatedChannels && updatedChannels.size > 0) {
-                    logger.info("\nFound old guys in " + updatedChannels.size + " channels");
+            // run expirations
+            expire(beforeMs, function(err, updatedMembershipChannelIds, expiredUserIdsByChannelId) {
 
-                    updatedChannels.forEach(function(channelId) {
-                        io.sockets.in(channelId).emit("updated", channelId);
+                // functions
+                var fns = [];
 
-                        updatedChannels.delete(channelId);
-                    });
+                // for any channels whose membership changed, we notify everyone listening to the channel
+                // of the new membership list
+                if (!err && updatedMembershipChannelIds)
+                {
+                    for (var i = 0; i < updatedMembershipChannelIds.length; i++)
+                    {
+                        var fn = function (channelId) {
+                            return function (done) {
+
+                                discover(channelId, function (err, userArray) {
+
+                                    if (!err)
+                                    {
+                                        io.sockets.in(channelId).emit("membershipChanged", channelId, userArray);
+                                    }
+
+                                    done();
+                                });
+                            }
+                        }(updatedMembershipChannelIds[i]);
+                        fns.push(fn);
+                    }
                 }
-            });
 
-            setTimeout(function() {
-                reap();
-            }, frequency);
+                // for any users who were expired, we attempt to release locks
+                // if a lock was released, we notify everyone in the channel room
+                if (!err && expiredUserIdsByChannelId)
+                {
+                    for (var channelId in expiredUserIdsByChannelId)
+                    {
+                        var expiredUserIds = expiredUserIdsByChannelId[channelId];
+                        if (expiredUserIds)
+                        {
+                            for (var i = 0; i < expiredUserIds.length; i++)
+                            {
+                                var fn = function(channelId, userId) {
+                                    return function(done) {
+                                        releaseLock(channelId, userId, function(err, success) {
+
+                                            if (!err && success)
+                                            {
+                                                io.sockets.in(channelId).emit("lockReleased", channelId, userId);
+                                            }
+
+                                            done();
+                                        });
+                                    };
+                                }(channelId, expiredUserIds[i]);
+                                fns.push(fn);
+                            }
+                        }
+                    }
+                }
+
+                async.parallel(fns, function(err) {
+
+                    // run reap again after some period of time
+                    setTimeout(function() {
+                        reap();
+                    }, frequencyMs);
+
+                });
+            });
         };
 
         reap();
@@ -133,53 +325,138 @@ exports = module.exports = function()
         callback();
     };
 
+    /**
+     * Registers a user into a channel.  This can be called multiple times.
+     *
+     * If a user isn't registered in a channel, they are added along with a timestamp indicating when they registered.
+     * If they are already registered, the entry is re-creted so that the timestamp updates.
+     *
+     * The register() call should be called periodically from any front-end apps to signal that that the front-end
+     * user is "still there" and "still in the channel".
+     *
+     * @type {Function}
+     */
     var register = r.register = function(channelId, user, callback)
     {
-        provider.register(channelId, user, function(value) {
-            callback(value);
-        });
+        provider.register(channelId, user, callback);
     };
 
+    /**
+     * Retrieves and hands back the users who are in a channel.
+     *
+     * @type {Function}
+     */
     var discover = r.discover = function(channelId, callback)
     {        
-        provider.discover(channelId, function(userArray) {
-            callback(userArray);
-        });
+        provider.discover(channelId, callback);
     };
 
-    var checkNew = r.checkNew = function(channelId, user, callback)
+    /**
+     * Checks whether a user is registered in a channel.
+     *
+     * @type {Function}
+     */
+    var checkRegistered = r.checkRegistered = function(channelId, userId, callback)
     {
-        provider.checkNew(channelId, user, function(result) {
-            callback(result);
-        });
+        provider.checkRegistered(channelId, userId, callback);
     };
 
-    var checkOld = r.checkOld = function(lifeTime, callback)
+    /**
+     * Runs expiration across all channels and users.  Any users who were added before the given timestmap
+     * will be expired.
+     *
+     * @type {Function}
+     */
+    var expire = r.expire = function(beforeMs, callback)
     {
-        provider.checkOld(lifeTime, function(rooms) {
-            callback(rooms);
+        provider.expire(beforeMs, callback);
+    };
+
+    /**
+     * Acquires a lock for the given user against the channel.  Only one user may have the lock at a given time.
+     * Locks are released when the reaper thread finds TTL expirations (or when they are explicitly released).
+     *
+     * @param channelId
+     * @param user
+     * @param callback
+     */
+    var acquireLock = r.acquireLock = function(channelId, user, callback)
+    {
+        // take out a cluster-wide lock on the "channelId"
+        // so that two "threads" can't acquire/release at the same time for a given channel
+        _LOCK(channelId, function (releaseLockFn) {
+            provider.acquireLock(channelId, user, function(err, success) {
+                releaseLockFn();
+                callback(err, success);
+            });
         });
     };
 
     /**
-     * @param info  user, action, object
-     * @returns     object: lockInfo-lockTime and user
+     * Explicitly releases a lock for a user within a channel.
+     *
+     * @param channelId
+     * @param userId
+     * @param callback
      */
-    var acquireLock = r.acquireLock = function(info, callback) 
+    var releaseLock = r.releaseLock = function(channelId, userId, callback)
     {
-        provider.acquireLock(info, function(res) {
-            callback(res);
+        // take out a cluster-wide lock on the "channelId"
+        // so that two "threads" can't acquire/release at the same time for a given channel
+        _LOCK(channelId, function (releaseLockFn) {
+            provider.releaseLock(channelId, userId, function(err, success) {
+                releaseLockFn();
+                callback(err, success);
+            });
         });
     };
 
     /**
-     * @param info  an object contains channelId and userId of the lock
-     * @returns     object: releaseInfo
+     * Acquires information about the lock on a given channel.
+     * If no lock exists, null will be handed back.
+     *
+     * @type {Function}
      */
-    var releaseLock = r.releaseLock = function(info, callback) 
+    var lockInfo = r.lockInfo = function(channelId, callback)
     {
-        provider.releaseLock(info, function(res) {
-            callback(res);
+        provider.lockInfo(channelId, callback);
+    };
+
+    var notifyLockOwner = r.notifyLockOwner = function(socket, channelId, user, message, callback)
+    {
+        if (!callback) {
+            callback = function(err) { };
+        }
+
+        provider.lockInfo(channelId, function(err, lock) {
+
+            if (err) {
+                return callback(err);
+            }
+
+            if (!lock) {
+                return callback({
+                    "message": "Could not find lock for channel: " + channelId
+                });
+            }
+
+            // console.log("LOCK USER: " + JSON.stringify(lock.user, null, 2));
+
+            var socketId = lock.user.socketId;
+            if (!socketId)
+            {
+                return callback({
+                    "message": "Could not find socket ID for lock user for channel: " + channelId
+                });
+            }
+
+            socket.to(socketId).emit("lockOwnerNotify", {
+                "fromUser": user,
+                "toUser": lock.user,
+                "channelId": channelId,
+                "message": message
+            });
+
         });
     };
 

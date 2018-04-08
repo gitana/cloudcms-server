@@ -1,137 +1,113 @@
-/**
- * In-memory awareness.
- *
- * @type {*}
- */
-exports = module.exports = function()
+var AbstractAsyncProvider = require("./abstract-async");
+
+class MemoryProvider extends AbstractAsyncProvider
 {
-    /*
-    valueMap = {
-        "channelId1": {
-            "user1": {user, time},
-            "user2": {user, time}
-        }
-    };
-    */
-    var valueMap = null;    // key: channelId   value: userMap
-    var lockMap = null;     // key: channelId   value: an object with lockTime and user
-
-    var r = {};
-
-    r.init = function(config, callback)
+    constructor(config)
     {
-        valueMap = {};
-        lockMap = {};
+        super(config);
+
+        // channel ID -> { "users": { userId: { user, lockTime } } }
+        this.channelMap = {};
+
+        // channel ID -> { lockTime, user }
+        this.lockMap = {};
+    }
+
+    // IMPLEMENT ABSTRACT INTERFACE METHODS
+
+    init(callback)
+    {
+        // nothing to do
+        callback();
+    }
+
+    readOrCreateChannel(channelId, callback)
+    {
+        var self = this;
+
+        var channel = self.channelMap[channelId];
+        if (channel) {
+            return callback(null, channel);
+        }
+
+        channel = self.channelMap[channelId] = {};
+
+        callback(null, channel);
+    }
+
+    readChannel(channelId, callback)
+    {
+        var self = this;
+
+        var channel = self.channelMap[channelId];
+        if (!channel) {
+            return callback();
+        }
+
+        callback(null, channel);
+    }
+
+    writeChannel(channelId, channel, callback)
+    {
+        var self = this;
+
+        self.channelMap[channelId] = channel;
 
         callback();
-    };
+    }
 
-    r.register = function(channelId, user, callback)
+    listChannelIds(callback)
     {
-        var userMap = valueMap[channelId];
-        if (!userMap) {
-            userMap = valueMap[channelId] = {};
+        var self = this;
+
+        var channelIds = [];
+
+        for (var channelId in self.channelMap) {
+            channelIds.push(channelId);
         }
 
-        var value = {
-            "user": user,
-            "time": Date.now()
-        };
-
-        userMap[user.id] = value;
-
-        callback(JSON.stringify(value));
+        callback(null, channelIds);
     };
 
-    r.discover = function(channelId, callback) 
+    readLock(lockId, callback)
     {
-        var userMap = valueMap[channelId];
+        var self = this;
 
-        var array = [];
-        for (var k in userMap) {
-            array.push(userMap[k]);
-        }
+        var lock = self.lockMap[lockId];
 
-        callback(array);
-    };
+        callback(null, lock);
+    }
 
-    r.checkOld = function(lifeTime, callback) 
+    writeLock(lockId, lock, callback)
     {
-        // a set of channels that are updated
-        var channels = new Set();
+        var self = this;
 
-        for (var channelId in valueMap)
-        {
-            var userMap = valueMap[channelId];
-            for (var user in userMap) {
-                var value = userMap[user];
-                var elapsed = Date.now() - value.time;
-                if (elapsed > lifeTime) {
-                    channels.add(channelId);
-                    delete userMap[user];
-                }    
-            }
-        }
-        callback(channels);
-    };
+        self.lockMap[lockId] = lock;
 
-    r.checkNew = function(channelId, user, callback) 
+        callback();
+    }
+
+    deleteLock(lockId, callback)
     {
-        var userMap = valueMap[channelId];
-        if (!userMap) {
-            callback(true);
-        }
-        else if (!userMap[user.id]) {
-            callback(true);
-        }
-        else {
-            callback(false);
-        }
-    };
+        var self = this;
 
-    r.acquireLock = function(info, callback)
+        delete self.lockMap[lockId];
+
+        callback();
+    }
+
+    listLockIds(callback)
     {
-        var channelId = info.action.id + ":" + info.object.id;
+        var self = this;
 
-        if (!lockMap[channelId]) {
-            lockMap[channelId] = {
-                "lockTime": Date.now(),
-                "user": info.user
-            };
+        var lockIds = [];
+
+        for (var lockId in self.lockMap) {
+            lockIds.push(lockId);
         }
 
-        var res = {
-            "acquireInfo": lockMap[channelId],
-        };
+        callback(null, lockIds);
+    }
+}
 
-        callback(res);
-    };
-
-    r.releaseLock = function(info, callback)
-    {
-        var channelId = info.channelId;
-        var userId = info.userId;
-        var lockInfo = lockMap[channelId];
-
-        var releaseInfo = {};
-
-        // the channel is locked and the releaser possesses the lock
-        if (lockInfo && lockInfo.user.id == userId) 
-        {
-            lockMap[channelId] = undefined;
-            releaseInfo.released = true;
-        }
-        else {
-            releaseInfo.released = false;
-            releaseInfo.lockStatus = lockInfo? "locked" : "unlocked";
-        }
-
-        var res = {
-            "releaseInfo": releaseInfo
-        };
-        
-        callback(res);
-    };
-
-    return r;
-}();
+module.exports = MemoryProvider;

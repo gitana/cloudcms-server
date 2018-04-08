@@ -12,16 +12,19 @@ exports = module.exports = function(cacheConfig)
 {
     var client = null;
 
-    var logger = logFactory("REDIS CACHE");
+    var logger = this.logger = logFactory("REDIS CACHE");
 
     // allow for global redis default
+    // allow for redis broadcast specific
+    // otherwise default to error
     if (typeof(process.env.CLOUDCMS_REDIS_DEBUG_LEVEL) !== "undefined") {
         logger.setLevel(("" + process.env.CLOUDCMS_REDIS_DEBUG_LEVEL).toLowerCase(), true);
     }
-
-    // allow for redis broadcast specific
-    if (typeof(process.env.CLOUDCMS_CACHE_REDIS_DEBUG_LEVEL) !== "undefined") {
+    else if (typeof(process.env.CLOUDCMS_CACHE_REDIS_DEBUG_LEVEL) !== "undefined") {
         logger.setLevel(("" + process.env.CLOUDCMS_CACHE_REDIS_DEBUG_LEVEL).toLowerCase(), true);
+    }
+    else {
+        logger.setLevel("error");
     }
 
     var r = {};

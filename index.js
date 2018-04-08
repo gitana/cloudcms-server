@@ -254,7 +254,8 @@ exports = module.exports = function()
             broadcast.start,
             storeService.init,
             notifications.start,
-            cache.init
+            cache.init,
+            awareness.init
         ];
         async.series(fns, function(err) {
             callback(err);

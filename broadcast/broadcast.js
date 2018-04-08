@@ -12,7 +12,7 @@ module.exports = function()
         if (!process.env.CLOUDCMS_BROADCAST_TYPE) {
             process.env.CLOUDCMS_BROADCAST_TYPE = "local";
 
-            if (process.env.CLOUDCMS_LAUNCHPAD_SETUP !== "single") {
+            if (process.configuration.setup !== "single") {
                 process.env.CLOUDCMS_BROADCAST_TYPE = "redis";
             }
         }

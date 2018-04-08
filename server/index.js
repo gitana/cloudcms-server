@@ -1010,7 +1010,7 @@ var startSlave = function(config, afterStartFn)
                                     io.set('transports', config.socketTransports);
                                     io.use(function (socket, next) {
 
-                                        console.log("New socket being initialized");
+                                        // console.log("New socket being initialized");
 
                                         // attach _log function
                                         socket._log = function (text) {
@@ -1046,9 +1046,12 @@ var startSlave = function(config, afterStartFn)
 
                                             console.log(message);
                                         };
+                                        /*
                                         socket.on("connect", function () {
                                             console.log("Socket connect()");
                                         });
+                                        */
+                                        /*
                                         socket.on("disconnect", function () {
                                             var message = "Socket disconnected";
                                             if (socket && socket.host)
@@ -1061,11 +1064,12 @@ var startSlave = function(config, afterStartFn)
                                             }
                                             console.log(message);
                                         });
+                                        */
 
                                         // APPLY CUSTOM SOCKET.IO CONFIG
                                         runFunctions(config.socketFunctions, [socket], function (err) {
 
-                                            require("../middleware/awareness/awareness").init(function() {
+                                            require("../middleware/awareness/awareness").initSocketIO(function() {
                                                 next();
                                             });
 

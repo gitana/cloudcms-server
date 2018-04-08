@@ -22,13 +22,16 @@ exports = module.exports = function(locksConfig)
     var logger = logFactory("REDIS LOCK");
 
     // allow for global redis default
+    // allow for redis broadcast specific
+    // otherwise default to error
     if (typeof(process.env.CLOUDCMS_REDIS_DEBUG_LEVEL) !== "undefined") {
         logger.setLevel(("" + process.env.CLOUDCMS_REDIS_DEBUG_LEVEL).toLowerCase(), true);
     }
-
-    // allow for redis broadcast specific
-    if (typeof(process.env.CLOUDCMS_LOCKS_REDIS_DEBUG_LEVEL) !== "undefined") {
+    else if (typeof(process.env.CLOUDCMS_LOCKS_REDIS_DEBUG_LEVEL) !== "undefined") {
         logger.setLevel(("" + process.env.CLOUDCMS_LOCKS_REDIS_DEBUG_LEVEL).toLowerCase(), true);
+    }
+    else {
+        logger.setLevel("error");
     }
 
     var r = {};
@@ -72,7 +75,7 @@ exports = module.exports = function(locksConfig)
 
         var releaseCallbackFn = function(lock, lockKey) {
             return function() {
-                console.log("lock.release - " + lockKey);
+                logger.info("lock.release - " + lockKey);
                 lock.release(function(err) {
 
                     if (err) {
@@ -81,12 +84,12 @@ exports = module.exports = function(locksConfig)
                         return;
                     }
 
-                    console.log("lock.released - " + lockKey);
+                    logger.info("lock.released - " + lockKey);
                 });
             }
         }(lock, lockKey);
 
-        console.log("lock.acquire - " + lockKey);
+        logger.info("lock.acquire - " + lockKey);
         lock.acquire(lockKey, function(err) {
 
             if (err) {
@@ -95,7 +98,7 @@ exports = module.exports = function(locksConfig)
                 return;
             }
 
-            console.log("lock.acquired - " + lockKey);
+            logger.info("lock.acquired - " + lockKey);
 
             fn(releaseCallbackFn);
         });
