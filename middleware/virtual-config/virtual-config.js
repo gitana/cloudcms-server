@@ -132,6 +132,10 @@ exports = module.exports = function()
         }
     };
 
+    var _LOCK = function(lockKey, workFunction)
+    {
+        process.locks.lock(lockKey, workFunction);
+    };
 
     var r = {};
 
@@ -140,13 +144,15 @@ exports = module.exports = function()
      *
      * @type {Function}
      */
-    var acquireGitanaJson = r.acquireGitanaJson = function(host, rootStore, logMethod, callback)
-    {
+    var acquireGitanaJson = r.acquireGitanaJson = function(host, rootStore, logMethod, callback) {
+
+        var lockKey = "acquireGitanaJson-" + host;
+
         var VCSENTINEL_CACHE_KEY = "vcSentinelFailed-" + host;
 
         rootStore.existsFile("gitana.json", function(exists) {
 
-            var loadFromRemote = function() {
+            var loadFromRemote = function(finishedLoading) {
 
                 // check cache to see if we already tried to load this in the past few minutes and were sorely disappointed
                 process.cache.read(VCSENTINEL_CACHE_KEY, function (err, failedRecently) {
@@ -170,12 +176,11 @@ exports = module.exports = function()
                         if (!virtualConfig)
                         {
                             // mark that it failed (5 seconds TTL)
-                            process.cache.write(VCSENTINEL_CACHE_KEY, SENTINEL_NOT_FOUND_VALUE, 5, function() {
+                            return process.cache.write(VCSENTINEL_CACHE_KEY, SENTINEL_NOT_FOUND_VALUE, 5, function() {
                                 callback({
                                     "message": "No virtual config found for host"
                                 });
                             });
-                            return;
                         }
 
                         // populate gitana.json
@@ -247,6 +252,13 @@ exports = module.exports = function()
                         return callback(err);
                     }
 
+                    if (!data)
+                    {
+                        return callback({
+                            "message": "The gitana.json data read from disk was null or empty"
+                        })
+                    }
+
                     // make sure not size 0
                     rootStore.fileStats("gitana.json", function(err, stats) {
 
@@ -268,22 +280,7 @@ exports = module.exports = function()
                         // remove vcSentinel if it exists
                         process.cache.remove(VCSENTINEL_CACHE_KEY);
 
-                        var gitanaJson = JSON.parse(data.toString());
-
-                        // sanity check - is this for the right environment?
-                        if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
-                        {
-                            // we're in production mode
-
-                            var baseURL = gitanaJson.baseURL;
-                            if (baseURL && baseURL.indexOf("localhost") > -1)
-                            {
-                                // bad - kill it off and then load from remote
-                                return rootStore.deleteFile("gitana.json", function() {
-                                    loadFromRemote();
-                                });
-                            }
-                        }
+                        var gitanaJson = JSON.parse("" + data);
 
                         // auto-upgrade the host?
                         if (gitanaJson.baseURL)
