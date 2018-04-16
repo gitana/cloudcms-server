@@ -1,5 +1,7 @@
 var path = require('path');
 var fs = require('fs');
+var os = require('os');
+var _util = require("util");
 var util = require("./util");
 var request = require("request");
 var http = require("http");
@@ -249,10 +251,32 @@ var _LOCK = function(lockIdentifiers, workFunction)
     process.locks.lock(lockIdentifiers.join("_"), workFunction);
 };
 
+var logEvent = function(event, success, protocol, source, userId, ip, matchedGroup, userGroups, mandatoryGroups, accessGranted) 
+{
+    console.log(_util.format('%s|%s|%o|%s|%s|%s|%s|%s|%s|%s|%s|%s', 
+        event||"Authorization",
+        event||"Authorization",
+        new Date(),
+        protocol||"https",
+        success ? "Success" : "Failed",
+        userId || "NA",
+        ip || "NA",
+        matchedGroup || "",
+        (userGroups || ["NA"]).join(','),
+        (mandatoryGroups || ["NA"]).join(','),
+        accessGranted || "NA",
+        os.hostname()
+    ));
+};
+
 var syncProfile = exports.syncProfile = function(req, res, strategy, domain, providerId, provider, profile, token, refreshToken, callback)
 {
     return provider.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
-
+// console.log("strategy " + JSON.stringify(strategy,null,2));
+// console.log("provider " + JSON.stringify(provider,null,2));        
+// console.log("profile " + JSON.stringify(profile,null,2));        
+// console.log("userObject " + JSON.stringify(userObject,null,2));        
+// console.log("domain " + JSON.stringify(domain,null,2));        
         // special handling for mandatory groups
         if (mandatoryGroupsArray && mandatoryGroupsArray.length > 0)
         {
@@ -265,21 +289,31 @@ var syncProfile = exports.syncProfile = function(req, res, strategy, domain, pro
             // make sure our groups Array contains at least one mandatory group
             var hasMandatoryGroup = false;
             var mandatoryGroupsMap = {};
+            var matchedGroup = null;
             for (var i = 0; i < mandatoryGroupsArray.length; i++) {
                 mandatoryGroupsMap[mandatoryGroupsArray[i]] = true;
             }
             for (var i = 0; i < groupsArray.length; i++) {
                 if (mandatoryGroupsMap[groupsArray[i]]) {
+                    matchedGroup = groupsArray[i];
                     hasMandatoryGroup = true;
                 }
             }
             if (!hasMandatoryGroup)
             {
+                logEvent("Authorization", false, req.protocol, providerId, profile.nameID, req.ip, null, groupsArray, mandatoryGroupsArray, null);
                 return callback({
                     "message": "The incoming user does not belong to one of the mandatory groups",
                     "noMandatoryGroup": true
                 });
             }
+            else{
+                logEvent("Authorization", true, req.protocol, providerId, profile.nameID, req.ip, matchedGroup, groupsArray, mandatoryGroupsArray, "AddToDomain:" + domain._doc);
+            }
+        }
+        else
+        {
+            logEvent("Authorization", true, req.protocol, providerId, profile.nameID, req.ip, null, groupsArray, null, "AddToDomain:" + domain._doc);            
         }
 
         req.application(function(err, application) {
