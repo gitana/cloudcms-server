@@ -81,13 +81,11 @@ exports = module.exports = function()
 
                 text = text.toString();
 
-                /*
                 var z = text.indexOf("{@");
                 if (z === -1)
                 {
                     return _sendFile.call(res, filePath, options, fn);
                 }
-                */
 
                 var model = req.model;
                 if (!model) {
