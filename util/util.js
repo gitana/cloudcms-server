@@ -714,7 +714,7 @@ var merge = exports.merge = function(source, target)
     for (var k in source)
     {
         if (typeof(source[k]) !== "undefined") {
-            if (source[k].push) {
+            if (source[k] && source[k].push) {
                 if (!target[k]) {
                     target[k] = [];
                 }
