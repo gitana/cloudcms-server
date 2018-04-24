@@ -367,6 +367,8 @@ exports = module.exports = function()
                 {
                     req.repositoryId = repository.getId();
 
+                    console.log("r1: " + req.repositoryId);
+
                     // helper function
                     req.repository = function(repository) {
                         return function(callback) {

@@ -95,12 +95,9 @@ exports = module.exports = function()
                         }
 
                         // from cookie?
-                        if (!repositoryId && req.cookies["ONETEAM_REPOSITORY_ID"])
+                        if (req.cookies["ONETEAM_REPOSITORY_ID"] && req.cookies["ONETEAM_BRANCH_ID"])
                         {
                             repositoryId = req.cookies["ONETEAM_REPOSITORY_ID"];
-                        }
-                        if (!branchId && req.cookies["ONETEAM_BRANCH_ID"])
-                        {
                             branchId = req.cookies["ONETEAM_BRANCH_ID"];
                         }
 
