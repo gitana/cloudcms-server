@@ -624,15 +624,7 @@ exports = module.exports = function()
             var xFrameOptions = "SAMEORIGIN";
             var xXssProtection = "1; mode=block";
 
-            // if the request comes from *.cloudcms.net then assume more lenient settings
-            var referer = req.headers["referer"];
-            if (referer)
-            {
-                if (referer.indexOf(".cloudcms.net") > -1)
-                {
-                    xFrameOptions = null;
-                }
-            }
+            // TODO: allow overrides here?
 
             if (xFrameOptions)
             {
