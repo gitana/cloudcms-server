@@ -714,7 +714,7 @@ var startSlave = function(config, afterStartFn)
                     else if (status >= 300) {
                         color = 36;
                     }
-                    var statusColor = "\x1b[" + color + "m"
+                    var statusColor = "\x1b[" + color + "m";
 
                     // final color
                     var finalColor = "\x1b[0m";
