@@ -72,7 +72,8 @@ var assertSafeToDelete = function(directoryPath)
 
 var rmdirRecursiveSync = function(directoryOrFilePath)
 {
-    if (!assertSafeToDelete(directoryOrFilePath)) {
+    if (!assertSafeToDelete(directoryOrFilePath))
+    {
         return false;
     }
 
@@ -120,18 +121,31 @@ var rmdirRecursiveSync = function(directoryOrFilePath)
         // if it is a directory, dive down into children first
         if (isDirectory)
         {
-            var list = fs.readdirSync(directoryOrFilePath);
-            for (var i = 0; i < list.length; i++)
+            var list = null;
+            try
             {
-                if (list[i] == "." || list[i] == "..")
+                list = fs.readdirSync(directoryOrFilePath);
+            }
+            catch (e)
+            {
+                console.log("Failed to read dir for: " + directoryOrFilePath + ", err: " + JSON.stringify(e));
+                list = null;
+            }
+
+            if (list)
+            {
+                for (var i = 0; i < list.length; i++)
                 {
-                    // skip these files
-                    continue;
+                    if (list[i] == "." || list[i] == "..")
+                    {
+                        // skip these files
+                        continue;
+                    }
+
+                    var childPath = path.join(directoryOrFilePath, list[i]);
+
+                    rmdirRecursiveSync(childPath);
                 }
-
-                var childPath = path.join(directoryOrFilePath, list[i]);
-
-                rmdirRecursiveSync(childPath);
             }
         }
 
@@ -149,7 +163,14 @@ var rmdirRecursiveSync = function(directoryOrFilePath)
         }
         else if (isDirectory)
         {
-            fs.rmdirSync(directoryOrFilePath);
+            try
+            {
+                fs.rmdirSync(directoryOrFilePath);
+            }
+            catch (e)
+            {
+                console.log("Unable to remove directory: " + directoryOrFilePath + ", err: " + JSON.stringify(e));
+            }
         }
     }
 };
