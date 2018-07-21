@@ -369,6 +369,7 @@ exports = module.exports = function(engineConfig)
             stats.directory = false;
             stats.file = true;
             stats.size = data.ContentLength;
+            stats.mtimeMs = (data.LastModified && data.LastModified.getTime ? data.LastModified.getTime() : -1);
 
             callback(null, stats);
         });

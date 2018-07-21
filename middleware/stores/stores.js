@@ -258,8 +258,7 @@ exports = module.exports = function()
 
                                     stores.modules.readFile(moduleJsonFilePath, function(err, data) {
 
-                                        if (err)
-                                        {
+                                        if (err) {
                                             return done();
                                         }
 
@@ -275,27 +274,36 @@ exports = module.exports = function()
                                             return done();
                                         }
 
-                                        var moduleDirectoryPath = path.dirname(moduleJsonFilePath);
-                                        var moduleVersion = null;
-                                        if (moduleJson.version)
-                                        {
-                                            moduleVersion = moduleJson.version;
-                                        }
+                                        stores.modules.fileStats(moduleJsonFilePath, function(err, stats) {
 
-                                        var moduleDescriptor = {
-                                            "path": path.join("modules", moduleDirectoryPath),
-                                            "store": "modules",
-                                            "id": moduleJson.name
-                                        };
+                                            if (err)
+                                            {
+                                                return done();
+                                            }
 
-                                        if (moduleVersion)
-                                        {
-                                            moduleDescriptor.version = moduleVersion;
-                                        }
+                                            var moduleDirectoryPath = path.dirname(moduleJsonFilePath);
+                                            var moduleVersion = null;
+                                            if (moduleJson.version)
+                                            {
+                                                moduleVersion = moduleJson.version;
+                                            }
 
-                                        moduleDescriptors.push(moduleDescriptor);
+                                            var moduleDescriptor = {
+                                                "path": path.join("modules", moduleDirectoryPath),
+                                                "store": "modules",
+                                                "id": moduleJson.name,
+                                                "mtimeMs": stats.mtimeMs
+                                            };
 
-                                        done();
+                                            if (moduleVersion)
+                                            {
+                                                moduleDescriptor.version = moduleVersion;
+                                            }
+
+                                            moduleDescriptors.push(moduleDescriptor);
+
+                                            done();
+                                        });
                                     });
                                 };
                             }(moduleJsonFilePaths[i]);
@@ -443,6 +451,7 @@ exports = module.exports = function()
 
                 process.cache.read("module-descriptors-" + host, function(err, moduleDescriptors) {
 
+                    moduleDescriptors = null;
                     if (!moduleDescriptors)
                     {
                         findModuleDescriptors(function(moduleDescriptors) {
@@ -550,13 +559,10 @@ exports = module.exports = function()
                         if (moduleDescriptors[i].store === "modules")
                         {
                             var moduleId = moduleDescriptors[i].id;
-                            var moduleVersion = moduleDescriptors[i].version;
-                            if (!moduleVersion) {
-                                moduleVersion = "unknown";
-                            }
+                            var mtimeMs = moduleDescriptors[i].mtimeMs || -1;
 
                             moduleIdArray.push(moduleId);
-                            moduleKeys.push(moduleId + ":" + moduleVersion);
+                            moduleKeys.push(moduleId + ":" + mtimeMs);
                         }
                     }
                 }
@@ -564,7 +570,7 @@ exports = module.exports = function()
                 // if we're rendering out the index.html top-most page, then we write down a cookie
                 // if index.html is cached, it may not come through here, so we try to latch on to manifest.appcache as well
                 // we also hook into the /context call
-                if (req.path === "/" || req.path.indexOf(".html") > -1 || req.path.indexOf(".appcache") > -1 || req.path.indexOf("/context") > -1)
+                if (req.path === "/" || req.path === "/index" || req.path === "/index.html")
                 {
                     // compute a hash for the installed modules based on keys
                     var hugeKey = "modules";
@@ -575,6 +581,9 @@ exports = module.exports = function()
                     var stateKey = hash(hugeKey, {
                         "algorithm": "md5"
                     });
+
+                    // console.log("Writing State Key: " + stateKey + ", Path: " + req.path);
+
                     util.setCookie(req, res, "cloudcmsModuleStateKey", stateKey, {
                         "httpOnly": false
                     });

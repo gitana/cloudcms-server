@@ -1590,6 +1590,10 @@ var stripQueryStringFromUrl = exports.stripQueryStringFromUrl = function(url)
 
 var getCookie = exports.getCookie = function(req, name)
 {
+    if (!req.cookies) {
+        return null;
+    }
+
     return req.cookies[name];
 };
 

@@ -271,6 +271,7 @@ exports = module.exports = function(engineConfig)
                 stats.directory = fileStats.isDirectory();
                 stats.file = fileStats.isFile();
                 stats.size = fileStats.size;
+                stats.mtimeMs = fileStats.mtimeMs || -1;
 
                 callback(err, stats);
             });

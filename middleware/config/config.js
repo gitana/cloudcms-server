@@ -761,7 +761,7 @@ exports = module.exports = function()
         }
 
         // bind listeners for broadcast events
-        //bindSubscriptions();
+        bindSubscriptions();
 
         // config handler
         return util.createHandler("staticConfig", "config", function(req, res, next, stores, cache, configuration) {
@@ -871,8 +871,9 @@ exports = module.exports = function()
                     invalidationDone = function() { };
                 }
 
-                //var command = message.command;
                 var host = message.host;
+
+                console.log("Invalidating config service for module invalidation, host: " + host);
 
                 handleModuleInvalidation(host, function(err) {
 
@@ -891,9 +892,10 @@ exports = module.exports = function()
                     invalidationDone = function() { };
                 }
 
-                //var command = message.command;
                 var host = message.host;
                 var id = message.id;
+
+                console.log("Invalidating config service for uiconfig invalidation, host: " + host + ", id: " + id);
 
                 handleUIConfigInvalidation(host, id, function(err) {
 

@@ -259,7 +259,7 @@ exports = module.exports = function()
                         });
                     }
 
-                    doDeploy(host, moduleId, moduleConfig, function(err, host) {
+                    doDeploy(host, moduleId, moduleConfig, function(err) {
 
                         // invalidate the module
                         notifyModuleInvalidation({
@@ -306,6 +306,9 @@ exports = module.exports = function()
                     var moduleConfig = req.body;
 
                     console.log("Heard MODULE DEPLOY host: " + host + ", id: " + moduleId + ", config: " + JSON.stringify(moduleConfig));
+                    console.log("moduleId: " + moduleId);
+                    console.log("moduleId: " + host);
+                    console.log("moduleId: " + JSON.stringify(moduleConfig, null, 2));;
 
                     process.broadcast.publish("module_deploy", {
                         "host": host,
