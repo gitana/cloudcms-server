@@ -308,12 +308,20 @@ var syncProfile = exports.syncProfile = function(req, res, strategy, domain, pro
                 });
             }
             else{
-                logEvent("Authorization", true, req.protocol, providerId, profile.nameID, req.ip, matchedGroup, groupsArray, mandatoryGroupsArray, "AddToDomain:" + domain._doc);
+                if (domain && domain._doc) {
+                    logEvent("Authorization", true, req.protocol, providerId, profile.nameID, req.ip, matchedGroup, groupsArray, mandatoryGroupsArray, "AddToDomain:" + domain._doc);
+                } else {
+                    logEvent("Authorization", true, req.protocol, providerId, profile.nameID, req.ip, matchedGroup, groupsArray, mandatoryGroupsArray, "AddToDomain");
+                }
             }
         }
         else
         {
-            logEvent("Authorization", true, req.protocol, providerId, profile.nameID, req.ip, null, groupsArray, null, "AddToDomain:" + domain._doc);            
+            if (domain && domain._doc) {
+                logEvent("Authorization", true, req.protocol, providerId, profile.nameID, req.ip, null, groupsArray, null, "AddToDomain:" + domain._doc);
+            } else {
+                logEvent("Authorization", true, req.protocol, providerId, profile.nameID, req.ip, null, groupsArray, null, "AddToDomain");
+            }
         }
 
         req.application(function(err, application) {
