@@ -279,21 +279,24 @@ exports = module.exports = function()
         // bind stores into the request
         app.use(storeService.storesInterceptor());
 
+        // puts req.descriptor into the request and req.virtualFiles = true
+        app.use(virtualFiles.interceptor());
+
+        // puts req.runtime into the request
+        app.use(runtime.interceptor());
+
         // if virtual hosting is enabled, loads "gitana.json" from cloud cms and places it into rootStore
         // for convenience, also populates req.gitanaConfig
         app.use(virtualConfig.interceptor());
 
         // general method for finding "gitana.json" in root store and populating req.gitanaConfig
         app.use(driverConfig.interceptor());
+    };
 
+    r.common3 = function(app)
+    {
         // binds "req.gitana" into the request for the loaded "req.gitanaConfig"
         app.use(driver.driverInterceptor());// THIS TAKES A LONG TIME
-
-        // puts req.descriptor into the request and req.virtualFiles = true
-        app.use(virtualFiles.interceptor());
-
-        // puts req.runtime into the request
-        app.use(runtime.interceptor());
     };
 
     r.perf1 = function(app)

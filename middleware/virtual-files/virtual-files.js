@@ -2,7 +2,6 @@ var path = require('path');
 var http = require('http');
 var request = require('request');
 var util = require("../../util/util");
-var Gitana = require("gitana");
 
 /**
  * Looks for a "descriptor.json" in the root store and if it finds it, loads it to req.descriptor and sets
