@@ -13,6 +13,13 @@ exports = module.exports = function()
 {
     var SENTINEL_NOT_FOUND_VALUE = "null";
 
+    var VIRTUAL_DRIVER_CACHE_KEY = "virtualdriver";
+
+    var disconnectVirtualDriver = function()
+    {
+        Gitana.disconnect(VIRTUAL_DRIVER_CACHE_KEY);
+    };
+
     var connectAsVirtualDriver = function(callback)
     {
         var configuration = process.configuration;
@@ -23,6 +30,9 @@ exports = module.exports = function()
             {
                 configuration.virtualDriver.baseURL = process.env.CLOUDCMS_VIRTUAL_DRIVER_BASE_URL;
             }
+
+            // force key to "virtualdriver"
+            configuration.virtualDriver.key = VIRTUAL_DRIVER_CACHE_KEY;
 
             // either connect anew or re-use an existing connection to Cloud CMS for this application
             Gitana.connect(configuration.virtualDriver, function(err) {
@@ -118,6 +128,12 @@ exports = module.exports = function()
                         if (!message) {
                             message = "Unable to load virtual driver configuration";
                         }
+
+                        // force disconnect of virtual driver so that it has to log in again
+                        // this prevents the attempt to use the refresh token
+                        disconnectVirtualDriver();
+
+                        // fire callback
                         callback({
                             "message": message,
                             "err": err
@@ -146,8 +162,6 @@ exports = module.exports = function()
      */
     var acquireGitanaJson = r.acquireGitanaJson = function(host, rootStore, logMethod, callback) {
 
-        var lockKey = "acquireGitanaJson-" + host;
-
         var VCSENTINEL_CACHE_KEY = "vcSentinelFailed-" + host;
 
         rootStore.existsFile("gitana.json", function(exists) {
@@ -158,7 +172,7 @@ exports = module.exports = function()
                 process.cache.read(VCSENTINEL_CACHE_KEY, function (err, failedRecently) {
 
                     if (failedRecently) {
-                        return callback({
+                        return finishedLoading({
                             "message": "No virtual config found for host (from previous attempt)"
                         });
                     }
@@ -170,14 +184,14 @@ exports = module.exports = function()
                         {
                             // something failed, perhaps a network issue
                             // don't store anything
-                            return callback(err);
+                            return finishedLoading(err);
                         }
 
                         if (!virtualConfig)
                         {
                             // mark that it failed (5 seconds TTL)
                             return process.cache.write(VCSENTINEL_CACHE_KEY, SENTINEL_NOT_FOUND_VALUE, 5, function() {
-                                callback({
+                                finishedLoading({
                                     "message": "No virtual config found for host"
                                 });
                             });
@@ -217,7 +231,7 @@ exports = module.exports = function()
                             if (err)
                             {
                                 return rootStore.deleteFile("gitana.json", function() {
-                                    callback(err);
+                                    finishedLoading(err);
                                 });
                             }
 
@@ -229,13 +243,13 @@ exports = module.exports = function()
                                 if (err || stats.size === 0)
                                 {
                                     return rootStore.deleteFile("gitana.json", function() {
-                                        callback({
+                                        finishedLoading({
                                             "message": "There was a problem writing the driver configuration file.  Please reload."
                                         });
                                     });
                                 }
 
-                                callback(null, gitanaJson);
+                                finishedLoading(null, gitanaJson);
                             });
                         });
                     });
@@ -307,7 +321,9 @@ exports = module.exports = function()
             }
             else
             {
-                loadFromRemote();
+                loadFromRemote(function(err, gitanaJson) {
+                    callback(err, gitanaJson);
+                });
             }
         });
     };

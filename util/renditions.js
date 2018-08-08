@@ -7,6 +7,8 @@ var request = require("request");
 var http = require("http");
 var https = require("https");
 
+var logFactory = require("../util/logger");
+
 /**
  * WCM Resource Dependency Manager
  *
@@ -17,6 +19,20 @@ var https = require("https");
  */
 exports = module.exports = function()
 {
+    var POLLING_TIMEOUT_MS = 500;
+
+    var logger = this.logger = logFactory("RENDITIONS");
+
+    // allow for global redis default
+    // allow for redis broadcast specific
+    // otherwise default to error
+    if (typeof(process.env.CLOUDCMS_RENDITIONS_LOG_LEVEL) !== "undefined") {
+        logger.setLevel(("" + process.env.CLOUDCMS_RENDITIONS_LOG_LEVEL).toLowerCase(), true);
+    }
+    else {
+        logger.setLevel("error");
+    }
+
     var isRenditionsEnabled = function()
     {
         if (!process.configuration.renditions) {
@@ -37,6 +53,87 @@ exports = module.exports = function()
 
         return process.configuration.renditions.enabled;
     };
+
+    // dispatcher factory
+    var DispatcherFactory = function(gitana) {
+
+        var QUEUE = [];
+
+        var syncRows = function(rows, callback)
+        {
+            var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + "/bulk/pagerenditions";
+
+            var agent = http.globalAgent;
+            if (process.env.GITANA_PROXY_SCHEME === "https")
+            {
+                agent = https.globalAgent;
+            }
+
+            // add "authorization" for OAuth2 bearer token
+            var headers = {};
+            var headers2 = gitana.platform().getDriver().getHttpHeaders();
+            headers["Authorization"] = headers2["Authorization"];
+
+            request({
+                "method": "POST",
+                "url": URL,
+                "qs": {},
+                "json": {
+                    "rows": rows
+                },
+                "headers": headers,
+                "timeout": process.defaultHttpTimeoutMs,
+                "agent": agent
+            }, function (err, response, body) {
+                callback();
+            });
+        };
+
+        var fn = function() {
+            setTimeout(function() {
+
+                // chew off a bit of the queue that we'll send
+                var queueLength = QUEUE.length;
+                if (queueLength === 0) {
+                    return fn();
+                }
+
+                // if queue length > 50, we trim back
+                if (queueLength > 50) {
+                    queueLength = 50;
+                }
+
+                var rows = [];
+                for (var i = 0; i < queueLength; i++) {
+                    rows.push(QUEUE[i]);
+                }
+
+                // strip down the queue
+                QUEUE = QUEUE.slice(queueLength);
+
+                // send rows via HTTP
+                logger.info("Dispatching " + rows.length + " rows");
+                syncRows(rows, function() {
+                    logger.info("Completed Dispatch of " + rows.length + " rows");
+                    fn();
+                });
+            }, POLLING_TIMEOUT_MS);
+        };
+        fn();
+
+        var r = {};
+
+        r.push = function(pageRendition)
+        {
+            QUEUE.push(pageRendition);
+
+            logger.info("Pushed 1 page rendition to queue, queue size: " + QUEUE.length);
+        };
+
+        return r;
+    };
+    var Dispatcher = null;
+
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
@@ -86,6 +183,10 @@ exports = module.exports = function()
             return;
         }
 
+        if (!Dispatcher) {
+            Dispatcher = new DispatcherFactory(req.gitana);
+        }
+
         // empty dependencies if not defined
         if (!dependencies) {
             dependencies = {};
@@ -119,10 +220,6 @@ exports = module.exports = function()
 
                 // headers
                 var headers = {};
-
-                // add "authorization" for OAuth2 bearer token
-                var headers2 = req.gitana.platform().getDriver().getHttpHeaders();
-                headers["Authorization"] = headers2["Authorization"];
 
                 var renditionObject = {
                     "deploymentKey": deploymentKey,
@@ -163,41 +260,14 @@ exports = module.exports = function()
                     renditionObject.key = descriptor.fragmentCacheKey;
                 }
 
-                //console.log("PAGE RENDITION OBJECT");
-                //console.log(JSON.stringify(renditionObject, null, "  "));
+                // build up a row that we can queue
+                var row = {};
+                row.object = renditionObject;
+                row.applicationId = applicationId;
+                row.deploymentKey = deploymentKey;
 
-                var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + "/applications/" + applicationId + "/deployments/" + deploymentKey + "/pagerenditions";
-                //console.log("URL: " + URL);
-
-                //console.log("Mark Rendition: " + JSON.stringify(renditionObject, null, "  "));
-
-                var agent = http.globalAgent;
-                if (process.env.GITANA_PROXY_SCHEME === "https")
-                {
-                    agent = https.globalAgent;
-                }
-
-                request({
-                    "method": "POST",
-                    "url": URL,
-                    "qs": {},
-                    "json": renditionObject,
-                    "headers": headers,
-                    "timeout": process.defaultHttpTimeoutMs,
-                    "agent": agent
-                }, function (err, response, body) {
-
-                    if (err)
-                    {
-                        // failed to add the page rendition
-                        console.error("err adding page rendition" + JSON.stringify(err,null,2));
-                        console.log("WARNING: failed to add the page rendition\n" + JSON.stringify(renditionObject,null,2));
-                        return callback(err);
-                    }
-
-                    console.log("Done writing page rendition\n" + JSON.stringify(renditionObject,null,2));
-                    callback();
-                });
+                // push row to dispatcher
+                Dispatcher.push(row);
 
             });
         });

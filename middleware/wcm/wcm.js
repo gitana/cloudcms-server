@@ -711,7 +711,7 @@ exports = module.exports = function()
         // mark the rendition
         if (dependencies)
         {
-            console.log("marking rendition from wcm. fragmentId: " + descriptor.fragmentId || "no fragmentId");
+            console.log("marking rendition from wcm, " + (descriptor.fragmentId ? "fragmentId: " + descriptor.fragmentId : "no fragmentId"));
             renditions.markRendition(req, descriptor, dependencies, function (err) {
                 
                 // if we got an error writing the page, then we have to roll back and invalidate disk cache
