@@ -62,7 +62,7 @@ module.exports = function(configStore)
 
                 try
                 {
-                    var object = JSON.parse(data);
+                    var object = util.jsonParse("" + data);
 
                     callback(null, object);
                 }

@@ -102,7 +102,7 @@ exports = module.exports = function()
                                 var gitanaConfig = null;
                                 try
                                 {
-                                    gitanaConfig = JSON.parse(data.toString());
+                                    gitanaConfig = util.jsonParse("" + data.toString());
                                 }
                                 catch (e)
                                 {

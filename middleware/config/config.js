@@ -103,7 +103,7 @@ exports = module.exports = function()
                     });
                 }
 
-                var uiConfigJson = JSON.parse("" + data);
+                var uiConfigJson = util.jsonParse("" + data);
 
                 callback(null, uiConfigJson.exists);
             });

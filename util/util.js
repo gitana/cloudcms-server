@@ -20,6 +20,8 @@ var urlTool = require("url");
 
 var cloner = require("clone");
 
+var JSON5 = require("json5");
+
 var VALID_IP_ADDRESS_REGEX_STRING = "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$";
 
 exports = module.exports;
@@ -1794,4 +1796,9 @@ var clone = exports.clone = function(thing, jsonOnly)
 var randomInt = exports.randomInt = function(low, high)
 {
     return Math.floor(Math.random() * (high - low) + low);
+};
+
+var jsonParse = exports.jsonParse = function(text)
+{
+    return JSON5.parse(text);
 };

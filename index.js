@@ -124,7 +124,7 @@ exports = module.exports = function()
     var gitanaJsonPath = path.join(process.env.CLOUDCMS_APPSERVER_BASE_PATH, "gitana.json");
     if (fs.existsSync(gitanaJsonPath))
     {
-        var gitanaJson = JSON.parse("" + fs.readFileSync(gitanaJsonPath));
+        var gitanaJson = util.jsonParse("" + fs.readFileSync(gitanaJsonPath));
         if (gitanaJson && gitanaJson.baseURL)
         {
             var parsedUrl = url.parse(gitanaJson.baseURL);
