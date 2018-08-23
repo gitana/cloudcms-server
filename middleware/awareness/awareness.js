@@ -460,5 +460,49 @@ exports = module.exports = function()
         });
     };
 
+    // /**
+    //  * Handles awareness commands.
+    //  *
+    //  * @return {Function}
+    //  */
+    r.handler = function()
+    {
+        return util.createHandler("awareness", function(req, res, next, stores, cache, configuration) {
+
+            var handled = false;
+
+            if (req.method.toLowerCase() === "post" || req.method.toLowerCase() === "get") {
+
+                // take a look at what provider's up to
+                if (req.url.indexOf("/_awareness/diagnose") === 0)
+                {
+                    if (configuration.type === "memory") {
+                        res.json({
+                            "provider": "memory",
+                            "channelMap": provider.channelMap,
+                            "lockMap": provider.lockMap
+                        });
+                        res.end();    
+                    }
+                    else if (configuration.type === "redis") {
+                        provider.listChannelIds(function(err, channelIds) {
+                            res.json({
+                                "provider": "redis",
+                                "channelIds": channelIds
+                            });
+                        });
+                    }
+
+                    handled = true;
+                }
+            }
+
+            if (!handled)
+            {
+                next();
+            }
+        });
+    };
+
     return r;
 }();

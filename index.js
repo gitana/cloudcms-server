@@ -451,6 +451,9 @@ exports = module.exports = function()
             app.use(cloudcms.authenticationHandler(app));
         }
 
+        // handles awareness commands
+        app.use(awareness.handler());
+
         // handles admin commands
         app.use(admin.handler());
 
