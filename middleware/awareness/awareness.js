@@ -477,18 +477,46 @@ exports = module.exports = function()
                 if (req.url.indexOf("/_awareness/diagnose") === 0)
                 {
                     if (configuration.type === "memory") {
+
                         res.json({
                             "provider": "memory",
                             "channelMap": provider.channelMap,
                             "lockMap": provider.lockMap
                         });
-                        res.end();    
+                        res.end();
+
                     }
                     else if (configuration.type === "redis") {
+
                         provider.listChannelIds(function(err, channelIds) {
-                            res.json({
-                                "provider": "redis",
-                                "channelIds": channelIds
+
+                            var channelMap = {};
+                            var fns = [];
+
+                            channelIds.forEach(function(cid) {
+
+                                var fn = function(provider, cid, channelMap) {
+                                    return function(done) {
+                                        provider.readChannel(cid, function(err, channel) {
+                                            channelMap[cid] = channel;
+
+                                            done();
+                                        });
+                                    };
+                                }(provider, cid, channelMap);
+
+                                fns.push(fn);
+
+                            });
+
+                            async.series(fns, function(err) {
+
+                                res.json({
+                                    "provider": "redis",
+                                    "channelMap": channelMap
+                                });
+                                res.end();
+
                             });
                         });
                     }

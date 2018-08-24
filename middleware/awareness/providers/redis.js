@@ -139,7 +139,7 @@ class RedisProvider extends AbstractAsyncProvider
             var channelIds = [];
             for (var i = 0; i < channelKeys.length; i++)
             {
-                var channelId = channelKeys[i].substring(0, channelKeys[i].indexOf("-"));
+                var channelId = channelKeys[i].substring(channelKeys[i].indexOf("-") + 1);
                 channelIds.push(channelId);
             }
 
