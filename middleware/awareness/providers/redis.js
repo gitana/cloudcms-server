@@ -10,7 +10,7 @@ class RedisProvider extends AbstractAsyncProvider
     {
         super(config);
 
-        this.logger = logFactory("REDIS CACHE");
+        this.logger = logFactory("AWARENESS REDIS");
 
         // allow for global redis default
         // allow for redis broadcast specific
@@ -33,7 +33,7 @@ class RedisProvider extends AbstractAsyncProvider
         var redisPort = this.config.port;
         if (typeof(redisPort) === "undefined" || !redisPort)
         {
-            redisPort = process.env.CLOUDCMS_CACHE_REDIS_PORT;
+            redisPort = process.env.CLOUDCMS_AWARENESS_REDIS_PORT;
         }
         if (typeof(redisPort) === "undefined" || !redisPort)
         {
@@ -43,7 +43,7 @@ class RedisProvider extends AbstractAsyncProvider
         var redisHost = this.config.host;
         if (typeof(redisHost) === "undefined" || !redisHost)
         {
-            redisHost = process.env.CLOUDCMS_CACHE_REDIS_ENDPOINT;
+            redisHost = process.env.CLOUDCMS_AWARENESS_REDIS_ENDPOINT;
         }
         if (typeof(redisHost) === "undefined" || !redisHost)
         {
