@@ -302,8 +302,8 @@ exports = module.exports = function()
     /**
      * Handles calls to:
      *
-     *     /auth/<providerId>
-     *     /auth/<providerId>/*
+     *     /auth/<strategyId>
+     *     /auth/<strategyId>/*
      *
      * @return {Function}
      */
@@ -740,7 +740,7 @@ exports = module.exports = function()
                         if (autoLogin)
                         {
                             // redirect to auth provider (takes us to the login form on the login server)
-                            return res.redirect("/auth/" + providerId);
+                            return res.redirect("/auth/" + strategyId);
                         }
                         else if (loginRedirect)
                         {

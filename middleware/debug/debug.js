@@ -66,7 +66,10 @@ exports = module.exports = function()
                 var newHeapTotal = (memUsage.heapTotal / MB).toFixed(2);
                 var deltaHeapTotal = (newHeapTotal - oldHeapTotal).toFixed(2);
 
-                console.log('Open Files: ' + openHandleCount + ', RSS: ' + newRss + ' MB, Heap Used: ' + newHeap + ' MB, Heap Total: ' + newHeapTotal + ' MB, Heap Total Change: ' + deltaHeapTotal + ' MB');
+                if (newHeapTotal - oldHeapTotal !== 0)
+                {
+                    console.log('Open Files: ' + openHandleCount + ', RSS: ' + newRss + ' MB, Heap Used: ' + newHeap + ' MB, Heap Total: ' + newHeapTotal + ' MB, Heap Total Change: ' + deltaHeapTotal + ' MB');
+                }
 
                 oldHeapTotal = newHeapTotal;
 

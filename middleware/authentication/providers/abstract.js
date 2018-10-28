@@ -14,7 +14,7 @@ class AbstractProvider
     }
 
     /**
-     * Given the user profile acquired from the authenticaiton provider, extract the
+     * Given the user profile acquired from the authentication provider, extract the
      * user identifier (which serves as the providerUserId).
      *
      * @param profile
