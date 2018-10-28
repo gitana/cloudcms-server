@@ -666,15 +666,6 @@ var startSlave = function(config, afterStartFn)
                     app.engine('html', cons.dust);
                     app.engine('dust', cons.dust);
                 }
-                else if (config.viewEngine === "jade")
-                {
-                    var jade = require('jade');
-
-                    app.set('view engine', 'html');
-                    app.set('view engine', 'jade');
-                    app.engine('html', jade.__express);
-                    app.engine('jade', jade.__express);
-                }
                 else if (config.viewEngine === "handlebars" || config.viewEngine === "hbs")
                 {
                     var hbs = require('hbs');
