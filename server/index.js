@@ -877,6 +877,12 @@ var startSlave = function(config, afterStartFn)
                         // binds gitana driver into place
                         main.common3(app);
 
+                        // parse cookies
+                        app.use(cookieParser());
+
+                        // cloudcms things need to run here
+                        main.common4(app, true);
+
                         // APPLY CUSTOM FILTER FUNCTIONS
                         runFunctions(config.filterFunctions, [app], function (err) {
 
@@ -907,9 +913,6 @@ var startSlave = function(config, afterStartFn)
                                 });
 
                             });
-
-                            //app.use(cookieParser("secret"));
-                            app.use(cookieParser());
 
                             if (initializedSession)
                             {

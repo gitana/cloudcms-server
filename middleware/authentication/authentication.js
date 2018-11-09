@@ -411,6 +411,12 @@ exports = module.exports = function()
                                     }
 
                                     var userIdentifier = provider.userIdentifier(profile);
+                                    if (!userIdentifier)
+                                    {
+                                        return handleFailure({
+                                            "message": "Unable to determine user identifier from profile"
+                                        }, res);
+                                    }
 
                                     var registrationRedirectUrl = strategy.registrationRedirect;
 
@@ -443,6 +449,12 @@ exports = module.exports = function()
                                     }
 
                                     var userIdentifier = provider.userIdentifier(profile);
+                                    if (!userIdentifier)
+                                    {
+                                        return handleFailure({
+                                            "message": "Unable to determine user identifier from profile"
+                                        }, res);
+                                    }
 
                                     strategy.registrationHandler(req, res, next, strategyId, userIdentifier, userObject, groupsArray, mandatoryGroupsArray, info);
                                 });
@@ -653,7 +665,14 @@ exports = module.exports = function()
         var fn = build_auth_filter(strategyId);
         return function(req, res, next) {
 
+            // record filter start time
+            var _auth_filter_start_ms = new Date().getTime();
+
             fn(req, res, function(result, authenticator) {
+
+                var _auth_filter_end_ms = new Date().getTime() - _auth_filter_start_ms;
+
+                util.setHeader(res, "x-cloudcms-auth-filter-ms", _auth_filter_end_ms);
 
                 var properties = req.identity_properties;
                 //delete req.identity_properties;
@@ -1038,6 +1057,14 @@ exports = module.exports = function()
                                             properties.user_identifier = provider.userIdentifier(profile);
                                         }
 
+                                        if (!properties.user_identifier)
+                                        {
+                                            return done({
+                                                "skip": true,
+                                                "message": "Unable to determine user identifier for profile"
+                                            });
+                                        }
+
                                         return provider.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
 
                                             if (err) {
@@ -1076,6 +1103,14 @@ exports = module.exports = function()
                                         if (!properties.user_identifier)
                                         {
                                             properties.user_identifier = provider.userIdentifier(profile);
+                                        }
+
+                                        if (!properties.user_identifier)
+                                        {
+                                            return done({
+                                                "skip": true,
+                                                "message": "Unable to determine user identifier for profile"
+                                            });
                                         }
 
                                         return provider.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
@@ -1119,6 +1154,14 @@ exports = module.exports = function()
                                     if (!properties.user_identifier)
                                     {
                                         properties.user_identifier = provider.userIdentifier(profile);
+                                    }
+
+                                    if (!properties.user_identifier)
+                                    {
+                                        return done({
+                                            "skip": true,
+                                            "message": "Unable to determine user identifier for profile"
+                                        });
                                     }
 
                                     return provider.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {

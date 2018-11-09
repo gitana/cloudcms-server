@@ -296,7 +296,40 @@ exports = module.exports = function()
     r.common3 = function(app)
     {
         // binds "req.gitana" into the request for the loaded "req.gitanaConfig"
-        app.use(driver.driverInterceptor());// THIS TAKES A LONG TIME
+        app.use(driver.driverInterceptor());
+    };
+
+    r.common4 = function(app, includeCloudCMS)
+    {
+        var configuration = app.configuration;
+
+        if (includeCloudCMS)
+        {
+            // bind a cache helper
+            app.use(cache.cacheInterceptor());
+
+            // auto-select the application
+            app.use(cloudcms.applicationInterceptor());
+
+            // auto-select the application settings
+            app.use(cloudcms.applicationSettingsInterceptor());
+
+            // auto-select which gitana repository to use
+            app.use(cloudcms.repositoryInterceptor());
+
+            // auto-select which gitana branch to use
+            // allows for branch specification via request parameter
+            app.use(cloudcms.branchInterceptor());
+
+            // auto-select which gitana domain to use
+            app.use(cloudcms.domainInterceptor());
+
+            // enables ICE menu
+            // app.use(cloudcms.iceInterceptor());
+
+            // enables cms logging
+            app.use(cloudcms.cmsLogInterceptor());
+        }
     };
 
     r.perf1 = function(app)
@@ -395,34 +428,6 @@ exports = module.exports = function()
     r.interceptors = function(app, includeCloudCMS)
     {
         var configuration = app.configuration;
-
-        if (includeCloudCMS)
-        {
-            // bind a cache helper
-            app.use(cache.cacheInterceptor());
-
-            // auto-select the application
-            app.use(cloudcms.applicationInterceptor());
-
-            // auto-select the application settings
-            app.use(cloudcms.applicationSettingsInterceptor());
-
-            // auto-select which gitana repository to use
-            app.use(cloudcms.repositoryInterceptor());
-
-            // auto-select which gitana branch to use
-            // allows for branch specification via request parameter
-            app.use(cloudcms.branchInterceptor());
-
-            // auto-select which gitana domain to use
-            app.use(cloudcms.domainInterceptor());
-
-            // enables ICE menu
-            // app.use(cloudcms.iceInterceptor());
-
-            // enables cms logging
-            app.use(cloudcms.cmsLogInterceptor());
-        }
 
         // authentication interceptor (binds helper methods)
         app.use(authentication.interceptor());

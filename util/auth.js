@@ -11,6 +11,9 @@ var async = require("async");
 // trusted profile cache size 100
 var TRUSTED_PROFILE_CACHE = require("lru-cache")(100);
 
+// user entry cache size 100
+var USER_ENTRY_CACHE = require("lru-cache")(100);
+
 exports = module.exports;
 
 // additional methods for Gitana driver
@@ -223,6 +226,13 @@ var buildPassportCallback = exports.buildPassportCallback = function(providerCon
         info.token = token;
         info.refreshToken = refreshToken;
 
+        if (!info.providerUserId)
+        {
+            return done({
+                "message": "Unable to determine provider user ID from profile"
+            });
+        }
+
         done(null, profile, info);
     };
 };
@@ -251,9 +261,9 @@ var _LOCK = function(lockIdentifiers, workFunction)
     process.locks.lock(lockIdentifiers.join("_"), workFunction);
 };
 
-var logEvent = function(event, success, protocol, source, userId, ip, matchedGroup, userGroups, mandatoryGroups, accessGranted) 
+var logEvent = function(event, success, protocol, source, userId, ip, matchedGroup, userGroups, mandatoryGroups, accessGranted)
 {
-    console.log(_util.format('%s|%s|%o|%s|%s|%s|%s|%s|%s|%s|%s|%s', 
+    console.log(_util.format('%s|%s|%o|%s|%s|%s|%s|%s|%s|%s|%s|%s',
         event||"Authorization",
         event||"Authorization",
         new Date(),
@@ -272,11 +282,7 @@ var logEvent = function(event, success, protocol, source, userId, ip, matchedGro
 var syncProfile = exports.syncProfile = function(req, res, strategy, domain, providerId, provider, profile, token, refreshToken, callback)
 {
     return provider.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
-// console.log("strategy " + JSON.stringify(strategy,null,2));
-// console.log("provider " + JSON.stringify(provider,null,2));        
-// console.log("profile " + JSON.stringify(profile,null,2));        
-// console.log("userObject " + JSON.stringify(userObject,null,2));        
-// console.log("domain " + JSON.stringify(domain,null,2));        
+
         // special handling for mandatory groups
         if (mandatoryGroupsArray && mandatoryGroupsArray.length > 0)
         {
@@ -334,6 +340,12 @@ var syncProfile = exports.syncProfile = function(req, res, strategy, domain, pro
                 }
 
                 var providerUserId = provider.userIdentifier(profile);
+                if (!providerUserId)
+                {
+                    return callback({
+                        "message": "Unable to determine provider user ID from profile"
+                    });
+                }
 
                 var key = token;
 
@@ -565,7 +577,7 @@ var syncProfile = exports.syncProfile = function(req, res, strategy, domain, pro
 
                 var __syncUser = function(strategy, settings, key, domain, providerId, providerUserId, token, refreshToken, userObject, callback) {
 
-                    // do we already have a gitana user?
+                    // do we already have a gitana user?'
                     findUserForProvider(domain, providerId, providerUserId, function (err, gitanaUser) {
 
                         if (err) {
@@ -629,6 +641,28 @@ var syncProfile = exports.syncProfile = function(req, res, strategy, domain, pro
                     });
                 };
 
+                // load sync'd users from cache
+                var CACHE_IDENTIFIER = providerId + "/" + providerUserId;
+                var entry = readUserCacheEntry(CACHE_IDENTIFIER);
+                if (entry)
+                {
+                    var gitanaUser = entry.gitanaUser;
+                    var platform = entry.platform;
+                    var appHelper = entry.appHelper;
+                    var key = entry.key;
+
+                    if (gitanaUser && platform && appHelper && key)
+                    {
+                        // successful cache hit
+                        return callback(null, gitanaUser, platform, appHelper, key, platform.getDriver());
+                    }
+                    else
+                    {
+                        // clean up cache
+                        removeUserCacheEntry(CACHE_IDENTIFIER);
+                    }
+                }
+
                 _syncUser(strategy, settings, key, domain, providerId, providerUserId, token, refreshToken, userObject, groupsArray, function(err, gitanaUser) {
 
                     if (err) {
@@ -645,6 +679,14 @@ var syncProfile = exports.syncProfile = function(req, res, strategy, domain, pro
                         if (err) {
                             return callback(err);
                         }
+
+                        // write to cache
+                        writeUserCacheEntry(CACHE_IDENTIFIER, {
+                            "gitanaUser": gitanaUser,
+                            "platform": platform,
+                            "appHelper": appHelper,
+                            "key": key
+                        });
 
                         callback(err, gitanaUser, platform, appHelper, key, platform.getDriver());
                     });
@@ -773,4 +815,19 @@ var readTrustedProfile = exports.readTrustedProfile = function(identifier)
 var writeTrustedProfile = exports.writeTrustedProfile = function(identifier, profile)
 {
     TRUSTED_PROFILE_CACHE.set(identifier, profile);
+};
+
+var readUserCacheEntry = exports.readUserCacheEntry = function(identifier)
+{
+    return USER_ENTRY_CACHE.get(identifier);
+};
+
+var writeUserCacheEntry = exports.writeUserCacheEntry = function(identifier, entry)
+{
+    USER_ENTRY_CACHE.set(identifier, entry);
+};
+
+var removeUserCacheEntry = exports.removeUserCacheEntry = function(identifier)
+{
+    USER_ENTRY_CACHE.del(identifier);
 };
