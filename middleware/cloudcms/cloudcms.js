@@ -492,8 +492,12 @@ exports = module.exports = function()
                     var branchCookieId = null;
                     if (!err && application)
                     {
-                        branchCookieName = "cloudcms-server-application-" + application.getId() + "-branch-id";
-                        branchCookieId = req.cookies[branchCookieName];
+                        // if cookies are parsed ahead of interceptor, check them...
+                        if (req.cookies)
+                        {
+                            branchCookieName = "cloudcms-server-application-" + application.getId() + "-branch-id";
+                            branchCookieId = req.cookies[branchCookieName];
+                        }
                     }
 
                     // pick which branch
