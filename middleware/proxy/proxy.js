@@ -7,11 +7,10 @@ var httpProxy = require('http-proxy');
 
 var oauth2 = require("../../util/oauth2")();
 
-//var ForeverAgent = require('../../temp/forever-agent/index');
-
 var async = require("async");
 
 var util = require("../../util/util");
+var auth = require("../../util/auth");
 
 /**
  * Proxy middleware.
@@ -72,15 +71,13 @@ exports = module.exports = function()
         var cacheTTL = _cacheTTL(req);
         if (cacheTTL <= 0)
         {
-            callback();
-            return;
+            return callback();
         }
 
         var contentStore = req.stores.content;
         if (!contentStore)
         {
-            callback(false);
-            return;
+            return callback(false);
         }
 
         var filePath = path.join("proxy", req.path);
@@ -125,8 +122,7 @@ exports = module.exports = function()
 
                     if (err || !cacheInfoText)
                     {
-                        handleBadStream();
-                        return;
+                        return handleBadStream();
                     }
 
                     var cacheInfo = JSON.parse(cacheInfoText);
@@ -156,11 +152,12 @@ exports = module.exports = function()
 
             var filePath = path.join("proxy", cachedPath);
 
-            stores.content.existsFile(filePath, function(exists) {
+            var contentStore = stores.content;
+
+            contentStore.existsFile(filePath, function(exists) {
 
                 if (!exists) {
-                    callback();
-                    return;
+                    return callback();
                 }
 
                 contentStore.removeFile(filePath, function() {
@@ -311,6 +308,43 @@ exports = module.exports = function()
         });
     });
     */
+
+    // if we're using auth credentials that are picked up in SSO chain, then we listen for a 401
+    // and if we hear it, we automatically invalidate the SSO chain so that the next request
+    // will continue to work
+    proxyServer.on("proxyRes", function (proxyRes, req, res) {
+
+        if (req.gitana_user)
+        {
+            var chunks = [];
+            // triggers on data receive
+            proxyRes.on('data', function receiveChunks(chunk) {
+                // add received chunk to chunks array
+                chunks.push(chunk);
+            });
+
+            proxyRes.on("end", function () {
+                if (proxyRes.statusCode === 401)
+                {
+                    var text = "" + Buffer.concat(chunks);
+                    if (text && text.indexOf("invalid_token") > -1)
+                    {
+                        // null out the access token
+                        // this will force the refresh token to be used to get a new one on the next request
+                        req.gitana_user.getDriver().http.refresh(function() {
+                            req.gitana_user.getDriver().reloadAuthInfo(function() {
+                                delete Gitana.APPS[req.identity_properties.token];
+                                delete Gitana.PLATFORM_CACHE[req.identity_properties.token];
+                                console.log("Processed refresh token for gitana user: " +  req.identity_properties.token);
+                            });
+                        });
+                    }
+
+                }
+            });
+        }
+
+    });
 
     var proxyHandlerServer = http.createServer(function(req, res) {
 
@@ -503,9 +537,9 @@ exports = module.exports = function()
         // and we have a logged in Gitana User via Auth, then set authorization header to Bearer Access Token
         if (!req.headers["authorization"])
         {
-            if (req.gitana_user_access_token)
+            if (req.gitana_user)
             {
-                req.headers["authorization"] = "Bearer " + req.gitana_user_access_token;
+                req.headers["authorization"] = "Bearer " + req.gitana_user.getDriver().http.accessToken();
             }
         }
 

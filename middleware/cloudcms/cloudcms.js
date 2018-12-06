@@ -718,10 +718,20 @@ exports = module.exports = function()
                             var x = CACHED_APP_SETTINGS[cacheKey];
                             if (x)
                             {
+                                if (x === "null") {
+                                    return callback({
+                                        "message": "Failed to find application settings"
+                                    });
+                                }
+
                                 return callback(null, Chain(x));
                             }
 
                             Chain(application).trap(function(e){
+
+                                // store null sentinel
+                                CACHED_APP_SETTINGS[cacheKey] = "null";
+
                                 callback({
                                     "message": "Failed to find application settings"
                                 });

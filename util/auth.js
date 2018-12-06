@@ -577,7 +577,7 @@ var syncProfile = exports.syncProfile = function(req, res, strategy, domain, pro
 
                 var __syncUser = function(strategy, settings, key, domain, providerId, providerUserId, token, refreshToken, userObject, callback) {
 
-                    // do we already have a gitana user?'
+                    // do we already have a gitana user?
                     findUserForProvider(domain, providerId, providerUserId, function (err, gitanaUser) {
 
                         if (err) {
@@ -815,6 +815,11 @@ var readTrustedProfile = exports.readTrustedProfile = function(identifier)
 var writeTrustedProfile = exports.writeTrustedProfile = function(identifier, profile)
 {
     TRUSTED_PROFILE_CACHE.set(identifier, profile);
+};
+
+var removeTrustedProfile = exports.removeTrustedProfile = function(identifier)
+{
+    TRUSTED_PROFILE_CACHE.del(identifier);
 };
 
 var readUserCacheEntry = exports.readUserCacheEntry = function(identifier)

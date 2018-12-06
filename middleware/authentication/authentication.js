@@ -984,6 +984,12 @@ exports = module.exports = function()
                                 req.identity_properties[k] = properties[k];
                             }
 
+                            // do our best to populate "user_identifier"
+                            if (!req.identity_properties.user_identifier && properties.profile)
+                            {
+                                req.identity_properties.user_identifier = provider.userIdentifier(properties.profile);
+                            }
+
                             if (req.identity_properties.gitana_user_connection)
                             {
                                 req.gitana_user_connection = req.identity_properties.gitana_user_connection;
