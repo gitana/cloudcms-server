@@ -285,30 +285,6 @@ exports = module.exports = function()
         res.end('Something went wrong while proxying the request.');
     });
 
-    /*
-    // debug: buffer response
-    proxyServer.on('proxyRes', function (proxyRes, req, res) {
-        var chunks = [];
-        // triggers on data receive
-        proxyRes.on('data', function receiveChunks(chunk) {
-            // add received chunk to chunks array
-            chunks.push(chunk);
-        });
-
-        // triggers on data end
-        proxyRes.on('end', function proxyResponseEnd() {
-            // make string from buffer
-            var buffer = Buffer.concat(chunks);
-            // output buffer
-            console.log("Orig.req.url: " + req.url);
-            console.log("Proxy Status Code -> " + proxyRes.statusCode);
-            console.log("Proxy Status Message -> " + proxyRes.statusMessage);
-            console.log("Proxy Response Headers -> " + JSON.stringify(proxyRes.headers, true, 2));
-            console.log("Proxy Response Data -> " + buffer.toString());
-        });
-    });
-    */
-
     // if we're using auth credentials that are picked up in SSO chain, then we listen for a 401
     // and if we hear it, we automatically invalidate the SSO chain so that the next request
     // will continue to work
@@ -318,24 +294,48 @@ exports = module.exports = function()
         {
             var chunks = [];
             // triggers on data receive
-            proxyRes.on('data', function receiveChunks(chunk) {
+            proxyRes.on('data', function(chunk) {
                 // add received chunk to chunks array
                 chunks.push(chunk);
             });
 
             proxyRes.on("end", function () {
+
                 if (proxyRes.statusCode === 401)
                 {
                     var text = "" + Buffer.concat(chunks);
-                    if (text && text.indexOf("invalid_token") > -1)
+                    if (text && (text.indexOf("invalid_token") > -1) || (text.indexOf("invalid_grant") > -1))
                     {
-                        // null out the access token
-                        // this will force the refresh token to be used to get a new one on the next request
-                        req.gitana_user.getDriver().http.refresh(function() {
-                            req.gitana_user.getDriver().reloadAuthInfo(function() {
+                        var identifier = req.identity_properties.provider_id + "/" + req.identity_properties.user_identifier;
+
+                        _LOCK([identifier], function(releaseLockFn) {
+
+                            var cleanup = function (full)
+                            {
                                 delete Gitana.APPS[req.identity_properties.token];
                                 delete Gitana.PLATFORM_CACHE[req.identity_properties.token];
-                                console.log("Processed refresh token for gitana user: " +  req.identity_properties.token);
+
+                                if (full) {
+                                    auth.removeUserCacheEntry(identifier);
+                                }
+                            };
+
+                            // null out the access token
+                            // this will force the refresh token to be used to get a new one on the next request
+                            req.gitana_user.getDriver().http.refresh(function (err) {
+
+                                if (err) {
+                                    cleanup(true);
+                                    req.log("Invalidated auth state for gitana user: " + req.identity_properties.token);
+                                    releaseLockFn();
+                                    return;
+                                }
+
+                                req.gitana_user.getDriver().reloadAuthInfo(function () {
+                                    cleanup(true);
+                                    req.log("Refreshed token for gitana user: " + req.identity_properties.token);
+                                    releaseLockFn();
+                                });
                             });
                         });
                     }
@@ -343,8 +343,12 @@ exports = module.exports = function()
                 }
             });
         }
-
     });
+
+    var _LOCK = function(lockIdentifiers, workFunction)
+    {
+        process.locks.lock(lockIdentifiers.join("_"), workFunction);
+    };
 
     var proxyHandlerServer = http.createServer(function(req, res) {
 

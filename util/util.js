@@ -625,17 +625,7 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
         // make sure agent is applied
         if (!config.agent && config.url)
         {
-            var agent = null;
-
-            if (config.url.indexOf("https://") === 0)
-            {
-                agent = https.globalAgent;
-            }
-            else if (config.url.indexOf("http://") === 0)
-            {
-                agent = http.globalAgent;
-            }
-
+            var agent = getAgent(config.url);
             if (agent)
             {
                 config.agent = agent;
@@ -1801,4 +1791,30 @@ var randomInt = exports.randomInt = function(low, high)
 var jsonParse = exports.jsonParse = function(text)
 {
     return JSON5.parse(text);
+};
+
+var isHttps = exports.isHttps = function(url)
+{
+    return url.toLowerCase().startsWith("https://");
+};
+
+var isHttp = exports.isHttp = function(url)
+{
+    return url.toLowerCase().startsWith("http://");
+};
+
+var getAgent = exports.getAgent = function(url)
+{
+    var agent = http.globalAgent;
+
+    if (url.indexOf("https://") === 0)
+    {
+        agent = https.globalAgent;
+    }
+    else if (url.indexOf("http://") === 0)
+    {
+        agent = http.globalAgent;
+    }
+
+    return agent;
 };

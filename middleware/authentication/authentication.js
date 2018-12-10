@@ -398,7 +398,7 @@ exports = module.exports = function()
 
                     var domain = req.gitana.datastore("principals");
 
-                    auth.syncProfile(req, res, strategy, domain, providerId, provider, profile, info.token, info.refreshToken, function(err, gitanaUser, platform, appHelper, key, driver) {
+                    auth.syncProfile(req, res, strategy, domain, providerId, provider, profile, info.token, info.refreshToken, function(err, gitanaUser, platform, appHelper, key) {
 
                         if (!gitanaUser)
                         {
@@ -1187,6 +1187,7 @@ exports = module.exports = function()
                         };
 
                         var phaseCloudCMS = function (req, strategy, provider, properties, done) {
+
                             var domain = req.gitana.datastore("principals");
 
                             var profile = properties.profile;

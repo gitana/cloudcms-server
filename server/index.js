@@ -786,7 +786,7 @@ var startSlave = function(config, afterStartFn)
                     // add req.log function
                     app.use(function (req, res, next) {
 
-                        req._log = req.log = function (text, warn) {
+                        req._log = req.log = function (text/*, warn*/) {
 
                             var host = req.domainHost;
                             if (req.virtualHost)
@@ -816,10 +816,12 @@ var startSlave = function(config, afterStartFn)
                             message += grayColor + text + '';
                             message += finalColor;
 
+                            /*
                             if (warn)
                             {
                                 message = "\r\n**** SLOW RESPONSE ****\r\n" + message + "\r\n";
                             }
+                            */
 
                             console.log(message);
                         };
