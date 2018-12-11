@@ -398,7 +398,7 @@ exports = module.exports = function()
 
                     var domain = req.gitana.datastore("principals");
 
-                    auth.syncProfile(req, res, strategy, domain, providerId, provider, profile, info.token, info.refreshToken, function(err, gitanaUser, platform, appHelper, key) {
+                    auth.syncProfile(req, res, strategy, domain, providerId, provider, profile, info.token, info.refreshToken, function(err, gitanaUser, platform, appHelper, key, driver) {
 
                         if (!gitanaUser)
                         {

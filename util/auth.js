@@ -359,7 +359,7 @@ var syncProfile = exports.syncProfile = function(req, res, strategy, domain, pro
 
                             releaseLockFn();
 
-                            callback(err, gitanaUser, platform, appHelper, key);
+                            callback(err, gitanaUser, platform, appHelper, key, platform.getDriver());
                         }, gitanaUser);
                     });
                 });
