@@ -295,6 +295,12 @@ var SETTINGS = {
         "enabled": false,
         "type": "memory",
         "config": {}
+    },
+    "graphql": {
+        "enabled": true,
+        "config": {
+            "anonymous": true
+        }
     }
 };
 

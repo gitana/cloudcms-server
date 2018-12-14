@@ -186,6 +186,7 @@ exports = module.exports = function()
     var form = require("./middleware/form/form");
     var healthcheck = require("./middleware/healthcheck/healthcheck");
     var host = require("./middleware/host/host");
+    var graphql = require("./middleware/graphql/graphql");
     var libraries = require("./middleware/libraries/libraries");
     var local = require("./middleware/local/local");
     var locale = require("./middleware/locale/locale");
@@ -330,6 +331,9 @@ exports = module.exports = function()
             // enables cms logging
             app.use(cloudcms.cmsLogInterceptor());
         }
+
+        // graphql
+        app.use(graphql.interceptor());
     };
 
     r.perf1 = function(app)
