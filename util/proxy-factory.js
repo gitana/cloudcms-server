@@ -67,10 +67,6 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
     //
     ////////////////////////////////////////////////////////////////////////////
 
-    // parse the target
-    var _proxyTargetUrl = urlTool.parse(proxyTarget);
-    var proxyProtocol = _proxyTargetUrl.protocol;
-
     // NOTE: changeOrigin must be true because of the way that we set host to host:port
     // in http-proxy's common.js line 102, the host is only properly set up if changeOrigin is set to true
     // this sets the "host" header and it has to match what is set at the network/transport level in a way
@@ -85,9 +81,18 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
     };
 
     // use https?
-    if (proxyProtocol.toLowerCase() === "https")
+    if (util.isHttps(proxyTarget))
     {
-        proxyConfig.agent = https.globalAgent;
+        // parse the target to get host
+        var proxyHost = urlTool.parse(proxyTarget).host;
+
+        proxyConfig = {
+            "target": proxyTarget,
+            "agent": https.globalAgent,
+            "headers": {
+                "host": proxyHost
+            }
+        };
     }
 
     // create proxy server instance
