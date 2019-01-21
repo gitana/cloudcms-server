@@ -309,10 +309,10 @@ process.env.PORT = process.env.PORT || 2999;
 
 // allows for specification of alternative transports
 SETTINGS.socketTransports = [
+    'websocket',
     'xhr-polling',
     'jsonp-polling',
-    'polling',
-    'websocket'
+    'polling'
 ];
 
 var exports = module.exports;
