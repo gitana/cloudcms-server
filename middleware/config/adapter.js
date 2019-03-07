@@ -90,6 +90,15 @@ module.exports = function(configStore)
             var configs = {};
             configStore.listFiles(dirPath, function(err, filenames) {
 
+                if (err) {
+                    console.log("Caught error in loadPages listFiles() - " + JSON.stringify(err));
+                    return callback(err);
+                }
+
+                if (!filenames || filenames.length === 0) {
+                    return callback();
+                }
+
                 var fns = [];
                 for (var i = 0; i < filenames.length; i++)
                 {
@@ -196,6 +205,15 @@ module.exports = function(configStore)
 
             configStore.listFiles(dirPath, function(err, filenames) {
 
+                if (err) {
+                    console.log("Caught error in loadBlocks listFiles() - " + JSON.stringify(err));
+                    return callback(err);
+                }
+
+                if (!filenames || filenames.length === 0) {
+                    return callback();
+                }
+
                 var fns = [];
                 for (var i = 0; i < filenames.length; i++)
                 {
@@ -221,7 +239,7 @@ module.exports = function(configStore)
 
                                     if (stats && stats.directory) {
                                         loadBlocks(childPath, context, function(err) {
-                                            done();
+                                            done(err);
                                         });
                                     }
                                     else
@@ -283,8 +301,12 @@ module.exports = function(configStore)
                 configStore.listFiles("/", function (err, filenames) {
 
                     if (err) {
-                        callback(err);
-                        return;
+                        console.log("Caught error in loadContext listFiles() - " + JSON.stringify(err));
+                        return callback(err);
+                    }
+
+                    if (!filenames || filenames.length === 0) {
+                        return callback(null, context);
                     }
 
                     var fns = [];
