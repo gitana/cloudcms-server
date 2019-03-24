@@ -422,7 +422,7 @@ var _handleSyncUser = function(req, strategy, settings, key, domain, providerId,
         }
 
         // sync groups
-        __handleSyncGroups(strategy, settings, gitanaUser, groupsArray, function(err, gitanaUser) {
+        __handleSyncGroups(req, strategy, settings, gitanaUser, groupsArray, function(err, gitanaUser) {
 
             return callback(null, gitanaUser);
 
@@ -507,7 +507,7 @@ var __handleSyncUser = function(req, strategy, settings, key, domain, providerId
     });
 };
 
-var executeRule = function(rule, gitanaUser, callback)
+var executeRule = function(req, rule, gitanaUser, callback)
 {
     //
     // addToProject(projectId)
@@ -664,7 +664,7 @@ var executeRule = function(rule, gitanaUser, callback)
     }, 250);
 };
 
-var __handleSyncGroups = function(strategy, settings, gitanaUser, groupsArray, callback) {
+var __handleSyncGroups = function(req, strategy, settings, gitanaUser, groupsArray, callback) {
 
     if (!groupsArray || groupsArray.length === 0)
     {
@@ -695,7 +695,7 @@ var __handleSyncGroups = function(strategy, settings, gitanaUser, groupsArray, c
             {
                 var fn = function (rule, gitanaUser) {
                     return function (done) {
-                        executeRule(rule, gitanaUser, function (err) {
+                        executeRule(req, rule, gitanaUser, function (err) {
                             done(err);
                         });
                     }
