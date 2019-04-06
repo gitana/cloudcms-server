@@ -312,6 +312,69 @@ class RedisProvider extends AbstractAsyncProvider
             callback(null, lockIds);
         });
     };
+
+    acquireSession(sessionId, callback)
+    {
+        var self = this;
+
+        self.client.get("session-" + sessionId, function(err, sessionJsonText) {
+
+            if (err) {
+                return callback(err);
+            }
+
+            if (sessionJsonText)
+            {
+                var session = JSON.parse("" + sessionJsonText);
+                return callback(null, session);
+            }
+
+            // create a new session
+            var session = {};
+            self.client.set("session-" + sessionId, JSON.stringify(session), function(err) {
+
+                if (err) {
+                    return callback(err);
+                }
+
+                callback(null, session);
+            });
+        });
+    }
+
+    updateSession(sessionId, session, callback)
+    {
+        var self = this;
+
+        if (!session) {
+            session = {};
+        }
+
+        // create a new session
+        self.client.set("session-" + sessionId, JSON.stringify(session), function(err) {
+
+            if (err) {
+                return callback(err);
+            }
+
+            callback(null, session);
+        });
+    }
+
+    deleteSession(sessionId, callback)
+    {
+        var self = this;
+
+        self.client.del("session-" + sessionId, function(err) {
+
+            if (err) {
+                return callback(err);
+            }
+
+            callback();
+        });
+    }
+
 }
 
 module.exports = RedisProvider;

@@ -57,6 +57,21 @@ class AbstractProvider
     {
         throw new Error("lockInfo() method is not implemented");
     }
+
+    acquireSession(sessionId, callback)
+    {
+        throw new Error("acquireSession() method is not implemented");
+    }
+
+    updateSession(sessionId, session, callback)
+    {
+        throw new Error("updateSession() method is not implemented");
+    }
+
+    deleteSession(sessionId, callback)
+    {
+        throw new Error("deleteSession() method is not implemented");
+    }
 }
 
 module.exports = AbstractProvider;

@@ -11,6 +11,9 @@ class MemoryProvider extends AbstractAsyncProvider
 
         // channel ID -> { lockTime, user }
         this.lockMap = {};
+
+        // session ID -> {}
+        this.sessionMap = {};
     }
 
     // IMPLEMENT ABSTRACT INTERFACE METHODS
@@ -107,6 +110,36 @@ class MemoryProvider extends AbstractAsyncProvider
         }
 
         callback(null, lockIds);
+    }
+
+    acquireSession(sessionId, callback)
+    {
+        var self = this;
+
+        var session = self.sessionMap[sessionId];
+        if (!session) {
+            session = self.sessionMap[sessionId] = {};
+        }
+
+        callback(null, session);
+    }
+
+    updateSession(sessionId, session, callback)
+    {
+        var self = this;
+
+        self.sessionMap[sessionId] = session;
+
+        callback();
+    }
+
+    deleteSession(sessionId, callback)
+    {
+        var self = this;
+
+        delete self.sessionMap[sessionId];
+
+        callback();
     }
 }
 

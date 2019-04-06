@@ -14,6 +14,9 @@ exports = module.exports = function()
     var REAP_FREQUENCY_MS = 3000; // three seconds
     var REAP_MAX_AGE_MS = 5000; // five seconds
 
+    var pluginPaths = ["./plugins/editorial"];
+    var plugins = {};
+
     // ensure reaper only initializes once
     var reaperInitialized = false;
 
@@ -71,7 +74,40 @@ exports = module.exports = function()
                 return callback(err);
             }
 
-            callback();
+            // init any plugins?
+            if (!process.configuration.awareness.plugins) {
+                process.configuration.awareness.plugins = [];
+            }
+
+
+            var fns = [];
+            for (var i = 0; i < pluginPaths.length; i++)
+            {
+                var fn = function(awareness, pluginPath) {
+                    return function(done) {
+
+                        try
+                        {
+                            var plugin = require(pluginPath);
+
+                            console.log("Registering Awareness plugin: " + pluginPath);
+
+                            awareness.registerPlugin(pluginPath, plugin);
+                        }
+                        catch (e)
+                        {
+                            console.log("Failed to instantiate awareness plugin: " + e);
+                        }
+
+                        done();
+                    }
+                }(r, pluginPaths[i]);
+                fns.push(fn);
+            }
+
+            async.series(fns, function() {
+                callback();
+            });
         });
     };
 
@@ -99,6 +135,38 @@ exports = module.exports = function()
         }
 
         socketIOInitialized = true;
+
+        var pluginProxy = function(plugins) {
+
+            var r = {};
+
+            // allow plugins to bind on("connection") handlers
+            r.bindOnSocketConnection = function(socket, provider, callback)
+            {
+                var fns = [];
+                for (var pluginPath in plugins)
+                {
+                    var plugin = plugins[pluginPath];
+
+                    var fn = function(pluginPath, plugin, socket) {
+                        return function(done) {
+
+                            plugin.bindSocket(socket, provider);
+
+                            done();
+                        }
+                    }(pluginPath, plugin, socket);
+                    fns.push(fn);
+                }
+
+                async.series(fns, function(err) {
+                    callback(err);
+                });
+            };
+
+            return r;
+
+        }(plugins);
 
         // when a socket.io connection is established, we set up some default listeners for events that the client
         // may emit to us
@@ -222,6 +290,11 @@ exports = module.exports = function()
             // "notifyLockOwner" -> notifies the lock owner with a message
             socket.on("notifyLockOwner", function(channelId, user, message, callback) {
                 notifyLockOwner(socket, channelId, user, message, callback);
+            });
+
+            // allow plugins to register more on() handlers if they wish
+            pluginProxy.bindOnSocketConnection(socket, provider, function() {
+                // done
             });
 
         });
@@ -530,6 +603,11 @@ exports = module.exports = function()
                 next();
             }
         });
+    };
+
+    r.registerPlugin = function(path, plugin)
+    {
+        plugins[path] = plugin;
     };
 
     return r;
