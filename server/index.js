@@ -1122,9 +1122,7 @@ var startSlave = function(config, afterStartFn)
                                                 // AFTER SERVER START
                                                 runFunctions(config.afterFunctions, [app], function (err) {
 
-                                                    // listen for kill or interrupt so that we can shut down cleanly
-                                                    process.on('SIGINT', function () {
-
+                                                    function cleanup() {
                                                         console.log("");
                                                         console.log("");
 
@@ -1155,7 +1153,11 @@ var startSlave = function(config, afterStartFn)
 
                                                         // tell the process to exit
                                                         process.exit();
-                                                    });
+                                                    }
+
+                                                    // listen for kill or interrupt so that we can shut down cleanly
+                                                    process.on('SIGINT', cleanup);
+                                                    process.on('SIGTERM', cleanup);
 
                                                     // if we are on a worker process, then inform the master that we completed
                                                     if (process.send)
