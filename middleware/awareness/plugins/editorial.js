@@ -34,12 +34,17 @@ exports.bindSocket = function(socket, provider)
             var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + "/oneteam/session/acquire";
 
             var headers = {};
-            headers["Authorization"] = socket.gitana.platform().getDriver().getHttpHeaders()["Authorization"];
+            //headers["Authorization"] = socket.gitana.platform().getDriver().getHttpHeaders()["Authorization"];
+            var gitanaTicket = extractTicket(socket);
+            if (gitanaTicket)
+            {
+                headers["GITANA_TICKET"] = gitanaTicket;
+            }
 
             var json = {};
             json.repositoryId = repositoryId;
             json.branchId = branchId;
-            json.sessionKey = sessionKey;
+            json.key = sessionKey;
 
             var agent = http.globalAgent;
             if (process.env.GITANA_PROXY_SCHEME === "https")
@@ -74,10 +79,15 @@ exports.bindSocket = function(socket, provider)
         var json = {};
         json.repositoryId = repositoryId;
         json.branchId = branchId;
-        json.sessionKey = sessionKey;
+        json.key = sessionKey;
 
         var headers = {};
-        headers["Authorization"] = socket.gitana.platform().getDriver().getHttpHeaders()["Authorization"];
+        //headers["Authorization"] = socket.gitana.platform().getDriver().getHttpHeaders()["Authorization"];
+        var gitanaTicket = extractTicket(socket);
+        if (gitanaTicket)
+        {
+            headers["GITANA_TICKET"] = gitanaTicket;
+        }
 
         var agent = http.globalAgent;
         if (process.env.GITANA_PROXY_SCHEME === "https")
@@ -112,10 +122,15 @@ exports.bindSocket = function(socket, provider)
         var json = {};
         json.repositoryId = repositoryId;
         json.branchId = branchId;
-        json.sessionKey = sessionKey;
+        json.key = sessionKey;
 
         var headers = {};
-        headers["Authorization"] = socket.gitana.platform().getDriver().getHttpHeaders()["Authorization"];
+        //headers["Authorization"] = socket.gitana.platform().getDriver().getHttpHeaders()["Authorization"];
+        var gitanaTicket = extractTicket(socket);
+        if (gitanaTicket)
+        {
+            headers["GITANA_TICKET"] = gitanaTicket;
+        }
 
         var agent = http.globalAgent;
         if (process.env.GITANA_PROXY_SCHEME === "https")
@@ -150,10 +165,15 @@ exports.bindSocket = function(socket, provider)
         var json = {};
         json.repositoryId = repositoryId;
         json.branchId = branchId;
-        json.sessionKey = sessionKey;
+        json.key = sessionKey;
 
         var headers = {};
-        headers["Authorization"] = socket.gitana.platform().getDriver().getHttpHeaders()["Authorization"];
+        //headers["Authorization"] = socket.gitana.platform().getDriver().getHttpHeaders()["Authorization"];
+        var gitanaTicket = extractTicket(socket);
+        if (gitanaTicket)
+        {
+            headers["GITANA_TICKET"] = gitanaTicket;
+        }
 
         var agent = http.globalAgent;
         if (process.env.GITANA_PROXY_SCHEME === "https")
@@ -178,5 +198,29 @@ exports.bindSocket = function(socket, provider)
             callback(null, body);
         });
     };
+
+    var extractTicket = function(socket)
+    {
+        var ticket = null;
+
+        if (socket.handshake && socket.handshake.headers)
+        {
+            var cookieValue = socket.handshake.headers.cookie;
+            if (cookieValue)
+            {
+                var x1 = cookieValue.indexOf("GITANA_TICKET=");
+                if (x1 > -1)
+                {
+                    var x2 = cookieValue.indexOf(";", x1 + 14);
+                    if (x2 > -1)
+                    {
+                        ticket = cookieValue.substring(x1 + 14, x2);
+                    }
+                }
+            }
+        }
+
+        return ticket;
+    }
 
 };
