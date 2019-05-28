@@ -489,7 +489,7 @@ module.exports = function(app, dust)
         }
 
         // TRACKER: START
-        context = tracker.start(context);
+        tracker.start(context);
 
         if (locale) {
             tracker.requires(context, "locale", locale);
