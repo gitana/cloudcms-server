@@ -418,7 +418,10 @@ var _handleSyncUser = function(req, strategy, settings, key, domain, providerId,
 
         if (!synced)
         {
-            return callback(null, gitanaUser);
+            if (groupsArray.length == 0)
+            {
+                return callback(null, gitanaUser);
+            }
         }
 
         // sync groups
