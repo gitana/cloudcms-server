@@ -110,7 +110,7 @@ var impersonate = exports.impersonate = function(req, key, targetUser, callback)
     var grantImpersonator = function(done)
     {
         Chain(targetUser).trap(function(e) {
-            done();
+            done(e);
             return false;
         }).grantAuthority(currentUserId, "impersonator").then(function () {
             done();
@@ -120,7 +120,7 @@ var impersonate = exports.impersonate = function(req, key, targetUser, callback)
     var revokeImpersonator = function(done)
     {
         Chain(targetUser).trap(function(e) {
-            done();
+            done(e);
             return false;
         }).revokeAuthority(currentUserId, "impersonator").then(function () {
             done();
@@ -236,6 +236,7 @@ var removeUserCacheEntry = exports.removeUserCacheEntry = function(identifier)
 
 
 var syncProfile = exports.syncProfile = function(req, res, strategy, domain, providerId, provider, profile, token, refreshToken, callback) {
+
 
     return provider.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
 
@@ -490,11 +491,24 @@ var __handleSyncUser = function(req, strategy, settings, key, domain, providerId
                 })
             });
         }
+        else if (json.error)
+        {
+            if (json.message)
+            {
+                return callback({
+                    "message": "An error occurred during user sync: " + json.message
+                });
+            }
+
+            return callback({
+                "message": "An error occurred during user sync: " + JSON.stringify(json)
+            });
+        }
 
         if (!json.user) {
             console.log("Did not see json.user, JSON is: " + JSON.stringify(json, null, 2));
             return callback({
-                "message": "Missing json.user"
+                "message": "An error occurred during user sync - the response did not contain an error but also did not provide json.user"
             });
         }
 

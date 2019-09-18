@@ -832,6 +832,7 @@ exports = module.exports = function()
                             "message": "Authentication filter failed"
                         };
                     }
+
                     next(err);
                 });
             });
