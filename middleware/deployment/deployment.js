@@ -570,8 +570,8 @@ exports = module.exports = function()
                                 "message": err.message,
                                 "err": err
                             });
-                            res.end();
-                            return;
+
+                            return res.end();
                         }
 
                         // respond with ok
@@ -594,8 +594,8 @@ exports = module.exports = function()
                                 "message": err.message,
                                 "err": err
                             });
-                            res.end();
-                            return;
+
+                            return res.end();
                         }
 
                         doDeploy(req, req.body, function(err) {
@@ -606,8 +606,7 @@ exports = module.exports = function()
                                     "message": err.message,
                                     "err": err
                                 });
-                                res.end();
-                                return;
+                                return res.end();
                             }
 
                             // respond with ok
@@ -630,8 +629,8 @@ exports = module.exports = function()
                                 "message": err.message,
                                 "err": err
                             });
-                            res.end();
-                            return;
+
+                            return res.end();
                         }
 
                         // respond with ok
@@ -653,8 +652,8 @@ exports = module.exports = function()
                                 "message": err.message,
                                 "err": err
                             });
-                            res.end();
-                            return;
+
+                            return res.end();
                         }
 
                         // respond with ok
@@ -676,8 +675,7 @@ exports = module.exports = function()
                                 "message": err.message,
                                 "err": err
                             });
-                            res.end();
-                            return;
+                            return res.end();
                         }
 
                         doStart(req, req.body, function(err) {
@@ -688,8 +686,8 @@ exports = module.exports = function()
                                     "message": err.message,
                                     "err": err
                                 });
-                                res.end();
-                                return;
+
+                                return res.end();
                             }
 
                             // respond with ok
@@ -712,8 +710,7 @@ exports = module.exports = function()
                                 "message": err.message,
                                 "err": err
                             });
-                            res.end();
-                            return;
+                            return res.end();
                         }
 
                         // respond with ok
@@ -737,8 +734,7 @@ exports = module.exports = function()
                                 "message": err.message,
                                 "err": err
                             });
-                            res.end();
-                            return;
+                            return res.end();
                         }
 
                         // respond with ok
@@ -765,8 +761,7 @@ exports = module.exports = function()
                                 "message": err.message,
                                 "err": err
                             });
-                            res.end();
-                            return;
+                            return res.end();
                         }
 
                         // respond with ok
