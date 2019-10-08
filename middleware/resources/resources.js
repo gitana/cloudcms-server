@@ -3,8 +3,6 @@ var fs = require('fs');
 var http = require('http');
 var util = require("../../util/util");
 
-var mime = require("mime");
-
 var cloudcmsUtil = require("../../util/cloudcms");
 
 /**
@@ -44,7 +42,7 @@ exports = module.exports = function()
             var mimetype = cacheInfo.mimetype;
             if (mimetype)
             {
-                ext = mime.extension(mimetype);
+                ext = util.lookupExtension(mimetype);
                 if (ext)
                 {
                     filename += "." + ext;

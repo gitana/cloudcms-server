@@ -8,8 +8,6 @@ var Gitana = require("gitana");
 var passport = require('passport');
 var LocalStrategy = require('passport-local').Strategy;
 
-var mime = require("mime");
-
 var cloudcmsUtil = require("../../util/cloudcms");
 
 /**
@@ -1364,7 +1362,6 @@ exports = module.exports = function()
                             {
                                 // see if we can determine the requested mimetype from the file extension of the previewId
                                 mimetype = util.lookupMimeType(extension);
-                                //mimetype = mime.lookup(extension);
                             }
                             previewId = previewId.substring(0, p);
                         }
@@ -1958,7 +1955,7 @@ exports = module.exports = function()
             var mimetype = cacheInfo.mimetype;
             if (mimetype)
             {
-                ext = mime.extension(mimetype);
+                ext = util.lookupExtension(mimetype);
                 if (ext)
                 {
                     filename += "." + ext;
