@@ -203,6 +203,116 @@ var handleNotificationMessages = function(items, callback) {
                                             "host": host
                                         }, z_done);
                                     }
+                                    else if (type === "deploy_app")
+                                    {
+                                        var body = obj.body;
+
+                                        process.broadcast.publish("deploy_app", {
+                                            "body": body
+                                        });
+
+                                        z_done();
+                                    }
+                                    else if (type === "undeploy_app")
+                                    {
+                                        var body = obj.body;
+
+                                        process.broadcast.publish("undeploy_app", {
+                                            "body": body
+                                        });
+
+                                        z_done();
+                                    }
+                                    else if (type === "redeploy_app")
+                                    {
+                                        var body = obj.body;
+
+                                        process.broadcast.publish("redeploy_app", {
+                                            "body": body
+                                        });
+
+                                        z_done();
+                                    }
+                                    else if (type === "start_app")
+                                    {
+                                        var body = obj.body;
+
+                                        process.broadcast.publish("start_app", {
+                                            "body": body
+                                        });
+
+                                        z_done();
+                                    }
+                                    else if (type === "stop_app")
+                                    {
+                                        var body = obj.body;
+
+                                        process.broadcast.publish("stop_app", {
+                                            "body": body
+                                        });
+
+                                        z_done();
+                                    }
+                                    else if (type === "restart_app")
+                                    {
+                                        var body = obj.body;
+
+                                        process.broadcast.publish("restart_app", {
+                                            "body": body
+                                        });
+
+                                        z_done();
+                                    }
+                                    else if (type === "cleanup_app")
+                                    {
+                                        var host = obj.host;
+
+                                        process.broadcast.publish("cleanup_app", {
+                                            "host": host
+                                        });
+
+                                        z_done();
+                                    }
+                                    else if (type === "module_deploy")
+                                    {
+                                        process.broadcast.publish("module_deploy", {
+                                            "host": obj.host,
+                                            "moduleId": obj.moduleId,
+                                            "moduleConfig": obj.moduleConfig
+                                        });
+
+                                        z_done();
+                                    }
+                                    else if (type === "module_undeploy")
+                                    {
+                                        process.broadcast.publish("module_undeploy", {
+                                            "host": obj.host,
+                                            "moduleId": obj.moduleId,
+                                            "moduleConfig": obj.moduleConfig
+                                        });
+
+                                        z_done();
+                                    }
+                                    else if (type === "module_refresh")
+                                    {
+                                        process.broadcast.publish("module_refresh", {
+                                            "host": obj.host,
+                                            "moduleId": obj.moduleId,
+                                            "moduleConfig": obj.moduleConfig
+                                        });
+
+                                        z_done();
+                                    }
+                                    else if (type === "module_redeploy")
+                                    {
+                                        process.broadcast.publish("module_redeploy", {
+                                            "host": obj.host,
+                                            "moduleId": obj.moduleId,
+                                            "moduleConfig": obj.moduleConfig
+                                        });
+
+                                        z_done();
+                                    }
                                     else
                                     {
                                         z_done();
@@ -482,7 +592,7 @@ module.exports = function()
 
             if (!notifications.type)
             {
-                console.error("Notification.type is not configured")
+                console.error("Notification.type is not configured");
                 return callback();
             }
 
@@ -507,6 +617,15 @@ module.exports = function()
         {
             callback();
         }
+    };
+
+    r.notify = function(items, callback)
+    {
+        if (!callback) {
+            callback = function() { };
+        }
+
+        handleNotificationMessages(items, callback);
     };
 
     return r;

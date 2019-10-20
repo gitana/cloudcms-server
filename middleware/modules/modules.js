@@ -89,7 +89,7 @@ exports = module.exports = function()
             sourceBranch = "master";
         }
 
-        if ("github" === sourceType || "bitbucket" == sourceType)
+        if ("github" === sourceType || "bitbucket" === sourceType)
         {
             logFn("Begin util.gitCheckout");
 
