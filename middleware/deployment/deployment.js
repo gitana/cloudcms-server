@@ -27,7 +27,8 @@ exports = module.exports = function()
         callback(null, descriptor.host);
     };
 
-    var generateHost = function(descriptor, callback)
+    /*
+    var ensureDescriptorHasHost = function(descriptor)
     {
         // if the "host" field is already present on the descriptor, then we reuse that host
         if (descriptor.host)
@@ -38,8 +39,9 @@ exports = module.exports = function()
         // otherwise, we generate a host
         var host = uuidv4() + "-hosted." + descriptor.domain;
 
-        callback(null, host);
+        descriptor.host = host;
     };
+    */
 
     var doHandleWriteGitanaConfiguration = function(descriptor, rootStore, callback)
     {
@@ -147,8 +149,12 @@ exports = module.exports = function()
     //
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    var doDeploy = function(req, descriptor, callback)
+    var doDeploy = function(logFn, descriptor, callback)
     {
+        if (!logFn) {
+            logFn = function(text) { console.log(text); }
+        }
+
         if (!descriptor) {
             return callback({
                 "message": "Missing descriptor"
@@ -161,7 +167,14 @@ exports = module.exports = function()
             });
         }
 
-        generateHost(descriptor, function(err, host) {
+        if (!descriptor.host)
+        {
+            return callback({
+                "message": "Descriptor is missing host"
+            });
+        }
+
+        parseHost(descriptor, function(err, host) {
 
             if (err) {
                 return callback(err);
@@ -185,13 +198,13 @@ exports = module.exports = function()
                         });
                     }
 
-                    req.log("Deploying application: " + descriptor.application.id + " to host: " + host);
+                    logFn("Deploying application: " + descriptor.application.id + " to host: " + host);
 
                     // write the descriptor.json file
                     rootStore.writeFile("descriptor.json", JSON.stringify(descriptor, null, "  "), function (err) {
 
                         if (err) {
-                            return callback(err, host);
+                            return callback(err);
                         }
 
                         var completionHandler = function () {
@@ -208,9 +221,9 @@ exports = module.exports = function()
                                 process.deploymentDescriptorCache.invalidate(host, function() {
                                     process.driverConfigCache.invalidate(host, function() {
 
-                                        req.log("Completed deployment of application: " + descriptor.application.id + " to host: " + host);
+                                        logFn("Completed deployment of application: " + descriptor.application.id + " to host: " + host);
 
-                                        callback(err, host);
+                                        callback(err);
 
                                     });
                                 });
@@ -230,10 +243,10 @@ exports = module.exports = function()
                         }
                         if ("github" === sourceType || "bitbucket" == sourceType)
                         {
-                            util.gitCheckout(host, sourceType, sourceUrl, sourcePath, sourceBranch, null, true, req.log, function (err) {
+                            util.gitCheckout(host, sourceType, sourceUrl, sourcePath, sourceBranch, null, true, logFn, function (err) {
 
                                 if (err) {
-                                    return callback(err, host);
+                                    return callback(err);
                                 }
 
                                 completionHandler(err);
@@ -241,10 +254,10 @@ exports = module.exports = function()
                         }
                         else
                         {
-                            util.installPackagedDeployment(host, "default", req.log, function(err) {
+                            util.installPackagedDeployment(host, "default", logFn, function(err) {
 
                                 if (err) {
-                                    return callback(err, host);
+                                    return callback(err);
                                 }
 
                                 completionHandler(err);
@@ -256,8 +269,12 @@ exports = module.exports = function()
         });
     };
 
-    var doUndeploy = function(req, descriptor, callback)
+    var doUndeploy = function(logFn, descriptor, callback)
     {
+        if (!logFn) {
+            logFn = function(text) { console.log(text); }
+        }
+
         parseHost(descriptor, function(err, host) {
 
             if (err) {
@@ -281,14 +298,14 @@ exports = module.exports = function()
                         });
                     }
 
-                    req.log("Undeploying application: " + descriptor.application.id + " from host: " + host);
+                    logFn("Undeploying application: " + descriptor.application.id + " from host: " + host);
 
                     // invalidate any cache state for this application
-                    req.log("Invalidating application cache for application: " + descriptor.application.id);
+                    logFn("Invalidating application cache for application: " + descriptor.application.id);
                     process.cache.invalidateCacheForApp(descriptor.application.id);
 
                     // invalidate "duster" cache for this application
-                    req.log("Invalidating duster cache for application: " + descriptor.application.id);
+                    logFn("Invalidating duster cache for application: " + descriptor.application.id);
                     duster.invalidateCacheForApp(descriptor.application.id);
 
                     // invalidate gitana driver for this application
@@ -298,14 +315,14 @@ exports = module.exports = function()
                     });
 
                     // remove host directory
-                    req.log("Removing host directory: " + host);
+                    logFn("Removing host directory: " + host);
                     rootStore.cleanup(function(err) {
 
                         // CACHE: INVALIDATE
                         process.deploymentDescriptorCache.invalidate(host, function() {
                             process.driverConfigCache.invalidate(host, function() {
 
-                                req.log("Completed undeployment of application: " + descriptor.application.id + " from host: " + host);
+                                logFn("Completed undeployment of application: " + descriptor.application.id + " from host: " + host);
 
                                 callback(err);
 
@@ -321,7 +338,6 @@ exports = module.exports = function()
     {
         parseHost(descriptor, function(err, host) {
 
-            console.log("H1: " + host);
             if (err) {
                 return callback(err);
             }
@@ -529,6 +545,136 @@ exports = module.exports = function()
         });
     };
 
+    var logFn = function(text)
+    {
+        console.log("[DEPLOYMENT] " + text);
+    };
+
+    var bindSubscriptions = function()
+    {
+        if (process.broadcast)
+        {
+            // LISTEN: "deploy_app"
+            process.broadcast.subscribe("deploy_app", function (message, channel, done) {
+
+                if (!done) {
+                    done = function() { };
+                }
+
+                console.log("HEARD: deploy_app");
+
+                doDeploy(logFn, message.body, function(err) {
+                    done(err);
+                });
+            });
+
+            // LISTEN: "undeploy_app"
+            process.broadcast.subscribe("undeploy_app", function (message, channel, done) {
+
+                if (!done) {
+                    done = function() { };
+                }
+
+                console.log("HEARD: undeploy_app");
+
+                doUndeploy(logFn, message.body, function(err) {
+                    done(err);
+
+                });
+            });
+
+            // LISTEN: "redeploy_app"
+            process.broadcast.subscribe("redeploy_app", function (message, channel, done) {
+
+                if (!done) {
+                    done = function() { };
+                }
+
+                console.log("HEARD: redeploy_app");
+
+                doUndeploy(logFn, message.body, function(err) {
+
+                    if (err) {
+                        return done(err);
+                    }
+
+                    doDeploy(logFn, message.body, function(err) {
+                        done(err);
+                    });
+                });
+            });
+
+            // LISTEN: "start_app"
+            process.broadcast.subscribe("start_app", function (message, channel, done) {
+
+                if (!done) {
+                    done = function() { };
+                }
+
+                console.log("HEARD: start_app");
+
+                doStart(logFn, message.body, function(err) {
+                    done(err);
+
+                });
+            });
+
+
+            // LISTEN: "stop_app"
+            process.broadcast.subscribe("stop_app", function (message, channel, done) {
+
+                if (!done) {
+                    done = function() { };
+                }
+
+                console.log("HEARD: stop_app");
+
+                doStop(logFn, message.body, function(err) {
+                    done(err);
+
+                });
+            });
+
+            // LISTEN: "restart_app"
+            process.broadcast.subscribe("restart_app", function (message, channel, done) {
+
+                if (!done) {
+                    done = function() { };
+                }
+
+                console.log("HEARD: restart_app");
+
+                doStop(logFn, message.body, function(err) {
+
+                    if (err) {
+                        return done(err);
+                    }
+
+                    doStart(logFn, message.body, function(err) {
+                        done(err);
+                    });
+                });
+            });
+
+            // LISTEN: "cleanup_app"
+            process.broadcast.subscribe("cleanup_app", function (message, channel, done) {
+
+                if (!done) {
+                    done = function() { };
+                }
+
+                console.log("HEARD: cleanup_app");
+
+                doCleanup(logFn, message.host, function(err) {
+                    done(err);
+
+                });
+            });
+
+
+        }
+    };
+
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
@@ -548,6 +694,9 @@ exports = module.exports = function()
      */
     r.handler = function()
     {
+        // bind listeners for broadcast events
+        bindSubscriptions();
+
         return util.createHandler("deployment", function(req, res, next, stores, cache, configuration) {
 
             // if virtual hosts aren't enabled, then we don't allow for deployment operations
@@ -562,7 +711,9 @@ exports = module.exports = function()
 
                 if (req.url.indexOf("/_deploy") === 0)
                 {
-                    doDeploy(req, req.body, function(err, host) {
+                    process.broadcast.publish("deploy_app", {
+                        "body": req.body
+                    }, function(err) {
 
                         if (err) {
                             res.send({
@@ -584,44 +735,11 @@ exports = module.exports = function()
 
                     handled = true;
                 }
-                else if (req.url.indexOf("/_redeploy") === 0)
-                {
-                    doUndeploy(req, req.body, function(err) {
-
-                        if (err) {
-                            res.send({
-                                "ok": false,
-                                "message": err.message,
-                                "err": err
-                            });
-
-                            return res.end();
-                        }
-
-                        doDeploy(req, req.body, function(err) {
-
-                            if (err) {
-                                res.send({
-                                    "ok": false,
-                                    "message": err.message,
-                                    "err": err
-                                });
-                                return res.end();
-                            }
-
-                            // respond with ok
-                            res.send({
-                                "ok": true
-                            });
-                            res.end();
-                        });
-                    });
-
-                    handled = true;
-                }
                 else if (req.url.indexOf("/_undeploy") === 0)
                 {
-                    doUndeploy(req, req.body, function(err) {
+                    process.broadcast.publish("undeploy_app", {
+                        "body": req.body
+                    }, function(err) {
 
                         if (err) {
                             res.send({
@@ -642,9 +760,35 @@ exports = module.exports = function()
 
                     handled = true;
                 }
+                else if (req.url.indexOf("/_redeploy") === 0)
+                {
+                    process.broadcast.publish("redeploy_app", {
+                        "body": req.body
+                    }, function(err) {
+
+                        if (err) {
+                            res.send({
+                                "ok": false,
+                                "message": err.message,
+                                "err": err
+                            });
+                            return res.end();
+                        }
+
+                        // respond with ok
+                        res.send({
+                            "ok": true
+                        });
+                        res.end();
+                    });
+
+                    handled = true;
+                }
                 else if (req.url.indexOf("/_start") === 0)
                 {
-                    doStart(req, req.body, function(err) {
+                    process.broadcast.publish("start_app", {
+                        "body": req.body
+                    }, function(err) {
 
                         if (err) {
                             res.send({
@@ -667,7 +811,9 @@ exports = module.exports = function()
                 }
                 else if (req.url.indexOf("/_restart") === 0)
                 {
-                    doStop(req, req.body, function(err) {
+                    process.broadcast.publish("restart_app", {
+                        "body": req.body
+                    }, function(err) {
 
                         if (err) {
                             res.send({
@@ -675,34 +821,24 @@ exports = module.exports = function()
                                 "message": err.message,
                                 "err": err
                             });
+
                             return res.end();
                         }
 
-                        doStart(req, req.body, function(err) {
-
-                            if (err) {
-                                res.send({
-                                    "ok": false,
-                                    "message": err.message,
-                                    "err": err
-                                });
-
-                                return res.end();
-                            }
-
-                            // respond with ok
-                            res.send({
-                                "ok": true
-                            });
-                            res.end();
+                        // respond with ok
+                        res.send({
+                            "ok": true
                         });
+                        res.end();
                     });
 
                     handled = true;
                 }
                 else if (req.url.indexOf("/_stop") === 0)
                 {
-                    doStop(req, req.body, function(err) {
+                    process.broadcast.publish("stop_app", {
+                        "body": req.body
+                    }, function(err) {
 
                         if (err) {
                             res.send({
@@ -726,7 +862,9 @@ exports = module.exports = function()
                 {
                     var host = req.query["host"];
 
-                    doCleanup(req, host, function(err) {
+                    process.broadcast.publish("cleanup_app", {
+                        "host": host
+                    }, function(err) {
 
                         if (err) {
                             res.send({
