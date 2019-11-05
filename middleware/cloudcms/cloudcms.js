@@ -12,6 +12,8 @@ var mime = require("mime");
 
 var cloudcmsUtil = require("../../util/cloudcms");
 
+var SENTINEL_NOT_FOUND_VALUE = "null";
+
 /**
  * Cloud CMS middleware.
  *
@@ -698,7 +700,9 @@ exports = module.exports = function()
         });
     };
 
+    var CACHED_APP_SETTINGS_TTL = 5 * 60 * 1000; // five minutes
     var CACHED_APP_SETTINGS = {};
+    var CACHED_APP_SETTINGS_TIMESTAMPS = {};
 
     r.applicationSettingsInterceptor = function()
     {
@@ -715,10 +719,20 @@ exports = module.exports = function()
 
                             var cacheKey = cacheSettingsKey(application.ref(), "application", "application");
 
+                            var nowMs = new Date().getTime();
+
+                            var timestamp = CACHED_APP_SETTINGS_TIMESTAMPS[cacheKey];
+                            if (!timestamp || (nowMs - timestamp > CACHED_APP_SETTINGS_TTL))
+                            {
+                                // expire or didn't exist
+                                delete CACHED_APP_SETTINGS[cacheKey];
+                                delete CACHED_APP_SETTINGS_TIMESTAMPS[cacheKey];
+                            }
+
                             var x = CACHED_APP_SETTINGS[cacheKey];
                             if (x)
                             {
-                                if (x === "null") {
+                                if (x === SENTINEL_NOT_FOUND_VALUE) {
                                     return callback({
                                         "message": "Failed to find application settings"
                                     });
@@ -730,7 +744,8 @@ exports = module.exports = function()
                             Chain(application).trap(function(e){
 
                                 // store null sentinel
-                                CACHED_APP_SETTINGS[cacheKey] = "null";
+                                CACHED_APP_SETTINGS[cacheKey] = SENTINEL_NOT_FOUND_VALUE;
+                                CACHED_APP_SETTINGS_TIMESTAMPS[cacheKey] = nowMs;
 
                                 callback({
                                     "message": "Failed to find application settings"
@@ -743,6 +758,7 @@ exports = module.exports = function()
 
                                 // store onto cache
                                 CACHED_APP_SETTINGS[cacheKey] = this;
+                                CACHED_APP_SETTINGS_TIMESTAMPS[cacheKey] = nowMs;
 
                                 // respond
                                 callback(null, this);
@@ -2013,18 +2029,26 @@ exports = module.exports = function()
 
             var cacheKey = applicationRef + ":" + settingsKey + ":" + settingsScope;
 
-            var badKeys = [];
+            var badKeysMap = {};
             for (var k in CACHED_APP_SETTINGS)
             {
                 if (k.startsWith(cacheKey))
                 {
-                    badKeys.push(k);
+                    badKeysMap[k] = true;
+                }
+            }
+            for (var k in CACHED_APP_SETTINGS_TIMESTAMPS)
+            {
+                if (k.startsWith(cacheKey))
+                {
+                    badKeysMap[k] = true;
                 }
             }
 
-            for (var i = 0; i < badKeys.length; i++)
+            for (var badKey in badKeysMap)
             {
-                delete CACHED_APP_SETTINGS[badKeys[i]];
+                delete CACHED_APP_SETTINGS[badKey];
+                delete CACHED_APP_SETTINGS_TIMESTAMPS[badKey];
             }
         }
 
