@@ -45,7 +45,7 @@ exports = module.exports = function()
             if (err)
             {
                 // log as much as we can
-                req.log("Error connecting driver (domainHost=" + req.domainHost + ", virtualHost: " + req.virtualHost + ", config: " + JSON.stringify(gitanaConfig) + ", err: " + JSON.stringify(err));
+                console.warn("Error connecting driver (domainHost=" + req.domainHost + ", virtualHost: " + req.virtualHost + ", config: " + JSON.stringify(gitanaConfig) + ", err: " + JSON.stringify(err));
 
                 var completionFn = function() {
 
@@ -147,7 +147,7 @@ exports = module.exports = function()
             resolveGitanaConfig(req, function(err, gitanaConfig) {
 
                 if (err) {
-                    req.log("Error loading gitana config: " + JSON.stringify(err));
+                    console.warn("Error loading gitana config: " + JSON.stringify(err));
                     return next();
                 }
 
