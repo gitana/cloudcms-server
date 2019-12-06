@@ -362,10 +362,9 @@ exports = module.exports = function()
                     closeWriteStream(tempStream);
 
                     // ensure cleanup
-                    safeRemove(contentStore, filePath, function () {
+                    return safeRemove(contentStore, filePath, function () {
                         cb(err);
                     });
-                    return;
                 }
 
                 var cacheFilePath = toCacheFilePath(filePath);
