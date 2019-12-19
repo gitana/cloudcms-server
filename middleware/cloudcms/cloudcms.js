@@ -41,14 +41,31 @@ var findUser = function(req, username, callback)
     Chain(domain).queryPrincipals(query).then(function() {
 
         if (this.size() === 0) {
-            return callback({
-                "message": "Unable to find user for username or email: " + username
+            // If user not found in principals domain, try the primary domain
+            domain = req.gitana.getPlatform().readPrimaryDomain().then(function() {
+                domain.queryPrincipals(query).then(function() {
+
+                    if (this.size() === 0) {
+                        return callback({
+                            "message": "Unable to find user for username or email: " + username
+                        });
+                    }
+                    else
+                    {
+                        this.keepOne().then(function() {
+                            callback(null, this);
+                        });
+                    }
+                });
+            })
+        }
+        else
+        {
+            this.keepOne().then(function() {
+                callback(null, this);
             });
         }
 
-        this.keepOne().then(function() {
-            callback(null, this);
-        });
     });
 };
 
@@ -76,6 +93,12 @@ passport.use(new LocalStrategy({
 
             // update username to the username of the actual user
             username = user.name;
+
+            // update domain id in case the user is not in the principals domain
+            if (user.domainId)
+            {
+                domainId = user.domainId;
+            }
 
             // authenticate to cloud cms
             // automatically caches based on ticket
