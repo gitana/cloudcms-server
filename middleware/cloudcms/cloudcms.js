@@ -40,7 +40,8 @@ var findUser = function(req, username, callback)
     var domain = req.gitana.datastore("principals");
     Chain(domain).queryPrincipals(query).then(function() {
 
-        if (this.size() === 0) {
+        if (this.size() === 0)
+        {
             // If user not found in principals domain, try the primary domain
             req.gitana.getPlatform().readPrimaryDomain().then(function() {
                 this.queryPrincipals(query).then(function() {
@@ -57,7 +58,7 @@ var findUser = function(req, username, callback)
                         });
                     }
                 });
-            })
+            });
         }
         else
         {
