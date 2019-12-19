@@ -42,8 +42,8 @@ var findUser = function(req, username, callback)
 
         if (this.size() === 0) {
             // If user not found in principals domain, try the primary domain
-            domain = req.gitana.getPlatform().readPrimaryDomain().then(function() {
-                domain.queryPrincipals(query).then(function() {
+            req.gitana.getPlatform().readPrimaryDomain().then(function() {
+                this.queryPrincipals(query).then(function() {
 
                     if (this.size() === 0) {
                         return callback({
