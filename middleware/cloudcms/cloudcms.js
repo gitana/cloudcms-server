@@ -1376,11 +1376,6 @@ exports = module.exports = function()
                         nodePath = previewPath;
                     }
 
-                    if (!previewUriExtra && !previewId)
-                    {
-                        previewId = req.query["name"];
-                    }
-
                     // mimetype (allow null or undefined)
                     var mimetype = req.query["mimetype"];
 
@@ -1410,6 +1405,12 @@ exports = module.exports = function()
                         }
                     }
 
+                    if (req.query["name"])
+                    {
+                        previewId = req.query["name"];
+                    }
+
+
                     // note: mimetype can be null or undefined at this point
                     // server side will sort this out for us
 
@@ -1435,7 +1436,7 @@ exports = module.exports = function()
                     }
 
                     // the range requested (for streaming)
-                    var range = req.headers["range"];
+                    //var range = req.headers["range"];
 
                     cloudcmsUtil.preview(contentStore, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, function(err, filePath, cacheInfo, releaseLock) {
 
