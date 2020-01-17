@@ -39,7 +39,7 @@ class LocalProvider extends AbstractProvider
         // passport
         this.localStrategy = new LocalStrategy({
             usernameField: config.usernameField,
-            passwordField: config.passwordField
+            passwordField: config.passwordField,
             callbackURL: config.callbackURL,
             passReqToCallback: true
         }, function(email, password, done) {
@@ -125,4 +125,4 @@ class LocalProvider extends AbstractProvider
 
 }
 
-module.exports = FacebookProvider;
+module.exports = LocalProvider;
