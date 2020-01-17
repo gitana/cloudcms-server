@@ -15,7 +15,7 @@ class DefaultAuthenticator extends AbstractAuthenticator
         {
             return req.logIn(gitanaUser, function() {
 
-                if (req.session) {
+                if (req.session && req.session.save) {
                     req.session.save();
                 }
 

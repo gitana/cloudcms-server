@@ -71,7 +71,7 @@ exports = module.exports = function()
 
             // add "authorization" for OAuth2 bearer token
             var headers = {};
-            var headers2 = gitana.platform().getDriver().getHttpHeaders();
+            var headers2 = gitanaPlatform.getDriver().getHttpHeaders();
             headers["Authorization"] = headers2["Authorization"];
 
             request({

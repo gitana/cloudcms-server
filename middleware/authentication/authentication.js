@@ -320,6 +320,7 @@ exports = module.exports = function()
         registerProvider("google", require("./providers/google"));
         registerProvider("keycloak", require("./providers/keycloak"));
         registerProvider("linkedin", require("./providers/linkedin"));
+        registerProvider("local", require("./providers/local"));
         registerProvider("saml", require("./providers/saml"));
         registerProvider("trusted", require("./providers/trusted"));
         registerProvider("twitter", require("./providers/twitter"));
@@ -396,135 +397,136 @@ exports = module.exports = function()
                         return handleFailure(null, res);
                     }
 
-                    var domain = req.gitana.datastore("principals");
+                    determineSyncDomainId(req, function(err, domainId) {
 
-                    auth.syncProfile(req, res, strategy, domain, providerId, provider, profile, info.token, info.refreshToken, function(err, gitanaUser, platform, appHelper, key, driver) {
+                        auth.syncProfile(req, res, strategy, domainId, providerId, provider, profile, info.token, info.refreshToken, function(err, gitanaUser, platform, appHelper, key, driver) {
 
-                        if (!gitanaUser)
-                        {
-                            if (strategy.registrationRedirect)
+                            if (!gitanaUser)
                             {
-                                return provider.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
-
-                                    if (err) {
-                                        return handleFailure(err, res);
-                                    }
-
-                                    var userIdentifier = provider.userIdentifier(profile);
-                                    if (!userIdentifier)
-                                    {
-                                        return handleFailure({
-                                            "message": "Unable to determine user identifier from profile"
-                                        }, res);
-                                    }
-
-                                    var registrationRedirectUrl = strategy.registrationRedirect;
-
-                                    if (!req.session)
-                                    {
-                                        return handleFailure({
-                                            "message": "Registration redirect requires session"
-                                        }, res);
-                                    }
-                                    else
-                                    {
-                                        req.session.registration_strategy_id = strategyId;
-                                        req.session.registration_user_object = userObject;
-                                        req.session.registration_user_identifier = userIdentifier;
-                                        req.session.registration_groups_array = groupsArray;
-                                        req.session.registration_mandatory_groups_array = mandatoryGroupsArray;
-                                        req.session.registration_token = info.token;
-                                        req.session.registration_refresh_token = info.refresh_token;
-
-                                        return res.redirect(registrationRedirectUrl);
-                                    }
-                                });
-                            }
-                            else if (strategy.registrationHandler)
-                            {
-                                return provider.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
-
-                                    if (err) {
-                                        return handleFailure(err, res);
-                                    }
-
-                                    var userIdentifier = provider.userIdentifier(profile);
-                                    if (!userIdentifier)
-                                    {
-                                        return handleFailure({
-                                            "message": "Unable to determine user identifier from profile"
-                                        }, res);
-                                    }
-
-                                    strategy.registrationHandler(req, res, next, strategyId, userIdentifier, userObject, groupsArray, mandatoryGroupsArray, info);
-                                });
-                            }
-                            else if (strategy.userSyncErrorHandler)
-                            {
-                                return strategy.userSyncErrorHandler(err, req, res, next);
-                            }
-
-                            return handleFailure(err, res);
-                        }
-
-                        if (err) {
-                            return handleFailure(err, res);
-                        }
-
-                        var handleAfterAuthenticate = function(res, strategy, driver)
-                        {
-                            // redirect
-                            var successRedirectUrl = strategy.successRedirect;
-                            if (!successRedirectUrl)
-                            {
-                                successRedirectUrl = "/";
-                            }
-
-                            if (strategy.passTicket || strategy.passTokens)
-                            {
-                                var accessToken = driver.getAuthInfo()["accessToken"];
-                                var refreshToken = driver.getAuthInfo()["refreshToken"];
-                                var ticket = driver.getAuthInfo().getTicket();
-
-                                var params = [];
-                                if (strategy.passTicket)
+                                if (strategy.registrationRedirect)
                                 {
-                                    params.push("ticket=" + encodeURIComponent(ticket));
+                                    return provider.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
+
+                                        if (err) {
+                                            return handleFailure(err, res);
+                                        }
+
+                                        var userIdentifier = provider.userIdentifier(profile);
+                                        if (!userIdentifier)
+                                        {
+                                            return handleFailure({
+                                                "message": "Unable to determine user identifier from profile"
+                                            }, res);
+                                        }
+
+                                        var registrationRedirectUrl = strategy.registrationRedirect;
+
+                                        if (!req.session)
+                                        {
+                                            return handleFailure({
+                                                "message": "Registration redirect requires session"
+                                            }, res);
+                                        }
+                                        else
+                                        {
+                                            req.session.registration_strategy_id = strategyId;
+                                            req.session.registration_user_object = userObject;
+                                            req.session.registration_user_identifier = userIdentifier;
+                                            req.session.registration_groups_array = groupsArray;
+                                            req.session.registration_mandatory_groups_array = mandatoryGroupsArray;
+                                            req.session.registration_token = info.token;
+                                            req.session.registration_refresh_token = info.refresh_token;
+
+                                            return res.redirect(registrationRedirectUrl);
+                                        }
+                                    });
                                 }
-                                if (strategy.passTokens)
+                                else if (strategy.registrationHandler)
                                 {
-                                    params.push("accessToken=" + encodeURIComponent(accessToken));
+                                    return provider.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
 
-                                    if (refreshToken) {
-                                        params.push("refreshToken=" + encodeURIComponent(refreshToken));
-                                    }
+                                        if (err) {
+                                            return handleFailure(err, res);
+                                        }
+
+                                        var userIdentifier = provider.userIdentifier(profile);
+                                        if (!userIdentifier)
+                                        {
+                                            return handleFailure({
+                                                "message": "Unable to determine user identifier from profile"
+                                            }, res);
+                                        }
+
+                                        strategy.registrationHandler(req, res, next, strategyId, userIdentifier, userObject, groupsArray, mandatoryGroupsArray, info);
+                                    });
+                                }
+                                else if (strategy.userSyncErrorHandler)
+                                {
+                                    return strategy.userSyncErrorHandler(err, req, res, next);
                                 }
 
-                                successRedirectUrl = successRedirectUrl + "?" + params.join("&");
+                                return handleFailure(err, res);
                             }
-
-                            res.redirect(successRedirectUrl);
-                        };
-
-                        // if no authenticator
-                        if (!authenticator)
-                        {
-                            return handleAfterAuthenticate(res, strategy, driver);
-                        }
-
-                        // store some things onto the request
-                        req.gitana_user = gitanaUser;
-                        req.gitana_user_ticket = driver.getAuthInfo().ticket;
-                        req.gitana_user_access_token = driver.getAuthInfo().accessToken;
-
-                        // log in the user - this creates session information or persists response cookies to sign the user in
-                        authenticator.login(req, res, gitanaUser, function(err) {
 
                             if (err) {
                                 return handleFailure(err, res);
                             }
 
-                            handleAfterAuthenticate(res, strategy, driver);
+                            var handleAfterAuthenticate = function(res, strategy, driver)
+                            {
+                                // redirect
+                                var successRedirectUrl = strategy.successRedirect;
+                                if (!successRedirectUrl)
+                                {
+                                    successRedirectUrl = "/";
+                                }
+
+                                if (strategy.passTicket || strategy.passTokens)
+                                {
+                                    var accessToken = driver.getAuthInfo()["accessToken"];
+                                    var refreshToken = driver.getAuthInfo()["refreshToken"];
+                                    var ticket = driver.getAuthInfo().getTicket();
+
+                                    var params = [];
+                                    if (strategy.passTicket)
+                                    {
+                                        params.push("ticket=" + encodeURIComponent(ticket));
+                                    }
+                                    if (strategy.passTokens)
+                                    {
+                                        params.push("accessToken=" + encodeURIComponent(accessToken));
+
+                                        if (refreshToken) {
+                                            params.push("refreshToken=" + encodeURIComponent(refreshToken));
+                                        }
+                                    }
+
+                                    successRedirectUrl = successRedirectUrl + "?" + params.join("&");
+                                }
+
+                                res.redirect(successRedirectUrl);
+                            };
+
+                            // if no authenticator
+                            if (!authenticator)
+                            {
+                                return handleAfterAuthenticate(res, strategy, driver);
+                            }
+
+                            // store some things onto the request
+                            req.gitana_user = gitanaUser;
+                            req.gitana_user_ticket = driver.getAuthInfo().ticket;
+                            req.gitana_user_access_token = driver.getAuthInfo().accessToken;
+
+                            // log in the user - this creates session information or persists response cookies to sign the user in
+                            authenticator.login(req, res, gitanaUser, function(err) {
+
+                                if (err) {
+                                    return handleFailure(err, res);
+                                }
+
+                                handleAfterAuthenticate(res, strategy, driver);
+                            });
                         });
                     });
                 }
@@ -568,6 +570,12 @@ exports = module.exports = function()
                         }
                         else if (req.path.indexOf("/logout") > -1)
                         {
+                            if (!authenticator) {
+                                return next({
+                                    "message": "Authentication strategy is not configured with an authenticator"
+                                });
+                            }
+
                             authenticator.logout(req, res, function(err) {
 
                                 if (err) {
@@ -816,6 +824,12 @@ exports = module.exports = function()
                         return next(err);
                     }
 
+                    // if we failed to sync user
+                    if (result.failedUserSync)
+                    {
+                        return strategy.userSyncErrorHandler(err, req, res, next);
+                    }
+
                     // otherwise, we're in a failure state
                     // should we redirect?
                     if (failureRedirect)
@@ -837,6 +851,45 @@ exports = module.exports = function()
                 });
             });
         }
+    };
+
+    var determineSyncDomainId = function(req, callback)
+    {
+        req.configuration("auth", function(err, configuration) {
+
+            if (err) {
+                return callback(err);
+            }
+
+            var domainId = null;
+
+            // read sync domain ID from config
+            if (configuration && configuration.sync) {
+                domainId = configuration.sync.domainId;
+            }
+
+            // use the "principals" data store (if the gitana config has an applicationId)
+            // this is typically the principals datastore for the project
+            if (!domainId)
+            {
+                if (req && req.gitana && req.gitana.datastore)
+                {
+                    var principalsDatastore = req.gitana.datastore("principals");
+                    if (principalsDatastore)
+                    {
+                        domainId = principalsDatastore._doc;
+                    }
+                }
+            }
+
+            // use "primary"
+            if (!domainId)
+            {
+                domainId = "primary";
+            }
+
+            callback(null, domainId);
+        });
     };
 
     var build_auth_filter = function(strategyId)
@@ -1189,54 +1242,63 @@ exports = module.exports = function()
 
                         var phaseCloudCMS = function (req, strategy, provider, properties, done) {
 
-                            var domain = req.gitana.datastore("principals");
+                            determineSyncDomainId(req, function(err, domainId) {
 
-                            var profile = properties.profile;
-                            var token = properties.token;
-                            var refreshToken = properties.refreshToken;
+                                var profile = properties.profile;
+                                var token = properties.token;
+                                var refreshToken = properties.refreshToken;
 
-                            auth.syncProfile(req, res, strategy, domain, providerId, provider, profile, token, refreshToken, function (err, gitanaUser, platform, appHelper, key) {
+                                auth.syncProfile(req, res, strategy, domainId, providerId, provider, profile, token, refreshToken, function (err, gitanaUser, platform, appHelper, key) {
 
-                                if (err)
-                                {
-                                    // for err.noAutoRegister, we let it fail gracefully with !gitanaUser
-                                    if (!err.noAutoRegister)
+                                    if (err)
+                                    {
+                                        if (strategy.userSyncErrorHandler)
+                                        {
+                                            return done({
+                                                "failedUserSync": true,
+                                                "err": err
+                                            });
+                                        }
+
+                                        // for err.noAutoRegister, we let it fail gracefully with !gitanaUser
+                                        if (!err.noAutoRegister)
+                                        {
+                                            return done({
+                                                "fail": true,
+                                                "err": err
+                                            });
+                                        }
+                                    }
+
+                                    if (!gitanaUser)
                                     {
                                         return done({
-                                            "fail": true,
+                                            "nouser": true,
                                             "err": err
                                         });
                                     }
-                                }
 
-                                if (!gitanaUser)
-                                {
-                                    return done({
-                                        "nouser": true,
-                                        "err": err
-                                    });
-                                }
+                                    properties.gitana_user = gitanaUser;
+                                    properties.gitana_user_id = gitanaUser.getId();
+                                    properties.gitana_platform = platform;
+                                    properties.gitana_apphelper = appHelper;
+                                    properties.gitana_key = key;
+                                    properties.gitana_access_token = platform.getDriver().getAuthInfo()["accessToken"];
+                                    properties.gitana_refresh_token = platform.getDriver().getAuthInfo()["refreshToken"];
+                                    properties.gitana_ticket = platform.getDriver().getAuthInfo().getTicket();
 
-                                properties.gitana_user = gitanaUser;
-                                properties.gitana_user_id = gitanaUser.getId();
-                                properties.gitana_platform = platform;
-                                properties.gitana_apphelper = appHelper;
-                                properties.gitana_key = key;
-                                properties.gitana_access_token = platform.getDriver().getAuthInfo()["accessToken"];
-                                properties.gitana_refresh_token = platform.getDriver().getAuthInfo()["refreshToken"];
-                                properties.gitana_ticket = platform.getDriver().getAuthInfo().getTicket();
+                                    if (properties.gitana_platform)
+                                    {
+                                        properties.gitana_user_connection = properties.gitana_platform;
+                                    }
 
-                                if (properties.gitana_platform)
-                                {
-                                    properties.gitana_user_connection = properties.gitana_platform;
-                                }
+                                    if (properties.gitana_apphelper)
+                                    {
+                                        properties.gitana_user_connection = properties.gitana_apphelper;
+                                    }
 
-                                if (properties.gitana_apphelper)
-                                {
-                                    properties.gitana_user_connection = properties.gitana_apphelper;
-                                }
-
-                                done();
+                                    done();
+                                });
                             });
                         };
 

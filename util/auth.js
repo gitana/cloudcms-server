@@ -20,6 +20,11 @@ var USER_ENTRY_CACHE = require("lru-cache")({
     maxAge: 1000 * 60 * 15 // 15 minutes
 });
 
+var Gitana = require("gitana");
+if (!Gitana.APPS) {
+    Gitana.APPS = {};
+}
+
 var authFilterLoggerEnabled = (process.env.CLOUDCMS_AUTH_FILTER_LOGGER_ENABLED === "true");
 
 exports = module.exports;
@@ -235,9 +240,8 @@ var removeUserCacheEntry = exports.removeUserCacheEntry = function(identifier)
 };
 
 
-var syncProfile = exports.syncProfile = function(req, res, strategy, domain, providerId, provider, profile, token, refreshToken, callback) {
-
-
+var syncProfile = exports.syncProfile = function(req, res, strategy, domainId, providerId, provider, profile, token, refreshToken, callback)
+{
     return provider.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
 
         // special handling for mandatory groups
@@ -270,21 +274,12 @@ var syncProfile = exports.syncProfile = function(req, res, strategy, domain, pro
                     "noMandatoryGroup": true
                 });
             }
-            else{
-                if (domain && domain._doc) {
-                    logEvent("Authorization", true, req.protocol, providerId, profile.nameID, req.ip, matchedGroup, groupsArray, mandatoryGroupsArray, "AddToDomain:" + domain._doc);
-                } else {
-                    logEvent("Authorization", true, req.protocol, providerId, profile.nameID, req.ip, matchedGroup, groupsArray, mandatoryGroupsArray, "AddToDomain");
-                }
-            }
+
+            logEvent("Authorization", true, req.protocol, providerId, profile.nameID, req.ip, matchedGroup, groupsArray, mandatoryGroupsArray, "AddToDomain:" + domainId);
         }
         else
         {
-            if (domain && domain._doc) {
-                logEvent("Authorization", true, req.protocol, providerId, profile.nameID, req.ip, null, groupsArray, null, "AddToDomain:" + domain._doc);
-            } else {
-                logEvent("Authorization", true, req.protocol, providerId, profile.nameID, req.ip, null, groupsArray, null, "AddToDomain");
-            }
+            logEvent("Authorization", true, req.protocol, providerId, profile.nameID, req.ip, null, groupsArray, null, "AddToDomain:" + domainId);
         }
 
         req.application(function(err, application) {
@@ -330,7 +325,7 @@ var syncProfile = exports.syncProfile = function(req, res, strategy, domain, pro
                 }
 
                 _LOCK([CACHE_IDENTIFIER], function(releaseLockFn) {
-                    _handleSyncUser(req, strategy, settings, key, domain, providerId, providerUserId, token, refreshToken, userObject, groupsArray, function (err, gitanaUser) {
+                    _handleSyncUser(req, strategy, settings, key, domainId, providerId, providerUserId, token, refreshToken, userObject, groupsArray, function (err, gitanaUser) {
 
                         if (err) {
                             releaseLockFn();
@@ -390,9 +385,9 @@ var _handleConnectAsUser = function(req, key, gitanaUser, callback) {
     });
 };
 
-var _handleSyncUser = function(req, strategy, settings, key, domain, providerId, providerUserId, token, refreshToken, userObject, groupsArray, callback) {
+var _handleSyncUser = function(req, strategy, settings, key, domainId, providerId, providerUserId, token, refreshToken, userObject, groupsArray, callback) {
 
-    __handleSyncUser(req, strategy, settings, key, domain, providerId, providerUserId, token, refreshToken, userObject, function(err, gitanaUser, synced) {
+    __handleSyncUser(req, strategy, settings, key, domainId, providerId, providerUserId, token, refreshToken, userObject, function(err, gitanaUser, synced) {
 
         if (err) {
             return callback(err);
@@ -435,11 +430,11 @@ var _handleSyncUser = function(req, strategy, settings, key, domain, providerId,
 
 };
 
-var __handleSyncUser = function(req, strategy, settings, key, domain, providerId, providerUserId, token, refreshToken, userObject, callback) {
+var __handleSyncUser = function(req, strategy, settings, key, domainId, providerId, providerUserId, token, refreshToken, userObject, callback) {
 
     var baseURL = req.gitanaConfig.baseURL;
     var authorizationHeader = req.gitana.getDriver().getHttpHeaders()["Authorization"];
-    var targetUrl = baseURL + domain.getUri() + "/connections/sync";
+    var targetUrl = baseURL + "/domains/" + domainId + "/connections/sync";
 
     // add "authorization" for OAuth2 bearer token
     var headers = {};
@@ -486,7 +481,7 @@ var __handleSyncUser = function(req, strategy, settings, key, domain, providerId
         {
             // retry after getting new token
             return req.gitana.getDriver().reloadAuthInfo(function () {
-                __handleSyncUser(req, strategy, settings, key, domain, providerId, providerUserId, token, refreshToken, userObject, function(err, gitanaUser, synced) {
+                __handleSyncUser(req, strategy, settings, key, domainId, providerId, providerUserId, token, refreshToken, userObject, function(err, gitanaUser, synced) {
                     callback(err, gitanaUser, synced);
                 })
             });
@@ -517,7 +512,14 @@ var __handleSyncUser = function(req, strategy, settings, key, domain, providerId
         var synced = json.user.synced;
 
         // read the user back
-        Chain(domain).readPrincipal(userId).then(function() {
+        var platform = null;
+        if (req.gitana.readDomain) {
+            platform = req.gitana;
+        } else {
+            platform = req.gitana.platform();
+        }
+
+        Chain(platform).readDomain(domainId).readPrincipal(userId).then(function() {
             callback(null, this, synced);
         });
 

@@ -80,6 +80,7 @@ class AbstractProvider
             userProperties["firstName"] = "given_name";
             userProperties["lastName"] = "family_name";
             userProperties["email"] = "email";
+            userProperties["name"] = "unique_name";
         }
 
         for (var userProperty in userProperties)

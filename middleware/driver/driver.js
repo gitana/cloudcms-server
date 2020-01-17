@@ -180,6 +180,12 @@ exports = module.exports = function()
                     req.applicationId = gitanaConfig.application;
                     req.principalId = this.getDriver().getAuthInfo().getPrincipalId();
 
+                    if (!req.gitana.platform) {
+                        req.gitana.platform = function() {
+                            return req.gitana;
+                        }
+                    }
+
                     next();
                 });
 
