@@ -312,6 +312,7 @@ exports = module.exports = function()
         // request adapters
         registerAdapter("default", require("./adapters/default"));
         registerAdapter("jwt", require("./adapters/jwt"));
+        registerAdapter("session", require("./adapters/session"));
 
         // providers
         registerProvider("cas", require("./providers/cas"));
@@ -327,6 +328,7 @@ exports = module.exports = function()
 
         // authenticators
         registerAuthenticator("default", require("./authenticators/default"));
+        registerAuthenticator("session", require("./authenticators/session"));
 
         // create handler
         return util.createHandler("authentication", "auth", function(req, res, next, stores, cache, configuration) {
