@@ -13,7 +13,6 @@ exports = module.exports = function()
 {
     var GITANA_JS_PATH = "../../node_modules/gitana/lib";
 
-    console.log("FIRST: " + path.join(__dirname, GITANA_JS_PATH, "gitana.min.js"));
     if (!fs.existsSync(path.join(__dirname, GITANA_JS_PATH, "gitana.min.js"))) // OK
     {
         GITANA_JS_PATH = path.join("..", "..", GITANA_JS_PATH);
