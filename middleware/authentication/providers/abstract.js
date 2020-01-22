@@ -125,7 +125,7 @@ class AbstractProvider
      * against the authentication provider.
      *
      * @param properties
-     * @param callback (err, valid)
+     * @param callback (err, valid, profile)
      */
     verify(properties, callback)
     {

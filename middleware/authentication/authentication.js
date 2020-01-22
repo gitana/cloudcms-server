@@ -397,6 +397,11 @@ exports = module.exports = function()
                         return handleFailure(null, res);
                     }
 
+                    // store these onto request
+                    req.auth_callback_profile = profile;
+                    req.auth_callback_info = info;
+
+                    // proceed with user sync
                     determineSyncDomainId(req, function(err, domainId) {
 
                         auth.syncProfile(req, res, strategy, domainId, providerId, provider, profile, info.token, info.refreshToken, function(err, gitanaUser, platform, appHelper, key, driver) {
@@ -464,6 +469,8 @@ exports = module.exports = function()
                                 {
                                     return strategy.userSyncErrorHandler(err, req, res, next);
                                 }
+
+                                err.reason = "no_user";
 
                                 return handleFailure(err, res);
                             }
@@ -666,11 +673,17 @@ exports = module.exports = function()
      * Binds in authentication strategy filter.
      *
      * @param strategyId
+     * @param options
+     *
      * @returns {Function}
      */
-    r.filter = function(strategyId) {
+    r.filter = function(strategyId, options) {
 
-        var fn = build_auth_filter(strategyId);
+        if (!options) {
+            options = {};
+        }
+
+        var fn = build_auth_filter(strategyId, options);
         return function(req, res, next) {
 
             // record filter start time
@@ -795,6 +808,14 @@ exports = module.exports = function()
                         }
                         else
                         {
+                            if (options.anonymous || options.guest) {
+                                return next();
+                            }
+
+                            // fill in a reason so that any middleware error handlers can make further decisions
+                            result.err.reason = "no_authenticated_user";
+                            result.err.originalUrl = req.originalUrl;
+
                             // hand back to Node Express
                             return next(result.err);
                         }
@@ -821,7 +842,10 @@ exports = module.exports = function()
                             return adapterFailureHandler(req, res, next, result.err);
                         }
 
-                        return next(err);
+                        // fill in a reason so that any middleware error handlers can make further decisions
+                        result.err.reason = "adapter_failure";
+
+                        return next(result.err);
                     }
 
                     // if we failed to sync user
@@ -846,6 +870,9 @@ exports = module.exports = function()
                             "message": "Authentication filter failed"
                         };
                     }
+
+                    // fill in a reason so that any middleware error handlers can make further decisions
+                    err.reason = "internal_error";
 
                     next(err);
                 });

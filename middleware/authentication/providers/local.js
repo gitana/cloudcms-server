@@ -1,128 +1,120 @@
-var auth = require("../../../util/auth");
+const jsonwebtoken = require("jsonwebtoken");
 
-var LocalStrategy = require('passport-local');
 var AbstractProvider = require("./abstract");
 
-if (!process.configuration) {
-    process.configuration = {};
-}
-if (!process.configuration.providers) {
-    process.configuration.providers = {};
-}
-if (!process.configuration.providers.local) {
-    process.configuration.providers.local = {};
-}
-
-/**
- * "local" Authentication Provider
- *
- * Provider-specific configuration:
- *
- *    "usernameField": "",
- *    "passwordField": "",
- *
- */
 class LocalProvider extends AbstractProvider
 {
     constructor(req, config)
     {
+        if (!config.loginUrl) {
+            config.loginUrl = "/login";
+        }
+
+        if (!config.authcodeName) {
+            config.authcodeName = process.env.AUTHCODE_NAME || "authcode";
+        }
+
+        if (!config.authcodeSecret) {
+            config.authcodeSecret = process.env.AUTHCODE_SECRET || "authcodeSecret";
+        }
+
+        if (!config.authcodeIssuer) {
+            config.authcodeIssuer = process.env.AUTHCODE_ISSUER || "authcodeIssuer";
+        }
+
+        if (!config.properties) {
+            config.properties = {};
+        }
+
+        if (!config.properties.id) {
+            config.properties.id = "unique_name";
+        }
+
         super(req, config);
-
-        if (!config.usernameField) {
-            config.usernameField = "user[email]";
-        }
-
-        if (!config.passwordField) {
-            config.passwordField = "user[password]";
-        }
-
-        // passport
-        this.localStrategy = new LocalStrategy({
-            usernameField: config.usernameField,
-            passwordField: config.passwordField,
-            callbackURL: config.callbackURL,
-            passReqToCallback: true
-        }, function(email, password, done) {
-
-            var info = {};
-
-            info.providerId = config.id;
-            info.providerUserId = email;
-            //info.token = token;
-            //info.refreshToken = refreshToken;
-
-            done(null, {}, info);
-        });
-
-        req.passport.use(this.localStrategy);
     }
 
-    /**
-     * @override
-     */
+    // handles /auth/custom
     handleAuth(req, res, next)
     {
-        req.passport.authenticate("local")(req, res, next);
-    };
+        res.redirect(this.config.loginUrl);
+    }
 
-    /**
-     * @override
-     */
-    handleAuthCallback(req, res, next, cb)
+    // handles /auth/custom/callback
+    handleAuthCallback(req, res, next, callback)
     {
-        req.passport.authenticate("local", {
-            session: true
-        }, cb)(req, res, next);
-    };
+        var authcode = req.query[this.config.authcodeName];
 
-    /**
-     * @override
-     */
+        if (!authcode)
+        {
+            return callback( {
+                "message": "Authcode not found"
+            });
+        }
+
+        var authObject = null;
+        try
+        {
+            var options = {};
+            options.issuer = this.config.authcodeIssuer;
+
+            authObject = jsonwebtoken.verify(authcode, this.config.authcodeSecret, options);
+        }
+        catch (e)
+        {
+            console.log(e);
+            return callback({
+                "message": "Failed to parse authcode token"
+            });
+        }
+
+        var profile = authObject.profile;
+        var info = authObject.info || {};
+
+        callback(null, profile, info);
+    }
+
+    /*
+    userIdentifier(profile)
+    {
+        return profile.unique_name;
+    }
+    */
+
+    /*
     parseProfile(req, profile, callback)
     {
-        super.parseProfile(req, profile, function(err, userObject, groupsArray, mandatoryGroupsArray) {
+        var userObject = {};
+        userObject.name = profile.unique_name;
+        userObject.firstName = profile.given_name;
+        userObject.lastName = profile.family_name;
+        userObject.email = profile.email;
 
-            if (err) {
-                return callback(err);
-            }
+        var groupsArray = [];
 
-            var name = profile.displayName;
-            if (profile._json && profile._json.name)
-            {
-                name = profile._json.name;
-            }
-            if (name)
-            {
-                var x = name.split(" ");
-                if (x.length === 2)
-                {
-                    userObject.firstName = x[0];
-                    userObject.lastName = x[1];
-                }
-            }
+        var mandatoryGroupsArray = [];
 
-            userObject.facebookId = profile.id;
+        callback(null, userObject, groupsArray, mandatoryGroupsArray);
+    }
+    */
 
-            callback(null, userObject, groupsArray, mandatoryGroupsArray);
-        });
-    };
-
-    /**
-     * @override
-     */
+    // handles trusted JWT token load
     load(properties, callback)
     {
-        this.localStrategy.userProfile(properties.token, function(err, profile) {
+        // {"unique_name":"demo","preferred_username":"demo","given_name":"Joe","family_name":"Smith","email":"joesmith@test.com","provider_id":"local1"}
+        console.log("PROPERTIES: " + JSON.stringify(properties));
 
-            if (err) {
-                return callback(err);
-            }
+        if (!properties || !properties.token){
+            callback("Cannot find token in properties");
+        }
 
-            callback(null, profile);
-        });
-    };
+        var profile = {};
+        profile.name = "asdasd";
+        profile.firstName = "first";
+        profile.lastName = "last";
+        profile.email = "email";
 
-
+        callback(null, profile);
+    }
 }
 
 module.exports = LocalProvider;

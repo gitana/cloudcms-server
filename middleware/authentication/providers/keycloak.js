@@ -3,8 +3,6 @@ var auth = require("../../../util/auth");
 var KeyCloakStrategy = require("./keycloak/index");
 var AbstractProvider = require("./abstract");
 
-var extend = require("extend-with-super");
-
 /**
  * "keycloak" Authentication Provider
  *

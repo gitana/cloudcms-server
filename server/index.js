@@ -655,7 +655,7 @@ var startSlave = function(config, afterStartFn)
                 // BASE CONFIGURATION
                 //
                 // Configures NodeJS app server using dustjs templating engine
-                // Runs on port 2999 by default
+                // Runs on port 3000 by default
                 //
                 ////////////////////////////////////////////////////////////////////////////
 
