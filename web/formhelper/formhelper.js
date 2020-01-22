@@ -33,7 +33,7 @@ window.GenerateForm = function(json)
                     e.preventDefault();
 
                     var data = this.getValue();
-                    if (grecaptcha) {
+                    if (typeof(grecaptcha) !== "undefined") {
                         data.grecaptchaResponse = grecaptcha.getResponse();
                     }
                     var promise = this.ajaxSubmit({

@@ -13,6 +13,7 @@ exports = module.exports = function()
 {
     var GITANA_JS_PATH = "../../node_modules/gitana/lib";
 
+    console.log("FIRST: " + path.join(__dirname, GITANA_JS_PATH, "gitana.min.js"));
     if (!fs.existsSync(path.join(__dirname, GITANA_JS_PATH, "gitana.min.js"))) // OK
     {
         GITANA_JS_PATH = path.join("..", "..", GITANA_JS_PATH);
@@ -106,6 +107,7 @@ exports = module.exports = function()
                 util.setHeaderOnce(res, "Content-Type", "text/javascript");
             }
 
+            /*
             // vendor libraries (provided by alpaca)
             if (uri && uri.indexOf("/vendor/") === 0)
             {
@@ -115,7 +117,7 @@ exports = module.exports = function()
                 // we serve this right from node_modules
                 dirPath = path.join(ALPACA_JS_PATH, "lib");
             }
-
+            */
 
             //util.setHeaderOnce(res, "Pragma", "no-cache");
             util.setHeaderOnce(res, "Cache-Control", "no-cache,no-store,max-age=0,s-maxage=0,must-revalidate");
