@@ -856,7 +856,7 @@ exports = module.exports = function()
                     "data": data
                 };
 
-                this.gitanaPlatform.createLogEntry(message, level, obj).then(function () {
+                this.gitana.platform().createLogEntry(message, level, obj).then(function () {
                     if (callback)
                     {
                         callback();
