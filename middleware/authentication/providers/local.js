@@ -101,7 +101,7 @@ class LocalProvider extends AbstractProvider
     load(properties, callback)
     {
         // {"unique_name":"demo","preferred_username":"demo","given_name":"Joe","family_name":"Smith","email":"joesmith@test.com","provider_id":"local1"}
-        console.log("PROPERTIES: " + JSON.stringify(properties));
+        //console.log("PROPERTIES: " + JSON.stringify(properties));
 
         if (!properties || !properties.token){
             callback("Cannot find token in properties");
