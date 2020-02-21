@@ -1,6 +1,8 @@
 var async = require("async");
 var cluster = require("cluster");
 
+var logEnabled = true;
+
 var determineHost = function(item, obj)
 {
     var host = null;
@@ -145,7 +147,9 @@ var handleNotificationMessages = function(items, callback) {
                                             repositoryId = parts[2];
                                         }
 
-                                        console.log("Sending node invalidation for host: " + host);
+                                        if (logEnabled) {
+                                            console.log("Sending node invalidation for host: " + host);
+                                        }
 
                                         // broadcast invalidation
                                         process.broadcast.publish("node_invalidation", {
@@ -338,7 +342,9 @@ var handleNotificationMessages = function(items, callback) {
                 }
                 else if (operation === "invalidate_application_page_rendition")
                 {
-                    console.log("invalidate_application_page_rendition event\n" + JSON.stringify(item,null,2));
+                    if (logEnabled) {
+                        console.log("invalidate_application_page_rendition event\n" + JSON.stringify(item,null,2));
+                    }
 
                     var deploymentKey = item.deploymentKey;
                     var applicationId = item.applicationId;
@@ -351,7 +357,9 @@ var handleNotificationMessages = function(items, callback) {
 
                     // SAFETY CHECK: if no repository and/or branch, just bail
                     if (!repositoryId || !branchId) {
-                        console.log("Missing repositoryId or branchId, skipping WCM page invalidation (1)");
+                        if (logEnabled) {
+                            console.log("Missing repositoryId or branchId, skipping WCM page invalidation (1)");
+                        }
                         return done();
                     }
 
@@ -378,13 +386,17 @@ var handleNotificationMessages = function(items, callback) {
 
                     // broadcast invalidation
                     process.broadcast.publish("invalidate_page_rendition", message, function(err) {
-                        console.log("published invalidate_page_rendition message. err:" + err + "\nmessage: " + JSON.stringify(item,null,2));
+                        if (logEnabled || err) {
+                            console.log("published invalidate_page_rendition message. err:" + err + "\nmessage: " + JSON.stringify(item,null,2));
+                        }
                         return done(err);
                     });
                 }
                 else if (operation === "invalidate_application_page_renditions")
                 {
-                    console.log("invalidate_application_page_renditions event");
+                    if (logEnabled) {
+                        console.log("invalidate_application_page_renditions event");
+                    }
 
                     var invalidations = item.invalidations;
                     if (invalidations && invalidations.length > 0)
@@ -406,7 +418,9 @@ var handleNotificationMessages = function(items, callback) {
 
                                     // SAFETY CHECK: if no repository and/or branch, just bail
                                     if (!repositoryId || !branchId) {
-                                        console.log("Missing repositoryId or branchId, skipping WCM page invalidation (2)");
+                                        if (logEnabled) {
+                                            console.log("Missing repositoryId or branchId, skipping WCM page invalidation (2)");
+                                        }
                                         return z_done();
                                     }
 
@@ -433,7 +447,9 @@ var handleNotificationMessages = function(items, callback) {
 
                                     // broadcast invalidation
                                     process.broadcast.publish("invalidate_page_rendition", message, function(err) {
-                                        console.log("published invalidate_page_rendition message. err:" + err + "\nmessage: " + JSON.stringify(message,null,2));
+                                        if (logEnabled || err) {
+                                            console.log("published invalidate_page_rendition message. err:" + err + "\nmessage: " + JSON.stringify(message,null,2));
+                                        }
                                         z_done(err);
                                     });
 
@@ -464,13 +480,17 @@ var handleNotificationMessages = function(items, callback) {
 
                     // broadcast invalidation
                     process.broadcast.publish("invalidate_all_page_renditions", message, function(err) {
-                        console.log("published invalidate_all_page_renditions message. err:" + err + "\nmessage: " + JSON.stringify(message,null,2));
+                        if (logEnabled || err) {
+                            console.log("published invalidate_all_page_renditions message. err:" + err + "\nmessage: " + JSON.stringify(message,null,2));
+                        }
                         return done(err);
                     });
                 }
                 else
                 {
-                    console.log("Unknown notification item: " + JSON.stringify(item));
+                    if (logEnabled) {
+                        console.log("Unknown notification item: " + JSON.stringify(item));
+                    }
 
                     // just assume it's something we can't deal with
                     return done({
@@ -506,7 +526,7 @@ var runnerFn = function(provider, printStartMessage)
     {
         return function() {
 
-            if (printStartMessage)
+            if (printStartMessage && logEnabled)
             {
                 console.log("[" + wid + "][" + runnerCount + "] Starting notifications loop");
             }
@@ -531,15 +551,21 @@ var runnerFn = function(provider, printStartMessage)
                     return completeRunnerFn(provider, false);
                 }
 
-                console.log("[" + wid + "][" + runnerCount + "] Notification Provider found: " + items.length + " notification items");
+                if (logEnabled) {
+                    console.log("[" + wid + "][" + runnerCount + "] Notification Provider found: " + items.length + " notification items");
+                }
 
                 handleNotificationMessages(items, function (err) {
 
-                    console.log("[" + wid + "][" + runnerCount + "] Notification Provider handled: " + items.length + " items");
+                    if (logEnabled) {
+                        console.log("[" + wid + "][" + runnerCount + "] Notification Provider handled: " + items.length + " items");
+                    }
 
                     postHandleCallback(err, items, function (err, items, deletedItems) {
 
-                        console.log("[" + wid + "][" + runnerCount + "] Notification Provider completed - handled: " + items.length + ", deleted: " + deletedItems.length);
+                        if (logEnabled || err) {
+                            console.log("[" + wid + "][" + runnerCount + "] Notification Provider completed - handled: " + items.length + ", deleted: " + deletedItems.length);
+                        }
 
                         // start it up again
                         return completeRunnerFn(provider, true);
@@ -565,12 +591,16 @@ module.exports = function()
         {
             config["notifications"] = {
                 "enabled": false,
+                "log": true,
                 "type": "",
                 "configuration": {}
             };
         }
 
         var notifications = config["notifications"];
+        if ("log" in notifications) {
+            logEnabled = notifications.log;
+        }
         if (typeof(process.env.CLOUDCMS_NOTIFICATIONS_ENABLED) !== "undefined")
         {
             if (!process.env.CLOUDCMS_NOTIFICATIONS_ENABLED || process.env.CLOUDCMS_NOTIFICATIONS_ENABLED === "false")

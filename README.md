@@ -168,6 +168,7 @@ This looks like:
     },
     "notifications": {
         "enabled": false,
+        "log": true,
         "type": "sqs",
         "configuration": {
             "queue": "",

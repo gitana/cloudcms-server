@@ -14,6 +14,8 @@ var cloudcmsUtil = require("../../util/cloudcms");
 
 var SENTINEL_NOT_FOUND_VALUE = "null";
 
+var logEnabled = true;
+
 /**
  * Cloud CMS middleware.
  *
@@ -2019,13 +2021,18 @@ exports = module.exports = function()
                 return callback(err);
             }
 
-            console.log("Invalidating node " + nodeId + " for hostname: " + host);
+            if (logEnabled) {
+                console.log("Invalidating node " + nodeId + " for hostname: " + host);
+            }
 
             cloudcmsUtil.invalidate(stores.content, repositoryId, branchId, nodeId, paths, function (err) {
-                if (err) {
+                if (err && logEnabled) {
                     console.error("invalidate done. err: " + err);
                 }
-                console.log("invalidate done");
+
+                if (logEnabled) {
+                    console.log("invalidate done");
+                }
                 callback(err);
             });
         });
@@ -2085,10 +2092,16 @@ exports = module.exports = function()
     {
         var self = this;
 
+        if (process.configuration && process.configuration.notifications && "log" in process.configuration.notifications) {
+            logEnabled = process.configuration.notifications.log;
+        }
+
         if (process.broadcast && !bound)
         {
             process.broadcast.subscribe("node_invalidation", function (message, channel, invalidationDone) {
-                console.log("cloudcms received node_invalidation message. " + JSON.stringify(message,null,2));
+                if (logEnabled) {
+                    console.log("cloudcms received node_invalidation message. " + JSON.stringify(message,null,2));
+                }
 
                 if (!invalidationDone) {
                     invalidationDone = function() { };
