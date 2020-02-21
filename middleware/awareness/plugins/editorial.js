@@ -121,8 +121,6 @@ exports.bindSocket = function(socket, provider)
             agent = https.globalAgent;
         }
 
-        console.log("m1");
-
         request({
             "method": "POST",
             "url": URL,
@@ -132,9 +130,6 @@ exports.bindSocket = function(socket, provider)
             "agent": agent,
             "timeout": process.defaultHttpTimeoutMs
         }, function(err, response, body) {
-
-            console.log("m2: " + err);
-            console.log("m3: " + body);
 
             if (err || (response && response.body && response.body.error)) {
                 return callback(err);
