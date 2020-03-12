@@ -159,7 +159,6 @@ exports = module.exports = function()
                             {
                                 if (err && err.invalidateGitanaDriver)
                                 {
-                                    console.log("Found err.invalidateGitanaDriver2 true");
                                     if (req.gitanaConfig)
                                     {
                                         // at this point, our gitana driver's auth token was pronounced dead and we need to invalidate
