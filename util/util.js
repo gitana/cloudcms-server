@@ -1818,3 +1818,16 @@ var getAgent = exports.getAgent = function(url)
 
     return agent;
 };
+
+/*
+var selectLeastPrivilegedGitana = exports.selectLeastPrivilegedGitana = function(req)
+{
+    var _gitana = req.gitana;
+
+    if (req.gitana_user_connection) {
+        _gitana = req.gitana_user_connection;
+    }
+
+    return _gitana;
+};
+*/

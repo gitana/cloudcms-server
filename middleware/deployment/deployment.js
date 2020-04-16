@@ -501,7 +501,7 @@ exports = module.exports = function()
         });
     };
 
-    var doCleanup = function(req, host, callback)
+    var doCleanup = function(log, host, callback)
     {
         if (!host)
         {
@@ -527,14 +527,14 @@ exports = module.exports = function()
                 }
 
                 // remove host directory
-                req.log("Removing host directory: " + host);
+                log("Removing host directory: " + host);
                 rootStore.cleanup(function (err) {
 
                     // CACHE: INVALIDATE
                     process.deploymentDescriptorCache.invalidate(host, function() {
                         process.driverConfigCache.invalidate(host, function() {
 
-                            req.log("Cleaned up virtual hosting for host: " + host);
+                            log("Cleaned up virtual hosting for host: " + host);
 
                             callback(err);
 
@@ -663,7 +663,7 @@ exports = module.exports = function()
                     done = function() { };
                 }
 
-                console.log("HEARD: cleanup_app");
+                console.log("HEARD: cleanup_app: " + message.host);
 
                 doCleanup(logFn, message.host, function(err) {
                     done(err);

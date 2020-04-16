@@ -162,6 +162,15 @@ var handleNotificationMessages = function(items, callback) {
                                             "paths": paths
                                         }, z_done);
                                     }
+                                    else if (type === "tenant")
+                                    {
+                                        //var ref = obj.ref;
+
+                                        // broadcast the cleanup_app event for this host
+                                        process.broadcast.publish("cleanup_app", {
+                                            "host": host
+                                        }, z_done);
+                                    }
                                     else if (type === "settings")
                                     {
                                         var ref = obj.ref;
