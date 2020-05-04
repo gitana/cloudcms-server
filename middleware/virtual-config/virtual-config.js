@@ -1,8 +1,7 @@
-var path = require('path');
-var http = require('http');
-var request = require('request');
+//var path = require('path');
+//var http = require('http');
+//var request = require('request');
 var util = require("../../util/util");
-var legacy = require("../../util/legacy");
 
 /**
  * Retrieves virtual driver configuration for hosts from Cloud CMS.
@@ -192,7 +191,7 @@ exports = module.exports = function()
                             // mark that it failed (5 seconds TTL)
                             return process.cache.write(VCSENTINEL_CACHE_KEY, SENTINEL_NOT_FOUND_VALUE, 5, function() {
                                 finishedLoading({
-                                    "message": "No virtual config found for host"
+                                    "message": "No virtual config found for host: " + host
                                 });
                             });
                         }
@@ -299,8 +298,7 @@ exports = module.exports = function()
                         // auto-upgrade the host?
                         if (gitanaJson.baseURL)
                         {
-                            var newBaseURL = legacy.autoUpgrade(gitanaJson.baseURL, true);
-                            newBaseURL = util.cleanupURL(newBaseURL);
+                            var newBaseURL = util.cleanupURL(gitanaJson.baseURL);
                             if (newBaseURL !== gitanaJson.baseURL)
                             {
                                 console.log("Auto-upgrade gitana.json from: " + gitanaJson.baseURL + ", to: " + newBaseURL);
