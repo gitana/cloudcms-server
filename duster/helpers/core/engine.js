@@ -100,6 +100,16 @@ module.exports = function(app, dust)
         var fieldRegex = context.resolve(params.fieldRegex);
         var fieldValue = context.resolve(params.fieldValue);
 
+        // limit response document fields (MongoDB _fields)
+        var fields = context.resolve(params.fields) || null;
+        var _fields;
+        if (fields) {
+            _fields = {};
+            fields.split(",").map(f => {
+                _fields[f.trim()] = 1;
+            });
+        }
+
         // role
         var role = context.resolve(params.role);
 
@@ -160,7 +170,8 @@ module.exports = function(app, dust)
             "near": near,
             "locale": locale,
             "role": role,
-            "userQuery": JSON.stringify(userQuery)
+            "userQuery": JSON.stringify(userQuery),
+            "_fields": JSON.stringify(_fields)
         });
 
         var finishQueryHandler = function(context)
@@ -186,6 +197,10 @@ module.exports = function(app, dust)
                 tracker.start(context, fragmentId, requirements);
 
                 var query = userQuery || {};
+                if (_fields) {
+                    query._fields = _fields;
+                }
+
                 if (isDefined(type))
                 {
                     query._type = type;
