@@ -45,7 +45,14 @@ exports = module.exports = function()
             if (err)
             {
                 // log as much as we can
-                console.warn("Error connecting driver (domainHost=" + req.domainHost + ", virtualHost: " + req.virtualHost + ", config: " + JSON.stringify(gitanaConfig) + ", err: " + JSON.stringify(err));
+                if(process.env.NODE_ENV === "production")
+                {
+                    console.warn("Error connecting driver (domainHost=" + req.domainHost + ", virtualHost: " + req.virtualHost + ", err: " + JSON.stringify(err));
+                }
+                else
+                {
+                    console.warn("Error connecting driver (domainHost=" + req.domainHost + ", virtualHost: " + req.virtualHost + ", config: " + JSON.stringify(gitanaConfig) + ", err: " + JSON.stringify(err));
+                }
 
                 var completionFn = function() {
 
