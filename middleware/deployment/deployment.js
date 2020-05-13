@@ -151,7 +151,7 @@ exports = module.exports = function()
 
     var doDeploy = function(logFn, descriptor, callback)
     {
-        console.log("DESCRIPTOR: " + JSON.stringify(descriptor, null, 2));
+        //console.log("DESCRIPTOR: " + JSON.stringify(descriptor, null, 2));
 
         if (!logFn) {
             logFn = function(text) { console.log(text); }
@@ -209,7 +209,12 @@ exports = module.exports = function()
                             return callback(err);
                         }
 
-                        var completionHandler = function () {
+                        var completionHandler = function (err) {
+
+                            if (err) {
+                                return callback(err);
+                            }
+
                             // optionally write any require gitana config into the virtual host
                             doHandleWriteGitanaConfiguration(descriptor, rootStore, function (err) {
 
@@ -246,22 +251,12 @@ exports = module.exports = function()
                         if ("github" === sourceType || "bitbucket" == sourceType)
                         {
                             util.gitCheckout(host, sourceType, sourceUrl, sourcePath, sourceBranch, null, true, logFn, function (err) {
-
-                                if (err) {
-                                    return callback(err);
-                                }
-
                                 completionHandler(err);
                             });
                         }
                         else
                         {
                             util.installPackagedDeployment(host, "default", logFn, function(err) {
-
-                                if (err) {
-                                    return callback(err);
-                                }
-
                                 completionHandler(err);
                             });
                         }

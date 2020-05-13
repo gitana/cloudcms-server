@@ -256,12 +256,13 @@ var gitPull = function(directoryPath, gitUrl, sourceType, sourceBranch, logMetho
 {
     var username = null;
     var password = null;
-    if (sourceType == "github")
+
+    if (sourceType === "github")
     {
         username = process.env.CLOUDCMS_NET_GITHUB_USERNAME;
         password = process.env.CLOUDCMS_NET_GITHUB_PASSWORD;
     }
-    else if (sourceType == "bitbucket")
+    else if (sourceType === "bitbucket")
     {
         username = process.env.CLOUDCMS_NET_BITBUCKET_USERNAME;
         password = process.env.CLOUDCMS_NET_BITBUCKET_PASSWORD;
@@ -368,7 +369,7 @@ exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, sourceBra
                     }
 
                     var tempRootDirectoryRelativePath = tempRootDirectoryPath;
-                    if (relativePath && relativePath != "/")
+                    if (relativePath && relativePath !== "/")
                     {
                         tempRootDirectoryRelativePath = path.join(tempRootDirectoryRelativePath, relativePath);
                     }
