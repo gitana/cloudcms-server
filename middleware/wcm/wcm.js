@@ -427,9 +427,17 @@ exports = module.exports = function()
                                                 return false;
 
                                             }).queryNodes({
-                                                "_type": "wcm:page"
+                                                _type: "wcm:page",
+                                                _fields: {
+                                                    title: 1,
+                                                    template: 1,
+                                                    templatePath: 1,
+                                                    uris: 1
+                                                }
                                             }, {
-                                                "limit": -1
+                                                limit: -1,
+                                                metadata: false,
+                                                full: false
                                             }).each(function () {
 
                                                 // THIS = wcm:page
