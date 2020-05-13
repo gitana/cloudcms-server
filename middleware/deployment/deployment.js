@@ -1,9 +1,9 @@
-var path = require('path');
-var fs = require('fs');
-var http = require('http');
+//var path = require('path');
+//var fs = require('fs');
+//var http = require('http');
 var util = require("../../util/util");
-var uuidv4 = require("uuid/v4");
-var Gitana = require("gitana");
+//var uuidv4 = require("uuid/v4");
+//var Gitana = require("gitana");
 var duster = require("../../duster/index");
 
 /**
@@ -151,6 +151,8 @@ exports = module.exports = function()
 
     var doDeploy = function(logFn, descriptor, callback)
     {
+        console.log("DESCRIPTOR: " + JSON.stringify(descriptor, null, 2));
+
         if (!logFn) {
             logFn = function(text) { console.log(text); }
         }
@@ -334,7 +336,7 @@ exports = module.exports = function()
         });
     };
 
-    var doStart = function(req, descriptor, callback)
+    var doStart = function(logFn, descriptor, callback)
     {
         parseHost(descriptor, function(err, host) {
 
@@ -359,7 +361,8 @@ exports = module.exports = function()
                             "message": "The application cannot be started because it is not deployed."
                         });
                     }
-                    else {
+                    else
+                    {
                         rootStore.readFile("descriptor.json", function (err, data) {
 
                             if (err) {
@@ -377,7 +380,7 @@ exports = module.exports = function()
 
                             data.active = true;
 
-                            req.log("Starting application: " + data.application.id + " with host: " + host);
+                            logFn("Starting application: " + data.application.id + " with host: " + host);
 
                             rootStore.writeFile("descriptor.json", JSON.stringify(data, null, "  "), function (err) {
                                 console.log("Start error: "+ err);
@@ -390,7 +393,7 @@ exports = module.exports = function()
         });
     };
 
-    var doStop = function(req, descriptor, callback)
+    var doStop = function(logFn, descriptor, callback)
     {
         parseHost(descriptor, function(err, host) {
 
@@ -414,7 +417,8 @@ exports = module.exports = function()
                             "message": "The application cannot be stopped because it is not deployed."
                         });
                     }
-                    else {
+                    else
+                    {
                         rootStore.readFile("descriptor.json", function (err, data) {
 
                             if (err) {
@@ -432,11 +436,11 @@ exports = module.exports = function()
 
                             delete data.active;
 
-                            req.log("Stopping application: " + data.application.id + " with host: " + host);
+                            logFn("Stopping application: " + data.application.id + " with host: " + host);
 
                             rootStore.writeFile("descriptor.json", JSON.stringify(data, null, "  "), function (err) {
 
-                                req.log("Completed stop of application: " + data.application.id + " with host: " + host);
+                                logFn("Completed stop of application: " + data.application.id + " with host: " + host);
 
                                 callback(err);
                             });
@@ -447,7 +451,7 @@ exports = module.exports = function()
         });
     };
 
-    var doInfo = function(req, host, callback)
+    var doInfo = function(logFn, host, callback)
     {
         var r = {
             "isDeployed": false
@@ -501,7 +505,7 @@ exports = module.exports = function()
         });
     };
 
-    var doCleanup = function(log, host, callback)
+    var doCleanup = function(logFn, host, callback)
     {
         if (!host)
         {
@@ -527,14 +531,14 @@ exports = module.exports = function()
                 }
 
                 // remove host directory
-                log("Removing host directory: " + host);
+                logFn("Removing host directory: " + host);
                 rootStore.cleanup(function (err) {
 
                     // CACHE: INVALIDATE
                     process.deploymentDescriptorCache.invalidate(host, function() {
                         process.driverConfigCache.invalidate(host, function() {
 
-                            log("Cleaned up virtual hosting for host: " + host);
+                            logFn("Cleaned up virtual hosting for host: " + host);
 
                             callback(err);
 
@@ -727,8 +731,7 @@ exports = module.exports = function()
 
                         // respond with ok
                         res.send({
-                            "ok": true,
-                            "host": host
+                            "ok": true
                         });
                         res.end();
                     });
@@ -891,7 +894,9 @@ exports = module.exports = function()
                 {
                     var host = req.query["host"];
 
-                    doInfo(req, host, function(err, infoObject) {
+                    var logFn = req.log;
+
+                    doInfo(logFn, host, function(err, infoObject) {
 
                         if (err) {
                             res.send({
