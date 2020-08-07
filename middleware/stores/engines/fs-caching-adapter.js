@@ -5,8 +5,6 @@ var fs = require("fs");
 
 var util = require("../../../util/util");
 
-var cluster = require("cluster");
-
 /**
  * A caching wrapper around a store that provides local disk caching of assets to boost performance for serving assets
  * via a web server.  In a typical configuration, this is hooked up to Amazon S3 to provide cluster-wide caching of
@@ -60,8 +58,6 @@ exports = module.exports = function(remoteStore)
                 var command = message.command;
                 if ("invalidatePath" === command)
                 {
-                    console.log("FS CACHING invalidated path: " + message.path);
-
                     __internal_removeCachedObject(message.path);
                 }
 
@@ -375,10 +371,8 @@ exports = module.exports = function(remoteStore)
     {
         __getCachedObjectState(filePath, function(state) {
 
-            if (state.cached)
-            {
-                callback(state.exists);
-                return;
+            if (state.cached) {
+                return callback(state.exists);
             }
 
             // otherwise, go remote
@@ -394,10 +388,8 @@ exports = module.exports = function(remoteStore)
     {
         __getCachedObjectState(directoryPath, function(state) {
 
-            if (state.cached)
-            {
-                callback(state.exists);
-                return;
+            if (state.cached) {
+                return callback(state.exists);
             }
 
             // otherwise, go remote
@@ -409,9 +401,22 @@ exports = module.exports = function(remoteStore)
         });
     };
 
-    var removeFile = r.removeFile = function(filePath, callback)
+    var removeFile = r.removeFile = function(filePath, options, callback)
     {
-        remoteStore.removeFile(filePath, function(err) {
+        if (typeof(options) === "function") {
+            callback = options;
+            options = null;
+        }
+
+        if (options && options.cacheOnly)
+        {
+            // remove from cache
+            return __removeCachedObject(filePath, function() {
+                callback();
+            });
+        }
+
+        remoteStore.removeFile(filePath, options, function(err) {
 
             // remove from cache
             __removeCachedObject(filePath, function() {
@@ -420,9 +425,22 @@ exports = module.exports = function(remoteStore)
         });
     };
 
-    var removeDirectory = r.removeDirectory = function(directoryPath, callback)
+    var removeDirectory = r.removeDirectory = function(directoryPath, options, callback)
     {
-        remoteStore.removeDirectory(directoryPath, function(err) {
+        if (typeof(options) === "function") {
+            callback = options;
+            options = null;
+        }
+
+        if (options && options.cacheOnly)
+        {
+            // remove from cache only
+            return __removeCachedObject(directoryPath, function() {
+                callback();
+            });
+        }
+
+        remoteStore.removeDirectory(directoryPath, options, function(err) {
 
             // remove from cache
             __removeCachedObject(directoryPath, function() {
@@ -442,8 +460,7 @@ exports = module.exports = function(remoteStore)
 
             var cacheAssetPath = toCacheAssetPath(filePath);
 
-            if (state.faulted)
-            {
+            if (state.faulted) {
                 return _sendFile(res, cacheAssetPath, cacheInfo, callback);
             }
 
@@ -467,8 +484,7 @@ exports = module.exports = function(remoteStore)
 
             var cacheAssetPath = toCacheAssetPath(filePath);
 
-            if (state.faulted)
-            {
+            if (state.faulted) {
                 return _downloadFile(res, cacheAssetPath, filename, cacheInfo, callback);
             }
 
@@ -485,50 +501,24 @@ exports = module.exports = function(remoteStore)
         });
     };
 
-    /*
-    r.writeFile = function(filePath, data, callback)
-    {
-        remoteStore.writeFile(filePath, data, function(err) {
-
-            // update cache
-            if (err) {
-                __removeCachedObject(filePath, function() {
-                    callback(err);
-                });
-                return;
-            }
-
-            __putCachedObject(filePath, true, data, function() {
-                callback(err);
-            });
-        });
-    };
-    */
-
     r.writeFile = function(filePath, data, callback)
     {
         __putCachedObject(filePath, true, data, function(err) {
 
-            if (err)
-            {
-                callback(err);
-                return;
+            if (err) {
+                return callback(err);
             }
 
-            // on a separate timeout, write to remote store
-            setTimeout(function() {
+            remoteStore.writeFile(filePath, data, function(err) {
 
-                remoteStore.writeFile(filePath, data, function(err) {
+                if (err) {
+                    return __removeCachedObject(filePath, function() {
+                        return callback(err);
+                    });
+                }
 
-                    if (err) {
-                        console.log(err);
-                    }
-
-                });
-
-            }, 1);
-
-            callback();
+                callback();
+            });
         });
 
     };
@@ -539,23 +529,21 @@ exports = module.exports = function(remoteStore)
         {
             remoteStore.readFile(filePath, function(err, data) {
 
-                // update cache
-                if (!err) {
-                    __putCachedObject(filePath, true, data, function() {
-                        callback(err, data);
-                    });
-                    return;
+                if (err) {
+                    return callback(err);
                 }
 
-                callback(err, data)
+                // update cache
+                __putCachedObject(filePath, true, data, function() {
+                    callback(err, data);
+                });
             });
         };
 
         __getCachedObjectData(filePath, function(err, data) {
 
             if (err) {
-                finish();
-                return;
+                return finish();
             }
 
             callback(null, data);
@@ -572,8 +560,7 @@ exports = module.exports = function(remoteStore)
         remoteStore.moveFile(originalFilePath, newFilePath, function(err) {
 
             if (err) {
-                callback(err);
-                return;
+                return callback(err);
             }
 
             // update cache
@@ -585,11 +572,13 @@ exports = module.exports = function(remoteStore)
 
     r.readStream = function(filePath, callback)
     {
+        // TODO: couldn't we read from local cache?
         remoteStore.readStream(filePath, callback);
     };
 
     r.writeStream = function(filePath, callback)
     {
+        // TODO: couldn't this work against local cache as well?
         remoteStore.writeStream(filePath, callback);
     };
 

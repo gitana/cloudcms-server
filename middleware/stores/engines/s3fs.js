@@ -41,14 +41,14 @@ exports = module.exports = function(engineConfig)
         cachingAdapter.existsDirectory(directoryPath, callback);
     };
 
-    var removeFile = r.removeFile = function(filePath, callback)
+    var removeFile = r.removeFile = function(filePath, options, callback)
     {
-        cachingAdapter.removeFile(filePath, callback);
+        cachingAdapter.removeFile(filePath, options, callback);
     };
 
-    var removeDirectory = r.removeDirectory = function(directoryPath, callback)
+    var removeDirectory = r.removeDirectory = function(directoryPath, options, callback)
     {
-        cachingAdapter.removeDirectory(directoryPath, callback);
+        cachingAdapter.removeDirectory(directoryPath, options, callback);
     };
 
     var listFiles = r.listFiles = function(directoryPath, callback)
@@ -105,7 +105,6 @@ exports = module.exports = function(engineConfig)
     {
         cachingAdapter.matchFiles(directoryPath, regexPattern, callback);
     };
-
 
     return r;
 };

@@ -309,7 +309,7 @@ var gitPull = function(directoryPath, gitUrl, sourceType, sourceBranch, logMetho
  *
  * @type {*}
  */
-exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, sourceBranch, offsetPath, moveToPublic, logMethod, callback)
+exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, sourceBranch, targetStore, targetOffsetPath, moveToPublic, logMethod, callback)
 {
     // this gets a little confusing, so here is what we have:
     //
@@ -333,116 +333,107 @@ exports.gitCheckout = function(host, sourceType, gitUrl, relativePath, sourceBra
     //              /public_build                                           (hostPublicBuildDirectoryPath)
     //              /config                                                 (hostConfigDirectoryPath)
 
-    var storeService = require("../middleware/stores/stores");
 
-    // create a "root" store for the host
-    storeService.produce(host, function(err, stores) {
+    // create tempRootDirectoryPath
+    logMethod("[gitCheckout] Create temp directory");
+    createTempDirectory(function (err, tempRootDirectoryPath) {
 
         if (err) {
             return callback(err, host);
         }
 
-        var rootStore = stores.root;
-
-        // create tempRootDirectoryPath
-        logMethod("[gitCheckout] Create temp directory");
-        createTempDirectory(function (err, tempRootDirectoryPath) {
+        // initialize git in temp root directory
+        logMethod("[gitCheckout] Initialize git: " + tempRootDirectoryPath);
+        gitInit(tempRootDirectoryPath, logMethod, function (err) {
 
             if (err) {
-                return callback(err, host);
+                return callback(err);
             }
 
-            // initialize git in temp root directory
-            logMethod("[gitCheckout] Initialize git: " + tempRootDirectoryPath);
-            gitInit(tempRootDirectoryPath, logMethod, function (err) {
+            // perform a git pull of the repository
+            logMethod("[gitCheckout] Git pull: " + gitUrl);
+            gitPull(tempRootDirectoryPath, gitUrl, sourceType, sourceBranch, logMethod, function (err) {
 
                 if (err) {
                     return callback(err);
                 }
 
-                // perform a git pull of the repository
-                logMethod("[gitCheckout] Git pull: " + gitUrl);
-                gitPull(tempRootDirectoryPath, gitUrl, sourceType, sourceBranch, logMethod, function (err) {
+                var tempRootDirectoryRelativePath = tempRootDirectoryPath;
+                if (relativePath && relativePath !== "/")
+                {
+                    tempRootDirectoryRelativePath = path.join(tempRootDirectoryRelativePath, relativePath);
+                }
 
-                    if (err) {
-                        return callback(err);
-                    }
+                // make sure the tempRootDirectoryRelativePath exists
+                var tempRootDirectoryRelativePathExists = fs.existsSync(tempRootDirectoryRelativePath);
+                if (!tempRootDirectoryRelativePathExists)
+                {
+                    return callback({
+                        "message": "The relative path: " + relativePath + " does not exist within the Git repository: " + gitUrl
+                    });
+                }
 
-                    var tempRootDirectoryRelativePath = tempRootDirectoryPath;
-                    if (relativePath && relativePath !== "/")
+                if (moveToPublic)
+                {
+                    // if there isn't a "public" and there isn't a "public_build" directory,
+                    // then move files into public
+                    var publicExists = fs.existsSync(path.join(tempRootDirectoryRelativePath, "public"));
+                    var publicBuildExists = fs.existsSync(path.join(tempRootDirectoryRelativePath, "public_build"));
+                    if (!publicExists && !publicBuildExists)
                     {
-                        tempRootDirectoryRelativePath = path.join(tempRootDirectoryRelativePath, relativePath);
-                    }
+                        fs.mkdirSync(path.join(tempRootDirectoryRelativePath, "public"));
 
-                    // make sure the tempRootDirectoryRelativePath exists
-                    var tempRootDirectoryRelativePathExists = fs.existsSync(tempRootDirectoryRelativePath);
-                    if (!tempRootDirectoryRelativePathExists)
-                    {
-                        return callback({
-                            "message": "The relative path: " + relativePath + " does not exist within the Git repository: " + gitUrl
-                        });
-                    }
-
-                    if (moveToPublic)
-                    {
-                        // if there isn't a "public" and there isn't a "public_build" directory,
-                        // then move files into public
-                        var publicExists = fs.existsSync(path.join(tempRootDirectoryRelativePath, "public"));
-                        var publicBuildExists = fs.existsSync(path.join(tempRootDirectoryRelativePath, "public_build"));
-                        if (!publicExists && !publicBuildExists)
+                        var filenames = fs.readdirSync(tempRootDirectoryRelativePath);
+                        if (filenames && filenames.length > 0)
                         {
-                            fs.mkdirSync(path.join(tempRootDirectoryRelativePath, "public"));
-
-                            var filenames = fs.readdirSync(tempRootDirectoryRelativePath);
-                            if (filenames && filenames.length > 0)
+                            for (var i = 0; i < filenames.length; i++)
                             {
-                                for (var i = 0; i < filenames.length; i++)
+                                if (!shouldIgnore(path.join(tempRootDirectoryRelativePath, filenames[i])))
                                 {
-                                    if (!shouldIgnore(path.join(tempRootDirectoryRelativePath, filenames[i])))
+                                    if ("config" === filenames[i])
                                     {
-                                        if ("config" === filenames[i])
-                                        {
-                                            // skip this
-                                        }
-                                        else if ("gitana.json" === filenames[i])
-                                        {
-                                            // skip
-                                        }
-                                        else if ("descriptor.json" === filenames[i])
-                                        {
-                                            // skip
-                                        }
-                                        else if ("public" === filenames[i])
-                                        {
-                                            // skip
-                                        }
-                                        else if ("public_build" === filenames[i])
-                                        {
-                                            // skip
-                                        }
-                                        else
-                                        {
-                                            fs.renameSync(path.join(tempRootDirectoryRelativePath, filenames[i]), path.join(tempRootDirectoryRelativePath, "public", filenames[i]));
-                                        }
+                                        // skip this
+                                    }
+                                    else if ("gitana.json" === filenames[i])
+                                    {
+                                        // skip
+                                    }
+                                    else if ("descriptor.json" === filenames[i])
+                                    {
+                                        // skip
+                                    }
+                                    else if ("public" === filenames[i])
+                                    {
+                                        // skip
+                                    }
+                                    else if ("public_build" === filenames[i])
+                                    {
+                                        // skip
+                                    }
+                                    else
+                                    {
+                                        fs.renameSync(path.join(tempRootDirectoryRelativePath, filenames[i]), path.join(tempRootDirectoryRelativePath, "public", filenames[i]));
                                     }
                                 }
                             }
                         }
                     }
+                }
 
-                    // copy everything from temp dir into the store
-                    logMethod("[gitCheckout] Copy from temp to store");
-                    copyToStore(tempRootDirectoryRelativePath, rootStore, offsetPath, function(err) {
+                // copy everything from temp dir into the store
+                logMethod("[gitCheckout] Copy from temp to target store");
+                //logMethod("Target Store: " + targetStore.id);
+                //logMethod("Target Offset Path: " + targetOffsetPath);
+                copyToStore(tempRootDirectoryRelativePath, targetStore, targetOffsetPath, function(err) {
 
-                        logMethod("[gitCheckout] Remove temp dir: " + tempRootDirectoryPath);
+                    logMethod("[gitCheckout] Remove temp dir: " + tempRootDirectoryPath);
 
-                        // now remove temp directory
-                        rmdir(tempRootDirectoryPath);
+                    // now remove temp directory
+                    rmdir(tempRootDirectoryPath);
 
-                        logMethod("[gitCheckout] Done");
+                    logMethod("[gitCheckout] Done");
 
-                        callback(err);
-                    });
+                    callback(err);
                 });
             });
         });
@@ -575,6 +566,68 @@ var showHeaders = exports.showHeaders = function(req)
         console.log("HEADER: " + k + " = " + req.headers[k]);
     }
 };
+
+/**
+ * Run the "fn " function for all servers in the cluster.  The first server will get an exclusive lock and the argument
+ * to the function will have "first" set high.  When the "fn" function fires its callback, all other waiting servers
+ * will be allowed to proceed and "first" will be set low.
+ *
+ * @param clusterLockIdentifier
+ * @param fn
+ * @param afterFn
+ */
+var executeFunction = exports.executeFunction = function(identifier, fn, afterFn)
+{
+    var runner = function(exclusive, fn, afterFn, doneFn)
+    {
+        fn(exclusive, function(err) {
+
+            if (doneFn) {
+                doneFn();
+            }
+
+            // fire after handler
+            afterFn(err);
+
+        })
+    };
+
+    if (!identifier)
+    {
+        return runner(true, fn, afterFn);
+    }
+
+    // take out a lock to ensure that the first thread to pass through here is the only one
+    // and gets to run by itself on the cluster
+    var exclusiveLockKey = "exclusiveLock-" + identifier;
+    process.locks.lock(exclusiveLockKey, function (releaseLockFn) {
+
+        var firstRunCacheKey = "firstRun-" + identifier;
+        process.cache.read(firstRunCacheKey, function(err, value) {
+
+            if (!value)
+            {
+                // first thread runs with lock still held
+                // so that it is the only one running
+                return runner(true, fn, afterFn, function() {
+
+                    // write to cache to indicate that we already ran
+                    process.cache.write(firstRunCacheKey, true, 600, function() {
+                        // release lock so other threads can go at it
+                        releaseLockFn();
+                    });
+                });
+            }
+
+            // other threads come this way and release the lock right away
+            releaseLockFn();
+
+            // and then do their thing
+            runner(false, fn, afterFn);
+        });
+    });
+};
+
 
 /**
  * Helper function designed to automatically retry requests to a back end service over HTTP using authentication

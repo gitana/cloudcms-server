@@ -1,34 +1,14 @@
 var path = require('path');
 var util = require("../../util/util");
-var request = require("request");
-var async = require("async");
 
 var storeService = require("../stores/stores");
+var configService = require("../config/config");
 
 exports = module.exports = function()
 {
-    var INVALIDATION_TOPIC = "module-invalidation-topic";
-
     var logFn = function(text)
     {
         console.log("[Module Deployment] " + text);
-    };
-
-    var notifyModuleInvalidation = function(message, callback)
-    {
-        if (process.broadcast)
-        {
-            logFn("Notify module invalidation - trigger: " + JSON.stringify(message));
-
-            //console.log("[" + cluster.worker.id + "] Notifying: " + JSON.stringify(message));
-            process.broadcast.publish(INVALIDATION_TOPIC, message);
-
-            callback();
-        }
-        else
-        {
-            callback();
-        }
     };
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -93,16 +73,27 @@ exports = module.exports = function()
         {
             logFn("Begin util.gitCheckout");
 
-            util.gitCheckout(host, sourceType, sourceUrl, sourcePath, sourceBranch, "modules/" + moduleId, false, logFn, function (err) {
+            // create a "root" store for the host
+            storeService.produce(host, function(err, stores) {
 
-                logFn("After util.gitCheckout: " + JSON.stringify(err));
+                if (err) {
+                    return callback(err);
+                }
 
-                // invalidate any caching within the stores layer
-                storeService.invalidate(host);
+                var targetStore = stores["modules"];
+                var targetOffsetPath = moduleId;
 
-                logFn("After store.invalidate");
+                util.gitCheckout(host, sourceType, sourceUrl, sourcePath, sourceBranch, targetStore, targetOffsetPath, false, logFn, function (err) {
 
-                callback(err);
+                    //logFn("After util.gitCheckout: " + JSON.stringify(err));
+
+                    // invalidate any caching within the stores layer
+                    storeService.invalidate(host);
+
+                    //logFn("After store.invalidate");
+
+                    callback(err);
+                });
             });
         }
         else
@@ -111,7 +102,7 @@ exports = module.exports = function()
         }
     };
 
-    var doUndeploy = function(host, moduleId, moduleConfig, callback)
+    var doUndeploy = function(host, moduleId, moduleConfig, cacheOnly, callback)
     {
         var logFn = function(text) {
             console.log(text);
@@ -121,37 +112,63 @@ exports = module.exports = function()
 
         storeService.produce(host, function(err, stores) {
 
-            logFn("After produce");
-
             // invalidate any caching within the stores layer
             storeService.invalidate(host);
 
-            logFn("After invalidate");
+            var options = {};
+            if (cacheOnly) {
+                options.cacheOnly = true;
+            }
 
             var modulesStore = stores.modules;
-            modulesStore.cleanup(moduleId, function(err) {
-
-                logFn("After cleanup: " + JSON.stringify(err, null, 2));
-
+            modulesStore.cleanup(moduleId, options, function(err) {
                 callback(err);
             });
         });
     };
 
-    var doRefresh = function(host, moduleId, moduleConfig, callback)
+    var doRedeploy = function(host, moduleId, moduleConfig, callback)
+    {
+        doUndeploy(host, moduleId, moduleConfig, false, function(err) {
+
+            if (err) {
+                return callback(err);
+            }
+
+            doDeploy(host, moduleId, moduleConfig, function(err) {
+                callback(err);
+            });
+        });
+    };
+
+    var doInvalidate = function(host, moduleId, moduleConfig, callback)
     {
         var logFn = function(text) {
             console.log(text);
         };
 
-        logFn("Start doRefresh, host: " + host + ", module ID: " + moduleId + ", module config: " + JSON.stringify(moduleConfig, null, 2));;
+        //logFn("Start doInvalidate, host: " + host + ", module ID: " + moduleId + ", module config: " + JSON.stringify(moduleConfig, null, 2));;
 
         // invalidate any caching within the stores layer
         storeService.invalidate(host);
 
-        logFn("After invalidate");
+        // blow away config service cache
+        configService.invalidateHost(host, function(err) {
+            //logFn("Finish doInvalidate");
+            callback();
+        });
+    };
 
-        callback();
+    var acquireConcurrencyIdentifier = function(messageId)
+    {
+        var concurrencyIdentifier = null;
+
+        if (process.env.CLOUDCMS_MODULES_STORE_PERSISTENCE_BACKED === "true")
+        {
+            concurrencyIdentifier = messageId;
+        }
+
+        return concurrencyIdentifier;
     };
 
     var bindSubscriptions = function()
@@ -165,19 +182,37 @@ exports = module.exports = function()
                     finished = function () {};
                 }
 
-                console.log("HEARD: module_deploy");
+                console.log("Modules subscription listener triggered for: module_deploy");
 
                 var host = message.host;
                 var moduleId = message.moduleId;
                 var moduleConfig = message.moduleConfig;
+                var messageId = message.id;
 
-                doDeploy(host, moduleId, moduleConfig, function (err) {
+                var identifier = acquireConcurrencyIdentifier(messageId);
+                util.executeFunction(identifier, function(exclusiveFirst, doneFn) {
 
-                    // invalidate the module
-                    notifyModuleInvalidation({
-                        "host": host
-                    }, function() {
-                        console.log("After notify module invalidation: " + host);
+                    // if we are the exclusive first server, we do a full redeploy
+                    // this removes everything from local disk (for current server) but also deletes from persistence (S3)
+                    // it then deploys (writing to local server disk as well as S3)
+                    if (exclusiveFirst)
+                    {
+                        return doRedeploy(host, moduleId, moduleConfig, function(err) {
+                            return doneFn(err);
+                        });
+                    }
+
+                    // otherwise, the "exclusiveFirst" operations already ran on another server
+                    // and we run this part concurrent with other servers
+                    // after this finishes, any new requests will fault things from S3
+                    doUndeploy(host, moduleId, moduleConfig, true, function(err) {
+                        return doneFn(err);
+                    });
+
+                }, function(err) {
+
+                    // invalidate this server
+                    doInvalidate(host, moduleId, moduleConfig, function() {
                         finished(err);
                     });
                 });
@@ -190,19 +225,35 @@ exports = module.exports = function()
                     finished = function () {};
                 }
 
-                console.log("HEARD: module_undeploy");
+                console.log("Modules subscription listener triggered for: module_undeploy");
 
                 var host = message.host;
                 var moduleId = message.moduleId;
                 var moduleConfig = message.moduleConfig;
+                var messageId = message.id;
 
-                doUndeploy(host, moduleId, moduleConfig, function (err) {
+                var identifier = acquireConcurrencyIdentifier(messageId);
+                util.executeFunction(identifier, function(exclusiveFirst, doneFn) {
 
-                    // invalidate the module
-                    notifyModuleInvalidation({
-                        "host": host
-                    }, function() {
-                        console.log("After notify module invalidation: " + host);
+                    // if we are the exclusive first server, we do a full undeploy
+                    // this removes everything from local disk (for current server) but also deletes from persistence (S3)
+                    if (exclusiveFirst)
+                    {
+                        return doUndeploy(host, moduleId, moduleConfig, false, function(err) {
+                            return doneFn(err);
+                        });
+                    }
+
+                    // otherwise, the "exclusiveFirst" operations already ran on another server
+                    // and we run this part concurrent with other servers
+                    doUndeploy(host, moduleId, moduleConfig, true, function(err) {
+                        return doneFn(err);
+                    });
+
+                }, function(err) {
+
+                    // invalidate this server
+                    doInvalidate(host, moduleId, moduleConfig, function() {
                         finished(err);
                     });
                 });
@@ -215,61 +266,16 @@ exports = module.exports = function()
                     finished = function () {};
                 }
 
-                console.log("HEARD: module_refresh");
+                console.log("Modules subscription listener triggered for: module_refresh");
 
                 var host = message.host;
                 var moduleId = message.moduleId;
                 var moduleConfig = message.moduleConfig;
+                var messageId = message.id;
 
-                doRefresh(host, moduleId, moduleConfig, function (err) {
-
-                    // invalidate the module
-                    notifyModuleInvalidation({
-                        "host": host
-                    }, function() {
-                        console.log("After notify module invalidation: " + host);
-                        finished(err);
-                    });
-                });
-            });
-
-            // LISTEN: "module_redeploy"
-            process.broadcast.subscribe("module_redeploy", function (message, channel, finished) {
-
-                if (!finished) {
-                    finished = function () {};
-                }
-
-                console.log("HEARD: module_redeploy");
-
-                var host = message.host;
-                var moduleId = message.moduleId;
-                var moduleConfig = message.moduleConfig;
-
-                doUndeploy(host, moduleId, moduleConfig, function(err) {
-
-                    if (err)
-                    {
-                        // invalidate the module
-                        return notifyModuleInvalidation({
-                            "host": host
-                        }, function() {
-                            console.log("After notify module invalidation: " + host);
-                            finished(err);
-                        });
-                    }
-
-                    doDeploy(host, moduleId, moduleConfig, function(err) {
-
-                        // invalidate the module
-                        notifyModuleInvalidation({
-                            "host": host
-                        }, function() {
-                            console.log("After notify module invalidation: " + host);
-                            finished(err);
-                        });
-
-                    });
+                // invalidate this server
+                doInvalidate(host, moduleId, moduleConfig, function (err) {
+                    finished(err);
                 });
             });
         }
@@ -305,10 +311,7 @@ exports = module.exports = function()
                     var host = req.virtualHost;
                     var moduleConfig = req.body;
 
-                    console.log("Heard MODULE DEPLOY host: " + host + ", id: " + moduleId + ", config: " + JSON.stringify(moduleConfig));
-                    console.log("moduleId: " + moduleId);
-                    console.log("moduleId: " + host);
-                    console.log("moduleId: " + JSON.stringify(moduleConfig, null, 2));;
+                    console.log("Heard BTTP Module Deploy -  host: " + host + ", id: " + moduleId + ", config: " + JSON.stringify(moduleConfig));
 
                     process.broadcast.publish("module_deploy", {
                         "host": host,
@@ -341,7 +344,7 @@ exports = module.exports = function()
                     var host = req.virtualHost;
                     var moduleConfig = req.body;
 
-                    console.log("Heard MODULE UNDEPLOY host: " + host + ", id: " + moduleId + ", config: " + JSON.stringify(moduleConfig));
+                    console.log("Heard BTTP Module Undeploy -  host: " + host + ", id: " + moduleId + ", config: " + JSON.stringify(moduleConfig));
 
                     process.broadcast.publish("module_undeploy", {
                         "host": host,
@@ -369,40 +372,7 @@ exports = module.exports = function()
 
                     handled = true;
                 }
-                else if (req.url.indexOf("/_modules/_redeploy") === 0)
-                {
-                    var moduleId = req.query["id"];
-                    var host = req.virtualHost;
-                    var moduleConfig = req.body;
-
-                    console.log("Heard MODULE REDEPLOY host: " + host + ", id: " + moduleId + ", config: " + JSON.stringify(moduleConfig));
-
-                    process.broadcast.publish("module_redeploy", {
-                        "host": host,
-                        "moduleId": moduleId,
-                        "moduleConfig": moduleConfig
-                    }, function(err) {
-
-                        if (err) {
-                            res.send({
-                                "ok": false,
-                                "message": err.message,
-                                "err": err
-                            });
-                            return res.end();
-                        }
-
-                        // respond with ok
-                        res.send({
-                            "ok": true
-                        });
-
-                        res.end();
-
-                    });
-
-                    handled = true;
-                }
+                /*
                 else if (req.url.indexOf("/_modules/_refresh") === 0)
                 {
                     var moduleId = req.query["id"];
@@ -437,7 +407,7 @@ exports = module.exports = function()
 
                     handled = true;
                 }
-
+                */
             }
             else if (req.method.toLowerCase() === "get")
             {

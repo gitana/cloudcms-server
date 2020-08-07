@@ -1,3 +1,5 @@
+var util = require("../util/util");
+
 module.exports = function()
 {
     var provider = null;
@@ -62,6 +64,14 @@ module.exports = function()
     {
         if (!provider) {
             return;
+        }
+
+        if (!message) {
+            message = {};
+        }
+
+        if (!message.id) {
+            message.id = util.guid();
         }
 
         provider.publish(topic, message, function(err) {

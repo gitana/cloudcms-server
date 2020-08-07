@@ -1,5 +1,5 @@
 var path = require('path');
-var http = require('http');
+//var http = require('http');
 
 var AWS = require('aws-sdk');
 
@@ -28,6 +28,33 @@ exports = module.exports = function(engineConfig)
         return key;
     };
 
+    var prefixedKey = function(prefix, key)
+    {
+        var prefixedKey = key;
+
+        if (prefix)
+        {
+            prefixedKey = path.join(prefix, key);
+        }
+
+        return prefixedKey;
+    };
+
+    var unprefixedKey = function(prefix, prefixedKey)
+    {
+        var unprefixedKey = prefixedKey;
+
+        if (prefix)
+        {
+            if (unprefixedKey.indexOf(prefix) === 0)
+            {
+                unprefixedKey = unprefixedKey.substring(prefix.length);
+            }
+        }
+
+        return unprefixedKey;
+    };
+
     var r = {};
 
     var init = r.init = function(callback)
@@ -46,6 +73,13 @@ exports = module.exports = function(engineConfig)
             engineConfig.bucket = process.env.CLOUDCMS_STORE_S3_BUCKET;
         }
 
+        // bail unless we have S3 config details
+        if (!engineConfig.accessKey || !engineConfig.secretKey)
+        {
+            return callback();
+        }
+
+        // build S3 client
         s3 = new AWS.S3({
             "accessKeyId": engineConfig.accessKey,
             "secretAccessKey": engineConfig.secretKey
@@ -69,19 +103,16 @@ exports = module.exports = function(engineConfig)
 
         var params = {
             Bucket: engineConfig.bucket,
-            Key: key
+            Key: prefixedKey(engineConfig.prefix, key)
         };
         s3.headObject(params, function(err, data) {
 
             if (err) {
-                callback(false);
-                return;
+                return callback(false);
             }
 
             callback(true);
         });
-
-        return false;
     };
 
     var existsDirectory = r.existsDirectory = function(directoryPath, callback)
@@ -92,52 +123,57 @@ exports = module.exports = function(engineConfig)
         // if > 0, then directory is said to exist
         var params = {
             Bucket: engineConfig.bucket,
-            Prefix: key
+            Prefix: prefixedKey(engineConfig.prefix, key)
         };
         s3.listObjects(params, function (err, data) {
 
-            if (err) {
-                callback(err);
-                return;
+            if (err)
+            {
+                return callback(err);
             }
 
-            if (data.Contents.length > 0) {
-                callback(true);
-            }
-            else {
-                callback(false);
-            }
+            var exists = (data && data.Contents && data.Contents.length > 0);
+
+            return callback(exists);
         });
     };
 
-    var removeFile = r.removeFile = function(filePath, callback)
+    var removeFile = r.removeFile = function(filePath, options, callback)
     {
+        if (typeof(options) === "function") {
+            callback = options;
+            options = null;
+        }
+
         var key = _toKey(filePath);
 
         var params = {
             "Bucket": engineConfig.bucket,
-            "Key": key
+            "Key": prefixedKey(engineConfig.prefix, key)
         };
-
         s3.deleteObject(params, function(err, data) {
             callback(err);
         });
     };
 
-    var removeDirectory = r.removeDirectory = function(directoryPath, callback)
+    var removeDirectory = r.removeDirectory = function(directoryPath, options, callback)
     {
+        if (typeof(options) === "function") {
+            callback = options;
+            options = null;
+        }
+
         var key = _toKey(directoryPath);
 
         // list all objects in this directory and remove it
         var params = {
             Bucket: engineConfig.bucket,
-            Prefix: key
+            Prefix: prefixedKey(engineConfig.prefix, key)
         };
         s3.listObjects(params, function(err, data) {
 
             if (err) {
-                callback(err);
-                return;
+                return callback(err);
             }
 
             var objects = [];
@@ -146,6 +182,11 @@ exports = module.exports = function(engineConfig)
                 objects.push({
                     "Key": data.Contents[i].Key
                 });
+            }
+
+            if (objects.length === 0)
+            {
+                return callback();
             }
 
             // delete all of these objects
@@ -167,19 +208,17 @@ exports = module.exports = function(engineConfig)
 
         var params = {
             Bucket: engineConfig.bucket,
-            Prefix: key
+            Prefix: prefixedKey(engineConfig.prefix, key)
         };
         s3.listObjects(params, function(err, data) {
 
             if (err) {
-                callback(err);
-                return;
+                return callback(err);
             }
 
             var filenames = [];
 
-            for (var i = 0; i < data.Contents.length; i++)
-            {
+            for (var i = 0; i < data.Contents.length; i++) {
                 filenames.push(data.Contents[i].Key);
             }
 
@@ -193,12 +232,11 @@ exports = module.exports = function(engineConfig)
 
             if (err)
             {
-                try
-                {
+                try {
                     util.status(res, 503).send(err).end();
-                }
-                catch(e) {}
-                return;
+                } catch (e) { }
+
+                return callback(err);
             }
 
             util.applyResponseContentType(res, cacheInfo, filePath);
@@ -216,20 +254,20 @@ exports = module.exports = function(engineConfig)
 
             if (err)
             {
-                try
-                {
+                try {
                     util.status(res, 503).send(err).end();
-                }
-                catch (e) { }
-                return;
+                } catch (e) { }
+
+                return callback(err);
             }
 
             util.applyResponseContentType(res, cacheInfo, filePath);
 
             var filename = path.basename(filePath);
 
-            var contentDisposition = 'attachment';
-            if (filename) {
+            var contentDisposition = "attachment";
+            if (filename)
+            {
                 // if filename contains non-ascii characters, add a utf-8 version ala RFC 5987
                 contentDisposition = /[^\040-\176]/.test(filename)
                     ? 'attachment; filename="' + encodeURI(filename) + '"; filename*=UTF-8\'\'' + encodeURI(filename)
@@ -252,8 +290,7 @@ exports = module.exports = function(engineConfig)
 
         var params = {
             "Bucket": engineConfig.bucket,
-            "Key": key,
-            "ACL": "authenticated-read",
+            "Key": prefixedKey(engineConfig.prefix, key),
             "Body": data
         };
         s3.putObject(params, function(err, data) {
@@ -267,29 +304,28 @@ exports = module.exports = function(engineConfig)
 
         var params = {
             Bucket: engineConfig.bucket,
-            Key: key
+            Key: prefixedKey(engineConfig.prefix, key)
         };
         s3.getObject(params, function(err, data) {
 
             if (err)
             {
-                callback(err);
-                return;
+                return callback(err);
             }
 
             var body = data.Body;
             if (!body)
             {
-                callback({
+                return callback({
                     "message": "Null or missing body"
                 });
             }
-            else if ((typeof(body.length) != "undefined") && body.length === 0)
+
+            if ((typeof(body.length) !== "undefined") && body.length === 0)
             {
-                callback({
+                return callback({
                     "message": "File was size 0"
                 });
-                return;
             }
 
             callback(null, body);
@@ -309,18 +345,17 @@ exports = module.exports = function(engineConfig)
         // copy object
         var params = {
             Bucket: engineConfig.bucket,
-            CopySource: engineConfig.bucket + "/" + originalKey,
-            Key: newKey,
-            ACL: "authenticated-read"
+            CopySource: engineConfig.bucket + "/" + prefixedKey(engineConfig.prefix, originalKey),
+            Key: prefixedKey(engineConfig,prefix, newKey)
         };
         s3.copyObject(params, function(err, data) {
-            callback(err);
 
             // delete original object
             var params = {
                 "Bucket": engineConfig.bucket,
-                "Key": originalFilePath
+                "Key": prefixedKey(engineConfig.prefix, originalKey)
             };
+
             s3.deleteObject(params, function(err, data) {
                 callback(err);
             });
@@ -333,7 +368,7 @@ exports = module.exports = function(engineConfig)
 
         canoe.createPrefixedReadStream({
             Bucket: engineConfig.bucket,
-            Prefix: key
+            Prefix: prefixedKey(engineConfig.prefix, key)
         }, function (err, readable) {
             callback(err, readable);
         });
@@ -345,7 +380,7 @@ exports = module.exports = function(engineConfig)
 
         canoe.createWriteStream({
             Bucket: engineConfig.bucket,
-            Key: key
+            Key: prefixedKey(engineConfig.prefix, key)
         }, function(err, writableStream) {
             callback(err, writableStream);
         });
@@ -357,12 +392,13 @@ exports = module.exports = function(engineConfig)
 
         var params = {
             Bucket: engineConfig.bucket,
-            Key: key
+            Key: prefixedKey(engineConfig.prefix, key)
         };
         s3.headObject(params, function(err, data) {
-            if (err) {
-                callback(false);
-                return;
+
+            if (err)
+            {
+                return callback(false);
             }
 
             var stats = {};
@@ -381,14 +417,13 @@ exports = module.exports = function(engineConfig)
 
         var params = {
             Bucket: engineConfig.bucket,
-            Prefix: key
+            Prefix: prefixedKey(engineConfig.prefix, key)
         };
 
         s3.listObjects(params, function(err, data) {
 
             if (err) {
-                callback(err);
-                return;
+                return callback(err);
             }
 
             var regex = new RegExp(regexPattern);
@@ -400,7 +435,7 @@ exports = module.exports = function(engineConfig)
 
                 if (regex.test(filename))
                 {
-                    filenames.push(filename);
+                    filenames.push(unprefixedKey(engineConfig.prefix, filename));
                 }
             }
 

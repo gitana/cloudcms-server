@@ -248,9 +248,12 @@ exports = module.exports = function()
                         if (!sourceBranch) {
                             sourceBranch = "master";
                         }
-                        if ("github" === sourceType || "bitbucket" == sourceType)
+                        if ("github" === sourceType || "bitbucket" === sourceType)
                         {
-                            util.gitCheckout(host, sourceType, sourceUrl, sourcePath, sourceBranch, null, true, logFn, function (err) {
+                            var targetStore = rootStore;
+                            var targetOffsetPath = null;
+
+                            util.gitCheckout(host, sourceType, sourceUrl, sourcePath, sourceBranch, targetStore, targetOffsetPath, true, logFn, function (err) {
                                 completionHandler(err);
                             });
                         }

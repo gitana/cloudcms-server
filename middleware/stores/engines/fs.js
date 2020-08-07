@@ -29,7 +29,8 @@ exports = module.exports = function(engineConfig)
         });
     };
 
-    var existsFile = r.existsFile = function(filePath, callback) {
+    var existsFile = r.existsFile = function(filePath, callback)
+    {
         fs.exists(filePath, function(exists) {
             callback(exists);
         });
@@ -40,12 +41,17 @@ exports = module.exports = function(engineConfig)
         return existsFile(directoryPath, callback);
     };
 
-    var removeFile = r.removeFile = function(filePath, callback)
+    var removeFile = r.removeFile = function(filePath, options, callback)
     {
+        if (typeof(options) === "function") {
+            callback = options;
+            options = null;
+        }
+
         if (!filePath || filePath === "/")
         {
             console.log("ILLEGAL PATH");
-            return;
+            return callback();
         }
 
         fs.unlink(filePath, function(err) {
@@ -53,12 +59,17 @@ exports = module.exports = function(engineConfig)
         });
     };
 
-    var removeDirectory = r.removeDirectory = function(directoryPath, callback)
+    var removeDirectory = r.removeDirectory = function(directoryPath, options, callback)
     {
+        if (typeof(options) === "function") {
+            callback = options;
+            options = null;
+        }
+
         if (!directoryPath || directoryPath === "/")
         {
             console.log("ILLEGAL PATH");
-            return;
+            return callback();
         }
 
         // synchronous remove
@@ -72,8 +83,7 @@ exports = module.exports = function(engineConfig)
         existsFile(directoryPath, function(exists) {
 
             if (!exists) {
-                callback(null, []);
-                return;
+                return callback(null, []);
             }
 
             fs.readdir(directoryPath, function(err, filenames) {
@@ -172,18 +182,16 @@ exports = module.exports = function(engineConfig)
 
             if (!stats)
             {
-                callback({
+                return callback({
                     "message": "File does not have stats"
                 });
-                return;
             }
 
             if (stats.size === 0)
             {
-                callback({
+                return callback({
                     "message": "File was size 0"
                 });
-                return;
             }
 
             fs.readFile(filePath, function(err, data) {
@@ -229,8 +237,7 @@ exports = module.exports = function(engineConfig)
             util.createDirectory(basedir, function(err) {
 
                 if (err) {
-                    callback(err);
-                    return;
+                    return callback(err);
                 }
 
                 finish();
@@ -247,24 +254,21 @@ exports = module.exports = function(engineConfig)
         fs.exists(filePath, function(exists) {
 
             if (!exists) {
-                callback({
+                return callback({
                     "message": "File does not exist for path: " + filePath
                 });
-                return;
             }
 
             fs.stat(filePath, function(err, fileStats) {
 
                 if (err) {
-                    callback(err);
-                    return;
+                    return callback(err);
                 }
 
                 if (!fileStats) {
-                    callback({
+                    return callback({
                         "message": "Unable to produce file stats for path: " + filePath
                     });
-                    return;
                 }
 
                 var stats = {};
@@ -292,8 +296,7 @@ exports = module.exports = function(engineConfig)
 
                 // if not a directory, we are done
                 if (err) {
-                    finish(null);
-                    return;
+                    return finish(null);
                 }
 
                 // sub-functions

@@ -276,8 +276,7 @@ exports = module.exports = function()
 
                                         stores.modules.fileStats(moduleJsonFilePath, function(err, stats) {
 
-                                            if (err)
-                                            {
+                                            if (err) {
                                                 return done();
                                             }
 
@@ -289,7 +288,7 @@ exports = module.exports = function()
                                             }
 
                                             var moduleDescriptor = {
-                                                "path": path.join("modules", moduleDirectoryPath),
+                                                "path": moduleDirectoryPath,
                                                 "store": "modules",
                                                 "id": moduleJson.name,
                                                 "mtimeMs": stats.mtimeMs
@@ -382,6 +381,8 @@ exports = module.exports = function()
                         var moduleStoreType = moduleDescriptors[i].store;
                         var modulePath = moduleDescriptors[i].path;
 
+                        //console.log("Config Store - Module Path: " + modulePath + ", type: " + moduleStoreType);
+
                         var configStore = buildStore(moduleStoreType, host, path.join(modulePath, "config"));
                         configStores.push(configStore);
                     }
@@ -420,7 +421,7 @@ exports = module.exports = function()
                         var moduleStore = moduleDescriptors[i].store;
                         var modulePath = moduleDescriptors[i].path;
 
-                        var templateStore = buildStore(moduleStore, host, path.join(modulePath, "/templates"));
+                        var templateStore = buildStore(moduleStore, host, path.join(modulePath, "templates"));
                         templateStores.push(templateStore);
                     }
 
@@ -536,7 +537,8 @@ exports = module.exports = function()
 
                 // sort the module descriptors by id
                 // this ensures they're always in an ascending order (a,b,c,d)
-                if (moduleDescriptors) {
+                if (moduleDescriptors)
+                {
                     moduleDescriptors.sort(function(a, b) {
                         if (a.id > b.id) {
                             return -1;

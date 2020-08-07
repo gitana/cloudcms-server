@@ -134,13 +134,13 @@ exports = module.exports = function(originalStores)
         });
     };
 
-    r.removeFile = r.deleteFile = function(filePath, callback)
+    r.removeFile = r.deleteFile = function(filePath, options, callback)
     {
         // TODO: not implemented
         callback();
     };
 
-    r.removeDirectory = r.deleteDirectory = function(directoryPath, callback)
+    r.removeDirectory = r.deleteDirectory = function(directoryPath, options, callback)
     {
         // TODO: not implemented
         callback();

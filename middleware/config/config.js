@@ -865,7 +865,7 @@ exports = module.exports = function()
         if (process.broadcast)
         {
             // listen for node invalidation events
-            process.broadcast.subscribe("module-invalidation-topic", function (message, channel, invalidationDone) {
+            process.broadcast.subscribe("module_invalidation", function (message, channel, invalidationDone) {
 
                 if (!invalidationDone) {
                     invalidationDone = function() { };
@@ -875,7 +875,7 @@ exports = module.exports = function()
 
                 console.log("Invalidating config service for module invalidation, host: " + host);
 
-                handleModuleInvalidation(host, function(err) {
+                invalidateHost(host, function(err) {
 
                     if (!err) {
                         console.log("ConfigService invalidated host: " + host);
@@ -910,7 +910,7 @@ exports = module.exports = function()
         }
     };
 
-    var handleModuleInvalidation = function(host, callback)
+    var invalidateHost = r.invalidateHost = function(host, callback)
     {
         var stores = require("../stores/stores");
         stores.produce(host, function (err, stores) {

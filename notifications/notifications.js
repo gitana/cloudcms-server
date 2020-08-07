@@ -316,16 +316,6 @@ var handleNotificationMessages = function(items, callback) {
 
                                         z_done();
                                     }
-                                    else if (type === "module_redeploy")
-                                    {
-                                        process.broadcast.publish("module_redeploy", {
-                                            "host": obj.host,
-                                            "moduleId": obj.moduleId,
-                                            "moduleConfig": obj.moduleConfig
-                                        });
-
-                                        z_done();
-                                    }
                                     else
                                     {
                                         z_done();

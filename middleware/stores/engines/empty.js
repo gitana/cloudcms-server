@@ -35,13 +35,23 @@ exports = module.exports = function(engineId, engineType, engineConfig)
         callback(false);
     };
 
-    var removeFile = r.removeFile = function(filePath, callback)
+    var removeFile = r.removeFile = function(filePath, options, callback)
     {
+        if (typeof(options) === "function") {
+            callback = options;
+            options = null;
+        }
+
         callback();
     };
 
-    var removeDirectory = r.removeDirectory = function(directoryPath, callback)
+    var removeDirectory = r.removeDirectory = function(directoryPath, options, callback)
     {
+        if (typeof(options) === "function") {
+            callback = options;
+            options = null;
+        }
+
         callback();
     };
 

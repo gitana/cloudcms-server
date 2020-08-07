@@ -90,16 +90,22 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
         });
     };
 
-    r.cleanup = function(subpath, callback)
+    r.cleanup = function(subpath, options, callback)
     {
         if (typeof(subpath) === "function")
         {
             callback = subpath;
             subpath = "/";
-
         }
+
+        if (typeof(options) === "function")
+        {
+            callback = options;
+            options = null;
+        }
+
         debugStart("Start store.cleanup");
-        engine.removeDirectory(_enginePath(subpath), function(err) {
+        engine.removeDirectory(_enginePath(subpath), options, function(err) {
             debugFinish("Finish store.cleanup");
             callback(err);
         });
@@ -139,19 +145,19 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
         });
     };
 
-    r.removeFile = r.deleteFile = function(filePath, callback)
+    r.removeFile = r.deleteFile = function(filePath, options, callback)
     {
         debugStart("Start store.deleteFile");
-        engine.removeFile(_enginePath(filePath), function(err) {
+        engine.removeFile(_enginePath(filePath), options, function(err) {
             debugFinish("Finish store.deleteFile");
             callback(err);
         });
     };
 
-    r.removeDirectory = r.deleteDirectory = function(directoryPath, callback)
+    r.removeDirectory = r.deleteDirectory = function(directoryPath, options, callback)
     {
         debugStart("Start store.deleteDirectory");
-        engine.removeDirectory(_enginePath(directoryPath), function(err) {
+        engine.removeDirectory(_enginePath(directoryPath), options, function(err) {
             debugFinish("Finish store.deleteDirectory");
             callback(err);
         });
@@ -200,6 +206,7 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
 
     r.writeFile = function(filePath, data, callback)
     {
+        console.log("y1");
         debugStart("Start store.writeFile");
         engine.writeFile(_enginePath(filePath), data, function(err) {
             debugFinish("Finish store.writeFile");
@@ -283,6 +290,20 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
     {
         debugStart("Start store.matchFiles");
         engine.matchFiles(_enginePath(directoryPath), regexPattern, function(err, matches) {
+
+            // strip out engine path
+            if (matches && matches.length > 0)
+            {
+                var ep = _enginePath(directoryPath);
+                for (var i = 0; i < matches.length; i++)
+                {
+                    if (matches[i].indexOf(ep) === 0)
+                    {
+                        matches[i] = matches[i].substring(ep.length);
+                    }
+                }
+            }
+
             debugFinish("Finish store.matchFiles");
             callback(err, matches);
         });
