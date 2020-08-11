@@ -206,7 +206,6 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
 
     r.writeFile = function(filePath, data, callback)
     {
-        console.log("y1");
         debugStart("Start store.writeFile");
         engine.writeFile(_enginePath(filePath), data, function(err) {
             debugFinish("Finish store.writeFile");

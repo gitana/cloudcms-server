@@ -280,6 +280,11 @@ exports = module.exports = function()
                                                 return done();
                                             }
 
+                                            if (!stats) {
+                                                console.log("Cannot find stats for module file: " + moduleJsonFilePath);
+                                                return done();
+                                            }
+
                                             var moduleDirectoryPath = path.dirname(moduleJsonFilePath);
                                             var moduleVersion = null;
                                             if (moduleJson.version)
