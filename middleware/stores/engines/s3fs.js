@@ -16,8 +16,15 @@ exports = module.exports = function(engineConfig)
 
     var init = r.init = function(callback)
     {
+        var cacheTTL = -1;
+
+        if (typeof(process.env.CLOUDCMS_S3FS_CACHE_TTL) !== "undefined")
+        {
+            cacheTTL = parseInt(process.env.CLOUDCMS_S3FS_CACHE_TTL, 10);
+        }
+
         var s3Store = require("./s3")(engineConfig);
-        cachingAdapter = require("./fs-caching-adapter")(s3Store);
+        cachingAdapter = require("./fs-caching-adapter")(s3Store, cacheTTL);
 
         s3Store.init(function() {
             cachingAdapter.init(function() {

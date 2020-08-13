@@ -10,18 +10,21 @@ var util = require("../../../util/util");
  * via a web server.  In a typical configuration, this is hooked up to Amazon S3 to provide cluster-wide caching of
  * resources.
  *
- * A 5 minute TTL is provided for any cached assets.
+ * A 24 hour TTL is provided for any cached assets.
  *
  * This also optionally hooks into the process.broadcast service to notify other nodes in the cluster of cache
  * invalidation.
  *
  * @return {Function}
  */
-exports = module.exports = function(remoteStore)
+exports = module.exports = function(remoteStore, cacheTTL)
 {
     var INVALIDATION_TOPIC = "fs-caching-adapter-path-invalidation";
 
-    var TIMEOUT_MS = 5 * 60 * 1000;
+    // default cacheTTL to -1
+    if (!cacheTTL) {
+        cacheTTL = -1;
+    }
 
     var tempDirectory = null;
 
@@ -152,17 +155,15 @@ exports = module.exports = function(remoteStore)
             state.exists = false;
 
             if (err) {
-                callback(state);
-                return;
+                return callback(state);
             }
 
             if (!data || data.length === 0) {
 
                 // cache file is invalid somehow
-                __removeCachedObject(filePath, function() {
+                return __removeCachedObject(filePath, function() {
                     callback(state);
                 });
-                return;
             }
 
             var cacheFileJson = JSON.parse("" + data);
@@ -177,7 +178,7 @@ exports = module.exports = function(remoteStore)
                 // check timestamp (30 mins)
                 var now = new Date().getTime();
                 var timestamp = cacheFileJson.timestamp;
-                if (now - timestamp > TIMEOUT_MS) {
+                if (cacheTTL > -1 && (now - timestamp > cacheTTL)) {
 
                     // invalidate
                     __removeCachedObject(filePath);
@@ -202,10 +203,9 @@ exports = module.exports = function(remoteStore)
             {
                 var cacheAssetPath = toCacheAssetPath(filePath);
 
-                fs.readFile(cacheAssetPath, function(err, data) {
+                return fs.readFile(cacheAssetPath, function(err, data) {
                     callback(err, data);
                 });
-                return;
             }
 
             callback({
