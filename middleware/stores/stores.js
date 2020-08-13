@@ -388,7 +388,13 @@ exports = module.exports = function()
 
                         //console.log("Config Store - Module Path: " + modulePath + ", type: " + moduleStoreType);
 
-                        var configStore = buildStore(moduleStoreType, host, path.join(modulePath, "config"));
+                        var storePath = path.join(modulePath, "config");
+                        if (moduleStoreType === "modules")
+                        {
+                            storePath = path.join("modules", storePath);
+                        }
+
+                        var configStore = buildStore(moduleStoreType, host, storePath);
                         configStores.push(configStore);
                     }
 
