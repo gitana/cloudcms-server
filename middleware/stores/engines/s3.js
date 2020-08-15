@@ -202,7 +202,21 @@ exports = module.exports = function(engineConfig)
         });
     };
 
-    var listFiles = r.listFiles = function(directoryPath, callback)
+    var listFiles = r.listFiles = function(directoryPath, options, callback)
+    {
+        if (!options) {
+            options = {};
+        }
+
+        if (options.recursive)
+        {
+            return doListFilesRecursively(directoryPath, options, callback);
+        }
+
+        return doListFiles(directoryPath, options, callback);
+    };
+
+    var doListFiles = function(directoryPath, options, callback)
     {
         var key = _toKey(directoryPath);
 
@@ -210,7 +224,8 @@ exports = module.exports = function(engineConfig)
             Bucket: engineConfig.bucket,
             Prefix: prefixedKey(engineConfig.prefix, key)
         };
-        s3.listObjects(params, function(err, data) {
+
+        s3.listObjectsV2(params, function(err, data) {
 
             if (err) {
                 return callback(err);
@@ -218,8 +233,55 @@ exports = module.exports = function(engineConfig)
 
             var filenames = [];
 
-            for (var i = 0; i < data.Contents.length; i++) {
-                filenames.push(data.Contents[i].Key);
+            for (var i = 0; i < data.Contents.length; i++)
+            {
+                var contentKey = data.Contents[i].Key;
+                var cdr = contentKey.substring(key.length);
+
+                if (cdr.indexOf("/") === 0)
+                {
+                    cdr = cdr.substring(1);
+                }
+
+                if (cdr.indexOf("/") === -1)
+                {
+                    // it's a direct child
+                    filenames.push(contentKey);
+                }
+            }
+
+            callback(err, filenames);
+        });
+    };
+
+    var doListFilesRecursively = function(directoryPath, options, callback)
+    {
+        var key = _toKey(directoryPath);
+
+        var params = {
+            Bucket: engineConfig.bucket,
+            Prefix: prefixedKey(engineConfig.prefix, key)
+        };
+
+        s3.listObjectsV2(params, function(err, data) {
+
+            if (err) {
+                return callback(err);
+            }
+
+            var filenames = [];
+
+            for (var i = 0; i < data.Contents.length; i++)
+            {
+                var contentKey = data.Contents[i].Key;
+                var cdr = contentKey.substring(key.length);
+
+                if (cdr.indexOf("/") === 0)
+                {
+                    cdr = cdr.substring(1);
+                }
+
+                filenames.push(contentKey);
             }
 
             callback(err, filenames);

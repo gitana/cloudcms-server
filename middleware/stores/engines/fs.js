@@ -17,6 +17,18 @@ exports = module.exports = function(engineConfig)
 {
     var r = {};
 
+    var toStoragePath = function(filepath)
+    {
+        var storagePath = filepath;
+
+        if (engineConfig.storageDir)
+        {
+            storagePath = path.join(engineConfig.storageDir, filepath);
+        }
+
+        return storagePath;
+    };
+
     var init = r.init = function(callback)
     {
         callback();
@@ -31,7 +43,7 @@ exports = module.exports = function(engineConfig)
 
     var existsFile = r.existsFile = function(filePath, callback)
     {
-        fs.exists(filePath, function(exists) {
+        fs.exists(toStoragePath(filePath), function(exists) {
             callback(exists);
         });
     };
@@ -54,7 +66,7 @@ exports = module.exports = function(engineConfig)
             return callback();
         }
 
-        fs.unlink(filePath, function(err) {
+        fs.unlink(toStoragePath(filePath), function(err) {
             callback(err);
         });
     };
@@ -73,20 +85,24 @@ exports = module.exports = function(engineConfig)
         }
 
         // synchronous remove
-        util.rmdir(directoryPath);
+        util.rmdir(toStoragePath(directoryPath));
 
         callback();
     };
 
-    var listFiles = r.listFiles = function(directoryPath, callback)
+    var listFiles = r.listFiles = function(directoryPath, options, callback)
     {
+        if (!options) {
+            options = {};
+        }
+
         existsFile(directoryPath, function(exists) {
 
             if (!exists) {
                 return callback(null, []);
             }
 
-            fs.readdir(directoryPath, function(err, filenames) {
+            fs.readdir(toStoragePath(directoryPath), function(err, filenames) {
                 callback(err, filenames);
             });
         });
@@ -120,7 +136,7 @@ exports = module.exports = function(engineConfig)
 
                     var options = {};
 
-                    res.sendFile(filePath, options, function (err) {
+                    res.sendFile(toStoragePath(filePath), options, function (err) {
 
                         if (err) {
                             err.sendFailed = true;
@@ -135,7 +151,7 @@ exports = module.exports = function(engineConfig)
 
     r.downloadFile = function(res, filePath, filename, cacheInfo, callback)
     {
-        res.download(filePath, filename, function(err) {
+        res.download(toStoragePath(filePath), filename, function(err) {
             callback(err);
         });
     };
@@ -144,7 +160,7 @@ exports = module.exports = function(engineConfig)
     {
         var finish = function()
         {
-            fs.writeFile(filePath, data, function(err) {
+            fs.writeFile(toStoragePath(filePath), data, function(err) {
                 callback(err);
             });
         };
@@ -152,11 +168,10 @@ exports = module.exports = function(engineConfig)
         var basedir = path.dirname(filePath);
         if (basedir)
         {
-            util.createDirectory(basedir, function(err) {
+            util.createDirectory(toStoragePath(basedir), function(err) {
 
                 if (err) {
-                    callback(err);
-                    return;
+                    return callback(err);
                 }
 
                 finish();
@@ -194,7 +209,7 @@ exports = module.exports = function(engineConfig)
                 });
             }
 
-            fs.readFile(filePath, function(err, data) {
+            fs.readFile(toStoragePath(filePath), function(err, data) {
                 callback(err, data);
             });
 
@@ -203,21 +218,21 @@ exports = module.exports = function(engineConfig)
 
     r.watchDirectory = function(directoryPath, onChange)
     {
-        watch.watchTree(directoryPath, function(f, curr, prev) {
+        watch.watchTree(toStoragePath(directoryPath), function(f, curr, prev) {
             onChange(f, curr, prev);
         });
     };
 
     r.moveFile = function(originalFilePath, newFilePath, callback)
     {
-        fs.rename(originalFilePath, newFilePath, function(err) {
+        fs.rename(toStoragePath(originalFilePath), newFilePath, function(err) {
             callback(err);
         });
     };
 
     r.readStream = function(filePath, callback)
     {
-        var s = fs.ReadStream(filePath);
+        var s = fs.ReadStream(toStoragePath(filePath));
 
         callback(null, s);
     };
@@ -226,32 +241,36 @@ exports = module.exports = function(engineConfig)
     {
         var finish = function()
         {
-            var s = fs.createWriteStream(filePath);
+            var s = fs.createWriteStream(toStoragePath(filePath));
 
             callback(null, s);
         };
 
         var basedir = path.dirname(filePath);
-        if (basedir)
+        if (!basedir)
         {
-            util.createDirectory(basedir, function(err) {
-
-                if (err) {
-                    return callback(err);
-                }
-
-                finish();
-            });
+            return finish();
         }
-        else
+
+        var exists = fs.existsSync(toStoragePath(basedir));
+        if (exists)
         {
+            return finish();
+        }
+
+        util.createDirectory(toStoragePath(basedir), function(err) {
+
+            if (err) {
+                return callback(err);
+            }
+
             finish();
-        }
+        });
     };
 
     var fileStats = r.fileStats = function(filePath, callback)
     {
-        fs.exists(filePath, function(exists) {
+        fs.exists(toStoragePath(filePath), function(exists) {
 
             if (!exists) {
                 return callback({
@@ -259,7 +278,7 @@ exports = module.exports = function(engineConfig)
                 });
             }
 
-            fs.stat(filePath, function(err, fileStats) {
+            fs.stat(toStoragePath(filePath), function(err, fileStats) {
 
                 if (err) {
                     return callback(err);
@@ -292,7 +311,7 @@ exports = module.exports = function(engineConfig)
                 matches.push(candidatePath);
             }
 
-            fs.readdir(path.join(directoryPath, candidatePath), function(err, filenames) {
+            fs.readdir(toStoragePath(path.join(directoryPath, candidatePath)), function(err, filenames) {
 
                 // if not a directory, we are done
                 if (err) {

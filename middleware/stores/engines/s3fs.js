@@ -24,7 +24,9 @@ exports = module.exports = function(engineConfig)
         }
 
         var s3Store = require("./s3")(engineConfig);
-        cachingAdapter = require("./fs-caching-adapter")(s3Store, cacheTTL);
+        var settings = {};
+        //settings.cacheDir = ""; // TODO: future option to specific where on disk this caches
+        cachingAdapter = require("./fs-caching-adapter")(s3Store, settings);
 
         s3Store.init(function() {
             cachingAdapter.init(function() {
@@ -58,9 +60,13 @@ exports = module.exports = function(engineConfig)
         cachingAdapter.removeDirectory(directoryPath, options, callback);
     };
 
-    var listFiles = r.listFiles = function(directoryPath, callback)
+    var listFiles = r.listFiles = function(directoryPath, options, callback)
     {
-        cachingAdapter.listFiles(directoryPath, callback);
+        if (!options) {
+            options = {};
+        }
+
+        cachingAdapter.listFiles(directoryPath, options, callback);
     };
 
     var sendFile = r.sendFile = function(res, filePath, cacheInfo, callback)

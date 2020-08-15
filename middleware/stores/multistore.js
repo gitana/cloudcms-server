@@ -146,8 +146,16 @@ exports = module.exports = function(originalStores)
         callback();
     };
 
-    r.listFiles = function(directoryPath, callback)
+    r.listFiles = function(directoryPath, options, callback)
     {
+        if (typeof(options) === "function") {
+            callback = options;
+            options = {};
+        }
+        if (!options) {
+            options = {};
+        }
+
         var fns = [];
 
         for (var i = 0; i < stores.length; i++)
@@ -168,8 +176,7 @@ exports = module.exports = function(originalStores)
 
             if (err)
             {
-                callback(err);
-                return;
+                return callback(err);
             }
 
             var filenames = [];
@@ -221,13 +228,11 @@ exports = module.exports = function(originalStores)
         findFileStores(filePath, function(err, stores) {
 
             if (err) {
-                callback(err);
-                return;
+                return callback(err);
             }
 
-            if (stores.length == 0) {
-                callback();
-                return;
+            if (stores.length === 0) {
+                return callback(err);
             }
 
             stores[0].sendFile(res, filePath, cacheInfo, function(err) {
@@ -241,13 +246,11 @@ exports = module.exports = function(originalStores)
         findFileStores(filePath, function(err, stores) {
 
             if (err) {
-                callback(err);
-                return;
+                return callback(err);
             }
 
-            if (stores.length == 0) {
-                callback();
-                return;
+            if (stores.length === 0) {
+                return callback(err);
             }
 
             stores[0].downloadFile(res, filePath, filename, cacheInfo, function(err) {
@@ -267,13 +270,11 @@ exports = module.exports = function(originalStores)
         findFileStores(path, function(err, stores) {
 
             if (err) {
-                callback(err);
-                return;
+                return callback(err);
             }
 
-            if (stores.length == 0) {
-                callback();
-                return;
+            if (stores.length === 0) {
+                return callback(err);
             }
 
             stores[0].readFile(path, function(err, data) {
@@ -290,7 +291,7 @@ exports = module.exports = function(originalStores)
                 return;
             }
 
-            if (stores.length == 0) {
+            if (stores.length === 0) {
                 return;
             }
 
@@ -322,11 +323,10 @@ exports = module.exports = function(originalStores)
         findFileStores(filePath, function(err, stores) {
 
             if (err) {
-                callback(err);
-                return;
+                return callback(err);
             }
 
-            if (stores.length == 0) {
+            if (stores.length === 0) {
                 return;
             }
 
@@ -347,8 +347,7 @@ exports = module.exports = function(originalStores)
         findFileStores(filePath, function(err, stores) {
 
             if (err) {
-                callback(err);
-                return;
+                return callback(err);
             }
 
             if (stores.length === 0) {
@@ -381,8 +380,7 @@ exports = module.exports = function(originalStores)
         async.series(fns, function(err, matchesArray) {
 
             if (err) {
-                callback(err);
-                return;
+                return callback(err);
             }
 
             var matches = [];

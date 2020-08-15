@@ -1,54 +1,56 @@
 var path = require('path');
-var http = require('http');
+var async = require('async');
 
 var fs = require("fs");
 
 var util = require("../../../util/util");
 
 /**
- * A caching wrapper around a store that provides local disk caching of assets to boost performance for serving assets
- * via a web server.  In a typical configuration, this is hooked up to Amazon S3 to provide cluster-wide caching of
- * resources.
+ * A caching wrapper around a remote store that locally caches assets to provide faster servicing of assets for
+ * use in a web server.  In a typical configuration, the remote store might be something like Amazon S3.
  *
- * A 24 hour TTL is provided for any cached assets.
+ * Upon startup, the caching adapter pulls down a local disk-cached copy of all assets.  The local disk cache
+ * is then used to service all subsequent calls.
  *
- * This also optionally hooks into the process.broadcast service to notify other nodes in the cluster of cache
- * invalidation.
+ * When mutating changes are made (such as a writeFile or removeFile call), the contents are deleted from the
+ * disk cache as well as the remote store.  A notification message is then raised to signal any other cluster
+ * members to invalidate their cache as well (with the options.cacheOnly) flag set high so that the remote asset
+ * is not mutated a second time.
+ *
+ * Assets that are cached to local disk are cached without a TTL.  They do not invalidate on their own.  The only
+ * mutation that may occur is via the store itself.  Direct changes to the remote store (such as direct changes to
+ * S3 contents) are not supported.  All changes must route through this interface.
  *
  * @return {Function}
  */
-exports = module.exports = function(remoteStore, cacheTTL)
+exports = module.exports = function(remoteStore, settings)
 {
     var INVALIDATION_TOPIC = "fs-caching-adapter-path-invalidation";
 
-    // default cacheTTL to -1
-    if (!cacheTTL) {
-        cacheTTL = -1;
+    if (!settings) {
+        settings = {};
     }
 
-    var tempDirectory = null;
+    var cacheStore = null;
 
-    var notify = function(message, callback)
+    var notifyInvalidation = function(message, callback)
     {
-        if (process.broadcast)
-        {
-            //console.log("[" + cluster.worker.id + "] Notifying: " + JSON.stringify(message));
-            process.broadcast.publish(INVALIDATION_TOPIC, message);
+        if (!callback) {
+            callback = function() { };
+        }
 
-            // TODO: is it possible to wait for broadcast to complete?
-            if (callback) {
-                callback();
-            }
-        }
-        else
+        if (!process.broadcast)
         {
-            if (callback) {
-                callback();
-            }
+            return callback();
         }
+
+        //console.log("[" + cluster.worker.id + "] Notifying: " + JSON.stringify(message));
+        process.broadcast.publish(INVALIDATION_TOPIC, message, function() {
+            callback();
+        });
     };
 
-    var bindSubscriptions = function()
+    var _bindSubscriptions = function()
     {
         if (process.broadcast)
         {
@@ -58,305 +60,148 @@ exports = module.exports = function(remoteStore, cacheTTL)
                     invalidationDone = function() { };
                 }
 
-                var command = message.command;
-                if ("invalidatePath" === command)
+                var fns = [];
+
+                if (message.paths)
                 {
-                    __internal_removeCachedObject(message.path);
-                }
-
-                invalidationDone();
-            });
-        }
-    };
-
-    var toCacheFilePath = function(filePath)
-    {
-        return path.join(tempDirectory, filePath + ".fscache");
-    };
-
-    var toCacheAssetPath = function(filePath)
-    {
-        return path.join(tempDirectory, filePath);
-    };
-
-    var _sendFile = function(res, filePath, cacheInfo, callback)
-    {
-        util.applyResponseContentType(res, cacheInfo, filePath);
-
-        var options = {};
-
-        res.sendFile(filePath, options, function (err) {
-
-            if (err) {
-                err.sendFailed = true;
-            }
-
-            callback(err);
-        });
-    };
-
-    var _downloadFile = function(res, filePath, filename, cacheInfo, callback)
-    {
-        res.download(filePath, filename, function(err) {
-            callback(err);
-        });
-    };
-
-    var _writeFile = function(filePath, data, callback)
-    {
-        var fn = function(err)
-        {
-            fs.writeFile(filePath, data, function(err) {
-                callback(err);
-            });
-        };
-
-        var basedir = path.dirname(filePath);
-        if (basedir) {
-            util.createDirectory(basedir, function (err) {
-                fn();
-            });
-        }
-        else
-        {
-            fn();
-        }
-    };
-
-    /**
-     * Used to check the cache marker for each file or directory that gets written into the cache.
-     * The cache marker is a JSON file which indicates:
-     *
-     *   {
-     *      "faulted": whether the actual file is on disk or not
-     *      "cached": whether this item is known in the cache
-     *      "exists": whether this item exists
-     *   }
-     *
-     * If the cache file exists, this means that a check was made previously to see if the asset was in the remote store.
-     * If it was found in remote store, exists is true.  Otherwise, exists is false.
-     *
-     * If the cache file does not exist, this means that a check was never made.
-     *
-     * @param filePath
-     * @param callback
-     * @private
-     */
-    var __getCachedObjectState = function(filePath, callback)
-    {
-        var cacheFilePath = toCacheFilePath(filePath);
-        var cacheAssetPath = toCacheAssetPath(filePath);
-
-        fs.readFile(cacheFilePath, function(err, data) {
-
-            var state = {};
-            state.cached = false;
-            state.faulted = false;
-            state.exists = false;
-
-            if (err) {
-                return callback(state);
-            }
-
-            if (!data || data.length === 0) {
-
-                // cache file is invalid somehow
-                return __removeCachedObject(filePath, function() {
-                    callback(state);
-                });
-            }
-
-            var cacheFileJson = JSON.parse("" + data);
-
-            state.cached = true;
-            state.exists = false;
-
-            fs.exists(cacheAssetPath, function(faulted) {
-
-                state.faulted = faulted;
-
-                // check timestamp (30 mins)
-                var now = new Date().getTime();
-                var timestamp = cacheFileJson.timestamp;
-                if (cacheTTL > -1 && (now - timestamp > cacheTTL)) {
-
-                    // invalidate
-                    __removeCachedObject(filePath);
-
-                    state.faulted = false;
-                }
-                else
-                {
-                    state.exists = cacheFileJson.exists;
-                }
-
-                callback(state);
-            });
-        });
-    };
-
-    var __getCachedObjectData = function(filePath, callback)
-    {
-        __getCachedObjectState(filePath, function(state) {
-
-            if (state.faulted)
-            {
-                var cacheAssetPath = toCacheAssetPath(filePath);
-
-                return fs.readFile(cacheAssetPath, function(err, data) {
-                    callback(err, data);
-                });
-            }
-
-            callback({
-                "message": "Object is not in cache"
-            });
-        });
-    };
-    
-    var __putCachedObject = function(filePath, exists, data, callback) {
-
-        var cacheFilePath = toCacheFilePath(filePath);
-        var cacheAssetPath = toCacheAssetPath(filePath);
-
-        var finish = function()
-        {
-            if (data)
-            {
-                _writeFile(cacheAssetPath, data, function(err) {
-
-                    if (err)
+                    for (var i = 0; i < message.paths.length; i++)
                     {
-                        __removeCachedObjectAsset(filePath, function() {
-                            if (callback)
-                            {
-                                callback(err);
-                            }
-                        });
-                    }
-                    else
-                    {
-                        if (callback)
+                        var fn = function(filepath)
                         {
-                            callback(err);
-                        }
+                            return function(done)
+                            {
+                                _invalidateCache(filepath, function(err) {
+                                    done(err);
+                                });
+                            }
+                        }(message.paths[i]);
+                        fns.push(fn);
                     }
+                }
+
+                async.series(fns, function() {
+                    invalidationDone();
                 });
-            }
-            else
-            {
-                if (callback) {
-                    callback();
-                }
-            }
-        };
-
-        if (typeof(exists) !== "undefined") {
-
-            var state = {
-                "exists": exists,
-                "timestamp": new Date().getTime()
-            };
-
-            var stateAsString = JSON.stringify(state, null, "  ");
-            _writeFile(cacheFilePath, stateAsString, function (err) {
-
-                if (err)
-                {
-                    __removeCachedObject(filePath);
-                    if (callback) {
-                        callback(err);
-                    }
-                    return;
-                }
-
-                if (!exists)
-                {
-                    __removeCachedObjectAsset(filePath);
-                    if (callback) {
-                        callback(err);
-                    }
-                }
-                else {
-                    finish();
-                }
-
             });
         }
-        else
+    };
+
+    var _invalidateCache = function(filepath, callback)
+    {
+        cacheStore.removeDirectory(filepath, function() {
+            cacheStore.removeFile(filepath, function() {
+
+                // read stream
+                remoteStore.readStream(filepath, function(err, reader) {
+
+                    if (err) {
+                        return callback();
+                    }
+
+                    // write stream
+                    cacheStore.writeStream(filepath, function(err, writer) {
+
+                        if (err) {
+                            return callback(err);
+                        }
+
+                        // pipe through
+                        reader.pipe(writer).on("close", function (err) {
+                            callback(err);
+                        });
+                    });
+                });
+            });
+        });
+    };
+
+    var _populateCache = function(callback)
+    {
+        try
         {
-            finish();
-        }
-    };
+            remoteStore.listFiles("/", { "recursive": true }, function(err, filepaths) {
 
-    var __removeCachedObject = function(filePath, callback)
-    {
-        __internal_removeCachedObject(filePath, function(err) {
+                console.log("Populating cache with file paths:" + JSON.stringify(filepaths, null, 2));
 
-            // broad cast
-            notify({
-                "command": "invalidatePath",
-                "path": filePath
-            });
+                var fns = [];
 
-            if (callback)
-            {
-                callback(err);
-            }
+                for (var i = 0; i < filepaths.length; i++)
+                {
+                    var fn = function(remoteStore, cacheStore, filepath) {
+                        return function(done) {
 
-        });
-    };
+                            console.log("Populating cache: "+ filepath);
 
-    var __internal_removeCachedObject = function(filePath, callback)
-    {
-        var cacheFilePath = toCacheFilePath(filePath);
-        var cacheAssetPath = toCacheAssetPath(filePath);
+                            // read stream
+                            remoteStore.readStream(filepath, function(err, reader) {
 
-        fs.unlink(cacheFilePath, function (err) {
-            fs.unlink(cacheAssetPath, function (err) {
+                                if (err) {
+                                    console.log("err on remoteStore.readStream: " + filepath);
+                                    console.log(err);
+                                }
 
-                if (callback) {
-                    callback();
+                                // write stream
+                                cacheStore.writeStream(filepath, function(err, writer) {
+
+                                    if (err) {
+                                        console.log("err on cacheStore.writeStream: " + filepath);
+                                        console.log(err);
+                                    }
+
+                                    // pipe through
+                                    reader.pipe(writer).on("close", function (err) {
+                                        done(err);
+                                    });
+                                });
+                            });
+                        }
+                    }(remoteStore, cacheStore, filepaths[i]);
+                    fns.push(fn);
                 }
+
+                async.parallelLimit(fns, 4, function(err) {
+                    callback(err);
+                });
             });
-        });
-    };
-
-    var __removeCachedObjectAsset = function(filePath, callback)
-    {
-        var cacheAssetPath = toCacheAssetPath(filePath);
-
-        fs.unlink(cacheAssetPath, function (err) {
-            if (callback) {
-                callback();
-            }
-        });
-    };
-
-    var __moveCachedObject = function(oldFilePath, newFilePath, callback)
-    {
-        var oldCacheFilePath = toCacheFilePath(oldFilePath);
-        var newCacheFilePath = toCacheFilePath(newFilePath);
-
-        util.copyFile(oldCacheFilePath, newCacheFilePath);
-        util.copyFile(oldFilePath, newFilePath);
-
-        // remove old
-        __removeCachedObject(oldFilePath, function() {
-            callback();
-        });
+        }
+        catch (e)
+        {
+            return callback();
+        }
     };
 
     var r = {};
 
     var init = r.init = function(callback)
     {
-        util.createTempDirectory(function(err, _tempDirectory) {
-            tempDirectory = _tempDirectory;
+        var completionFn = function()
+        {
+            console.log("using cacheDir: " + settings.cacheDir);
 
-            bindSubscriptions();
+            // build cach store on top of this temp directorys
+            cacheStore = require("./fs")({
+                "storageDir": settings.cacheDir
+            });
 
-            callback();
+            // preload the cache
+            _populateCache(function(err) {
+
+                _bindSubscriptions();
+
+                callback(err);
+            });
+        };
+
+        if (settings.cacheDir)
+        {
+            return completionFn();
+        }
+
+        // create a temp directory for the cache
+        return util.createTempDirectory(function(err, _tempDirectory) {
+            settings.cacheDir = _tempDirectory;
+
+            completionFn();
         });
     };
 
@@ -369,36 +214,12 @@ exports = module.exports = function(remoteStore, cacheTTL)
 
     var existsFile = r.existsFile = function(filePath, callback)
     {
-        __getCachedObjectState(filePath, function(state) {
-
-            if (state.cached) {
-                return callback(state.exists);
-            }
-
-            // otherwise, go remote
-            remoteStore.existsFile(filePath, function (exists) {
-                __putCachedObject(filePath, exists, null, function(err) {
-                    callback(exists);
-                });
-            });
-        });
+        cacheStore.existsFile(filePath, callback);
     };
 
     var existsDirectory = r.existsDirectory = function(directoryPath, callback)
     {
-        __getCachedObjectState(directoryPath, function(state) {
-
-            if (state.cached) {
-                return callback(state.exists);
-            }
-
-            // otherwise, go remote
-            remoteStore.existsDirectory(directoryPath, function (exists) {
-                __putCachedObject(directoryPath, exists, null, function(err) {
-                    callback(exists);
-                });
-            });
-        });
+        cacheStore.existsDirectory(directoryPath, callback);
     };
 
     var removeFile = r.removeFile = function(filePath, options, callback)
@@ -408,20 +229,35 @@ exports = module.exports = function(remoteStore, cacheTTL)
             options = null;
         }
 
-        if (options && options.cacheOnly)
+        var fns = [];
+
+        if (!options.cacheOnly)
         {
-            // remove from cache
-            return __removeCachedObject(filePath, function() {
-                callback();
+            fns.push(function(remoteStore, cacheStore, filePath, options) {
+                return function(done) {
+                    remoteStore.removeFile(filePath, options, function(err) {
+                        done(err);
+                    });
+                }
             });
         }
 
-        remoteStore.removeFile(filePath, options, function(err) {
+        fns.push(function(remoteStore, cacheStore, filePath, options) {
+            return function(done) {
+                cacheStore.removeFile(filePath, options, function() {
+                    done();
+                });
+            }
+        });
 
-            // remove from cache
-            __removeCachedObject(filePath, function() {
+        async.series(fns, function(err) {
+
+            notifyInvalidation({
+                "paths": [filePath]
+            }, function() {
                 callback(err);
             });
+
         });
     };
 
@@ -432,122 +268,107 @@ exports = module.exports = function(remoteStore, cacheTTL)
             options = null;
         }
 
-        if (options && options.cacheOnly)
+        var fns = [];
+
+        if (!options.cacheOnly)
         {
-            // remove from cache only
-            return __removeCachedObject(directoryPath, function() {
-                callback();
+            fns.push(function(remoteStore, cacheStore, directoryPath, options) {
+                return function(done) {
+                    remoteStore.removeDirectory(directoryPath, options, function(err) {
+                        done(err);
+                    });
+                }
             });
         }
 
-        remoteStore.removeDirectory(directoryPath, options, function(err) {
+        fns.push(function(remoteStore, cacheStore, directoryPath, options) {
+            return function(done) {
+                cacheStore.removeDirectory(directoryPath, options, function() {
+                    done();
+                });
+            }
+        });
 
-            // remove from cache
-            __removeCachedObject(directoryPath, function() {
+        async.series(fns, function(err) {
+
+            notifyInvalidation({
+                "paths": [directoryPath]
+            }, function() {
                 callback(err);
             });
+
         });
     };
 
-    var listFiles = r.listFiles = function(directoryPath, callback)
+    var listFiles = r.listFiles = function(directoryPath, options, callback)
     {
-        remoteStore.listFiles(directoryPath, callback);
+        if (!options) {
+            options = {};
+        }
+
+        cacheStore.listFiles(directoryPath, options, callback);
     };
 
     var sendFile = r.sendFile = function(res, filePath, cacheInfo, callback)
     {
-        __getCachedObjectState(filePath, function(state) {
+        util.applyResponseContentType(res, cacheInfo, filePath);
 
-            var cacheAssetPath = toCacheAssetPath(filePath);
+        cacheStore.readStream(filePath, function(err, reader) {
+            reader.pipe(res).on("close", function(err) {
 
-            if (state.faulted) {
-                return _sendFile(res, cacheAssetPath, cacheInfo, callback);
-            }
+                if (err) {
+                    err.sendFailed = true;
+                }
 
-            // download to cache
-            remoteStore.readStream(filePath, function(err, reader) {
-
-                var writer = fs.createWriteStream(cacheAssetPath);
-                writer.once("close", function() {
-                    __putCachedObject(filePath, true, null, function() {
-                        _sendFile(res, cacheAssetPath, cacheInfo, callback);
-                    });
-                });
-                reader.pipe(writer);
+                callback(err);
             });
         });
     };
 
     r.downloadFile = function(res, filePath, filename, cacheInfo, callback)
     {
-        __getCachedObjectState(filePath, function(state) {
+        var contentDisposition = "attachment";
+        if (filename)
+        {
+            // if filename contains non-ascii characters, add a utf-8 version ala RFC 5987
+            contentDisposition = /[^\040-\176]/.test(filename)
+                ? 'attachment; filename="' + encodeURI(filename) + '"; filename*=UTF-8\'\'' + encodeURI(filename)
+                : 'attachment; filename="' + filename + '"';
+        }
 
-            var cacheAssetPath = toCacheAssetPath(filePath);
+        // set Content-Disposition when file is sent
+        util.setHeader(res, "Content-Disposition", contentDisposition);
 
-            if (state.faulted) {
-                return _downloadFile(res, cacheAssetPath, filename, cacheInfo, callback);
-            }
-
-            // download to cache
-            remoteStore.readStream(filePath, function(err, reader) {
-                var writer = fs.createWriteStream(cacheAssetPath);
-                writer.once("close", function() {
-                    __putCachedObject(filePath, true, null, function() {
-                        _downloadFile(res, cacheAssetPath, filename, cacheInfo, callback);
-                    });
-                });
-                reader.pipe(writer);
-            });
-        });
+        sendFile(res, filePath, cacheInfo, callback);
     };
 
     r.writeFile = function(filePath, data, callback)
     {
-        __putCachedObject(filePath, true, data, function(err) {
-
-            if (err) {
-                return callback(err);
-            }
+        cacheStore.write(filePath, data, function(err) {
 
             remoteStore.writeFile(filePath, data, function(err) {
 
-                if (err) {
-                    return __removeCachedObject(filePath, function() {
-                        return callback(err);
+                if (err)
+                {
+                    return cacheStore.removeFile(filePath, function() {
+                        callback(err);
                     });
                 }
+
+                notifyInvalidation({
+                    "paths": [filePath]
+                }, function() {
+                    callback(err);
+                });
 
                 callback();
             });
         });
-
     };
 
     var readFile = r.readFile = function(filePath, callback)
     {
-        var finish = function()
-        {
-            remoteStore.readFile(filePath, function(err, data) {
-
-                if (err) {
-                    return callback(err);
-                }
-
-                // update cache
-                __putCachedObject(filePath, true, data, function() {
-                    callback(err, data);
-                });
-            });
-        };
-
-        __getCachedObjectData(filePath, function(err, data) {
-
-            if (err) {
-                return finish();
-            }
-
-            callback(null, data);
-        });
+        cacheStore.readFile(filePath, callback);
     };
 
     r.watchDirectory = function(directoryPath, onChange)
@@ -563,35 +384,46 @@ exports = module.exports = function(remoteStore, cacheTTL)
                 return callback(err);
             }
 
-            // update cache
-            __moveCachedObject(originalFilePath, newFilePath, function() {
-                callback(err);
+            cacheStore.moveFile(originalFilePath, newFilePath, function () {
+
+                notifyInvalidation({
+                    "paths": [originalFilePath, newFilePath]
+                }, function() {
+                    callback(err);
+                });
+
             });
         });
     };
 
     r.readStream = function(filePath, callback)
     {
-        // TODO: couldn't we read from local cache?
-        remoteStore.readStream(filePath, callback);
+        cacheStore.readStream(filePath, callback);
     };
 
     r.writeStream = function(filePath, callback)
     {
-        // TODO: couldn't this work against local cache as well?
-        remoteStore.writeStream(filePath, callback);
+        cacheStore.writeStream(filePath, function(err) {
+
+            notifyInvalidation({
+                "paths": [filePath]
+            }, function() {
+                callback(err);
+            });
+
+        });
     };
 
     var fileStats = r.fileStats = function(filePath, callback)
     {
-        remoteStore.fileStats(filePath, function(err, stats) {
+        cacheStore.fileStats(filePath, function(err, stats) {
             callback(err, stats);
         });
     };
 
     var matchFiles = r.matchFiles = function(directoryPath, regexPattern, callback)
     {
-        remoteStore.matchFiles(directoryPath, regexPattern, function(err, filenames) {
+        cacheStore.matchFiles(directoryPath, regexPattern, function(err, filenames) {
             callback(null, filenames);
         });
     };

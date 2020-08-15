@@ -55,8 +55,12 @@ exports = module.exports = function(engineId, engineType, engineConfig)
         callback();
     };
 
-    var listFiles = r.listFiles = function(directoryPath, callback)
+    var listFiles = r.listFiles = function(directoryPath, options, callback)
     {
+        if (!options) {
+            options = {};
+        }
+
         callback(null, []);
     };
 

@@ -13,25 +13,19 @@ var stores = require("./stores");
 exports = module.exports = function(engine, engineType, engineId, engineConfiguration, host, offsetPath)
 {
     var DEBUG_LOG = false;
-    /*
-    var debugLog = function(text) {
-        if (DEBUG_LOG) {
-            console.log(text);
-        }
-    };
-    */
+
     var t1 = null;
     var t2 = null;
     var debugStart = function(text) {
         if (DEBUG_LOG) {
-            console.log(text);
+            console.log("[" + engineId + "] " + text);
             t1 = new Date().getTime();
         }
     };
     var debugFinish = function(text) {
         if (DEBUG_LOG) {
             t2 = new Date().getTime();
-            console.log(text + ": " + (t2-t1) + " ms");
+            console.log("[" + engineId + "] " + text + ": " + (t2-t1) + " ms");
         }
     };
 
@@ -129,18 +123,18 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
 
     r.existsFile = function(filePath, callback)
     {
-        debugStart("Start store.existsFile");
+        debugStart("Start store.existsFile: " + filePath);
         engine.existsFile(_enginePath(filePath), function(exists) {
-            debugFinish("Finish store.existsFile");
+            debugFinish("Finish store.existsFile: " + filePath);
             callback(exists);
         });
     };
 
     r.existsDirectory = function(directoryPath, callback)
     {
-        debugStart("Start store.existsDirectory");
+        debugStart("Start store.existsDirectory: " + directoryPath);
         engine.existsDirectory(_enginePath(directoryPath), function(exists) {
-            debugFinish("Finish store.existsDirectory");
+            debugFinish("Finish store.existsDirectory: " + directoryPath);
             callback(exists);
         });
     };
@@ -163,10 +157,18 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
         });
     };
 
-    r.listFiles = function(directoryPath, callback)
+    r.listFiles = function(directoryPath, options, callback)
     {
+        if (typeof(options) === "function") {
+            callback = options;
+            options = {};
+        }
+        if (!options) {
+            options = {};
+        }
+
         debugStart("Start store.listFiles");
-        engine.listFiles(_enginePath(directoryPath), function(err, filenames) {
+        engine.listFiles(_enginePath(directoryPath), options, function(err, filenames) {
             debugFinish("Finish store.listFiles");
             callback(err, filenames);
         });

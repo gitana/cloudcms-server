@@ -234,7 +234,7 @@ exports = module.exports = function()
             if (req.url.indexOf("/proxy") === 0)
             {
                 req.url = req.url.substring(6); // to strip off /proxy
-                if (req.url == "")
+                if (req.url === "")
                 {
                     req.url = "/";
                 }
@@ -253,6 +253,11 @@ exports = module.exports = function()
 
                         // acquire the proxy handler
                         var proxyTarget = req.gitanaConfig.baseURL;
+                        if (!proxyTarget) {
+                            return next({
+                                "message": "Missing baseURL from request bound gitana-config"
+                            });
+                        }
                         proxyFactory.acquireProxyHandler(proxyTarget, null, function(err, proxyHandler) {
                             if (err) {
                                 return next(err);

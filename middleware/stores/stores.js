@@ -386,13 +386,15 @@ exports = module.exports = function()
                         var moduleStoreType = moduleDescriptors[i].store;
                         var modulePath = moduleDescriptors[i].path;
 
-                        //console.log("Config Store - Module Path: " + modulePath + ", type: " + moduleStoreType);
+                        // console.log("Config Store - Module Path: " + modulePath + ", type: " + moduleStoreType);
 
                         var storePath = path.join(modulePath, "config");
                         if (moduleStoreType === "modules")
                         {
                             storePath = path.join("modules", storePath);
                         }
+
+                        // console.log("Config Store - Module Store: " + storePath);
 
                         var configStore = buildStore(moduleStoreType, host, storePath);
                         configStores.push(configStore);
