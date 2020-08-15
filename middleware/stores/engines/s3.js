@@ -243,10 +243,15 @@ exports = module.exports = function(engineConfig)
                     cdr = cdr.substring(1);
                 }
 
+                if (cdr.endsWith("/"))
+                {
+                    cdr = cdr.substring(0, cdr.length - 1);
+                }
+
                 if (cdr.indexOf("/") === -1)
                 {
                     // it's a direct child
-                    filenames.push(contentKey);
+                    filenames.push(cdr);
                 }
             }
 
@@ -281,7 +286,12 @@ exports = module.exports = function(engineConfig)
                     cdr = cdr.substring(1);
                 }
 
-                filenames.push(contentKey);
+                if (cdr.endsWith("/"))
+                {
+                    cdr = cdr.substring(0, cdr.length - 1);
+                }
+
+                filenames.push(cdr);
             }
 
             callback(err, filenames);
