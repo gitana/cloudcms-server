@@ -44,6 +44,8 @@ exports = module.exports = function(remoteStore, settings)
             return callback();
         }
 
+        console.log("Notifying: " + JSON.stringify(message));
+
         //console.log("[" + cluster.worker.id + "] Notifying: " + JSON.stringify(message));
         process.broadcast.publish(INVALIDATION_TOPIC, message, function() {
             callback();
@@ -59,6 +61,8 @@ exports = module.exports = function(remoteStore, settings)
                 if (!invalidationDone) {
                     invalidationDone = function() { };
                 }
+
+                console.log("Heard notification: " + JSON.stringify(message));
 
                 var fns = [];
 
@@ -88,6 +92,8 @@ exports = module.exports = function(remoteStore, settings)
 
     var _invalidateCache = function(filepath, callback)
     {
+        console.log("Invalidating cache for file path:" + filepath);
+
         cacheStore.removeDirectory(filepath, function() {
             cacheStore.removeFile(filepath, function() {
 

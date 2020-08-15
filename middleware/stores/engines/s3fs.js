@@ -1,8 +1,3 @@
-var path = require('path');
-var http = require('http');
-
-var util = require("../../../util/util");
-
 /**
  * A store that works against S3 but caches files locally for performance.
  *
@@ -16,13 +11,6 @@ exports = module.exports = function(engineConfig)
 
     var init = r.init = function(callback)
     {
-        var cacheTTL = -1;
-
-        if (typeof(process.env.CLOUDCMS_S3FS_CACHE_TTL) !== "undefined")
-        {
-            cacheTTL = parseInt(process.env.CLOUDCMS_S3FS_CACHE_TTL, 10);
-        }
-
         var s3Store = require("./s3")(engineConfig);
         var settings = {};
         //settings.cacheDir = ""; // TODO: future option to specific where on disk this caches
