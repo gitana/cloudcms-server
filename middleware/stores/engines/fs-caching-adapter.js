@@ -25,7 +25,12 @@ var util = require("../../../util/util");
  */
 exports = module.exports = function(remoteStore, settings)
 {
-    var INVALIDATION_TOPIC = "fs-caching-adapter-path-invalidation";
+    var log = function(text)
+    {
+        console.log("[fs-caching-adapter] " + text);
+    };
+
+    var INVALIDATION_TOPIC = "fs-caching-adapter-path-invalidation-" + remoteStore.id;
 
     if (!settings) {
         settings = {};
@@ -44,9 +49,8 @@ exports = module.exports = function(remoteStore, settings)
             return callback();
         }
 
-        console.log("Notifying: " + JSON.stringify(message));
+        log("Notifying: " + JSON.stringify(message));
 
-        //console.log("[" + cluster.worker.id + "] Notifying: " + JSON.stringify(message));
         process.broadcast.publish(INVALIDATION_TOPIC, message, function() {
             callback();
         });
@@ -62,23 +66,40 @@ exports = module.exports = function(remoteStore, settings)
                     invalidationDone = function() { };
                 }
 
-                console.log("Heard notification: " + JSON.stringify(message));
+                log("Heard notification: " + JSON.stringify(message));
 
                 var fns = [];
 
-                if (message.paths)
+                if (message.files)
                 {
-                    for (var i = 0; i < message.paths.length; i++)
+                    for (var i = 0; i < message.files.length; i++)
                     {
-                        var fn = function(filepath)
+                        var fn = function(filePath)
                         {
                             return function(done)
                             {
-                                _invalidateCache(filepath, function(err) {
+                                _invalidateCache(filePath, false, function(err) {
                                     done(err);
                                 });
                             }
-                        }(message.paths[i]);
+                        }(message.files[i]);
+                        fns.push(fn);
+                    }
+                }
+
+                if (message.directories)
+                {
+                    for (var i = 0; i < message.directories.length; i++)
+                    {
+                        var fn = function(directoryPath)
+                        {
+                            return function(done)
+                            {
+                                _invalidateCache(directoryPath, true, function(err) {
+                                    done(err);
+                                });
+                            }
+                        }(message.directories[i]);
                         fns.push(fn);
                     }
                 }
@@ -90,35 +111,62 @@ exports = module.exports = function(remoteStore, settings)
         }
     };
 
-    var _invalidateCache = function(filepath, callback)
+    var _invalidateCache = function(filepath, isDirectory, callback)
     {
-        console.log("Invalidating cache for file path:" + filepath);
+        log("Invalidating cache for file path:" + filepath);
 
-        cacheStore.removeDirectory(filepath, function() {
-            cacheStore.removeFile(filepath, function() {
+        var fns = [];
 
-                // read stream
-                remoteStore.readStream(filepath, function(err, reader) {
-
-                    if (err) {
-                        return callback();
-                    }
-
-                    // write stream
-                    cacheStore.writeStream(filepath, function(err, writer) {
-
-                        if (err) {
-                            return callback(err);
-                        }
-
-                        // pipe through
-                        reader.pipe(writer).on("close", function (err) {
-                            callback(err);
-                        });
+        if (isDirectory)
+        {
+            fns.push(function(cacheStore, filepath) {
+                return function(done) {
+                    cacheStore.removeDirectory(filepath, function() {
+                        done();
                     });
-                });
-            });
-        });
+                }
+            }(cacheStore, filepath));
+        }
+        else
+        {
+            fns.push(function(cacheStore, filepath) {
+                return function(done) {
+
+                    // remove file
+                    cacheStore.removeFile(filepath, function() {
+
+                        // try to copy new file down (if it exists)
+
+                        // read stream
+                        remoteStore.readStream(filepath, function(err, reader) {
+
+                            if (err) {
+                                // does not exist
+                                return done();
+                            }
+
+                            // write stream
+                            cacheStore.writeStream(filepath, function(err, writer) {
+
+                                if (err) {
+                                    return done(err);
+                                }
+
+                                // pipe through
+                                reader.pipe(writer).on("close", function (err) {
+                                    done(err);
+                                });
+                            });
+                        });
+
+                    });
+                }
+            }(cacheStore, filepath));
+        }
+
+        async.series(fns, function(err) {
+            callback(err);
+        })
     };
 
     var _populateCache = function(callback)
@@ -127,7 +175,7 @@ exports = module.exports = function(remoteStore, settings)
         {
             remoteStore.listFiles("/", { "recursive": true }, function(err, filepaths) {
 
-                console.log("Populating cache with file paths:" + JSON.stringify(filepaths, null, 2));
+                log("Populating cache with file paths:" + JSON.stringify(filepaths, null, 2));
 
                 var fns = [];
 
@@ -136,26 +184,28 @@ exports = module.exports = function(remoteStore, settings)
                     var fn = function(remoteStore, cacheStore, filepath) {
                         return function(done) {
 
-                            console.log("Populating cache: "+ filepath);
+                            log("Populating cache: "+ filepath);
 
                             // read stream
                             remoteStore.readStream(filepath, function(err, reader) {
 
                                 if (err) {
-                                    console.log("err on remoteStore.readStream: " + filepath);
-                                    console.log(err);
+                                    log("err on remoteStore.readStream: " + filepath);
+                                    log(JSON.stringify(err, null, 2));
+                                    return done();
                                 }
 
                                 // write stream
                                 cacheStore.writeStream(filepath, function(err, writer) {
 
                                     if (err) {
-                                        console.log("err on cacheStore.writeStream: " + filepath);
-                                        console.log(err);
+                                        log("err on cacheStore.writeStream: " + filepath);
+                                        log(JSON.stringify(err, null, 2));
+                                        return done();
                                     }
 
                                     // pipe through
-                                    reader.pipe(writer).on("close", function (err) {
+                                    reader.pipe(writer).once("close", function (err) {
                                         done(err);
                                     });
                                 });
@@ -165,7 +215,7 @@ exports = module.exports = function(remoteStore, settings)
                     fns.push(fn);
                 }
 
-                async.parallelLimit(fns, 4, function(err) {
+                async.series(fns, function(err) {
                     callback(err);
                 });
             });
@@ -182,7 +232,7 @@ exports = module.exports = function(remoteStore, settings)
     {
         var completionFn = function()
         {
-            console.log("using cacheDir: " + settings.cacheDir);
+            log("Store init, using cacheDir: " + settings.cacheDir);
 
             // build cach store on top of this temp directorys
             cacheStore = require("./fs")({
@@ -245,7 +295,7 @@ exports = module.exports = function(remoteStore, settings)
                         done(err);
                     });
                 }
-            });
+            }(remoteStore, cacheStore, filePath, options));
         }
 
         fns.push(function(remoteStore, cacheStore, filePath, options) {
@@ -254,12 +304,12 @@ exports = module.exports = function(remoteStore, settings)
                     done();
                 });
             }
-        });
+        }(remoteStore, cacheStore, filePath, options));
 
         async.series(fns, function(err) {
 
             notifyInvalidation({
-                "paths": [filePath]
+                "files": [filePath]
             }, function() {
                 callback(err);
             });
@@ -284,7 +334,7 @@ exports = module.exports = function(remoteStore, settings)
                         done(err);
                     });
                 }
-            });
+            }(remoteStore, cacheStore, directoryPath, options));
         }
 
         fns.push(function(remoteStore, cacheStore, directoryPath, options) {
@@ -293,12 +343,12 @@ exports = module.exports = function(remoteStore, settings)
                     done();
                 });
             }
-        });
+        }(remoteStore, cacheStore, directoryPath, options));
 
         async.series(fns, function(err) {
 
             notifyInvalidation({
-                "paths": [directoryPath]
+                "directories": [directoryPath]
             }, function() {
                 callback(err);
             });
@@ -350,7 +400,7 @@ exports = module.exports = function(remoteStore, settings)
 
     r.writeFile = function(filePath, data, callback)
     {
-        cacheStore.write(filePath, data, function(err) {
+        cacheStore.writeFile(filePath, data, function(err) {
 
             remoteStore.writeFile(filePath, data, function(err) {
 
@@ -362,12 +412,10 @@ exports = module.exports = function(remoteStore, settings)
                 }
 
                 notifyInvalidation({
-                    "paths": [filePath]
+                    "files": [filePath]
                 }, function() {
                     callback(err);
                 });
-
-                callback();
             });
         });
     };
@@ -393,7 +441,7 @@ exports = module.exports = function(remoteStore, settings)
             cacheStore.moveFile(originalFilePath, newFilePath, function () {
 
                 notifyInvalidation({
-                    "paths": [originalFilePath, newFilePath]
+                    "files": [originalFilePath, newFilePath]
                 }, function() {
                     callback(err);
                 });
@@ -412,7 +460,7 @@ exports = module.exports = function(remoteStore, settings)
         cacheStore.writeStream(filePath, function(err) {
 
             notifyInvalidation({
-                "paths": [filePath]
+                "files": [filePath]
             }, function() {
                 callback(err);
             });

@@ -13,7 +13,9 @@ exports = module.exports = function(engineConfig)
     {
         var s3Store = require("./s3")(engineConfig);
         var settings = {};
-        //settings.cacheDir = ""; // TODO: future option to specific where on disk this caches
+        if (engineConfig.cacheDir) {
+            settings.cacheDir = engineConfig.cacheDir;
+        }
         cachingAdapter = require("./fs-caching-adapter")(s3Store, settings);
 
         s3Store.init(function() {

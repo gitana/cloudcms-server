@@ -43,19 +43,24 @@ exports = module.exports = function()
             process.env.CLOUDCMS_STORE_CONFIGURATION = "default";
         }
 
-        // instantiate any engines
-        var storeEnginesConfigs = process.configuration.storeEngines;
-        for (var engineId in storeEnginesConfigs)
+        // instantiate any engines that we need
+        var storeConfigurationId = process.env.CLOUDCMS_STORE_CONFIGURATION;
+        var storeConfiguration = process.configuration.storeConfigurations[storeConfigurationId];
+        for (var storeId in storeConfiguration)
         {
-            var storeEngineConfig = storeEnginesConfigs[engineId];
+            var engineId = storeConfiguration[storeId];
 
-            var engineType = storeEngineConfig.type;
-            var engineConfig = storeEngineConfig.config;
-            if (!engineConfig) {
-                engineConfig = {};
+            if (!ENGINES[engineId])
+            {
+                var storeEngineConfig = process.configuration.storeEngines[engineId];
+                var engineType = storeEngineConfig.type;
+                var engineConfig = storeEngineConfig.config;
+                if (!engineConfig) {
+                    engineConfig = {};
+                }
+
+                ENGINES[engineId] = require("./engines/" + engineType)(engineConfig);
             }
-
-            ENGINES[engineId] = require("./engines/" + engineType)(engineConfig);
         }
 
         // init all engines

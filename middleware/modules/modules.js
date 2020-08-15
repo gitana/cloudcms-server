@@ -311,7 +311,7 @@ exports = module.exports = function()
                     var host = req.virtualHost;
                     var moduleConfig = req.body;
 
-                    console.log("Heard BTTP Module Deploy -  host: " + host + ", id: " + moduleId + ", config: " + JSON.stringify(moduleConfig));
+                    console.log("Heard HTTP Module Deploy -  host: " + host + ", id: " + moduleId + ", config: " + JSON.stringify(moduleConfig));
 
                     process.broadcast.publish("module_deploy", {
                         "host": host,
@@ -344,7 +344,7 @@ exports = module.exports = function()
                     var host = req.virtualHost;
                     var moduleConfig = req.body;
 
-                    console.log("Heard BTTP Module Undeploy -  host: " + host + ", id: " + moduleId + ", config: " + JSON.stringify(moduleConfig));
+                    console.log("Heard HTTP Module Undeploy -  host: " + host + ", id: " + moduleId + ", config: " + JSON.stringify(moduleConfig));
 
                     process.broadcast.publish("module_undeploy", {
                         "host": host,

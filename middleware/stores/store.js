@@ -89,6 +89,7 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
         if (typeof(subpath) === "function")
         {
             callback = subpath;
+            options = null;
             subpath = "/";
         }
 

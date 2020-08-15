@@ -279,7 +279,9 @@ exports = module.exports = function(engineConfig)
             for (var i = 0; i < data.Contents.length; i++)
             {
                 var contentKey = data.Contents[i].Key;
-                var cdr = contentKey.substring(key.length);
+                console.log("contentKey: " + contentKey);
+                var cdr = contentKey.substring(params.Prefix.length);
+                console.log("cdr.1: " + cdr);
 
                 if (cdr.indexOf("/") === 0)
                 {
@@ -290,6 +292,8 @@ exports = module.exports = function(engineConfig)
                 {
                     cdr = cdr.substring(0, cdr.length - 1);
                 }
+
+                console.log("cdr.2: " + cdr);
 
                 filenames.push(cdr);
             }
@@ -436,13 +440,32 @@ exports = module.exports = function(engineConfig)
 
     var readStream = r.readStream = function(filePath, callback)
     {
-        var key = _toKey(filePath);
+        existsFile(filePath, function(exists) {
 
-        canoe.createPrefixedReadStream({
-            Bucket: engineConfig.bucket,
-            Prefix: prefixedKey(engineConfig.prefix, key)
-        }, function (err, readable) {
-            callback(err, readable);
+            if (!exists) {
+                return callback({
+                    "message": "Key not found"
+                });
+            }
+
+            var key = _toKey(filePath);
+
+            var params = {
+                Bucket: engineConfig.bucket,
+                Key: prefixedKey(engineConfig.prefix, key)
+            };
+
+            var reader = null;
+            try
+            {
+                reader = s3.getObject(params).createReadStream();
+            }
+            catch (err)
+            {
+                return callback(err);
+            }
+
+            return callback(null, reader);
         });
     };
 
@@ -453,8 +476,8 @@ exports = module.exports = function(engineConfig)
         canoe.createWriteStream({
             Bucket: engineConfig.bucket,
             Key: prefixedKey(engineConfig.prefix, key)
-        }, function(err, writableStream) {
-            callback(err, writableStream);
+        }, function(err, writer) {
+            callback(err, writer);
         });
     };
 
