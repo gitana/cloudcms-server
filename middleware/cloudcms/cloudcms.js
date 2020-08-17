@@ -220,7 +220,7 @@ exports = module.exports = function()
 
             if (err)
             {
-                console.log("ERROR DURING AUTHENTICATION: " + err + ", text: " + JSON.stringify(err));
+                process.log("ERROR DURING AUTHENTICATION: " + err + ", text: " + JSON.stringify(err));
                 errorMessage = "There was a problem logging in, please contact your system administrator";
             }
 
@@ -258,7 +258,7 @@ exports = module.exports = function()
                 if (err)
                 {
                     // failed to log in...
-                    console.log("ERROR DURING LOGIN: " + err + ", text: " + JSON.stringify(err));
+                    process.log("ERROR DURING LOGIN: " + err + ", text: " + JSON.stringify(err));
                     errorMessage = "There was a problem logging in, please contact your system administrator";
 
                     return handleErrorMessage(req, res, errorMessage);
@@ -318,7 +318,7 @@ exports = module.exports = function()
                     {
                         var fn = function(req, res, strategyId, authenticator) {
                             return function(done) {
-                                console.log("Logging out for strategy: " + strategyId);
+                                process.log("Logging out for strategy: " + strategyId);
                                 authenticator.logout(req, res, function () {
                                     done();
                                 });
@@ -443,8 +443,8 @@ exports = module.exports = function()
                 Chain(repository).trap(function(e) {
 
                     // unable to load branch!
-                    console.log("Unable to load branch: " + repository._doc + "/" + branchId + ", err: " + e);
-                    console.log(JSON.stringify(e));
+                    process.log("Unable to load branch: " + repository._doc + "/" + branchId + ", err: " + e);
+                    process.log(e);
                     finished({
                         "message": "Unable to load branch: " + repository._doc + "/" + branchId
                     });
@@ -618,8 +618,8 @@ exports = module.exports = function()
                             req.repository(function(err, repository) {
 
                                 if (err) {
-                                    console.log("Attempting to load branch, could not load repository, err: " + err);
-                                    console.log(JSON.stringify(err));
+                                    process.log("Attempting to load branch, could not load repository, err: " + err);
+                                    process.log(err);
                                     return callback({
                                         "message": "Attempting to load branch, failed to load repository for branch: " + req.branchId
                                     });
@@ -839,7 +839,7 @@ exports = module.exports = function()
 
                 if (!this.gitana)
                 {
-                    console.log("Cannot find req.gitana instance, skipping logging");
+                    process.log("Cannot find req.gitana instance, skipping logging");
                     return;
                 }
 
@@ -1296,7 +1296,7 @@ exports = module.exports = function()
                         {
                             if (err && err.invalidateGitanaDriver)
                             {
-                                console.log("Found err.invalidateGitanaDriver true");
+                                process.log("Found err.invalidateGitanaDriver true");
                                 if (req.gitanaConfig)
                                 {
                                     // at this point, our gitana driver's auth token was pronounced dead and we need to invalidate
@@ -1306,7 +1306,7 @@ exports = module.exports = function()
                                     // if that fails and virtual driver mode, then a new gitana.json will be pulled down
                                     if (req.gitanaConfig.key)
                                     {
-                                        console.log("Disconnecting driver: " + req.gitanaConfig.key);
+                                        process.log("Disconnecting driver: " + req.gitanaConfig.key);
                                         try
                                         {
                                             Gitana.disconnect(req.gitanaConfig.key);
@@ -1319,7 +1319,7 @@ exports = module.exports = function()
                                     // remove from cache
                                     if (req.virtualHost)
                                     {
-                                        console.log("Remove driver cache for virtual host: " + req.virtualHost);
+                                        process.log("Remove driver cache for virtual host: " + req.virtualHost);
                                         try
                                         {
                                             process.driverConfigCache.invalidate(req.virtualHost, function () {
@@ -2022,16 +2022,17 @@ exports = module.exports = function()
             }
 
             if (logEnabled) {
-                console.log("Invalidating node " + nodeId + " for hostname: " + host);
+                process.log("Invalidating node " + nodeId + " for hostname: " + host);
             }
 
             cloudcmsUtil.invalidate(stores.content, repositoryId, branchId, nodeId, paths, function (err) {
                 if (err && logEnabled) {
-                    console.error("invalidate done. err: " + err);
+                    process.log("invalidate done. err: " + err);
+                    process.log(err);
                 }
 
                 if (logEnabled) {
-                    console.log("invalidate done");
+                    process.log("invalidate done");
                 }
                 callback(err);
             });
@@ -2100,7 +2101,7 @@ exports = module.exports = function()
         {
             process.broadcast.subscribe("node_invalidation", function (message, channel, invalidationDone) {
                 if (logEnabled) {
-                    console.log("cloudcms received node_invalidation message. " + JSON.stringify(message,null,2));
+                    process.log("cloudcms received node_invalidation message. " + JSON.stringify(message,null,2));
                 }
 
                 if (!invalidationDone) {
@@ -2131,7 +2132,7 @@ exports = module.exports = function()
             });
 
             process.broadcast.subscribe("settings_invalidation", function (message, channel, invalidationDone) {
-                console.log("cloudcms received settings_invalidation message. " + JSON.stringify(message,null,2));
+                process.log("cloudcms received settings_invalidation message. " + JSON.stringify(message,null,2));
 
                 if (!invalidationDone) {
                     invalidationDone = function() { };

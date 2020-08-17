@@ -90,13 +90,14 @@ exports = module.exports = function()
                         {
                             var plugin = require(pluginPath);
 
-                            console.log("Registering Awareness plugin: " + pluginPath);
+                            process.log("Registering Awareness plugin: " + pluginPath);
 
                             awareness.registerPlugin(pluginPath, plugin);
                         }
                         catch (e)
                         {
-                            console.log("Failed to instantiate awareness plugin: " + e);
+                            process.log("Failed to instantiate awareness plugin: " + e);
+                            process.log(e);
                         }
 
                         done();
@@ -513,7 +514,7 @@ exports = module.exports = function()
                 });
             }
 
-            // console.log("LOCK USER: " + JSON.stringify(lock.user, null, 2));
+            // process.log("LOCK USER: " + JSON.stringify(lock.user, null, 2));
 
             var socketId = lock.user.socketId;
             if (!socketId)

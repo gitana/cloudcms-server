@@ -62,7 +62,7 @@ exports = module.exports = function(engineConfig)
 
         if (!filePath || filePath === "/")
         {
-            console.log("ILLEGAL PATH");
+            console.log("ILLEGAL FILE PATH: " + filePath);
             return callback();
         }
 
@@ -80,7 +80,8 @@ exports = module.exports = function(engineConfig)
 
         if (!directoryPath || directoryPath === "/")
         {
-            console.log("ILLEGAL PATH");
+            console.log("ILLEGAL DIRECTORY PATH: " + directoryPath);
+            console.trace();
             return callback();
         }
 
@@ -347,6 +348,11 @@ exports = module.exports = function(engineConfig)
             callback(err, matches);
         });
 
+    };
+
+    var refresh = r.refresh = function(options, callback)
+    {
+        callback();
     };
 
     return r;

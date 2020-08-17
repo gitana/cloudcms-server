@@ -10,6 +10,26 @@ var util = require("./util/util");
 var http = require('http');
 var https = require('https');
 
+var cluster = require("cluster");
+
+var logFactory = require("./util/logger");
+
+// system logger
+var systemLogger = logFactory("system", { wid: true });
+
+if (typeof(process.env.CLOUDCMS_SYSTEM_LOGGER_LEVEL) !== "undefined") {
+    systemLogger.setLevel(("" + process.env.CLOUDCMS_SYSTEM_LOGGER_LEVEL).toLowerCase(), true);
+}
+else {
+    systemLogger.setLevel("info");
+}
+
+process.logInfo = process.log = function(text, level)
+{
+    systemLogger.log(text, level);
+};
+
+
 // by default, set up Gitana driver so that it limits to five concurrent HTTP requests back to Cloud CMS API at at time
 var Gitana = require("gitana");
 
@@ -60,10 +80,10 @@ var socketReportFn = function()
         var http = require("http");
         var https = require("https");
 
-        console.log("--- START SOCKET REPORT ---");
-        console.log("[http]: " + JSON.stringify(http.globalAgent.getCurrentStatus(), null, "  "));
-        console.log("[https]:" + JSON.stringify(https.globalAgent.getCurrentStatus(), null, "  "));
-        console.log("--- END SOCKET REPORT ---");
+        process.log("--- START SOCKET REPORT ---");
+        process.log("[http]: " + JSON.stringify(http.globalAgent.getCurrentStatus(), null, "  "));
+        process.log("[https]:" + JSON.stringify(https.globalAgent.getCurrentStatus(), null, "  "));
+        process.log("--- END SOCKET REPORT ---");
 
         socketReportFn();
 
@@ -157,7 +177,10 @@ exports = module.exports = function()
         process.env.GITANA_PROXY_PORT = defaultGitanaProxyPort;
     }
 
-    console.log("Gitana Proxy pointed to: " + util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT));
+    if (cluster.isMaster)
+    {
+        process.log("Gitana Proxy pointed to: " + util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT));
+    }
 
     // all web modules are included by default
     if (!process.includeWebModule) {
@@ -233,7 +256,7 @@ exports = module.exports = function()
                 {
                     Gitana.HTTP_WORK_QUEUE_SIZE = process.configuration.gitana.httpWorkQueueSize;
 
-                    console.log("Limiting Gitana Driver HTTP work queue to size: " + Gitana.HTTP_WORK_QUEUE_SIZE);
+                    process.log("Limiting Gitana Driver HTTP work queue to size: " + Gitana.HTTP_WORK_QUEUE_SIZE);
                 }
             }
         }
@@ -698,7 +721,7 @@ exports = module.exports = function()
                                 {
                                     var url = req.path;
 
-                                    console.log("Refresh Token Expired, re-requesting resource: " + url);
+                                    process.log("Refresh Token Expired, re-requesting resource: " + url);
 
                                     var html = "";
                                     html += "<html>";

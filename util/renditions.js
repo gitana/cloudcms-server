@@ -41,7 +41,7 @@ exports = module.exports = function()
         if (typeof(process.configuration.renditions.enabled) === "undefined") {
             if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
             {
-                console.log("App Server running in production mode, renditions not defined, defaulting to: true");
+                process.log("App Server running in production mode, renditions not defined, defaulting to: true");
                 process.configuration.renditions.enabled = true;
             }
         }

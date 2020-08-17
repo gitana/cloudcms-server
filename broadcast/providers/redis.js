@@ -14,6 +14,7 @@ exports = module.exports = function(broadcastConfig)
     var nrp = null;
 
     var logger = logFactory("REDIS BROADCAST");
+    logger.setLevel("error");
 
     // allow for global redis default
     // allow for redis broadcast specific
@@ -23,9 +24,6 @@ exports = module.exports = function(broadcastConfig)
     }
     else if (typeof(process.env.CLOUDCMS_BROADCAST_REDIS_DEBUG_LEVEL) !== "undefined") {
         logger.setLevel(("" + process.env.CLOUDCMS_BROADCAST_REDIS_DEBUG_LEVEL).toLowerCase(), true);
-    }
-    else {
-        logger.setLevel("error");
     }
 
     var r = {};
@@ -63,18 +61,6 @@ exports = module.exports = function(broadcastConfig)
         nrp = new NRP(nrpConfig);
 
         callback();
-    };
-
-    r.publish = function(topic, message, callback)
-    {
-        logger.info("publish wait. topic: " + topic + " message: " + message);
-        nrp.emit(topic, message);
-
-        // TODO: how do we measure when redis has completed distributing and firing remote handlers?
-
-        setTimeout(function() {
-            callback();
-        }, 1500);
     };
 
     r.publish = function(topic, message, callback)

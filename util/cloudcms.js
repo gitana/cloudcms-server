@@ -392,7 +392,7 @@ exports = module.exports = function()
                     "agent": agent
                 }).on('response', function (response) {
 
-                    //console.log("Status Code: " + response.statusCode);
+                    //process.log("Status Code: " + response.statusCode);
 
                     if (response.statusCode >= 200 && response.statusCode <= 204)
                     {
@@ -447,7 +447,7 @@ exports = module.exports = function()
                                 }
                                 else
                                 {
-                                    console.log("WARN: exists false, " + filePath);
+                                    //process.log("WARN: exists false, " + filePath);
 
                                     // for some reason, file wasn't found
                                     // roll back the whole thing
@@ -466,7 +466,7 @@ exports = module.exports = function()
                             // ensure stream is closed
                             closeWriteStream(tempStream);
 
-                            console.log("Pipe error: " + err);
+                            process.log("Pipe error: " + err);
                         });
                     }
                     else
@@ -536,8 +536,8 @@ exports = module.exports = function()
                     // ensure stream is closed
                     closeWriteStream(tempStream);
 
-                    console.log("_writeToDisk request timed out");
-                    console.log(e)
+                    process.log("_writeToDisk request timed out");
+                    process.log(e)
                 }).on('end', function (e) {
 
                     // ensure stream is closed
@@ -546,8 +546,8 @@ exports = module.exports = function()
                 }).end();
 
                 tempStream.on("error", function (e) {
-                    console.log("Temp stream errored out");
-                    console.log(e);
+                    process.log("Temp stream errored out");
+                    process.log(e);
 
                     // ensure stream is closed
                     closeWriteStream(tempStream);
@@ -630,12 +630,12 @@ exports = module.exports = function()
                     writeToDisk(contentStore, gitana, uri, filePath, function (err, filePath, cacheInfo) {
 
                         if (err) {
-                            console.log("ERR: " + err.message + ", BODY: " + err.body);
+                            process.log("writeToDisk error, err: " + err.message + ", body: " + err.body);
                             callback(err);
                         }
                         else {
-                            //console.log("Fetched: " + assetPath);
-                            //console.log("Retrieved from server: " + filePath);
+                            //process.log("Fetched: " + assetPath);
+                            //process.log("Retrieved from server: " + filePath);
                             callback(null, filePath, cacheInfo);
                         }
                     });
@@ -753,12 +753,10 @@ exports = module.exports = function()
                                 return callback();
                             }
 
-                            console.log("ERR: " + err.message + " for URI: " + uri);
+                            process.log("writeToDisk outer fail, err: " + err.message + " for URI: " + uri);
                             return callback(err);
                         }
 
-                        //console.log("Fetched: " + assetPath);
-                        //console.log("Retrieved from server: " + filePath);
                         callback(null, filePath, responseHeaders);
                     });
                 });
@@ -797,10 +795,10 @@ exports = module.exports = function()
         // base storage directory
         var contentDirectoryPath = path.join(repositoryId, branchId, nodeId);
 
-        //console.log("Considering: " + contentDirectoryPath);
+        //process.log("Considering: " + contentDirectoryPath);
         contentStore.existsDirectory(contentDirectoryPath, function(exists) {
 
-            //console.log("Exists -> " + exists);
+            //process.log("Exists -> " + exists);
 
             if (!exists)
             {
@@ -809,7 +807,7 @@ exports = module.exports = function()
 
             contentStore.removeDirectory(contentDirectoryPath, function(err) {
 
-                console.log(" > Invalidated Node [repository: " + repositoryId + ", branch: " + branchId + ", node: " + nodeId + "]");
+                process.log(" > Invalidated Node [repository: " + repositoryId + ", branch: " + branchId + ", node: " + nodeId + "]");
 
                 callback(err, true);
             });
@@ -843,7 +841,7 @@ exports = module.exports = function()
 
             contentStore.removeDirectory(rootCachePath, function(err) {
 
-                console.log(" > Invalidated Path [repository: " + repositoryId + ", branch: " + branchId + ", path: " + rootPath + "]");
+                process.log(" > Invalidated Path [repository: " + repositoryId + ", branch: " + branchId + ", path: " + rootPath + "]");
 
                 callback(err, true);
             });

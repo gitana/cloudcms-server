@@ -30,7 +30,7 @@ exports = module.exports = function()
                 var repositoryId = parts[2];
 
                 // broadcast invalidation
-                console.log("admin broadcasting node invalidation. ref: " + ref);
+                process.log("admin broadcasting node invalidation. ref: " + ref);
                 process.broadcast.publish("node_invalidation", {
                     "ref": ref,
                     "nodeId": nodeId,
@@ -43,7 +43,7 @@ exports = module.exports = function()
             }
             else
             {
-                console.log("admin NOT broadcasting. Event is not a node invalidation. ref: " + ref);
+                process.log("admin NOT broadcasting. Event is not a node invalidation. ref: " + ref);
                 callback();
             }
         }
@@ -57,7 +57,7 @@ exports = module.exports = function()
                     return callback(err);
                 }
 
-                console.log("Admin Controller - Invalidating for hostname: " + host);
+                process.log("Admin Controller - Invalidating for hostname: " + host);
 
                 var contentStore = stores.content;
 

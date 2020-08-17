@@ -106,6 +106,18 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
         });
     };
 
+    r.refresh = function(options, callback)
+    {
+        if (typeof(options) === "function") {
+            callback = options;
+            options = {};
+        }
+
+        engine.refresh(options, function(err) {
+            callback(err);
+        });
+    };
+
     r.supportsHosts = function()
     {
         return engineConfiguration.hostsPath;

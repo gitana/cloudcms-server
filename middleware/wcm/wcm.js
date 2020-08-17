@@ -53,7 +53,7 @@ exports = module.exports = function()
             if (process.env.NODE_ENV === "production") {
                 // skip
             } else {
-                console.log("Matched - pattern: " + matcher + ", text: " + text + ", tokens: " + JSON.stringify(tokens));
+                process.log("Matched - pattern: " + matcher + ", text: " + text + ", tokens: " + JSON.stringify(tokens));
             }
         };
 
@@ -277,18 +277,6 @@ exports = module.exports = function()
             req.cache.read(WCM_PAGES, function (err, cachedPages) {
                 req.cache.read(WCM_PAGES_CACHE_TIME, function(err, cachedPagesTime) {
 
-                    /*
-                    if (cachedPages)
-                    {
-                        console.log("a1: " + cachedPages);
-                        console.log("a2: " + JSON.stringify(cachedPagesTime));
-                        console.log("a3: " + (cachedPagesTime.ms + WCM_PAGES_CACHE_TTL));
-                        console.log("a4: " + now);
-                        console.log("a5: " + WCM_PAGES_CACHE_TTL);
-                        console.log("a6: " + ((cachedPagesTime.ms + WCM_PAGES_CACHE_TTL) < now));
-                    }
-                    */
-
                     // if we received cachedPages, try to determine whether they're dirty (in which case we should reload)
                     // or whether we can serve them back
                     var load = (cachedPages ? false : true);
@@ -488,16 +476,6 @@ exports = module.exports = function()
                                                                     {
                                                                         page.templatePath = template.path;
                                                                     }
-
-                                                                    //
-                                                                    // // try to download the "default" attachment if it exists
-                                                                    // this.trap(function() {
-                                                                    // return false;
-                                                                    // }).attachment("default").download(function(text) {
-                                                                    // console.log("DOWNLOADED TEXT: " + text);
-                                                                    // page.tempateText = text;
-                                                                    // });
-                                                                    //
 
                                                                     completionFn();
 
@@ -719,13 +697,13 @@ exports = module.exports = function()
         // mark the rendition
         if (dependencies)
         {
-            console.log("marking rendition from wcm, " + (descriptor.fragmentId ? "fragmentId: " + descriptor.fragmentId : "no fragmentId"));
+            process.log("marking rendition from wcm, " + (descriptor.fragmentId ? "fragmentId: " + descriptor.fragmentId : "no fragmentId"));
             renditions.markRendition(req, descriptor, dependencies, function (err) {
                 
                 // if we got an error writing the page, then we have to roll back and invalidate disk cache
                 if (err)
                 {
-                    console.log("Caught error on WCM markRendition, invalidating: " + pageBasePath + ", err:" + err);
+                    process.log("Caught error on WCM markRendition, invalidating: " + pageBasePath + ", err:" + err);
                     _handleCachePageInvalidate(contentStore, pageBasePath, function() {
                         // done
                     });
@@ -934,7 +912,7 @@ exports = module.exports = function()
                     invalidationDone = function() { };
                 }
 
-                console.log("HEARD: invalidate_page_rendition");
+                process.log("HEARD: invalidate_page_rendition");
 
                 var clearFragmentCacheFn = function(message)
                 {
@@ -976,7 +954,7 @@ exports = module.exports = function()
                                 support.handleCacheFragmentInvalidate(host, fragmentsBasePath, fragmentCacheKey, function(err, invalidatedPath) {
 
                                     if (!err) {
-                                        console.log(" > Invalidated fragment [host: " + host + ", path: " + invalidatedPath + "]");
+                                        process.log(" > Invalidated fragment [host: " + host + ", path: " + invalidatedPath + "]");
                                     }
 
                                     return done3();
@@ -1022,7 +1000,7 @@ exports = module.exports = function()
                                 handleCachePageInvalidate(host, repositoryId, branchId, pageCacheKey, function(err) {
 
                                     if (!err) {
-                                        console.log(" > Invalidated page [host: " + host + ", repository: " + repositoryId + ", branch: " + branchId + ", page: " + pageCacheKey + "]");
+                                        process.log(" > Invalidated page [host: " + host + ", repository: " + repositoryId + ", branch: " + branchId + ", page: " + pageCacheKey + "]");
                                     }
 
                                     return done2();
@@ -1057,7 +1035,7 @@ exports = module.exports = function()
                     invalidationDone = function() { };
                 }
 
-                // console.log("HEARD: invalidate_all_page_renditions");
+                // process.log("HEARD: invalidate_all_page_renditions");
 
                 var clearFragmentCacheFn = function(message)
                 {
@@ -1092,7 +1070,7 @@ exports = module.exports = function()
                                 handleCachePageInvalidate(host, null, null, null, function(err) {
 
                                     if (!err) {
-                                        console.log(" > Invalidated all pages [host: " + host + "]");
+                                        process.log(" > Invalidated all pages [host: " + host + "]");
                                     }
 
                                     return done2();

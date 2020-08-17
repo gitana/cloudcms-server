@@ -538,6 +538,11 @@ exports = module.exports = function(engineConfig)
         });
     };
 
+    var refresh = r.refresh = function(options, callback)
+    {
+        callback();
+    };
+
     return r;
 };
 

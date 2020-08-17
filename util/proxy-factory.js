@@ -100,7 +100,7 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
 
     // error handling
     proxyServer.on("error", function(err, req, res) {
-        console.log(err);
+        process.log(err);
         res.writeHead(500, {
             'Content-Type': 'text/plain'
         });
@@ -184,9 +184,6 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
         {
             req.headers["x-cloudcms-virtualhost"] = req.virtualHost; // this could be "root.cloudcms.net" or "abc.cloudcms.net"
         }
-
-        //console.log("req.domainHost = " + req.domainHost);
-        //console.log("req.virtualHost = " + req.virtualHost);
 
         // copy deployment descriptor info
         if (req.descriptor)

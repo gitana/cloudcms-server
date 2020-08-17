@@ -45,7 +45,7 @@ module.exports.start = function(configuration, callback)
         queueUrl = "http:" + queueUrl.substring(6);
     }
 
-    console.log("Connecting to queue: " + queueUrl);
+    process.log("Connecting to queue: " + queueUrl);
 
     if (!holder.sqs)
     {

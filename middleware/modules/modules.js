@@ -1,14 +1,26 @@
 var path = require('path');
 var util = require("../../util/util");
 
+var cluster = require("cluster");
+var logFactory = require("../../util/logger");
+
 var storeService = require("../stores/stores");
 var configService = require("../config/config");
 
 exports = module.exports = function()
 {
+    var logger = this.logger = logFactory("modules", { wid: true });
+
+    if (typeof(process.env.CLOUDCMS_MODULES_LOGGER_LEVEL) !== "undefined") {
+        logger.setLevel(("" + process.env.CLOUDCMS_MODULES_LOGGER_LEVEL).toLowerCase(), true);
+    }
+    else {
+        logger.setLevel("info");
+    }
+
     var logFn = function(text)
     {
-        console.log("[Module Deployment] " + text);
+        logger.info(text);
     };
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -141,12 +153,29 @@ exports = module.exports = function()
         });
     };
 
+    var doRefresh = function(host, moduleId, moduleConfig, callback)
+    {
+        //logFn("Start doRefresh, host: " + host + ", module ID: " + moduleId + ", module config: " + JSON.stringify(moduleConfig, null, 2));;
+
+        storeService.produce(host, function(err, stores) {
+
+            var options = {};
+            options.host = host;
+
+            var modulesStore = stores.modules;
+            modulesStore.refresh(options, function(err) {
+
+                if (err) {
+                    return callback(err);
+                }
+
+                doInvalidate(host, moduleId, moduleConfig, callback);
+            });
+        });
+    };
+
     var doInvalidate = function(host, moduleId, moduleConfig, callback)
     {
-        var logFn = function(text) {
-            console.log(text);
-        };
-
         //logFn("Start doInvalidate, host: " + host + ", module ID: " + moduleId + ", module config: " + JSON.stringify(moduleConfig, null, 2));;
 
         // invalidate any caching within the stores layer
@@ -159,16 +188,9 @@ exports = module.exports = function()
         });
     };
 
-    var acquireConcurrencyIdentifier = function(messageId)
+    var acquireMessageConcurrencyLockIdentifier = function(messageId)
     {
-        var concurrencyIdentifier = null;
-
-        if (process.env.CLOUDCMS_MODULES_STORE_PERSISTENCE_BACKED === "true")
-        {
-            concurrencyIdentifier = messageId;
-        }
-
-        return concurrencyIdentifier;
+        return messageId;
     };
 
     var bindSubscriptions = function()
@@ -182,14 +204,14 @@ exports = module.exports = function()
                     finished = function () {};
                 }
 
-                console.log("Modules subscription listener triggered for: module_deploy");
+                logFn("Modules subscription listener triggered for: module_deploy");
 
                 var host = message.host;
                 var moduleId = message.moduleId;
                 var moduleConfig = message.moduleConfig;
                 var messageId = message.id;
 
-                var identifier = acquireConcurrencyIdentifier(messageId);
+                var identifier = acquireMessageConcurrencyLockIdentifier(messageId);
                 util.executeFunction(identifier, function(exclusiveFirst, doneFn) {
 
                     // if we are the exclusive first server, we do a full redeploy
@@ -197,6 +219,7 @@ exports = module.exports = function()
                     // it then deploys (writing to local server disk as well as S3)
                     if (exclusiveFirst)
                     {
+                        console.log("Master Worker exclusive first doRedeploy()");
                         return doRedeploy(host, moduleId, moduleConfig, function(err) {
                             return doneFn(err);
                         });
@@ -204,8 +227,8 @@ exports = module.exports = function()
 
                     // otherwise, the "exclusiveFirst" operations already ran on another server
                     // and we run this part concurrent with other servers
-                    // after this finishes, any new requests will fault things from S3
-                    doUndeploy(host, moduleId, moduleConfig, true, function(err) {
+                    console.log("Master Worker non-exclusive doRefresh()");
+                    doRefresh(host, moduleId, moduleConfig, function(err) {
                         return doneFn(err);
                     });
 
@@ -215,6 +238,7 @@ exports = module.exports = function()
                     doInvalidate(host, moduleId, moduleConfig, function() {
                         finished(err);
                     });
+
                 });
             });
 
@@ -225,14 +249,14 @@ exports = module.exports = function()
                     finished = function () {};
                 }
 
-                console.log("Modules subscription listener triggered for: module_undeploy");
+                logFn("Modules subscription listener triggered for: module_undeploy");
 
                 var host = message.host;
                 var moduleId = message.moduleId;
                 var moduleConfig = message.moduleConfig;
                 var messageId = message.id;
 
-                var identifier = acquireConcurrencyIdentifier(messageId);
+                var identifier = acquireMessageConcurrencyLockIdentifier(messageId);
                 util.executeFunction(identifier, function(exclusiveFirst, doneFn) {
 
                     // if we are the exclusive first server, we do a full undeploy
@@ -246,7 +270,7 @@ exports = module.exports = function()
 
                     // otherwise, the "exclusiveFirst" operations already ran on another server
                     // and we run this part concurrent with other servers
-                    doUndeploy(host, moduleId, moduleConfig, true, function(err) {
+                    doRefresh(host, moduleId, moduleConfig, function(err) {
                         return doneFn(err);
                     });
 
@@ -256,6 +280,7 @@ exports = module.exports = function()
                     doInvalidate(host, moduleId, moduleConfig, function() {
                         finished(err);
                     });
+
                 });
             });
 
@@ -266,16 +291,31 @@ exports = module.exports = function()
                     finished = function () {};
                 }
 
-                console.log("Modules subscription listener triggered for: module_refresh");
+                logFn("Modules subscription listener triggered for: module_refresh");
 
                 var host = message.host;
                 var moduleId = message.moduleId;
                 var moduleConfig = message.moduleConfig;
                 var messageId = message.id;
 
-                // invalidate this server
-                doInvalidate(host, moduleId, moduleConfig, function (err) {
-                    finished(err);
+                var identifier = acquireMessageConcurrencyLockIdentifier(messageId);
+                util.executeFunction(identifier, function(exclusiveFirst, doneFn) {
+
+                    // if we are the exclusive first server, we do a full refresh
+                    // this repopulates local disk cache and invalidates
+                    if (exclusiveFirst)
+                    {
+                        doRefresh(host, moduleId, moduleConfig, function(err) {
+                            return doneFn(err);
+                        });
+                    }
+
+                }, function(err) {
+
+                    doInvalidate(host, moduleId, moduleConfig, function() {
+                        finished(err);
+                    });
+
                 });
             });
         }
@@ -311,7 +351,7 @@ exports = module.exports = function()
                     var host = req.virtualHost;
                     var moduleConfig = req.body;
 
-                    console.log("Heard HTTP Module Deploy -  host: " + host + ", id: " + moduleId + ", config: " + JSON.stringify(moduleConfig));
+                    process.log("Heard HTTP Module Deploy -  host: " + host + ", id: " + moduleId + ", config: " + JSON.stringify(moduleConfig));
 
                     process.broadcast.publish("module_deploy", {
                         "host": host,
@@ -344,7 +384,7 @@ exports = module.exports = function()
                     var host = req.virtualHost;
                     var moduleConfig = req.body;
 
-                    console.log("Heard HTTP Module Undeploy -  host: " + host + ", id: " + moduleId + ", config: " + JSON.stringify(moduleConfig));
+                    process.log("Heard HTTP Module Undeploy -  host: " + host + ", id: " + moduleId + ", config: " + JSON.stringify(moduleConfig));
 
                     process.broadcast.publish("module_undeploy", {
                         "host": host,
@@ -372,14 +412,13 @@ exports = module.exports = function()
 
                     handled = true;
                 }
-                /*
                 else if (req.url.indexOf("/_modules/_refresh") === 0)
                 {
                     var moduleId = req.query["id"];
                     var host = req.virtualHost;
                     var moduleConfig = req.body;
 
-                    console.log("Heard MODULE REFRESH host: " + host + ", id: " + moduleId + ", config: " + JSON.stringify(moduleConfig));
+                    process.log("Heard MODULE REFRESH host: " + host + ", id: " + moduleId + ", config: " + JSON.stringify(moduleConfig));
 
                     process.broadcast.publish("module_refresh", {
                         "host": host,
@@ -407,7 +446,6 @@ exports = module.exports = function()
 
                     handled = true;
                 }
-                */
             }
             else if (req.method.toLowerCase() === "get")
             {

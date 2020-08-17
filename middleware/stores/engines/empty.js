@@ -113,6 +113,11 @@ exports = module.exports = function(engineId, engineType, engineConfig)
         callback(null, []);
     };
 
+    var refresh = r.refresh = function(options, callback)
+    {
+        callback();
+    };
+
     return r;
 };
 

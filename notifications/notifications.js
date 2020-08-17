@@ -1,7 +1,25 @@
 var async = require("async");
 var cluster = require("cluster");
+var logFactory = require("../util/logger");
 
 var logEnabled = true;
+
+var logger = this.logger = logFactory("notifications", { wid: true });
+
+if (typeof(process.env.CLOUDCMS_NOTIFICATIONS_LOGGER_LEVEL) !== "undefined") {
+    logger.setLevel(("" + process.env.CLOUDCMS_NOTIFICATIONS_LOGGER_LEVEL).toLowerCase(), true);
+}
+else {
+    logger.setLevel("info");
+}
+
+var logInfo = function(text)
+{
+    if (logEnabled)
+    {
+        logger.info(text);
+    }
+};
 
 var determineHost = function(item, obj)
 {
@@ -57,7 +75,7 @@ var handleNotificationMessages = function(items, callback) {
         var fn = function(item, i) {
             return function(done) {
 
-                //console.log("WORKING ON ITEM: " + i + ", item: " + JSON.stringify(item, null, "  "));
+                //logFn("WORKING ON ITEM: " + i + ", item: " + JSON.stringify(item, null, "  "));
 
                 var operation = item.operation;
 
@@ -147,9 +165,7 @@ var handleNotificationMessages = function(items, callback) {
                                             repositoryId = parts[2];
                                         }
 
-                                        if (logEnabled) {
-                                            console.log("Sending node invalidation for host: " + host);
-                                        }
+                                        logInfo("Sending node invalidation for host: " + host);
 
                                         // broadcast invalidation
                                         process.broadcast.publish("node_invalidation", {
@@ -341,9 +357,7 @@ var handleNotificationMessages = function(items, callback) {
                 }
                 else if (operation === "invalidate_application_page_rendition")
                 {
-                    if (logEnabled) {
-                        console.log("invalidate_application_page_rendition event\n" + JSON.stringify(item,null,2));
-                    }
+                    logInfo("invalidate_application_page_rendition event\n" + JSON.stringify(item,null,2));
 
                     var deploymentKey = item.deploymentKey;
                     var applicationId = item.applicationId;
@@ -356,9 +370,7 @@ var handleNotificationMessages = function(items, callback) {
 
                     // SAFETY CHECK: if no repository and/or branch, just bail
                     if (!repositoryId || !branchId) {
-                        if (logEnabled) {
-                            console.log("Missing repositoryId or branchId, skipping WCM page invalidation (1)");
-                        }
+                        logInfo("Missing repositoryId or branchId, skipping WCM page invalidation (1)");
                         return done();
                     }
 
@@ -385,17 +397,15 @@ var handleNotificationMessages = function(items, callback) {
 
                     // broadcast invalidation
                     process.broadcast.publish("invalidate_page_rendition", message, function(err) {
-                        if (logEnabled || err) {
-                            console.log("published invalidate_page_rendition message. err:" + err + "\nmessage: " + JSON.stringify(item,null,2));
+                        if (err) {
+                            logInfo("published invalidate_page_rendition message. err:" + err + "\nmessage: " + JSON.stringify(item,null,2));
                         }
                         return done(err);
                     });
                 }
                 else if (operation === "invalidate_application_page_renditions")
                 {
-                    if (logEnabled) {
-                        console.log("invalidate_application_page_renditions event");
-                    }
+                    logInfo("invalidate_application_page_renditions event");
 
                     var invalidations = item.invalidations;
                     if (invalidations && invalidations.length > 0)
@@ -417,9 +427,7 @@ var handleNotificationMessages = function(items, callback) {
 
                                     // SAFETY CHECK: if no repository and/or branch, just bail
                                     if (!repositoryId || !branchId) {
-                                        if (logEnabled) {
-                                            console.log("Missing repositoryId or branchId, skipping WCM page invalidation (2)");
-                                        }
+                                        logInfo("Missing repositoryId or branchId, skipping WCM page invalidation (2)");
                                         return z_done();
                                     }
 
@@ -446,8 +454,8 @@ var handleNotificationMessages = function(items, callback) {
 
                                     // broadcast invalidation
                                     process.broadcast.publish("invalidate_page_rendition", message, function(err) {
-                                        if (logEnabled || err) {
-                                            console.log("published invalidate_page_rendition message. err:" + err + "\nmessage: " + JSON.stringify(message,null,2));
+                                        if (err) {
+                                            logInfo("published invalidate_page_rendition message. err:" + err + "\nmessage: " + JSON.stringify(message,null,2));
                                         }
                                         z_done(err);
                                     });
@@ -479,17 +487,15 @@ var handleNotificationMessages = function(items, callback) {
 
                     // broadcast invalidation
                     process.broadcast.publish("invalidate_all_page_renditions", message, function(err) {
-                        if (logEnabled || err) {
-                            console.log("published invalidate_all_page_renditions message. err:" + err + "\nmessage: " + JSON.stringify(message,null,2));
+                        if (err) {
+                            logInfo("published invalidate_all_page_renditions message. err:" + err + "\nmessage: " + JSON.stringify(message,null,2));
                         }
                         return done(err);
                     });
                 }
                 else
                 {
-                    if (logEnabled) {
-                        console.log("Unknown notification item: " + JSON.stringify(item));
-                    }
+                    logInfo("Unknown notification item: " + JSON.stringify(item));
 
                     // just assume it's something we can't deal with
                     return done({
@@ -525,16 +531,16 @@ var runnerFn = function(provider, printStartMessage)
     {
         return function() {
 
-            if (printStartMessage && logEnabled)
+            if (printStartMessage)
             {
-                console.log("[" + wid + "][" + runnerCount + "] Starting notifications loop");
+                logInfo("[" + runnerCount + "] Starting notifications loop");
             }
 
             provider.process(function(err, items, postHandleCallback) {
 
                 if (err)
                 {
-                    console.log("[" + wid + "][" + runnerCount + "] Notification Provider error: " + err, err.stack);
+                    logInfo("[" + runnerCount + "] Notification Provider error: " + err, err.stack);
 
                     // start it up again
                     return completeRunnerFn(provider);
@@ -550,20 +556,16 @@ var runnerFn = function(provider, printStartMessage)
                     return completeRunnerFn(provider, false);
                 }
 
-                if (logEnabled) {
-                    console.log("[" + wid + "][" + runnerCount + "] Notification Provider found: " + items.length + " notification items");
-                }
+                logInfo("[" + runnerCount + "] Notification Provider found: " + items.length + " notification items");
 
                 handleNotificationMessages(items, function (err) {
 
-                    if (logEnabled) {
-                        console.log("[" + wid + "][" + runnerCount + "] Notification Provider handled: " + items.length + " items");
-                    }
+                    logInfo("[" + runnerCount + "] Notification Provider handled: " + items.length + " items");
 
                     postHandleCallback(err, items, function (err, items, deletedItems) {
 
-                        if (logEnabled || err) {
-                            console.log("[" + wid + "][" + runnerCount + "] Notification Provider completed - handled: " + items.length + ", deleted: " + deletedItems.length);
+                        if (err) {
+                            logInfo("[" + runnerCount + "] Notification Provider completed - handled: " + items.length + ", deleted: " + deletedItems.length);
                         }
 
                         // start it up again

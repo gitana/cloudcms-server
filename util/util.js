@@ -605,6 +605,12 @@ var executeFunction = exports.executeFunction = function(identifier, fn, afterFn
         var firstRunCacheKey = "firstRun-" + identifier;
         process.cache.read(firstRunCacheKey, function(err, value) {
 
+            if (err) {
+                process.log("Failed to read from cache: " + firstRunCacheKey, err);
+                releaseLockFn();
+                return;
+            }
+
             if (!value)
             {
                 // first thread runs with lock still held

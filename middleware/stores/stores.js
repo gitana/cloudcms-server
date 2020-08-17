@@ -3,6 +3,24 @@ var util = require("../../util/util");
 var async = require("async");
 var hash = require("object-hash");
 
+var logFactory = require("../../util/logger");
+
+var storesLogger = this.storesLogger = logFactory("stores", { wid: true });
+
+if (typeof(process.env.CLOUDCMS_STORES_LOGGER_LEVEL) !== "undefined") {
+    storesLogger.setLevel(("" + process.env.CLOUDCMS_STORES_LOGGER_LEVEL).toLowerCase(), true);
+}
+else {
+    storesLogger.setLevel("info");
+}
+
+var log = function(text, level)
+{
+    storesLogger.log(text, level);
+};
+
+
+
 /**
  * Binds the following stores into place:
  *

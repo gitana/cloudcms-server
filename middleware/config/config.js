@@ -190,7 +190,6 @@ exports = module.exports = function()
 
                             var blockFilePath = path.join(directoryPath, "config", uiConfigId, "blocks", blockId, blockId + ".json");
 
-                            //console.log("Writing block: " + blockFilePath);
                             rootStore.writeFile(blockFilePath, JSON.stringify(block, null, "  "), function(err) {
                                 done(err);
                             });
@@ -665,15 +664,7 @@ exports = module.exports = function()
 
                         async.series(fns, function() {
 
-                            /*
-                            for (var i = 0; i < uiConfigStores.length; i++)
-                            {
-                                console.log(" > " + uiConfigStores[i].id);
-                            }
-                            */
-
                             // the multistore reverses stores, so we have to pre-emptively reverse here
-                            // TODO: does this make sense?
                             uiConfigStores.reverse();
 
                             // wrap all ui config stores into a single remote config store
@@ -873,12 +864,13 @@ exports = module.exports = function()
 
                 var host = message.host;
 
-                console.log("Invalidating config service for module invalidation, host: " + host);
+                process.log("Invalidating config service for module invalidation, host: " + host);
 
                 invalidateHost(host, function(err) {
 
                     if (!err) {
-                        console.log("ConfigService invalidated host: " + host);
+                        process.log("ConfigService invalidated host: " + host);
+                        process.log(err);
                     }
 
                     invalidationDone(err);
@@ -895,12 +887,12 @@ exports = module.exports = function()
                 var host = message.host;
                 var id = message.id;
 
-                console.log("Invalidating config service for uiconfig invalidation, host: " + host + ", id: " + id);
+                process.log("Invalidating config service for uiconfig invalidation, host: " + host + ", id: " + id);
 
                 handleUIConfigInvalidation(host, id, function(err) {
 
                     if (!err) {
-                        console.log("Invalidated remote ui config, host: " + host + ", id: " + id);
+                        process.log("Invalidated remote ui config, host: " + host + ", id: " + id);
                     }
 
                     invalidationDone(err);
@@ -932,7 +924,7 @@ exports = module.exports = function()
         invalidateUIConfig(host, uiConfigId, function(err) {
 
             if (err) {
-                console.log(err);
+                process.log(err);
             }
 
             // swallow error
@@ -959,7 +951,7 @@ exports = module.exports = function()
             var directoryPath = "uiconfigs/" + uiConfigId;
 
             var uiConfigStore = rootStore.mount(path.join(directoryPath, "config"));
-            console.log("remove adapter: " + uiConfigStore.id);
+            process.log("remove adapter: " + uiConfigStore.id);
             invalidateAdapter(uiConfigStore);
 
             // walk all adapters and look for any that are mounted on multistores
@@ -985,7 +977,7 @@ exports = module.exports = function()
 
                     if (match)
                     {
-                        console.log("remove dependent adapter: " + adapterStore.id);
+                        process.log("remove dependent adapter: " + adapterStore.id);
                         invalidateAdapter(adapterStore);
                     }
                 }

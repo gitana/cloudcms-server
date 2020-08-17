@@ -106,7 +106,7 @@ exports = module.exports = function()
                                 }
                                 catch (e)
                                 {
-                                    console.log("Error reading gitana.json file");
+                                    process.log("Error reading gitana.json file");
                                     completionFunction();
                                     return;
                                 }

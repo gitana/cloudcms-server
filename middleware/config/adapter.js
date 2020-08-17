@@ -6,7 +6,7 @@ var util = require("../../util/util");
 // debug helper method to reduce logging
 var _log = function(text)
 {
-    //console.log(text);
+    //process.log(text);
 };
 
 /**
@@ -68,8 +68,8 @@ module.exports = function(configStore)
                 }
                 catch (err)
                 {
-                    console.log("An error occurred while parsing JSON: " + data + " for file: " + path);
-                    console.log(err);
+                    process.log("An error occurred while parsing JSON: " + data + " for file: " + path);
+                    process.log(err);
 
                     callback(err);
                 }
@@ -91,7 +91,7 @@ module.exports = function(configStore)
             configStore.listFiles(dirPath, function(err, filenames) {
 
                 if (err) {
-                    console.log("Caught error in loadPages listFiles() - " + JSON.stringify(err));
+                    process.log("Caught error in loadPages listFiles() - " + JSON.stringify(err));
                     return callback(err);
                 }
 
@@ -206,7 +206,7 @@ module.exports = function(configStore)
             configStore.listFiles(dirPath, function(err, filenames) {
 
                 if (err) {
-                    console.log("Caught error in loadBlocks listFiles() - " + JSON.stringify(err));
+                    process.log("Caught error in loadBlocks listFiles() - " + JSON.stringify(err));
                     return callback(err);
                 }
 
@@ -301,7 +301,7 @@ module.exports = function(configStore)
                 configStore.listFiles("/", function (err, filenames) {
 
                     if (err) {
-                        console.log("Caught error in loadContext listFiles() - " + JSON.stringify(err));
+                        process.log("Caught error in loadContext listFiles() - " + JSON.stringify(err));
                         return callback(err);
                     }
 
@@ -361,7 +361,7 @@ module.exports = function(configStore)
             callback(null, registry);
 
             var _watchLog = function(text) {
-                console.log("[Configuration Watch] " + text);
+                process.log("[Configuration Watch] " + text);
             };
 
             if (process.env.CLOUDCMS_APPSERVER_CONFIG_WATCH === "true" || process.env.CLOUDCMS_APPSERVER_CONFIG_WATCH === true)
@@ -413,7 +413,7 @@ module.exports = function(configStore)
         var pageObj = context.pages[pageKey];
         if (!pageObj)
         {
-            console.log("Missing page object for key: " + pageKey);
+            process.log("Missing page object for key: " + pageKey);
             return;
         }
         if (pageObj["extends"])
@@ -438,10 +438,9 @@ module.exports = function(configStore)
                 var parentObj = compilePage(context, ext);
                 if (!parentObj)
                 {
-                    console.log("Page Key 1: " + p1);
-                    console.log("Page Key 2: " + p2);
-
-                    console.error("WARNING: Failed to find parent page: " + ext + " for pageKey: " + p1);
+                    process.log("Page Key 1: " + p1);
+                    process.log("Page Key 2: " + p2);
+                    process.log("WARNING: Failed to find parent page: " + ext + " for pageKey: " + p1);
                 }
                 else
                 {
@@ -645,7 +644,7 @@ module.exports = function(configStore)
             // if no page, the error out?
             if (!found)
             {
-                console.log("No page found for uriOrKey: " + uriOrKey);
+                process.log("No page found for uriOrKey: " + uriOrKey);
             }
 
             createPageConfig.call(self, foundPageKey, found, function(config) {
@@ -698,7 +697,7 @@ module.exports = function(configStore)
             var binding = context.page.bindings[region];
             if (!binding)
             {
-                console.log("Unable to find gadget, page: " + pageKey + ", region: " + region + ", order: " + order);
+                process.log("Unable to find gadget, page: " + pageKey + ", region: " + region + ", order: " + order);
             }
 
             var gadget = null;

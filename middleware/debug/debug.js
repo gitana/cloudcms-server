@@ -2,6 +2,7 @@ var path = require('path');
 var fs = require('fs');
 var http = require('http');
 var util = require("../../util/util");
+var cluster = require("cluster");
 
 // REMOVE HEAPDUMP UNTIL BETTER SUPPORTED
 //     //"heapdump": "^0.3.7",
@@ -68,7 +69,11 @@ exports = module.exports = function()
 
                 if (newHeapTotal - oldHeapTotal !== 0)
                 {
-                    console.log('Open Files: ' + openHandleCount + ', RSS: ' + newRss + ' MB, Heap Used: ' + newHeap + ' MB, Heap Total: ' + newHeapTotal + ' MB, Heap Total Change: ' + deltaHeapTotal + ' MB');
+                    // only master process reports
+                    if (cluster.isMaster)
+                    {
+                        console.log('Open Files: ' + openHandleCount + ', RSS: ' + newRss + ' MB, Heap Used: ' + newHeap + ' MB, Heap Total: ' + newHeapTotal + ' MB, Heap Total Change: ' + deltaHeapTotal + ' MB');
+                    }
                 }
 
                 oldHeapTotal = newHeapTotal;

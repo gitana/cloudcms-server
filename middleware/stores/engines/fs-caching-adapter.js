@@ -1,9 +1,28 @@
 var path = require('path');
 var async = require('async');
 
+var cluster = require("cluster");
+
 var fs = require("fs");
 
 var util = require("../../../util/util");
+
+var logFactory = require("../../../util/logger");
+
+var logger = logFactory("fs-caching-adapter", { wid: true });
+
+if (typeof(process.env.CLOUDCMS_STORES_LOGGER_LEVEL) !== "undefined") {
+    logger.setLevel(("" + process.env.CLOUDCMS_STORES_LOGGER_LEVEL).toLowerCase(), true);
+}
+else {
+    logger.setLevel("info");
+}
+
+var log = function(text, level)
+{
+    logger.log(text, level);
+};
+
 
 /**
  * A caching wrapper around a remote store that locally caches assets to provide faster servicing of assets for
@@ -25,11 +44,6 @@ var util = require("../../../util/util");
  */
 exports = module.exports = function(remoteStore, settings)
 {
-    var log = function(text)
-    {
-        console.log("[fs-caching-adapter] " + text);
-    };
-
     var INVALIDATION_TOPIC = "fs-caching-adapter-path-invalidation-" + remoteStore.id;
 
     if (!settings) {
@@ -58,7 +72,7 @@ exports = module.exports = function(remoteStore, settings)
 
     var _bindSubscriptions = function()
     {
-        if (process.broadcast)
+        if (process.broadcast && cluster.isMaster)
         {
             process.broadcast.subscribe(INVALIDATION_TOPIC, function(message, channel, invalidationDone) {
 
@@ -347,11 +361,14 @@ exports = module.exports = function(remoteStore, settings)
 
         async.series(fns, function(err) {
 
-            notifyInvalidation({
-                "directories": [directoryPath]
-            }, function() {
-                callback(err);
-            });
+            if (!options.silent)
+            {
+                notifyInvalidation({
+                    "directories": [directoryPath]
+                }, function() {
+                    callback(err);
+                });
+            }
 
         });
     };
@@ -479,6 +496,32 @@ exports = module.exports = function(remoteStore, settings)
     {
         cacheStore.matchFiles(directoryPath, regexPattern, function(err, filenames) {
             callback(null, filenames);
+        });
+    };
+
+    var refresh = r.refresh = function(options, callback)
+    {
+        if (!options) {
+            return callback();
+        }
+
+        if (!options.host) {
+            return callback();
+        }
+
+        var removeDirectoryOptions = {};
+        removeDirectoryOptions.cacheOnly = true;
+        removeDirectoryOptions.silent = true;
+
+        cacheStore.removeDirectory("/hosts/" + options.host, removeDirectoryOptions, function(err) {
+
+            if (err) {
+                return callback(err);
+            }
+
+            _populateCache(function(err) {
+                return callback(err);
+            });
         });
     };
 

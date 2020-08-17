@@ -457,7 +457,7 @@ var runFunctions = function (functions, args, callback) {
     async.series(functions, args, function (err) {
 
         if (err) {
-            console.log(err);
+            process.log(err);
             throw new Error(err);
         }
 
@@ -643,10 +643,6 @@ var startSlave = function(config, afterStartFn)
 
             // global service starts
             main.init(app, function (err) {
-
-                //console.log("");
-                //console.log("Starting " + config.name);
-                //console.log("Settings: " + JSON.stringify(config, null, "   "));
 
                 app.enable('strict routing');
 
@@ -1123,12 +1119,18 @@ var startSlave = function(config, afterStartFn)
                                                 runFunctions(config.afterFunctions, [app], function (err) {
 
                                                     function cleanup() {
-                                                        console.log("");
-                                                        console.log("");
 
-                                                        console.log("Cloud CMS Module shutting down");
-                                                        // close server connections as cleanly as we can
-                                                        console.log(" -> Closing server connections");
+                                                        if (cluster.isMaster)
+                                                        {
+                                                            console.log("");
+                                                            console.log("");
+
+                                                            console.log("Cloud CMS Module shutting down");
+
+                                                            // close server connections as cleanly as we can
+                                                            console.log(" -> Closing server connections");
+                                                        }
+
                                                         try
                                                         {
                                                             server.close();
@@ -1139,7 +1141,11 @@ var startSlave = function(config, afterStartFn)
                                                         }
 
                                                         // ask toobusy to shut down as cleanly as we can
-                                                        console.log(" -> Closing toobusy monitor");
+                                                        if (cluster.isMaster)
+                                                        {
+                                                            console.log(" -> Closing toobusy monitor");
+                                                        }
+
                                                         try
                                                         {
                                                             toobusy.shutdown();
@@ -1149,7 +1155,10 @@ var startSlave = function(config, afterStartFn)
                                                             console.log("toobusy.shutdown produced error: " + JSON.stringify(e));
                                                         }
 
-                                                        console.log("");
+                                                        if (cluster.isMaster)
+                                                        {
+                                                            console.log("");
+                                                        }
 
                                                         // tell the process to exit
                                                         process.exit();

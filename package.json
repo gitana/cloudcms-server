@@ -6,7 +6,7 @@
   },
   "name": "cloudcms-server",
   "description": "Cloud CMS Application Server Module",
-  "version": "0.9.237",
+  "version": "0.9.238",
   "repository": {
     "type": "git",
     "url": "git://github.com/gitana/cloudcms-server.git"
@@ -19,7 +19,6 @@
     "async": "^1.5.2",
     "aws-sdk": "^2.544.0",
     "basic-auth": "^1.1.0",
-    "basic-logger": "^0.4.4",
     "body-parser": "^1.19.0",
     "bytes": "^2.5.0",
     "canoe": "^0.3.3",
@@ -88,7 +87,8 @@
     "toobusy-js": "^0.5.1",
     "uuid": "^3.3.3",
     "vm2": "^3.8.4",
-    "watch": "^1.0.2"
+    "watch": "^1.0.2",
+    "winston": "^3.3.3"
   },
   "devDependencies": {},
   "optionalDependencies": {},

@@ -13,6 +13,7 @@ exports = module.exports = function(cacheConfig)
     var client = null;
 
     var logger = this.logger = logFactory("REDIS CACHE");
+    logger.setLevel("error");
 
     // allow for global redis default
     // allow for redis broadcast specific
@@ -22,9 +23,6 @@ exports = module.exports = function(cacheConfig)
     }
     else if (typeof(process.env.CLOUDCMS_CACHE_REDIS_DEBUG_LEVEL) !== "undefined") {
         logger.setLevel(("" + process.env.CLOUDCMS_CACHE_REDIS_DEBUG_LEVEL).toLowerCase(), true);
-    }
-    else {
-        logger.setLevel("error");
     }
 
     var r = {};
