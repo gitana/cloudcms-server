@@ -467,6 +467,7 @@ exports = module.exports = function()
 
                     var moduleId = null;
                     var modulePath = null;
+                    console.log(filePath);
 
                     var x = filePath.indexOf("/");
                     if (x > -1)
@@ -481,7 +482,11 @@ exports = module.exports = function()
 
                     var store = stores.modules;
 
-                    var assetPath = path.join(moduleId, modulePath);
+                    var assetPath = moduleId;
+                    if (modulePath)
+                    {
+                        assetPath = path.join(moduleId, modulePath);
+                    }
 
                     if (modulePath === "index.js" && process.env.CLOUDCMS_APPSERVER_MODE === "production")
                     {
