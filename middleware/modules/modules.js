@@ -467,7 +467,6 @@ exports = module.exports = function()
 
                     var moduleId = null;
                     var modulePath = null;
-                    console.log(filePath);
 
                     var x = filePath.indexOf("/");
                     if (x > -1)
