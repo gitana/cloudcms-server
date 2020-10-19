@@ -297,6 +297,12 @@ exports = module.exports = function()
                                             return done();
                                         }
 
+                                        // skip out if it isn't really a module file (needs name and version)
+                                        if (!moduleJson.name || !moduleJson.version)
+                                        {
+                                            return done();
+                                        }
+
                                         stores.modules.fileStats(moduleJsonFilePath, function(err, stats) {
 
                                             if (err) {
@@ -433,14 +439,6 @@ exports = module.exports = function()
                             bindingStores.push(allocatedStores[i]);
                         }
 
-                        /*
-                        // debug
-                        for (var z = 0; z < bindingStores.length; z++)
-                        {
-                            console.log("Config Store: " + bindingStores[z].id);
-                        }
-                        */
-
                         // bind into a multi-store
                         stores["config"] = require("./multistore")(bindingStores);
 
@@ -454,10 +452,16 @@ exports = module.exports = function()
                     var templateStores = [];
                     for (var i = 0; i < moduleDescriptors.length; i++)
                     {
-                        var moduleStore = moduleDescriptors[i].store;
+                        var moduleStoreType = moduleDescriptors[i].store;
                         var modulePath = moduleDescriptors[i].path;
 
-                        var templateStore = buildStore(moduleStore, host, path.join(modulePath, "templates"));
+                        var storePath = path.join(modulePath, "templates");
+                        if (moduleStoreType === "modules")
+                        {
+                            storePath = path.join("modules", storePath);
+                        }
+
+                        var templateStore = buildStore(moduleStoreType, host, storePath);
                         templateStores.push(templateStore);
                     }
 
@@ -470,14 +474,6 @@ exports = module.exports = function()
                             bindingStores.push(allocatedStores[i]);
                         }
                         bindingStores.push(stores.templates);
-
-                        /*
-                        // debug
-                        for (var z = 0; z < bindingStores.length; z++)
-                        {
-                            console.log("Template Store: " + bindingStores[z].id);
-                        }
-                        */
 
                         // bind into a multi-store
                         stores["templates"] = require("./multistore")(bindingStores);
