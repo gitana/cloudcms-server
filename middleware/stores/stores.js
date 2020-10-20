@@ -297,8 +297,8 @@ exports = module.exports = function()
                                             return done();
                                         }
 
-                                        // skip out if it isn't really a module file (needs name and version)
-                                        if (!moduleJson.name || !moduleJson.version)
+                                        // skip out if it isn't really a module file (needs name at least)
+                                        if (!moduleJson.name)
                                         {
                                             return done();
                                         }
