@@ -78,8 +78,8 @@ var SETTINGS = {
         "hosts_fs": {
             "type": "fs",
             "config": {
-                "basePath": "/hosts/{host}",
-                "hostsPath": "/hosts"
+                "basePath": "{hostsPath}/{host}",
+                "hostsPath": "{hostsPath}"
             }
         },
         "hosts_s3": {
@@ -88,8 +88,8 @@ var SETTINGS = {
                 "accessKey": "",
                 "secretKey": "",
                 "bucket": "",
-                "basePath": "/hosts/{host}",
-                "hostsPath": "/hosts"
+                "basePath": "{hostsPath}/{host}",
+                "hostsPath": "{hostsPath}"
             }
         },
         "hosts_s3fs": {
@@ -98,8 +98,8 @@ var SETTINGS = {
                 "accessKey": "",
                 "secretKey": "",
                 "bucket": "",
-                "basePath": "/hosts/{host}",
-                "hostsPath": "/hosts"
+                "basePath": "{hostsPath}/{host}",
+                "hostsPath": "{hostsPath}"
             }
         }
     },
@@ -629,6 +629,46 @@ var startSlave = function(config, afterStartFn)
             }
 
             initializedSession = session(sessionConfig);
+        }
+    }
+
+    // safely checks for the existence of a path
+    var safeExists = function(_path)
+    {
+        var exists = false;
+        try
+        {
+            exists = fs.existsSync(_path);
+        }
+        catch (e)
+        {
+            // swallow
+        }
+
+        return exists;
+    }
+
+    // CLOUDCMS_HOSTS_PATH environment variable
+    // assume /hosts with optional fallback to /System/Volumes/Data/hosts for MacOS support
+    if (!process.env.CLOUDCMS_HOSTS_PATH)
+    {
+        process.env.CLOUDCMS_HOSTS_PATH = "/hosts";
+
+        if (!safeExists(process.env.CLOUDCMS_HOSTS_PATH))
+        {
+            if (safeExists("/System/Volumes/Data/hosts"))
+            {
+                process.env.CLOUDCMS_HOSTS_PATH = "/System/Volumes/Data/hosts";
+            }
+            else
+            {
+                const homedir = require('os').homedir();
+
+                if (safeExists(homedir + "/hosts"))
+                {
+                    process.env.CLOUDCMS_HOSTS_PATH = homedir + "/hosts";
+                }
+            }
         }
     }
 

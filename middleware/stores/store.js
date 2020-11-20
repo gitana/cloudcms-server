@@ -40,6 +40,7 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
         // substitutions
         hostsPath = util.replaceAll(hostsPath, "{appBasePath}", process.env.CLOUDCMS_APPSERVER_BASE_PATH);
         hostsPath = util.replaceAll(hostsPath, "{tmpdirPath}", process.env.CLOUDCMS_TEMPDIR_PATH);
+        hostsPath = util.replaceAll(hostsPath, "{hostsPath}", process.env.CLOUDCMS_HOSTS_PATH);
 
         return hostsPath;
     };
@@ -56,6 +57,7 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
         basePath = util.replaceAll(basePath, "{host}", host);
         basePath = util.replaceAll(basePath, "{appBasePath}", process.env.CLOUDCMS_APPSERVER_BASE_PATH);
         basePath = util.replaceAll(basePath, "{tmpdirPath}", process.env.CLOUDCMS_TEMPDIR_PATH);
+        basePath = util.replaceAll(basePath, "{hostsPath}", process.env.CLOUDCMS_HOSTS_PATH);
 
         if (offsetPath) {
             basePath = path.join(basePath, offsetPath);

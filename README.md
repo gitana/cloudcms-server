@@ -42,8 +42,8 @@ This looks like:
         "hosts_fs": {
             "type": "fs",
             "config": {
-                "basePath": "/hosts/{host}",
-                "hostsPath": "/hosts"
+                "basePath": "{hostsPath}/{host}",
+                "hostsPath": "{hostsPath}"
             }
         },
         "hosts_s3": {
@@ -52,8 +52,8 @@ This looks like:
                 "accessKey": "",
                 "secretKey": "",
                 "bucket": "",
-                "basePath": "/hosts/{host}",
-                "hostsPath": "/hosts"
+                "basePath": "{hostsPath}/{host}",
+                "hostsPath": "{hostsPath}"
             }
         },
         "hosts_s3fs": {
@@ -62,8 +62,8 @@ This looks like:
                 "accessKey": "",
                 "secretKey": "",
                 "bucket": "",
-                "basePath": "/hosts/{host}",
-                "hostsPath": "/hosts"
+                "basePath": "{hostsPath}/{host}",
+                "hostsPath": "{hostsPath}"
             }
         }
     },
@@ -369,6 +369,8 @@ The following environments are computed automatically and available to services:
 - CLOUDCMS_APPSERVER_TIMESTAMP: the timestamp of server startup
 
 
+- CLOUDCMS_TEMPDIR_PATH: path to a tmp directory
+- CLOUDCMS_HOSTS_PATH: path to the root /hosts directory
 
 
 # node switches
