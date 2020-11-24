@@ -1,9 +1,4 @@
-//var path = require('path');
-//var fs = require('fs');
-//var http = require('http');
 var util = require("../../util/util");
-//var uuidv4 = require("uuid/v4");
-//var Gitana = require("gitana");
 var duster = require("../../duster/index");
 
 /**

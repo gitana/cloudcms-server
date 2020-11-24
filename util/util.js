@@ -1,9 +1,7 @@
 var fs = require("fs");
 var path = require("path");
-var mkdirp = require('mkdirp');
 var request = require("request");
 var mime = require("mime");
-var uuidv4 = require("uuid/v4");
 var os = require("os");
 var async = require("async");
 var temp = require("temp");
@@ -21,6 +19,8 @@ var urlTool = require("url");
 var cloner = require("clone");
 
 var JSON5 = require("json5");
+
+var uuidv4 = require("uuid").v4;
 
 var VALID_IP_ADDRESS_REGEX_STRING = "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$";
 
@@ -543,7 +543,9 @@ var rmdir = exports.rmdir = function(directoryPath)
 
 var mkdirs = exports.mkdirs = function(directoryPath, callback)
 {
-    mkdirp(directoryPath, function(err) {
+    fs.mkdir(directoryPath, {
+        recursive: true
+    }, function(err) {
         callback(err);
     });
 };
@@ -1208,7 +1210,9 @@ var handleSendFileError = exports.handleSendFileError = function(req, res, fileP
 
 var createDirectory = exports.createDirectory = function(directoryPath, callback)
 {
-    mkdirp(directoryPath, function(err) {
+    fs.mkdir(directoryPath, {
+        "recursive": true
+    }, function(err) {
 
         if (err) {
             return callback(err);

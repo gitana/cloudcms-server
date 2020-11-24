@@ -1060,8 +1060,9 @@ var startSlave = function(config, afterStartFn)
                                         server.on("connection", function (socket) {
                                             socket.setNoDelay(true);
                                         });
-                                        var io = process.IO = require("socket.io")(server);
-                                        io.set('transports', config.socketTransports);
+                                        var io = process.IO = require("socket.io")(server, {
+                                            "transports": config.socketTransports
+                                        });
                                         io.use(function (socket, next) {
 
                                             // console.log("New socket being initialized");
