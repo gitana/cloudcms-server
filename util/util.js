@@ -1083,7 +1083,6 @@ var applyResponseContentType = exports.applyResponseContentType = function(respo
     {
         var ext = path.extname(filename);
         if (ext) {
-            //contentType = mime.lookup(ext);
             contentType = lookupMimeType(ext);
         }
     }
@@ -1094,7 +1093,6 @@ var applyResponseContentType = exports.applyResponseContentType = function(respo
         var ext = path.extname(filename);
         if (ext)
         {
-            //contentType = mime.lookup(ext);
             contentType = lookupMimeType(ext);
         }
     }
@@ -1383,7 +1381,7 @@ var isUndefined = exports.isUndefined = function(obj) {
 var lookupMimeType = exports.lookupMimeType = function(ext) {
 
     // rely on the mimetype library for base handling
-    var mimetype = mime.lookup(ext);
+    var mimetype = mime.getType(ext);
 
     var extension = ext;
     if (extension && extension.indexOf(".") === 0)

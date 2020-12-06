@@ -54,7 +54,7 @@ var HttpsKeepAliveAgent = require('agentkeepalive').HttpsAgent;
 http.globalAgent = new HttpKeepAliveAgent({
     keepAlive: true,
     keepAliveMsecs: 1000,
-    keepAliveTimeout: 30000,
+    freeSocketTimeout: 30000,
     timeout: process.defaultHttpTimeoutMs,
     maxSockets: 200,
     maxFreeSockets: 40,
@@ -63,7 +63,7 @@ http.globalAgent = new HttpKeepAliveAgent({
 https.globalAgent = new HttpsKeepAliveAgent({
     keepAlive: true,
     keepAliveMsecs: 1000,
-    keepAliveTimeout: 30000,
+    freeSocketTimeout: 30000,
     timeout: process.defaultHttpTimeoutMs,
     maxSockets: 200,
     maxFreeSockets: 40,
