@@ -1,10 +1,11 @@
 var path = require('path');
 var fs = require('fs');
 var util = require("./util");
-var request = require("request");
 
 var http = require("http");
 var https = require("https");
+
+var request = require("./request");
 
 exports = module.exports = function()
 {
@@ -346,12 +347,10 @@ exports = module.exports = function()
         {
             if (attemptCount === maxAttemptsAllowed)
             {
-                cb({
+                return cb({
                     "message": "Maximum number of connection attempts exceeded(" + maxAttemptsAllowed + ")",
                     "err": previousError
                 });
-
-                return;
             }
 
             contentStore.writeStream(filePath, function(err, tempStream) {
@@ -376,27 +375,23 @@ exports = module.exports = function()
                 var headers2 = gitana.platform().getDriver().getHttpHeaders();
                 headers["Authorization"] = headers2["Authorization"];
 
-                var agent = http.globalAgent;
-                if (process.env.GITANA_PROXY_SCHEME === "https")
-                {
-                    agent = https.globalAgent;
-                }
-
                 var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + uri;
                 request({
                     "method": "GET",
                     "url": URL,
                     "qs": {},
                     "headers": headers,
-                    "timeout": process.defaultHttpTimeoutMs,
-                    "agent": agent
-                }).on('response', function (response) {
+                    "responseType": "stream"
+                }, function(err, response) {
 
-                    //process.log("Status Code: " + response.statusCode);
+                    if (err) {
+                        closeWriteStream(tempStream);
+                        return cb(err);
+                    }
 
-                    if (response.statusCode >= 200 && response.statusCode <= 204)
+                    if (response.status >= 200 && response.status <= 204)
                     {
-                        response.pipe(tempStream).on("close", function (err) {
+                        response.data.pipe(tempStream).on("close", function (err) {
 
                             // TODO: not needed here?
                             // ensure stream is closed
@@ -463,6 +458,8 @@ exports = module.exports = function()
 
                         }).on("error", function (err) {
 
+                            console.log("f2");
+
                             // ensure stream is closed
                             closeWriteStream(tempStream);
 
@@ -475,7 +472,7 @@ exports = module.exports = function()
 
                         var body = "";
 
-                        response.on('data', function (chunk) {
+                        response.data.on('data', function (chunk) {
                             body += chunk;
                         });
 
@@ -507,7 +504,7 @@ exports = module.exports = function()
                                     // fire for retry
                                     return _refreshAccessTokenAndRetry(contentStore, gitana, uri, filePath, attemptCount, maxAttemptsAllowed, {
                                         "message": "Unable to load asset from remote store",
-                                        "code": response.statusCode,
+                                        "code": response.status,
                                         "body": body
                                     }, cb);
                                 }
@@ -515,7 +512,7 @@ exports = module.exports = function()
                                 // otherwise, it's not worth retrying at this time
                                 cb({
                                     "message": "Unable to load asset from remote store",
-                                    "code": response.statusCode,
+                                    "code": response.status,
                                     "body": body
                                 });
 
@@ -531,19 +528,7 @@ exports = module.exports = function()
 
                     }
 
-                }).on('error', function (e) {
-
-                    // ensure stream is closed
-                    closeWriteStream(tempStream);
-
-                    process.log("_writeToDisk request timed out");
-                    process.log(e)
-                }).on('end', function (e) {
-
-                    // ensure stream is closed
-                    closeWriteStream(tempStream);
-
-                }).end();
+                });
 
                 tempStream.on("error", function (e) {
                     process.log("Temp stream errored out");

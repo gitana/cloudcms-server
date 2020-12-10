@@ -2,12 +2,13 @@ var path = require('path');
 var fs = require('fs');
 var util = require("../util/util");
 var async = require("async");
-var request = require("request");
 
 var http = require("http");
 var https = require("https");
 
-var logFactory = require("../util/logger");
+var logFactory = require("./logger");
+
+var request = require("./request");
 
 /**
  * WCM Resource Dependency Manager
@@ -63,12 +64,6 @@ exports = module.exports = function()
         {
             var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + "/bulk/pagerenditions";
 
-            var agent = http.globalAgent;
-            if (process.env.GITANA_PROXY_SCHEME === "https")
-            {
-                agent = https.globalAgent;
-            }
-
             // add "authorization" for OAuth2 bearer token
             var headers = {};
             var headers2 = gitana.platform().getDriver().getHttpHeaders();
@@ -82,9 +77,8 @@ exports = module.exports = function()
                     "rows": rows
                 },
                 "headers": headers,
-                "timeout": process.defaultHttpTimeoutMs,
-                "agent": agent
-            }, function (err, response, body) {
+                "timeout": process.defaultHttpTimeoutMs
+            }, function (err, response, json) {
                 callback();
             });
         };

@@ -348,39 +348,36 @@ exports = module.exports = function()
                 var rootStore = stores.root;
                 rootStore.allocated(function(allocated) {
 
-                    console.log("H2: " + allocated);
                     if (!allocated) {
-                        callback({
+                        return callback({
                             "message": "The application cannot be started because it is not deployed."
                         });
                     }
-                    else
-                    {
-                        rootStore.readFile("descriptor.json", function (err, data) {
 
-                            if (err) {
-                                return callback(err);
-                            }
+                    rootStore.readFile("descriptor.json", function (err, data) {
 
-                            data = JSON.parse(data);
+                        if (err) {
+                            return callback(err);
+                        }
 
-                            // is it already started?
-                            if (data.active) {
-                                return callback({
-                                    "message": "The application is already started"
-                                });
-                            }
+                        data = JSON.parse(data);
 
-                            data.active = true;
-
-                            logFn("Starting application: " + data.application.id + " with host: " + host);
-
-                            rootStore.writeFile("descriptor.json", JSON.stringify(data, null, "  "), function (err) {
-                                console.log("Start error: "+ err);
-                                callback(err);
+                        // is it already started?
+                        if (data.active) {
+                            return callback({
+                                "message": "The application is already started"
                             });
+                        }
+
+                        data.active = true;
+
+                        logFn("Starting application: " + data.application.id + " with host: " + host);
+
+                        rootStore.writeFile("descriptor.json", JSON.stringify(data, null, "  "), function (err) {
+                            console.log("Start error: "+ err);
+                            callback(err);
                         });
-                    }
+                    });
                 });
             });
         });

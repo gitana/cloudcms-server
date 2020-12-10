@@ -21,8 +21,7 @@ exports = module.exports = function()
 
                 if (err)
                 {
-                    callback(err);
-                    return;
+                    return callback(err);
                 }
 
                 ADAPTERS[configStore.id] = adapter;

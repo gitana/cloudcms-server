@@ -3,10 +3,7 @@ exports = module.exports = {};
 var util = require("../../../util/util");
 var socketUtil = require("../../../util/socket");
 
-var request = require("request");
-
-var http = require("http");
-var https = require("https");
+var request = require("../../../util/request");
 
 exports.bindSocket = function(socket, provider)
 {
@@ -63,27 +60,20 @@ exports.bindSocket = function(socket, provider)
                 qs["force"] = true;
             }
 
-            var agent = http.globalAgent;
-            if (process.env.GITANA_PROXY_SCHEME === "https")
-            {
-                agent = https.globalAgent;
-            }
-
             request({
                 "method": "POST",
                 "url": URL,
                 "qs": {},
                 "json": json,
                 "headers": headers,
-                "agent": agent,
                 "timeout": process.defaultHttpTimeoutMs
-            }, function(err, response, body) {
+            }, function(err, response, json) {
 
-                if (err || (response && response.body && response.body.error)) {
+                if (err || (json && json.error)) {
                     return callback(err);
                 }
 
-                callback(null, body._doc, body.branchId);
+                callback(null, json._doc, json.branchId);
             });
         };
     });
@@ -115,23 +105,16 @@ exports.bindSocket = function(socket, provider)
             headers["GITANA_TICKET"] = gitanaTicket;
         }
 
-        var agent = http.globalAgent;
-        if (process.env.GITANA_PROXY_SCHEME === "https")
-        {
-            agent = https.globalAgent;
-        }
-
         request({
             "method": "POST",
             "url": URL,
             "qs": {},
             "json": json,
             "headers": headers,
-            "agent": agent,
             "timeout": process.defaultHttpTimeoutMs
-        }, function(err, response, body) {
+        }, function(err, response, json) {
 
-            if (err || (response && response.body && response.body.error)) {
+            if (err || (json && json.error)) {
                 return callback(err);
             }
 
@@ -166,27 +149,20 @@ exports.bindSocket = function(socket, provider)
             headers["GITANA_TICKET"] = gitanaTicket;
         }
 
-        var agent = http.globalAgent;
-        if (process.env.GITANA_PROXY_SCHEME === "https")
-        {
-            agent = https.globalAgent;
-        }
-
         request({
             "method": "POST",
             "url": URL,
             "qs": {},
             "json": json,
             "headers": headers,
-            "agent": agent,
             "timeout": process.defaultHttpTimeoutMs
-        }, function(err, response, body) {
+        }, function(err, response, json) {
 
-            if (err || (response && response.body && response.body.error)) {
+            if (err || (json && json.error)) {
                 return callback(err);
             }
 
-            callback(null, body);
+            callback(null, json);
         });
     };
 
@@ -216,31 +192,24 @@ exports.bindSocket = function(socket, provider)
             headers["GITANA_TICKET"] = gitanaTicket;
         }
 
-        var agent = http.globalAgent;
-        if (process.env.GITANA_PROXY_SCHEME === "https")
-        {
-            agent = https.globalAgent;
-        }
-
         request({
             "method": "POST",
             "url": URL,
             "qs": {},
             "json": json,
             "headers": headers,
-            "agent": agent,
             "timeout": process.defaultHttpTimeoutMs
-        }, function(err, response, body) {
+        }, function(err, response, json) {
 
-            if (err || (response && response.body && response.body.error)) {
+            if (err || (json && json.error)) {
                 return callback(err);
             }
 
-            if (!body.exists) {
+            if (!json.exists) {
                 return callback(null, false);
             }
 
-            callback(null, true, body.session);
+            callback(null, true, json.session);
         });
     };
 

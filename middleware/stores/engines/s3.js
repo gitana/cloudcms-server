@@ -279,9 +279,7 @@ exports = module.exports = function(engineConfig)
             for (var i = 0; i < data.Contents.length; i++)
             {
                 var contentKey = data.Contents[i].Key;
-                console.log("contentKey: " + contentKey);
                 var cdr = contentKey.substring(params.Prefix.length);
-                console.log("cdr.1: " + cdr);
 
                 if (cdr.indexOf("/") === 0)
                 {

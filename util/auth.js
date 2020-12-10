@@ -3,11 +3,12 @@ var fs = require('fs');
 var os = require('os');
 var _util = require("util");
 var util = require("./util");
-var request = require("request");
 var http = require("http");
 var https = require("https");
 var async = require("async");
 var LRUCache = require("lru-cache");
+
+var request = require("./request");
 
 // trusted profile cache size 100
 var TRUSTED_PROFILE_CACHE = new LRUCache({
@@ -138,7 +139,7 @@ var impersonate = exports.impersonate = function(req, key, targetUser, callback)
         var headers = {};
         headers["Authorization"] = req.gitana.platform().getDriver().getHttpHeaders()["Authorization"];
 
-        var agent = util.getAgent(req.gitanaConfig.baseURL);
+        //var agent = util.getAgent(req.gitanaConfig.baseURL);
 
         request({
             "method": "POST",
@@ -146,7 +147,7 @@ var impersonate = exports.impersonate = function(req, key, targetUser, callback)
             "qs": {},
             "json": {},
             "headers": headers,
-            "agent": agent,
+            //"agent": agent,
             "timeout": process.defaultHttpTimeoutMs
         }, function(err, response, json) {
 
@@ -441,7 +442,7 @@ var __handleSyncUser = function(req, strategy, settings, key, domainId, provider
     var headers = {};
     headers["Authorization"] = authorizationHeader;
 
-    var agent = util.getAgent(req.gitanaConfig.baseURL);
+    //var agent = util.getAgent(req.gitanaConfig.baseURL);
 
     if (!userObject) {
         userObject = {};
@@ -468,7 +469,7 @@ var __handleSyncUser = function(req, strategy, settings, key, domainId, provider
         },
         "json": json,
         "headers": headers,
-        "agent": agent,
+        //"agent": agent,
         "timeout": process.defaultHttpTimeoutMs
     };
 

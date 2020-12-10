@@ -511,7 +511,7 @@ exports = module.exports = function()
 
                     handled = true;
                 }
-                else if (req.url.indexOf("/oneteam") === 0 && req.url.indexOf("/modules") > -1 && req.url.indexOf("app/") !== 0)
+                else if (req.url.indexOf("/modules") > -1 && req.url.indexOf("app/") !== 0)
                 {
                     // this route handling is provided for support of local modules within OneTeam
                     // the full url is /oneteam-XYZ/modules/{moduleId}/something.jpg

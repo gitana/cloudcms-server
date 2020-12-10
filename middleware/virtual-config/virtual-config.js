@@ -91,53 +91,49 @@ exports = module.exports = function()
                     "qs": qs
                 };
 
-                util.retryGitanaRequest(logMethod, gitana, requestConfig, 2, function(err, response, body) {
+                util.retryGitanaRequest(logMethod, gitana, requestConfig, 2, function(err, response, json) {
 
-                    if (response && response.statusCode === 200 && body)
+                    if (response && response.status === 200 && json)
                     {
-                        var config = JSON.parse(body).config;
+                        var config = json.config;
                         if (!config)
                         {
                             // nothing found
-                            callback();
+                            return callback();
                         }
-                        else
-                        {
-                            // make sure we update baseURL
-                            config.baseURL = configuration.virtualDriver.baseURL;
 
-                            // hand back
-                            callback(null, config);
-                        }
+                        // make sure we update baseURL
+                        config.baseURL = configuration.virtualDriver.baseURL;
+
+                        // hand back
+                        return callback(null, config);
                     }
-                    else
+
+                    logMethod("Load virtual driver config failed");
+                    if (response && response.status)
                     {
-                        logMethod("Load virtual driver config failed");
-                        if (response && response.statusCode)
-                        {
-                            logMethod("Response status code: " + response.statusCode);
-                        }
-                        if (err) {
-                            logMethod("Err: " + JSON.stringify(err));
-                        }
-                        if (body) {
-                            logMethod("Body: " + body);
-                        }
-                        var message = body;
-                        if (!message) {
-                            message = "Unable to load virtual driver configuration";
-                        }
-
-                        // force disconnect of virtual driver so that it has to log in again
-                        // this prevents the attempt to use the refresh token
-                        disconnectVirtualDriver();
-
-                        // fire callback
-                        callback({
-                            "message": message,
-                            "err": err
-                        });
+                        logMethod("Response status code: " + response.status);
                     }
+                    if (err) {
+                        logMethod("Err: " + JSON.stringify(err));
+                    }
+                    if (body) {
+                        logMethod("Body: " + json);
+                    }
+                    var message = json;
+                    if (!message) {
+                        message = "Unable to load virtual driver configuration";
+                    }
+
+                    // force disconnect of virtual driver so that it has to log in again
+                    // this prevents the attempt to use the refresh token
+                    disconnectVirtualDriver();
+
+                    // fire callback
+                    return callback({
+                        "message": message,
+                        "err": err
+                    });
                 });
             });
         }

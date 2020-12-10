@@ -1,6 +1,5 @@
 var fs = require("fs");
 var path = require("path");
-var request = require("request");
 var mime = require("mime");
 var os = require("os");
 var async = require("async");
@@ -21,6 +20,8 @@ var cloner = require("clone");
 var JSON5 = require("json5");
 
 var uuidv4 = require("uuid").v4;
+
+var request = require("./request");
 
 var VALID_IP_ADDRESS_REGEX_STRING = "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$";
 
@@ -716,11 +717,11 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
             if (response)
             {
                 // ok case (just callback)
-                if (response.statusCode === 200)
+                if (response.status === 200)
                 {
                     return cb(err, response, body);
                 }
-                else if (response.statusCode === 429)
+                else if (response.status === 429)
                 {
                     // we heard "too many requests", so we wait a bit and then retry
                     // TODO: look at HTTP headers to determine how long to wait?
@@ -728,7 +729,7 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
                         logMethod("Too Many Requests heard, attempting retry (" + (currentAttempts + 1) + " / " + maxAttempts + ")");
                         _retryHandler(gitana, config, currentAttempts, maxAttempts, {
                             "message": "Heard 429 Too Many Requests",
-                            "code": response.statusCode,
+                            "code": response.status,
                             "body": body,
                             "err": err
                         }, cb);
@@ -764,7 +765,7 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
                 // refresh the access token and then retry
                 return _invalidTokenRetryHandler(gitana, config, currentAttempts, maxAttempts, {
                     "message": "Unable to refresh access token and retry",
-                    "code": response.statusCode,
+                    "code": response.status,
                     "body": body,
                     "err": err
                 }, cb);
@@ -1865,21 +1866,21 @@ var isHttp = exports.isHttp = function(url)
     return url.toLowerCase().startsWith("http://");
 };
 
-var getAgent = exports.getAgent = function(url)
-{
-    var agent = http.globalAgent;
-
-    if (url.indexOf("https://") === 0)
-    {
-        agent = https.globalAgent;
-    }
-    else if (url.indexOf("http://") === 0)
-    {
-        agent = http.globalAgent;
-    }
-
-    return agent;
-};
+// var getAgent = exports.getAgent = function(url)
+// {
+//     var agent = http.globalAgent;
+//
+//     if (url.indexOf("https://") === 0)
+//     {
+//         agent = https.globalAgent;
+//     }
+//     else if (url.indexOf("http://") === 0)
+//     {
+//         agent = http.globalAgent;
+//     }
+//
+//     return agent;
+// };
 
 /*
 var selectLeastPrivilegedGitana = exports.selectLeastPrivilegedGitana = function(req)

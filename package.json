@@ -6,7 +6,7 @@
   },
   "name": "cloudcms-server",
   "description": "Cloud CMS Application Server Module",
-  "version": "3.3.1-beta.2",
+  "version": "3.3.1-beta.3",
   "repository": {
     "type": "git",
     "url": "git://github.com/gitana/cloudcms-server.git"
@@ -17,7 +17,8 @@
     "alpaca": "^1.5.27",
     "archiver": "^5.1.0",
     "async": "^3.2.0",
-    "aws-sdk": "^2.798.0",
+    "aws-sdk": "^2.807.0",
+    "axios": "^0.21.0",
     "basic-auth": "^2.0.1",
     "body-parser": "^1.19.0",
     "bytes": "^3.1.0",
@@ -69,11 +70,10 @@
     "recursive-readdir": "^2.2.2",
     "redis": "^3.0.2",
     "redislock": "^1.3.0",
-    "request": "^2.88.0",
     "request-param": "^1.0.1",
     "response-time": "^2.3.2",
     "rwlock": "^5.0.0",
-    "semver": "^7.3.2",
+    "semver": "^7.3.4",
     "serve-favicon": "^2.5.0",
     "session-file-store": "^1.5.0",
     "sha1": "^1.1.1",
@@ -84,13 +84,11 @@
     "targz": "^1.0.1",
     "temp": "^0.9.4",
     "toobusy-js": "^0.5.1",
-    "uuid": "^8.3.1",
+    "uuid": "^8.3.2",
     "vm2": "^3.9.2",
     "watch": "^1.0.2",
     "winston": "^3.3.3"
   },
-  "devDependencies": {},
-  "optionalDependencies": {},
   "contributors": [
     {
       "name": "Michael Uzquiano",

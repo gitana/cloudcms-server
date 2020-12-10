@@ -1,6 +1,3 @@
-var http = require("http");
-var path = require("path");
-var request = require("request");
 var util = require("../util/util");
 
 /**
@@ -145,15 +142,15 @@ var doSend = function(callback)
 
     // make a single attempt to send the data over
     // if it fails, we add it back to the queue
-    util.retryGitanaRequest(log, gitana, requestConfig, 1, function(err, response, body) {
+    util.retryGitanaRequest(log, gitana, requestConfig, 1, function(err, response, json) {
 
-        if (response && response.statusCode === 200 && body)
+        if (response && response.status === 200 && json)
         {
             console.log("Insight sync for warehouse: " + warehouseId + " succeeded");
         }
         else
         {
-            if (err || (body && body.error))
+            if (err || (json && json.error))
             {
                 console.log("Insight sync for warehouse: " + warehouseId + " failed");
 
@@ -169,9 +166,9 @@ var doSend = function(callback)
                 }
                 */
 
-                if (body && body.error)
+                if (json && json.error)
                 {
-                    console.log(" -> body: " + JSON.stringify(body));
+                    console.log(" -> body: " + JSON.stringify(json));
                 }
             }
         }
