@@ -685,16 +685,6 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
             });
         }
 
-        // make sure agent is applied
-        if (!config.agent && config.url)
-        {
-            var agent = getAgent(config.url);
-            if (agent)
-            {
-                config.agent = agent;
-            }
-        }
-
         // make sure we have a headers object
         if (!config.headers)
         {
@@ -1865,22 +1855,6 @@ var isHttp = exports.isHttp = function(url)
 {
     return url.toLowerCase().startsWith("http://");
 };
-
-// var getAgent = exports.getAgent = function(url)
-// {
-//     var agent = http.globalAgent;
-//
-//     if (url.indexOf("https://") === 0)
-//     {
-//         agent = https.globalAgent;
-//     }
-//     else if (url.indexOf("http://") === 0)
-//     {
-//         agent = http.globalAgent;
-//     }
-//
-//     return agent;
-// };
 
 /*
 var selectLeastPrivilegedGitana = exports.selectLeastPrivilegedGitana = function(req)

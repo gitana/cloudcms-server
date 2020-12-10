@@ -139,15 +139,12 @@ var impersonate = exports.impersonate = function(req, key, targetUser, callback)
         var headers = {};
         headers["Authorization"] = req.gitana.platform().getDriver().getHttpHeaders()["Authorization"];
 
-        //var agent = util.getAgent(req.gitanaConfig.baseURL);
-
         request({
             "method": "POST",
             "url": req.gitanaConfig.baseURL + "/auth/impersonate/" + targetUser.getDomainId() + "/" + targetUser.getId(),
             "qs": {},
             "json": {},
             "headers": headers,
-            //"agent": agent,
             "timeout": process.defaultHttpTimeoutMs
         }, function(err, response, json) {
 
@@ -442,8 +439,6 @@ var __handleSyncUser = function(req, strategy, settings, key, domainId, provider
     var headers = {};
     headers["Authorization"] = authorizationHeader;
 
-    //var agent = util.getAgent(req.gitanaConfig.baseURL);
-
     if (!userObject) {
         userObject = {};
     }
@@ -469,7 +464,6 @@ var __handleSyncUser = function(req, strategy, settings, key, domainId, provider
         },
         "json": json,
         "headers": headers,
-        //"agent": agent,
         "timeout": process.defaultHttpTimeoutMs
     };
 
