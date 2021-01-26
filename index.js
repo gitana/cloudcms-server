@@ -34,7 +34,7 @@ process.logInfo = process.log = function(text, level)
 var Gitana = require("gitana");
 
 // default http timeout
-process.defaultHttpTimeoutMs = 120000; // 2 minutes
+process.defaultHttpTimeoutMs = 60000;
 
 if (process.env.DEFAULT_HTTP_TIMEOUT_MS)
 {
@@ -54,20 +54,18 @@ var HttpsKeepAliveAgent = require('agentkeepalive').HttpsAgent;
 http.globalAgent = new HttpKeepAliveAgent({
     keepAlive: true,
     keepAliveMsecs: 1000,
-    keepAliveTimeout: 30000,
+    maxSockets: 16000,
+    maxFreeSockets: 256,
     timeout: process.defaultHttpTimeoutMs,
-    maxSockets: 200,
-    maxFreeSockets: 40,
-    rejectUnauthorized: false
+    freeSocketTimeout: 30000
 });
 https.globalAgent = new HttpsKeepAliveAgent({
     keepAlive: true,
     keepAliveMsecs: 1000,
-    keepAliveTimeout: 30000,
+    maxSockets: 16000,
+    maxFreeSockets: 256,
     timeout: process.defaultHttpTimeoutMs,
-    maxSockets: 200,
-    maxFreeSockets: 40,
-    rejectUnauthorized: false
+    freeSocketTimeout: 30000
 });
 
 // disable for now

@@ -100,12 +100,22 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
 
     // error handling
     proxyServer.on("error", function(err, req, res) {
-        process.log(err);
-        res.writeHead(500, {
-            'Content-Type': 'text/plain'
-        });
+        console.log("A proxy error was caught: " + err + ", json: " + JSON.stringify(err) + ", path: " + req.path);
 
-        res.end('Something went wrong while proxying the request.');
+        // do our best to send something back
+        try
+        {
+            res.writeHead(500, {
+                'Content-Type': 'text/plain'
+            });
+        }
+        catch (e) { }
+
+        try
+        {
+            res.end('Something went wrong while proxying the request.');
+        }
+        catch (e) { }
     });
 
     // if we're using auth credentials that are picked up in SSO chain, then we listen for a 401

@@ -215,8 +215,7 @@ exports = module.exports = function()
                 contentStore.writeFile(filePath + ".cache", JSON.stringify(cacheInfo), function() {
                     _end.call(res, data, encoding);
                 });
-
-            };
+``            };
 
             callback();
         });

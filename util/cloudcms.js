@@ -536,8 +536,8 @@ exports = module.exports = function()
                     // ensure stream is closed
                     closeWriteStream(tempStream);
 
-                    process.log("_writeToDisk request timed out");
-                    process.log(e)
+                    //process.log("_writeToDisk request timed out");
+                    //process.log(e)
                 }).on('end', function (e) {
 
                     // ensure stream is closed
