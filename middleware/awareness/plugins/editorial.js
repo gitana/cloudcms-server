@@ -209,7 +209,7 @@ exports.bindSocket = function(socket, provider)
                 return callback(null, false);
             }
 
-            callback(null, true, json.session);
+            callback(null, true, json.editorialSession);
         });
     };
 
