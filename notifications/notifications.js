@@ -178,6 +178,22 @@ var handleNotificationMessages = function(items, callback) {
                                             "paths": paths
                                         }, z_done);
                                     }
+                                    else if (type === "theme")
+                                    {
+                                        var platformId = obj.platformId;
+                                        var applicationId = obj.applicationId;
+                                        var themeId = obj.themeId;
+                                        var templateKey = obj.templateKey;
+
+                                        // broadcast the "invalidate_theme" event
+                                        process.broadcast.publish("invalidate_theme", {
+                                            "host": host,
+                                            "platformId": platformId,
+                                            "applicationId": applicationId,
+                                            "themeId": themeId,
+                                            "templateKey": templateKey
+                                        }, z_done);
+                                    }
                                     else if (type === "tenant")
                                     {
                                         //var ref = obj.ref;
