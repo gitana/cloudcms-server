@@ -415,7 +415,7 @@ exports = module.exports = function()
                         var moduleStoreType = moduleDescriptors[i].store;
                         var modulePath = moduleDescriptors[i].path;
 
-                        // console.log("Config Store - Module Path: " + modulePath + ", type: " + moduleStoreType);
+                        console.log("Config Store - Module Path: " + modulePath + ", type: " + moduleStoreType);
 
                         var storePath = path.join(modulePath, "config");
                         if (moduleStoreType === "modules")
@@ -423,7 +423,7 @@ exports = module.exports = function()
                             storePath = path.join("modules", storePath);
                         }
 
-                        // console.log("Config Store - Module Store: " + storePath);
+                        console.log("Config Store - Module Store: " + storePath);
 
                         var configStore = buildStore(moduleStoreType, host, storePath);
                         configStores.push(configStore);
@@ -472,6 +472,8 @@ exports = module.exports = function()
                         var bindingStores = [];
                         for (var i = 0; i < allocatedStores.length; i++) {
                             bindingStores.push(allocatedStores[i]);
+
+                            console.log("a2: " + allocatedStores[i]);
                         }
                         bindingStores.push(stores.templates);
 
