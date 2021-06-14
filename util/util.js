@@ -1787,12 +1787,12 @@ var zip = exports.zip = function(directoryPath, writableStream)
  *
  * @type {Function}
  */
-var asURL = exports.asURL = function(protocol, host, port)
+var asURL = exports.asURL = function(protocol, host, port, path)
 {
     // protocol lower case
     protocol = protocol.toLowerCase();
 
-    var url = protocol + "://" + host;
+    var url = protocol + "://" + host + ("" + path);
 
     // port is optional, so check to make sure it isn't null
     if (port)

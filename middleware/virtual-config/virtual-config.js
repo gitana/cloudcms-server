@@ -83,7 +83,7 @@ exports = module.exports = function()
 
                 var URL = configuration.virtualDriver.baseURL;
                 if (!URL) {
-                    URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT);
+                    URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH);
                 }
                 URL += "/virtual/driver/config";
                 var requestConfig = {
@@ -217,7 +217,7 @@ exports = module.exports = function()
                         }
                         if (!gitanaJson.baseURL)
                         {
-                            gitanaJson.baseURL = util.cleanupURL(util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT));
+                            gitanaJson.baseURL = util.cleanupURL(util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH));
                         }
 
                         // mark as retrieved from virtual driver
@@ -340,7 +340,7 @@ exports = module.exports = function()
             // defaults
             if (!configuration.baseURL)
             {
-                configuration.baseURL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT);
+                configuration.baseURL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH);
             }
             if (!configuration.key) {
                 configuration.key = "virtual";

@@ -382,7 +382,7 @@ exports = module.exports = function()
                     agent = https.globalAgent;
                 }
 
-                var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + uri;
+                var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH) + uri;
                 request({
                     "method": "GET",
                     "url": URL,

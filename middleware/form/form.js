@@ -121,7 +121,7 @@ exports = module.exports = function()
             }
 
             // post form to Cloud CMS using public method
-            var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + url;
+            var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH) + url;
 
             var headers = {};
             headers["Authorization"] = req.gitana.platform().getDriver().getHttpHeaders()["Authorization"];
@@ -194,7 +194,7 @@ exports = module.exports = function()
 
             var url = branch.getUri() + "/alpaca/datasource";
 
-            var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + url;
+            var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH) + url;
 
             var headers = {};
             headers["Authorization"] = req.gitana.platform().getDriver().getHttpHeaders()["Authorization"];

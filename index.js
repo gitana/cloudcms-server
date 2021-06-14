@@ -125,7 +125,7 @@ exports = module.exports = function()
     // TODO: be resolved soon
     console.warn = function() {};
 
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+    // process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
     // assume app-server base path if none provided
     if (!process.env.CLOUDCMS_APPSERVER_BASE_PATH) {
@@ -136,6 +136,7 @@ exports = module.exports = function()
     // not already specified
     var defaultGitanaProxyScheme = "https";
     var defaultGitanaProxyHost = "api.cloudcms.com";
+    var defaultGitanaProxyPath = "";
     var defaultGitanaProxyPort = 443;
 
     var gitanaJsonPath = path.join(process.env.CLOUDCMS_APPSERVER_BASE_PATH, "gitana.json");
@@ -147,7 +148,8 @@ exports = module.exports = function()
             var parsedUrl = url.parse(gitanaJson.baseURL);
 
             defaultGitanaProxyHost = parsedUrl.hostname;
-            defaultGitanaProxyScheme = parsedUrl.protocol.substring(0, parsedUrl.protocol.length - 1); // remove the :
+            defaultGitanaProxyPath = parsedUrl.path;
+            defaultGitanaProxyScheme = parsedUrl. protocol.substring(0, parsedUrl.protocol.length - 1); // remove the :
 
             if (parsedUrl.port)
             {
@@ -171,13 +173,16 @@ exports = module.exports = function()
     if (!process.env.GITANA_PROXY_HOST) {
         process.env.GITANA_PROXY_HOST = defaultGitanaProxyHost;
     }
+    if (!process.env.GITANA_PROXY_PATH) {
+        process.env.GITANA_PROXY_PATH = defaultGitanaProxyPath;
+    }
     if (!process.env.GITANA_PROXY_PORT) {
         process.env.GITANA_PROXY_PORT = defaultGitanaProxyPort;
     }
 
     if (cluster.isMaster)
     {
-        process.log("Gitana Proxy pointed to: " + util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT));
+        process.log("Gitana Proxy pointed to: " + util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PATH, process.env.GITANA_PROXY_PORT));
     }
 
     // all web modules are included by default
