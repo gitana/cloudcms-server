@@ -509,6 +509,40 @@ var handleNotificationMessages = function(items, callback) {
                         return done(err);
                     });
                 }
+                else if (operation === "deployments_synced")
+                {
+                    var deploymentKey = item.deploymentKey;
+                    var applicationId = item.applicationId;
+//                    var scope = item.scope;
+
+                    var host = determineHost(item);
+
+                    var deployments = item.deployments;
+                    if (deployments && deployments.length > 0)
+                    {
+                        for (var i = 0; i < deployments.length; i++)
+                        {
+                            var deployment = deployments[i];
+
+                            var message = {
+                                "applicationId": applicationId,
+                                "deploymentKey": deploymentKey,
+  //                              "scope": scope,
+                                "host": host,
+                                "deployment": deployment
+                            };
+
+                            // broadcast event
+                            process.broadcast.publish("deployment_synced", message, function(err) {
+                                if (err) {
+                                    logInfo("published deployment_synced message. err:" + err + "\nmessage: " + JSON.stringify(message,null,2));
+                                }
+                                return done(err);
+                            });
+
+                        }
+                    }
+                }
                 else
                 {
                     logInfo("Unknown notification item: " + JSON.stringify(item));

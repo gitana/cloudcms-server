@@ -14,7 +14,10 @@ exports = module.exports = function()
     var REAP_FREQUENCY_MS = 3000; // three seconds
     var REAP_MAX_AGE_MS = 5000; // five seconds
 
-    var pluginPaths = ["./plugins/editorial"];
+    var pluginPaths = [
+        "./plugins/editorial",
+        "./plugins/resources"
+    ];
     var plugins = {};
 
     // ensure reaper only initializes once
