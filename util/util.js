@@ -1792,7 +1792,7 @@ var asURL = exports.asURL = function(protocol, host, port, path)
     // protocol lower case
     protocol = protocol.toLowerCase();
 
-    var url = protocol + "://" + host + ("" + path);
+    var url = protocol + "://" + host + (path || "");
 
     // port is optional, so check to make sure it isn't null
     if (port)

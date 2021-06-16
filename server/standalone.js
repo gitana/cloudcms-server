@@ -45,6 +45,7 @@ server.report(function(callback) {
     console.log("Server Base Path: " + process.env.CLOUDCMS_APPSERVER_BASE_PATH);
     console.log("Gitana Scheme: " + process.env.GITANA_PROXY_SCHEME);
     console.log("Gitana Host: " + process.env.GITANA_PROXY_HOST);
+    console.log("Gitana Path: " + process.env.GITANA_PROXY_PATH);
     console.log("Gitana Port: " + process.env.GITANA_PROXY_PORT);
     console.log("CPU Count: " + cpuCount);
 
