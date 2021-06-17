@@ -125,7 +125,7 @@ exports = module.exports = function()
     // TODO: be resolved soon
     console.warn = function() {};
 
-    // process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
     // assume app-server base path if none provided
     if (!process.env.CLOUDCMS_APPSERVER_BASE_PATH) {
@@ -149,7 +149,7 @@ exports = module.exports = function()
 
             defaultGitanaProxyHost = parsedUrl.hostname;
             defaultGitanaProxyPath = parsedUrl.path;
-            defaultGitanaProxyScheme = parsedUrl. protocol.substring(0, parsedUrl.protocol.length - 1); // remove the :
+            defaultGitanaProxyScheme = parsedUrl.protocol.substring(0, parsedUrl.protocol.length - 1); // remove the :
 
             if (parsedUrl.port)
             {
@@ -182,7 +182,7 @@ exports = module.exports = function()
 
     if (cluster.isMaster)
     {
-        process.log("Gitana Proxy pointed to: " + util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PATH, process.env.GITANA_PROXY_PORT));
+        process.log("Gitana Proxy pointed to: " + util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH));
     }
 
     // all web modules are included by default
