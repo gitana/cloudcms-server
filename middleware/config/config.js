@@ -841,6 +841,46 @@ exports = module.exports = function()
         });
     };
 
+    /**
+     * Invalidates cached adapter.
+     *
+     * @return {Function}
+     */
+    r.invalidateConfigHandler = function()
+    {
+        if (!process.configuration.config) {
+            process.configuration.config = {};
+        }
+
+        // config handler
+        return util.createHandler("invalidateConfig", "config", function(req, res, next, stores, cache, configuration) {
+
+            var configStore = stores.config;
+
+            var handled = false;
+
+            if (req.method.toLowerCase() === "post") {
+
+                if (req.url.indexOf("/_config/invalidate") === 0)
+                {
+                    invalidateAdapter(configStore);
+
+                    res.send({
+                        "ok": true
+                    });
+                    res.end();
+
+                    handled = true;
+                }
+            }
+
+            if (!handled)
+            {
+                next();
+            }
+        });
+    };
+
     var invalidateAdapter = r.invalidateAdapter = function(configStore)
     {
         var adapter = ADAPTERS[configStore.id];

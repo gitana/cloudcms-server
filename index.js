@@ -491,6 +491,9 @@ exports = module.exports = function()
         // handles deploy/undeploy commands
         app.use(deployment.handler());
 
+        // supports invalidation of configuration
+        app.use(config.invalidateConfigHandler());
+
         // serve back static configuration
         app.use(config.staticConfigHandler());
 
