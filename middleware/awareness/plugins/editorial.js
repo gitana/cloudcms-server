@@ -9,25 +9,25 @@ exports.bindSocket = function(socket, provider)
 {
     socketUtil.bindGitana(socket, function() {
 
-        socket.on("acquireEditorialSession", function(sessionKey, repositoryId, branchId, force, callback) {
-            acquireEditorialSession(socket, provider, sessionKey, repositoryId, branchId, force, callback);
+        socket.on("acquireEditorialWorkspace", function(sessionKey, repositoryId, branchId, type, force, callback) {
+            acquireEditorialWorkspace(socket, provider, sessionKey, repositoryId, branchId, type, force, callback);
         });
 
-        socket.on("releaseEditorialSession", function(sessionKey, repositoryId, branchId, callback) {
-            releaseEditorialSession(socket, provider, sessionKey, repositoryId, branchId, callback);
+        socket.on("releaseEditorialWorkspace", function(sessionKey, repositoryId, branchId, callback) {
+            releaseEditorialWorkspace(socket, provider, sessionKey, repositoryId, branchId, callback);
         });
 
-        socket.on("commitEditorialSession", function(sessionKey, repositoryId, branchId, callback) {
-            commitEditorialSession(socket, provider, sessionKey, repositoryId, branchId, callback);
+        socket.on("commitEditorialWorkspace", function(sessionKey, repositoryId, branchId, callback) {
+            commitEditorialWorkspace(socket, provider, sessionKey, repositoryId, branchId, callback);
         });
 
-        socket.on("editorialSessionInfo", function(sessionKey, repositoryId, branchId, callback) {
-            editorialSessionInfo(socket, provider, sessionKey, repositoryId, branchId, callback);
+        socket.on("editorialWorkspaceInfo", function(sessionKey, repositoryId, branchId, callback) {
+            editorialWorkspaceInfo(socket, provider, sessionKey, repositoryId, branchId, callback);
         });
 
         /**
-         * Acquires an editorial session.  If a session doesn't already exists, it is created.
-         * If a session already exists, it is reused unless `force` is set true.
+         * Acquires an editorial workspace.  If a workspace doesn't already exists, it is created.
+         * If a workspace already exists, it is reused unless `force` is set true.
          *
          * @param socket
          * @param provider
@@ -35,12 +35,13 @@ exports.bindSocket = function(socket, provider)
          * @param repositoryId
          * @param branchId
          * @param force
+         * @param type (either "TEMPORARY" or "AUTOSAVE", assume "TEMPORARY" if not provided)
          * @param callback
          */
-        var acquireEditorialSession = function(socket, provider, sessionKey, repositoryId, branchId, force, callback)
+        var acquireEditorialWorkspace = function(socket, provider, sessionKey, repositoryId, branchId, type, force, callback)
         {
-            // send an HTTP command to acquire an editorial session for this repository and branch
-            var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + "/oneteam/editorial/session/acquire";
+            // send an HTTP command to acquire an editorial workspace for this repository and branch
+            var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + "/oneteam/editorial/workspace/acquire";
 
             var headers = {};
             //headers["Authorization"] = socket.gitana.platform().getDriver().getHttpHeaders()["Authorization"];
@@ -54,6 +55,11 @@ exports.bindSocket = function(socket, provider)
             json.repositoryId = repositoryId;
             json.branchId = branchId;
             json.key = sessionKey;
+            json.type = type;
+
+            if (!json.type) {
+                json.type = "TEMPORARY";
+            }
 
             var qs = {};
             if (force) {
@@ -79,7 +85,7 @@ exports.bindSocket = function(socket, provider)
     });
 
     /**
-     * Releases an editorial session, deleting the session branch and erasing any accumulated work.
+     * Releases an editorial workspace, deleting the workspace branch and erasing any accumulated work.
      *
      * @param socket
      * @param provider
@@ -88,10 +94,10 @@ exports.bindSocket = function(socket, provider)
      * @param branchId
      * @param callback
      */
-    var releaseEditorialSession = function(socket, provider, sessionKey, repositoryId, branchId, callback)
+    var releaseEditorialWorkspace = function(socket, provider, sessionKey, repositoryId, branchId, callback)
     {
         // send an HTTP command to release the session
-        var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + "/oneteam/editorial/session/release";
+        var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + "/oneteam/editorial/workspace/release";
 
         var json = {};
         json.repositoryId = repositoryId;
@@ -123,7 +129,7 @@ exports.bindSocket = function(socket, provider)
     };
 
     /**
-     * Sends an HTTP request back to the API to commit the contents of an editorial session branch back to its
+     * Sends an HTTP request back to the API to commit the contents of an editorial workspace branch back to its
      * parent branch.
      *
      * @param socket
@@ -133,9 +139,9 @@ exports.bindSocket = function(socket, provider)
      * @param branchId
      * @param callback
      */
-    var commitEditorialSession = function(socket, provider, sessionKey, repositoryId, branchId, callback)
+    var commitEditorialWorkspace = function(socket, provider, sessionKey, repositoryId, branchId, callback)
     {
-        var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + "/oneteam/editorial/session/commit";
+        var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + "/oneteam/editorial/workspace/commit";
 
         var json = {};
         json.repositoryId = repositoryId;
@@ -167,7 +173,7 @@ exports.bindSocket = function(socket, provider)
     };
 
     /**
-     * Sends an HTTP request back to the API to request information about an existing editorial session.
+     * Sends an HTTP request back to the API to request information about an existing editorial workspace.
      *
      * @param socket
      * @param provider
@@ -176,9 +182,9 @@ exports.bindSocket = function(socket, provider)
      * @param branchId
      * @param callback
      */
-    var editorialSessionInfo = function(socket, provider, sessionKey, repositoryId, branchId, callback)
+    var editorialWorkspaceInfo = function(socket, provider, sessionKey, repositoryId, branchId, callback)
     {
-        var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + "/oneteam/editorial/session/info";
+        var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + "/oneteam/editorial/workspace/info";
 
         var json = {};
         json.repositoryId = repositoryId;
@@ -209,7 +215,7 @@ exports.bindSocket = function(socket, provider)
                 return callback(null, false);
             }
 
-            callback(null, true, json.editorialSession);
+            callback(null, true, json.workspace);
         });
     };
 

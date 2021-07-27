@@ -117,7 +117,7 @@ exports = module.exports = function()
                     if (err) {
                         logMethod("Err: " + JSON.stringify(err));
                     }
-                    if (body) {
+                    if (json) {
                         logMethod("Body: " + json);
                     }
                     var message = json;
