@@ -39,6 +39,13 @@ exports = module.exports = function()
 
     var doDeploy = function(host, moduleId, moduleConfig, callback)
     {
+        // broadcast: module_before_deploy
+        process.broadcast.publish("module_before_deploy", {
+            "host": host,
+            "moduleId": moduleId,
+            "moduleConfig": moduleConfig
+        });
+        
         logFn("Start doDeploy, host: " + host + ", module ID: " + moduleId + ", module config: " + JSON.stringify(moduleConfig, null, 2));;
 
         if (!moduleConfig)
@@ -103,7 +110,14 @@ exports = module.exports = function()
                     storeService.invalidate(host);
 
                     //logFn("After store.invalidate");
-
+    
+                    // broadcast: module_after_deploy
+                    process.broadcast.publish("module_after_deploy", {
+                        "host": host,
+                        "moduleId": moduleId,
+                        "moduleConfig": moduleConfig
+                    });
+    
                     callback(err);
                 });
             });
@@ -116,10 +130,17 @@ exports = module.exports = function()
 
     var doUndeploy = function(host, moduleId, moduleConfig, cacheOnly, callback)
     {
+        // broadcast: module_before_undeploy
+        process.broadcast.publish("module_before_undeploy", {
+            "host": host,
+            "moduleId": moduleId,
+            "moduleConfig": moduleConfig
+        });
+    
         var logFn = function(text) {
             console.log(text);
         };
-
+    
         logFn("Start doUndeploy, host: " + host + ", module ID: " + moduleId + ", module config: " + JSON.stringify(moduleConfig, null, 2));;
 
         storeService.produce(host, function(err, stores) {
@@ -156,12 +177,19 @@ exports = module.exports = function()
     var doRefresh = function(host, moduleId, moduleConfig, callback)
     {
         //logFn("Start doRefresh, host: " + host + ", module ID: " + moduleId + ", module config: " + JSON.stringify(moduleConfig, null, 2));;
-
+    
+        // broadcast: module_before_refresh
+        process.broadcast.publish("module_before_refresh", {
+            "host": host,
+            "moduleId": moduleId,
+            "moduleConfig": moduleConfig
+        });
+        
         storeService.produce(host, function(err, stores) {
 
             var options = {};
             options.host = host;
-
+            
             var modulesStore = stores.modules;
             modulesStore.refresh(options, function(err) {
 
@@ -169,7 +197,20 @@ exports = module.exports = function()
                     return callback(err);
                 }
 
-                doInvalidate(host, moduleId, moduleConfig, callback);
+                doInvalidate(host, moduleId, moduleConfig, function(err) {
+    
+                    if (!err)
+                    {
+                        // broadcast: module_after_refresh
+                        process.broadcast.publish("module_after_refresh", {
+                            "host": host,
+                            "moduleId": moduleId,
+                            "moduleConfig": moduleConfig
+                        });
+                    }
+                    
+                    callback(err);
+                });
             });
         });
     };
@@ -210,7 +251,7 @@ exports = module.exports = function()
                 var moduleId = message.moduleId;
                 var moduleConfig = message.moduleConfig;
                 var messageId = message.id;
-
+                
                 var identifier = acquireMessageConcurrencyLockIdentifier(messageId);
                 util.executeFunction(identifier, function(exclusiveFirst, doneFn) {
 
@@ -236,6 +277,7 @@ exports = module.exports = function()
 
                     // invalidate this server
                     doInvalidate(host, moduleId, moduleConfig, function() {
+    
                         finished(err);
                     });
 
@@ -255,7 +297,7 @@ exports = module.exports = function()
                 var moduleId = message.moduleId;
                 var moduleConfig = message.moduleConfig;
                 var messageId = message.id;
-
+                
                 var identifier = acquireMessageConcurrencyLockIdentifier(messageId);
                 util.executeFunction(identifier, function(exclusiveFirst, doneFn) {
 
@@ -278,6 +320,14 @@ exports = module.exports = function()
 
                     // invalidate this server
                     doInvalidate(host, moduleId, moduleConfig, function() {
+
+                        // broadcast: module_after_undeploy
+                        process.broadcast.publish("module_after_undeploy", {
+                            "host": host,
+                            "moduleId": moduleId,
+                            "moduleConfig": moduleConfig
+                        });
+                        
                         finished(err);
                     });
 

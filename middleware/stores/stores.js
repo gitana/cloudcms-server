@@ -28,6 +28,7 @@ var log = function(text, level)
  *   "cache"            the root of the cache
  *   "public"           the web host root (this might be public_build too)
  *   "templates"        the templates storage location (for client-side templates)
+ *   "themes"           the themes storage location (for client-side themes)
  *   "modules"          the deployed modules storage location (for client-side modules)
  *   "config"           the configuration storage location for static config (for client-side config)
  *
@@ -45,7 +46,7 @@ exports = module.exports = function()
         var engineId = storeConfiguration[storeType];
 
         var engine = ENGINES[engineId];
-
+    
         var engineType = process.configuration.storeEngines[engineId].type;
         var engineConfiguration = process.configuration.storeEngines[engineId].config;
 
@@ -208,6 +209,7 @@ exports = module.exports = function()
             // these will get overwritten in the binding methods below
             stores["config"] = buildStore("config", host, "config");
             stores["templates"] = buildStore("templates", host, "templates");
+            stores["themes"] = buildStore("themes", host, "themes");
 
             var bindWebStore = function(done) {
 
@@ -482,7 +484,43 @@ exports = module.exports = function()
                         callback();
                     });
                 };
-
+    
+                var bindThemeStores = function(moduleDescriptors, callback)
+                {
+                    // all theme stores
+                    var themeStores = [];
+                    for (var i = 0; i < moduleDescriptors.length; i++)
+                    {
+                        var moduleStoreType = moduleDescriptors[i].store;
+                        var modulePath = moduleDescriptors[i].path;
+            
+                        var storePath = path.join(modulePath, "themes");
+                        if (moduleStoreType === "modules")
+                        {
+                            storePath = path.join("modules", storePath);
+                        }
+            
+                        var themeStore = buildStore(moduleStoreType, host, storePath);
+                        themeStores.push(themeStore);
+                    }
+        
+                    // trim back and only keep stores that are allocated
+                    retainAllocatedStores(themeStores, function(err, allocatedStores) {
+            
+                        // all stores to be bound in
+                        var bindingStores = [];
+                        for (var i = 0; i < allocatedStores.length; i++) {
+                            bindingStores.push(allocatedStores[i]);
+                        }
+                        bindingStores.push(stores.themes);
+            
+                        // bind into a multi-store
+                        stores["themes"] = require("./multistore")(bindingStores);
+            
+                        callback();
+                    });
+                };
+    
                 process.cache.read("module-descriptors-" + host, function(err, moduleDescriptors) {
 
                     moduleDescriptors = null;
@@ -495,7 +533,9 @@ exports = module.exports = function()
 
                             bindConfigStores(moduleDescriptors, function () {
                                 bindTemplateStores(moduleDescriptors, function() {
-                                    done();
+                                    bindThemeStores(moduleDescriptors, function() {
+                                        done();
+                                    });
                                 });
                             });
 
@@ -505,7 +545,9 @@ exports = module.exports = function()
                     {
                         bindConfigStores(moduleDescriptors, function() {
                             bindTemplateStores(moduleDescriptors, function() {
-                                done();
+                                bindThemeStores(moduleDescriptors, function() {
+                                    done();
+                                });
                             });
                         });
                     }
@@ -566,6 +608,7 @@ exports = module.exports = function()
                 req.contentStore = stores["content"];
                 req.webStore = stores["web"];
                 req.templatesStore = stores["templates"];
+                req.themesStore = stores["themes"];
                 req.modulesStore = stores["modules"];
 
                 // sort the module descriptors by id

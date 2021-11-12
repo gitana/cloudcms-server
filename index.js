@@ -50,6 +50,7 @@ if (process.env.DEFAULT_HTTP_TIMEOUT_MS)
 
 // default agents
 var HttpKeepAliveAgent = require('agentkeepalive');
+const templates = require("./middleware/templates/templates");
 var HttpsKeepAliveAgent = require('agentkeepalive').HttpsAgent;
 http.globalAgent = new HttpKeepAliveAgent({
     keepAlive: true,
@@ -218,6 +219,7 @@ exports = module.exports = function()
     var serverTags = require("./middleware/server-tags/server-tags");
     var storeService = require("./middleware/stores/stores");
     var templates = require("./middleware/templates/templates");
+    var themes = require("./middleware/themes/themes");
     var virtualConfig = require("./middleware/virtual-config/virtual-config");
     var virtualFiles = require("./middleware/virtual-files/virtual-files");
     var wcm = require("./middleware/wcm/wcm");
@@ -502,7 +504,10 @@ exports = module.exports = function()
 
         // handles calls to the templates service
         app.use(templates.handler());
-
+    
+        // handles calls to the themes service
+        app.use(themes.handler());
+    
         // handles calls to the modules service
         app.use(modules.handler());
 

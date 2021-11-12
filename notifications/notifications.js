@@ -76,6 +76,7 @@ var handleNotificationMessages = function(items, callback) {
             return function(done) {
 
                 //logFn("WORKING ON ITEM: " + i + ", item: " + JSON.stringify(item, null, "  "));
+                console.log("WORKING ON ITEM: " + i + ", item: " + JSON.stringify(item, null, "  "));
 
                 var operation = item.operation;
 
@@ -183,7 +184,7 @@ var handleNotificationMessages = function(items, callback) {
                                         var platformId = obj.platformId;
                                         var applicationId = obj.applicationId;
                                         var themeId = obj.themeId;
-                                        var templateKey = obj.templateKey;
+                                        var themeKey = obj.themeKey;
 
                                         // broadcast the "invalidate_theme" event
                                         process.broadcast.publish("invalidate_theme", {
@@ -191,7 +192,29 @@ var handleNotificationMessages = function(items, callback) {
                                             "platformId": platformId,
                                             "applicationId": applicationId,
                                             "themeId": themeId,
-                                            "templateKey": templateKey
+                                            "themeKey": themeKey
+                                        }, z_done);
+                                    }
+                                    else if (type === "themeAssignment")
+                                    {
+                                        var platformId = obj.platformId;
+                                        var applicationId = obj.applicationId;
+                                        var projectId = obj.projectId;
+                                        var domainId = obj.domainId;
+                                        var principalId = obj.principalId;
+                                        var themeId = obj.themeId;
+                                        var operation = obj.operation;
+    
+                                        // broadcast the "invalidate_theme_assignment" event
+                                        process.broadcast.publish("invalidate_theme_assignment", {
+                                            "host": host,
+                                            "platformId": platformId,
+                                            "applicationId": applicationId,
+                                            "projectId": projectId,
+                                            "domainId": domainId,
+                                            "principalId": principalId,
+                                            "themeId": themeId,
+                                            "operation": operation
                                         }, z_done);
                                     }
                                     else if (type === "tenant")

@@ -3,6 +3,8 @@ var axios = require("axios");
 var http = require("http");
 var https = require("https");
 
+var FormData = require("form-data");
+
 /**
  * Incoming config:
  *
@@ -30,30 +32,64 @@ module.exports = function(config, callback)
     var requestConfig = {};
     requestConfig.url = config.uri || config.url;
     requestConfig.method = config.method || "get";
+    requestConfig.headers = {};
 
+    if (!config) {
+        config = {};
+    }
     if (!config.headers) {
         config.headers = {};
     }
-
-    if (config.headers) {
-        requestConfig.headers = config.headers;
+    for (var k in config.headers)
+    {
+        var v = config.headers[k];
+        if (v)
+        {
+            requestConfig.headers[k.trim().toLowerCase()] = v;
+        }
     }
-
+    // support for FormData headers
+    // copy form data headers
+    if (config.data && config.data.getHeaders)
+    {
+        var formDataHeaders = config.data.getHeaders();
+        for (var k in formDataHeaders)
+        {
+            var v = formDataHeaders[k];
+            requestConfig.headers[k] = v;
+        }
+    }
+    
     if (config.qs) {
         requestConfig.params = config.qs;
     }
 
     if (config.json) {
         requestConfig.data = config.json;
-        requestConfig.headers["content-type"] = "application/json";
+        
+        if (!requestConfig.headers["content-type"]) {
+            requestConfig.headers["content-type"] = "application/json";
+        }
     }
 
-    if (config.data) {
+    if (config.data)
+    {
         requestConfig.data = config.data;
-
-        if (requestConfig.data !== null && typeof requestConfig.data === 'object')
+    
+        if (!requestConfig.headers["content-type"])
         {
-            requestConfig.headers["content-type"] = "application/json";
+            if (!requestConfig.data)
+            {
+                if (requestConfig.data.getHeaders)
+                {
+                    // assume this is a FormData and skip
+                }
+                else if (typeof(requestConfig.data) === "object")
+                {
+                    // send as json
+                    requestConfig.headers["content-type"] = "application/json";
+                }
+            }
         }
     }
 
@@ -72,7 +108,7 @@ module.exports = function(config, callback)
         requestConfig.httpAgent = http.globalAgent;
     }
     */
-
+    
     axios.request(requestConfig).then(function(response) {
         callback(null, response, response.data);
     }, function(error) {
