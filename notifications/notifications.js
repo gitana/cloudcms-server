@@ -659,7 +659,7 @@ module.exports = function()
     var r = {};
 
     r.start = function(callback) {
-
+    
         var config = process.configuration;
         if (!config["notifications"])
         {
@@ -686,7 +686,7 @@ module.exports = function()
                 notifications.enabled = true;
             }
         }
-
+        
         if (notifications.enabled)
         {
             if (process.env.CLOUDCMS_NOTIFICATIONS_TYPE)
