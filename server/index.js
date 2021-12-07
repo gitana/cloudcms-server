@@ -37,6 +37,8 @@ var duster = require("../duster/index");
 
 var coreHelpers = require("../duster/helpers/core/index");
 
+var helmet = require("helmet");
+
 var toobusy = require("toobusy-js");
 toobusy.maxLag(500); // 500 ms lag in event queue, quite high but usable for now
 toobusy.interval(250);
@@ -585,6 +587,39 @@ var startSlave = function(config, afterStartFn)
     if (!process.env.CLOUDCMS_STANDALONE_HOST) {
         process.env.CLOUDCMS_STANDALONE_HOST = "local";
     }
+    
+    
+    // auto-configuration for HTTPS
+    if (!process.configuration.https) {
+        process.configuration.https = {};
+    }
+    if (process.env.CLOUDCMS_HTTPS) {
+        process.configuration.https = JSON.parse(process.env.CLOUDCMS_HTTPS);
+    }
+    if (process.env.CLOUDCMS_HTTPS_KEY_FILEPATH) {
+        process.configuration.https.key = fs.readFileSync(process.env.CLOUDCMS_HTTPS_KEY_FILEPATH);
+    }
+    if (process.env.CLOUDCMS_HTTPS_CERT_FILEPATH) {
+        process.configuration.https.cert = fs.readFileSync(process.env.CLOUDCMS_HTTPS_CERT_FILEPATH);
+    }
+    if (process.env.CLOUDCMS_HTTPS_PFX_FILEPATH) {
+        process.configuration.https.pfx = fs.readFileSync(process.env.CLOUDCMS_HTTPS_PFX_FILEPATH);
+    }
+    if (process.env.CLOUDCMS_HTTPS_PASSPHRASE) {
+        process.configuration.https.passphrase = process.env.CLOUDCMS_HTTPS_PASSPHRASE;
+    }
+    if (process.env.CLOUDCMS_HTTPS_REQUEST_CERT === "true") {
+        process.configuration.https.requestCert = true;
+    }
+    if (process.env.CLOUDCMS_HTTPS_CA_FILEPATH) {
+        process.configuration.https.ca = [ fs.readFileSync(process.env.CLOUDCMS_HTTPS_CA_FILEPATH) ];
+    }
+    
+    // if https config is empty, remove it
+    if (Object.keys(process.configuration.https).length === 0) {
+        delete process.configuration.https;
+    }
+    
 
     // session store
     var initializedSession = null;
@@ -1045,8 +1080,17 @@ var startSlave = function(config, afterStartFn)
                                         ////////////////////////////////////////////////////////////////////////////
 
 
-                                        // CORE OBJECTS
-                                        var server = http.Server(app);
+                                        // create the server (either HTTP or HTTPS)
+                                        var server = null;
+                                        if (process.configuration.https) {
+                                            // configure helmet to support auto-upgrade of http->https
+                                            app.use(helmet());
+                                            // create https server
+                                            server = https.createServer(process.configuration.https, app);
+                                        } else {
+                                            // legacy
+                                            server = http.Server(app);
+                                        }
 
                                         // request timeout
                                         var requestTimeout = 30000; // 30 seconds
