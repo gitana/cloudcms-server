@@ -16,6 +16,9 @@ var session = require('express-session');
 var cookieParser = require('cookie-parser');
 var flash = require("connect-flash");
 
+const redis = require('redis');
+const connectRedis = require('connect-redis');
+
 // we don't bind a single passport - instead, we get the constructor here by hand
 var Passport = require("passport").Passport;
 
@@ -620,6 +623,18 @@ var startSlave = function(config, afterStartFn)
         delete process.configuration.https;
     }
     
+    
+    // auto configuration of session store
+    if (!process.configuration.session) {
+        process.configuration.session = {};
+    }
+    if (process.env.CLOUDCMS_SESSION_TYPE) {
+        process.configuration.session.enabled = true;
+        process.configuration.session.type = process.env.CLOUDCMS_SESSION_TYPE;
+    }
+    if (process.env.CLOUDCMS_SESSION_SECRET) {
+        process.configuration.session.secret = process.env.CLOUDCMS_SESSION_SECRET;
+    }
 
     // session store
     var initializedSession = null;
@@ -652,6 +667,28 @@ var startSlave = function(config, afterStartFn)
                 // session file store
                 var SessionFileStore = require('session-file-store')(session);
                 sessionConfig.store = new SessionFileStore(options);
+            }
+            else if (process.configuration.session.type === "redis")
+            {
+                var redisPort = process.env.CLOUDCMS_REDIS_PORT;
+                var redisHost = process.env.CLOUDCMS_REDIS_ENDPOINT;
+                
+                if (!redisPort)
+                {
+                    console.error("Cannot configure session for Redis storage because CLOUDCMS_REDIS_PORT is not defined");
+                }
+                else if (!redisHost)
+                {
+                    console.error("Cannot configure session for Redis storage because CLOUDCMS_REDIS_ENDPOINT is not defined");
+                }
+                else
+                {
+                    var redisOptions = {};
+                    var redisClient = redis.createClient(redisPort, redisHost, redisOptions);
+                    
+                    var RedisStore = connectRedis(session);
+                    sessionConfig.store = new RedisStore({ client: redisClient });
+                }
             }
             else if (process.configuration.session.type === "memory" || !process.configuration.session.type)
             {
