@@ -101,15 +101,18 @@ exports = module.exports = function()
 
                 var targetStore = stores["modules"];
                 var targetOffsetPath = moduleId;
-
+    
+                //logFn("From: " + sourceType + ", " + sourceUrl + ", " + sourcePath + ", " + sourceBranch);
+                //logFn("To: " + targetStore + ", path: " + targetOffsetPath);
+                
                 util.gitCheckout(host, sourceType, sourceUrl, sourcePath, sourceBranch, targetStore, targetOffsetPath, false, logFn, function (err) {
 
-                    //logFn("After util.gitCheckout: " + JSON.stringify(err));
+                    logFn("After util.gitCheckout: " + JSON.stringify(err));
 
                     // invalidate any caching within the stores layer
                     storeService.invalidate(host);
 
-                    //logFn("After store.invalidate");
+                    logFn("After store.invalidate");
     
                     // broadcast: module_after_deploy
                     process.broadcast.publish("module_after_deploy", {
