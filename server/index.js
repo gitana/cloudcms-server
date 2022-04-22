@@ -313,12 +313,12 @@ var SETTINGS = {
 process.env.PORT = process.env.PORT || 2999;
 
 // allows for specification of alternative transports
-SETTINGS.socketTransports = [
-    'websocket',
-    'xhr-polling',
-    'jsonp-polling',
-    'polling'
-];
+// SETTINGS.socketTransports = [
+//     'websocket',
+//     'xhr-polling',
+//     'jsonp-polling',
+//     'polling'
+// ];
 
 var exports = module.exports;
 
@@ -1118,15 +1118,15 @@ var startSlave = function(config, afterStartFn)
 
 
                                         // create the server (either HTTP or HTTPS)
-                                        var server = null;
+                                        var httpServer = null;
                                         if (process.configuration.https) {
                                             // configure helmet to support auto-upgrade of http->https
                                             app.use(helmet());
                                             // create https server
-                                            server = https.createServer(process.configuration.https, app);
+                                            httpServer = https.createServer(process.configuration.https, app);
                                         } else {
                                             // legacy
-                                            server = http.Server(app);
+                                            httpServer = http.Server(app);
                                         }
 
                                         // request timeout
@@ -1135,14 +1135,15 @@ var startSlave = function(config, afterStartFn)
                                         {
                                             requestTimeout = process.configuration.timeout;
                                         }
-                                        server.setTimeout(requestTimeout);
+                                        httpServer.setTimeout(requestTimeout);
 
                                         // socket
-                                        server.on("connection", function (socket) {
+                                        httpServer.on("connection", function (socket) {
                                             socket.setNoDelay(true);
                                         });
-                                        var io = process.IO = require("socket.io")(server);
-                                        io.set('transports', config.socketTransports);
+                                        const { Server } = require("socket.io");
+                                        var io = process.IO = new Server(httpServer);
+                                        //io.set('transports', config.socketTransports);
                                         io.use(function (socket, next) {
 
                                             // console.log("New socket being initialized");
@@ -1234,7 +1235,7 @@ var startSlave = function(config, afterStartFn)
                                             // APPLY SERVER BEFORE START FUNCTIONS
                                             runFunctions(config.beforeFunctions, [app], function (err) {
 
-                                                server._listenPort = app.get("port");
+                                                httpServer._listenPort = app.get("port");
 
                                                 // AFTER SERVER START
                                                 runFunctions(config.afterFunctions, [app], function (err) {
@@ -1254,7 +1255,7 @@ var startSlave = function(config, afterStartFn)
 
                                                         try
                                                         {
-                                                            server.close();
+                                                            httpServer.close();
                                                         }
                                                         catch (e)
                                                         {
@@ -1295,7 +1296,7 @@ var startSlave = function(config, afterStartFn)
                                                         process.send("server-startup");
                                                     }
 
-                                                    afterStartFn(app, server);
+                                                    afterStartFn(app, httpServer);
 
                                                 });
                                             });
