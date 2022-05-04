@@ -1,6 +1,7 @@
 var path = require("path");
 var redis = require("redis");
 var logFactory = require("../../util/logger");
+var redisHelper = require("../../util/redis");
 
 /**
  * Redis lock service.
@@ -38,31 +39,9 @@ exports = module.exports = function(locksConfig)
 
     r.init = function(callback)
     {
-        var redisPort = locksConfig.port;
-        if (typeof(redisPort) === "undefined" || !redisPort)
-        {
-            redisPort = process.env.CLOUDCMS_LOCKS_REDIS_PORT;
-        }
-        if (typeof(redisPort) === "undefined" || !redisPort)
-        {
-            redisPort = process.env.CLOUDCMS_REDIS_PORT;
-        }
+        var redisOptions = redisHelper.redisOptions(locksConfig, "CLOUDCMS_LOCKS");
 
-        var redisEndpoint = locksConfig.endpoint;
-        if (typeof(redisEndpoint) === "undefined" || !redisEndpoint)
-        {
-            redisEndpoint = process.env.CLOUDCMS_LOCKS_REDIS_ENDPOINT;
-        }
-        if (typeof(redisEndpoint) === "undefined" || !redisEndpoint)
-        {
-            redisEndpoint = process.env.CLOUDCMS_REDIS_ENDPOINT;
-        }
-
-        var redisOptions = {};
-
-        //redis.debug_mode = true;
-
-        client = redis.createClient(redisPort, redisEndpoint, redisOptions);
+        client = redis.createClient(redisOptions);
 
         callback();
     };

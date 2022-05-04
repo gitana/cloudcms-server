@@ -2,6 +2,7 @@ var path = require("path");
 
 var redis = require("redis");
 var logFactory = require("../../../util/logger");
+const redisHelper = require("../../../util/redis");
 
 /**
  * Redis distributed cache.
@@ -29,32 +30,12 @@ exports = module.exports = function(cacheConfig)
 
     r.init = function(callback)
     {
-        var redisPort = cacheConfig.port;
-        if (typeof(redisPort) === "undefined" || !redisPort)
-        {
-            redisPort = process.env.CLOUDCMS_CACHE_REDIS_PORT;
-        }
-        if (typeof(redisPort) === "undefined" || !redisPort)
-        {
-            redisPort = process.env.CLOUDCMS_REDIS_PORT;
-        }
+        var self = this;
+    
+        var redisOptions = redisHelper.redisOptions(cacheConfig, "CLOUDCMS_CACHE");
 
-        var redisEndpoint = cacheConfig.endpoint;
-        if (typeof(redisEndpoint) === "undefined" || !redisEndpoint)
-        {
-            redisEndpoint = process.env.CLOUDCMS_CACHE_REDIS_ENDPOINT;
-        }
-        if (typeof(redisEndpoint) === "undefined" || !redisEndpoint)
-        {
-            redisEndpoint = process.env.CLOUDCMS_REDIS_ENDPOINT;
-        }
-
-        var redisOptions = {};
-
-        //redis.debug_mode = true;
-
-        client = redis.createClient(redisPort, redisEndpoint, redisOptions);
-
+        client = redis.createClient(redisOptions);
+        
         callback();
     };
 

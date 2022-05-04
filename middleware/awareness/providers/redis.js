@@ -4,6 +4,7 @@ var redis = require("redis");
 var async = require("async");
 
 var logFactory = require("../../../util/logger");
+var redisHelper = require("../../../util/redis");
 
 class RedisProvider extends AbstractAsyncProvider
 {
@@ -30,30 +31,10 @@ class RedisProvider extends AbstractAsyncProvider
     init(callback)
     {
         var self = this;
+        
+        var redisOptions = redisHelper.redisOptions(this.config, "CLOUDCMS_AWARENESS");
 
-        var redisPort = this.config.port;
-        if (typeof(redisPort) === "undefined" || !redisPort)
-        {
-            redisPort = process.env.CLOUDCMS_AWARENESS_REDIS_PORT;
-        }
-        if (typeof(redisPort) === "undefined" || !redisPort)
-        {
-            redisPort = process.env.CLOUDCMS_REDIS_PORT;
-        }
-
-        var redisHost = this.config.host;
-        if (typeof(redisHost) === "undefined" || !redisHost)
-        {
-            redisHost = process.env.CLOUDCMS_AWARENESS_REDIS_ENDPOINT;
-        }
-        if (typeof(redisHost) === "undefined" || !redisHost)
-        {
-            redisHost = process.env.CLOUDCMS_REDIS_ENDPOINT;
-        }
-
-        var redisOptions = {};
-
-        this.client = redis.createClient(redisPort, redisHost, redisOptions);
+        this.client = redis.createClient(redisOptions);
 
         callback();
     }

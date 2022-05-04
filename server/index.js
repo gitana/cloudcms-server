@@ -23,6 +23,7 @@ const connectRedis = require('connect-redis');
 var Passport = require("passport").Passport;
 
 var util = require("../util/util");
+var redisHelper = require("../util/redis");
 
 var launchPad = require("../launchpad/index");
 var cluster = require("cluster");
@@ -683,8 +684,8 @@ var startSlave = function(config, afterStartFn)
                 }
                 else
                 {
-                    var redisOptions = {};
-                    var redisClient = redis.createClient(redisPort, redisHost, redisOptions);
+                    var redisOptions = redisHelper.redisOptions();
+                    var redisClient = redis.createClient(redisOptions);
                     
                     var RedisStore = connectRedis(session);
                     sessionConfig.store = new RedisStore({ client: redisClient });
