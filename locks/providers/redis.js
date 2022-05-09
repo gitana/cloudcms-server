@@ -1,7 +1,8 @@
-var path = require("path");
-var redis = require("redis");
 var logFactory = require("../../util/logger");
-var redisHelper = require("../../util/redis");
+//var redisHelper = require("../../util/redis");
+
+var redisClientFactory = require("../../clients/redis");
+const redisHelper = require("../../util/redis");
 
 /**
  * Redis lock service.
@@ -17,33 +18,24 @@ exports = module.exports = function(locksConfig)
         delay: 50
     });
 
-    var nrp = null;
     var client = null;
-
-    var logger = logFactory("REDIS LOCK");
-
-    // allow for global redis default
-    // allow for redis broadcast specific
-    // otherwise default to error
-    if (typeof(process.env.CLOUDCMS_REDIS_DEBUG_LEVEL) !== "undefined") {
-        logger.setLevel(("" + process.env.CLOUDCMS_REDIS_DEBUG_LEVEL).toLowerCase(), true);
-    }
-    else if (typeof(process.env.CLOUDCMS_LOCKS_REDIS_DEBUG_LEVEL) !== "undefined") {
-        logger.setLevel(("" + process.env.CLOUDCMS_LOCKS_REDIS_DEBUG_LEVEL).toLowerCase(), true);
-    }
-    else {
-        logger.setLevel("error");
-    }
-
+    
+    var logger = redisHelper.redisLogger("REDIS_LOCKS", "CLOUDCMS_LOCKS_", "error")
+    
     var r = {};
 
     r.init = function(callback)
     {
-        var redisOptions = redisHelper.redisOptions(locksConfig, "CLOUDCMS_LOCKS");
-
-        client = redis.createClient(redisOptions);
-
-        callback();
+        redisClientFactory.create(locksConfig, function(err, _client) {
+    
+            if (err) {
+                return callback(err);
+            }
+    
+            client = _client;
+    
+            return callback();
+        });
     };
 
     r.lock = function(key, fn)

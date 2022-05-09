@@ -1,4 +1,38 @@
+var redis = require("redis");
+const logFactory = require("./logger");
+
 exports = module.exports;
+
+var redisLogger = exports.redisLogger = function(name, prefix, defaultLevel)
+{
+    if (!defaultLevel) {
+        defaultLevel = "error";
+    }
+    
+    var level = null;
+    
+    // allow for global redis default
+    // allow for prefix specific
+    if (typeof(process.env["CLOUDCMS_REDIS_DEBUG_LEVEL"]) !== "undefined") {
+        level = "" + process.env["CLOUDCMS_REDIS_DEBUG_LEVEL"].toLowerCase();
+    }
+    
+    if (!level && prefix)
+    {
+        if (typeof(process.env[prefix + "REDIS_DEBUG_LEVEL"]) !== "undefined") {
+            level = "" + process.env[prefix + "REDIS_DEBUG_LEVEL"].toLowerCase();
+        }
+    }
+    
+    if (!level) {
+        level = defaultLevel;
+    }
+    
+    var logger = logFactory(name);
+    logger.setLevel(level);
+    
+    return logger;
+}
 
 var redisOptions = exports.redisOptions = function(config, prefix)
 {
@@ -57,7 +91,23 @@ var redisOptions = exports.redisOptions = function(config, prefix)
     
     var redisOptions = {};
     redisOptions.url = redisUrl;
-    redisOptions.legacyMode = true;
     
     return redisOptions;
+}
+
+var createAndConnect = exports.createAndConnect = async function(redisOptions, callback)
+{
+    var client = redis.createClient(redisOptions);
+    
+    var connectErr = null;
+    client.on('error', function(err) {
+        console.log('Redis Client Error', err);
+        connectErr = err;
+    });
+    
+    // connect
+    await client.connect();
+    //console.log("Connected to redis, options: " + JSON.stringify(redisOptions, null, 2) + ", err: " + connectErr + ", client: " + client);
+
+    return callback(connectErr, client);
 }

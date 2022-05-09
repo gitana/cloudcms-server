@@ -1,132 +1,152 @@
 var AbstractAsyncProvider = require("./abstract-async");
 
-var redis = require("redis");
+//var redis = require("redis");
 var async = require("async");
 
 var logFactory = require("../../../util/logger");
-var redisHelper = require("../../../util/redis");
+//var redisHelper = require("../../../util/redis");
+
+var redisClientFactory = require("../../../clients/redis");
+const redisHelper = require("../../../util/redis");
 
 class RedisProvider extends AbstractAsyncProvider
 {
     constructor(config)
     {
         super(config);
-
-        this.logger = logFactory("AWARENESS REDIS");
-
-        // allow for global redis default
-        // allow for redis broadcast specific
-        // otherwise default to error
-        if (typeof(process.env.CLOUDCMS_REDIS_DEBUG_LEVEL) !== "undefined") {
-            this.logger.setLevel(("" + process.env.CLOUDCMS_REDIS_DEBUG_LEVEL).toLowerCase(), true);
-        }
-        else if (typeof(process.env.CLOUDCMS_AWARENESS_REDIS_DEBUG_LEVEL) !== "undefined") {
-            this.logger.setLevel(("" + process.env.CLOUDCMS_AWARENESS_REDIS_DEBUG_LEVEL).toLowerCase(), true);
-        }
-        else {
-            this.logger.setLevel("error");
-        }
+    
+        this.logger = redisHelper.redisLogger("REDIS_AWARENESS", "CLOUDCMS_AWARENESS_", "error")
     }
 
     init(callback)
     {
         var self = this;
+    
+        redisClientFactory.create(config, function(err, _client) {
+    
+            if (err) {
+                return callback(err);
+            }
+    
+            self.client = _client;
+    
+            return callback();
+    
+        });
+    
+        (async function() {
+            var redisOptions = redisHelper.redisOptions(this.config, "CLOUDCMS_AWARENESS");
+            await redisHelper.createAndConnect(redisOptions, function(err, _client) {
         
-        var redisOptions = redisHelper.redisOptions(this.config, "CLOUDCMS_AWARENESS");
-
-        this.client = redis.createClient(redisOptions);
-
-        callback();
+            });
+        })();
     }
 
     readOrCreateChannel(channelId, callback)
     {
         var self = this;
+    
+        (async function() {
 
-        self.client.get("channel-" + channelId, function(err, channelJsonText) {
-
-            if (err) {
-                return callback(err);
-            }
-
-            if (channelJsonText)
-            {
-                var channel = JSON.parse("" + channelJsonText);
-                return callback(null, channel);
-            }
-
-            var channel = {};
-            self.client.set("channel-" + channelId, JSON.stringify(channel), function(err) {
-
+            await self.client.get("channel-" + channelId, function(err, channelJsonText) {
+    
                 if (err) {
                     return callback(err);
                 }
-
-                callback(null, channel);
+    
+                if (channelJsonText)
+                {
+                    var channel = JSON.parse("" + channelJsonText);
+                    return callback(null, channel);
+                }
+                
+                (async function() {
+                    var channel = {};
+                    await self.client.set("channel-" + channelId, JSON.stringify(channel), function (err) {
+        
+                        if (err) {
+                            return callback(err);
+                        }
+        
+                        callback(null, channel);
+                    });
+                })();
             });
-        });
+            
+        })();
     };
 
     readChannel(channelId, callback)
     {
         var self = this;
-
-        self.client.get("channel-" + channelId, function(err, channelJsonText) {
-
-            if (err) {
-                return callback(err);
-            }
-
-            if (channelJsonText)
-            {
-                var channel = JSON.parse("" + channelJsonText);
-                return callback(null, channel);
-            }
-
-            callback();
-        });
+    
+        (async function() {
+    
+            await self.client.get("channel-" + channelId, function(err, channelJsonText) {
+    
+                if (err) {
+                    return callback(err);
+                }
+    
+                if (channelJsonText)
+                {
+                    var channel = JSON.parse("" + channelJsonText);
+                    return callback(null, channel);
+                }
+    
+                callback();
+            });
+            
+        })();
     };
 
     writeChannel(channelId, channel, callback)
     {
         var self = this;
+    
+        (async function() {
 
-        self.client.set("channel-" + channelId, JSON.stringify(channel), function(err) {
-
-            if (err) {
-                return callback(err);
-            }
-
-            callback();
-        });
+            await self.client.set("channel-" + channelId, JSON.stringify(channel), function(err) {
+    
+                if (err) {
+                    return callback(err);
+                }
+    
+                callback();
+            });
+            
+        })();
     };
 
     listChannelIds(callback)
     {
         var self = this;
+    
+        (async function() {
 
-        // fetch all keys for channels
-        self.client.keys("channel-*", function(err, channelKeys) {
-
-            if (err)
-            {
-                return callback(err);
-            }
-
-            if (!channelKeys || channelKeys.length === 0)
-            {
-                return callback(null, []);
-            }
-
-            var channelIds = [];
-            for (var i = 0; i < channelKeys.length; i++)
-            {
-                var channelId = channelKeys[i].substring(channelKeys[i].indexOf("-") + 1);
-                channelIds.push(channelId);
-            }
-
-            callback(null, channelIds);
-        });
+            // fetch all keys for channels
+            await self.client.keys("channel-*", function(err, channelKeys) {
+    
+                if (err)
+                {
+                    return callback(err);
+                }
+    
+                if (!channelKeys || channelKeys.length === 0)
+                {
+                    return callback(null, []);
+                }
+    
+                var channelIds = [];
+                for (var i = 0; i < channelKeys.length; i++)
+                {
+                    var channelId = channelKeys[i].substring(channelKeys[i].indexOf("-") + 1);
+                    channelIds.push(channelId);
+                }
+    
+                callback(null, channelIds);
+            });
+        })();
     };
 
     /**
@@ -221,106 +241,126 @@ class RedisProvider extends AbstractAsyncProvider
     readLock(lockId, callback)
     {
         var self = this;
+    
+        (async function() {
 
-        self.client.get("lock-" + lockId, function(err, lockJsonText) {
-
-            if (err) {
-                return callback(err);
-            }
-
-            if (lockJsonText)
-            {
-                var lock = JSON.parse("" + lockJsonText);
-                return callback(null, lock);
-            }
-
-            callback();
-        });
+            await self.client.get("lock-" + lockId, function(err, lockJsonText) {
+    
+                if (err) {
+                    return callback(err);
+                }
+    
+                if (lockJsonText)
+                {
+                    var lock = JSON.parse("" + lockJsonText);
+                    return callback(null, lock);
+                }
+    
+                callback();
+            });
+        })();
     };
 
     writeLock(lockId, lock, callback)
     {
         var self = this;
-
-        self.client.set("lock-" + lockId, JSON.stringify(lock), function(err) {
-
-            if (err) {
-                return callback(err);
-            }
-
-            callback();
-        });
+    
+        (async function() {
+            
+            await self.client.set("lock-" + lockId, JSON.stringify(lock), function(err) {
+                
+                if (err) {
+                    return callback(err);
+                }
+    
+                callback();
+            });
+            
+        })();
     };
 
     deleteLock(lockId, callback)
     {
         var self = this;
+    
+        (async function() {
+        
+            await self.client.del("lock-" + lockId, function(err) {
 
-        self.client.del("lock-" + lockId, function(err) {
-
-            if (err) {
-                return callback(err);
-            }
-
-            callback();
-        });
+                if (err) {
+                    return callback(err);
+                }
+    
+                callback();
+            });
+            
+        })();
     };
 
     listLockIds(callback)
     {
         var self = this;
+    
+        (async function() {
 
-        // fetch all keys for locks
-        self.client.keys("lock-*", function(err, lockKeys) {
-
-            if (err)
-            {
-                return callback(err);
-            }
-
-            if (!lockKeys || lockKeys.length === 0)
-            {
-                return callback(null, []);
-            }
-
-            var lockIds = [];
-            for (var i = 0; i < lockKeys.length; i++)
-            {
-                var lockId = lockKeys[i].substring(0, lockKeys[i].indexOf("-"));
-                lockIds.push(lockId);
-            }
-
-            callback(null, lockIds);
-        });
+            // fetch all keys for locks
+            await self.client.keys("lock-*", function(err, lockKeys) {
+    
+                if (err)
+                {
+                    return callback(err);
+                }
+    
+                if (!lockKeys || lockKeys.length === 0)
+                {
+                    return callback(null, []);
+                }
+    
+                var lockIds = [];
+                for (var i = 0; i < lockKeys.length; i++)
+                {
+                    var lockId = lockKeys[i].substring(0, lockKeys[i].indexOf("-"));
+                    lockIds.push(lockId);
+                }
+    
+                callback(null, lockIds);
+            });
+            
+        })();
     };
 
     acquireSession(sessionId, callback)
     {
         var self = this;
-
-        self.client.get("session-" + sessionId, function(err, sessionJsonText) {
-
-            if (err) {
-                return callback(err);
-            }
-
-            if (sessionJsonText)
-            {
-                var session = JSON.parse("" + sessionJsonText);
-                return callback(null, session);
-            }
-
-            // create a new session
-            var session = {};
-            self.client.set("session-" + sessionId, JSON.stringify(session), function(err) {
-
+    
+        (async function() {
+            
+            await self.client.get("session-" + sessionId, function(err, sessionJsonText) {
+    
                 if (err) {
                     return callback(err);
                 }
-
-                callback(null, session);
+    
+                if (sessionJsonText)
+                {
+                    var session = JSON.parse("" + sessionJsonText);
+                    return callback(null, session);
+                }
+    
+                // create a new session
+                (async function() {
+                    var session = {};
+                    await self.client.set("session-" + sessionId, JSON.stringify(session), function(err) {
+        
+                        if (err) {
+                            return callback(err);
+                        }
+        
+                        callback(null, session);
+                    });
+                })();
             });
-        });
+        })();
     }
 
     updateSession(sessionId, session, callback)
@@ -330,30 +370,35 @@ class RedisProvider extends AbstractAsyncProvider
         if (!session) {
             session = {};
         }
-
-        // create a new session
-        self.client.set("session-" + sessionId, JSON.stringify(session), function(err) {
-
-            if (err) {
-                return callback(err);
-            }
-
-            callback(null, session);
-        });
+    
+        (async function() {
+    
+            // create a new session
+            await self.client.set("session-" + sessionId, JSON.stringify(session), function (err) {
+        
+                if (err) {
+                    return callback(err);
+                }
+        
+                callback(null, session);
+            });
+        })();
     }
 
     deleteSession(sessionId, callback)
     {
         var self = this;
-
-        self.client.del("session-" + sessionId, function(err) {
-
-            if (err) {
-                return callback(err);
-            }
-
-            callback();
-        });
+    
+        (async function() {
+            await self.client.del("session-" + sessionId, function (err) {
+        
+                if (err) {
+                    return callback(err);
+                }
+        
+                callback();
+            });
+        })();
     }
 
 }

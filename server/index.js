@@ -671,25 +671,20 @@ var startSlave = function(config, afterStartFn)
             }
             else if (process.configuration.session.type === "redis")
             {
-                var redisPort = process.env.CLOUDCMS_REDIS_PORT;
-                var redisHost = process.env.CLOUDCMS_REDIS_ENDPOINT;
-                
-                if (!redisPort)
-                {
-                    console.error("Cannot configure session for Redis storage because CLOUDCMS_REDIS_PORT is not defined");
-                }
-                else if (!redisHost)
-                {
-                    console.error("Cannot configure session for Redis storage because CLOUDCMS_REDIS_ENDPOINT is not defined");
-                }
-                else
-                {
+                (async function() {
                     var redisOptions = redisHelper.redisOptions();
-                    var redisClient = redis.createClient(redisOptions);
-                    
-                    var RedisStore = connectRedis(session);
-                    sessionConfig.store = new RedisStore({ client: redisClient });
-                }
+                    redisHelper.createAndConnect(redisOptions, function(err, redisClient) {
+    
+                        if (err) {
+                            console.error(err);
+                        }
+                        else
+                        {
+                            var RedisStore = connectRedis(session);
+                            sessionConfig.store = new RedisStore({ client: redisClient });
+                        }
+                    });
+                })();
             }
             else if (process.configuration.session.type === "memory" || !process.configuration.session.type)
             {

@@ -1,8 +1,7 @@
-var path = require("path");
+var redisClientFactory = require("../../clients/redis");
+var redisHelper = require("../../util/redis");
 
-var NRP = require('node-redis-pubsub');
-
-var logFactory = require("../../util/logger");
+var NRP = require("../../clients/nrp");
 
 /**
  * Redis broadcast provider.
@@ -12,55 +11,31 @@ var logFactory = require("../../util/logger");
 exports = module.exports = function(broadcastConfig)
 {
     var nrp = null;
-
-    var logger = logFactory("REDIS BROADCAST");
-    logger.setLevel("error");
-
-    // allow for global redis default
-    // allow for redis broadcast specific
-    // otherwise default to "error"
-    if (typeof(process.env.CLOUDCMS_REDIS_DEBUG_LEVEL) !== "undefined") {
-        logger.setLevel(("" + process.env.CLOUDCMS_REDIS_DEBUG_LEVEL).toLowerCase(), true);
-    }
-    else if (typeof(process.env.CLOUDCMS_BROADCAST_REDIS_DEBUG_LEVEL) !== "undefined") {
-        logger.setLevel(("" + process.env.CLOUDCMS_BROADCAST_REDIS_DEBUG_LEVEL).toLowerCase(), true);
-    }
-
+    
+    var logger = redisHelper.redisLogger("REDIS_BROADCAST", "CLOUDCMS_BROADCAST_", "error")
+    
     var r = {};
 
     r.start = function(callback)
     {
-        var redisPort = broadcastConfig.port;
-        if (typeof(redisPort) === "undefined" || !redisPort)
-        {
-            redisPort = process.env.CLOUDCMS_BROADCAST_REDIS_PORT;
-        }
-        if (typeof(redisPort) === "undefined" || !redisPort)
-        {
-            redisPort = process.env.CLOUDCMS_REDIS_PORT;
-        }
-
-        var redisEndpoint = broadcastConfig.endpoint;
-        if (typeof(redisEndpoint) === "undefined" || !redisEndpoint)
-        {
-            redisEndpoint = process.env.CLOUDCMS_BROADCAST_REDIS_ENDPOINT;
-        }
-        if (typeof(redisEndpoint) === "undefined" || !redisEndpoint)
-        {
-            redisEndpoint = process.env.CLOUDCMS_REDIS_ENDPOINT;
-        }
-
-        var nrpConfig = {
-            "port": redisPort,
-            "host": redisEndpoint,
-            "scope": "broadcast_cache"
-        };
-
-        logger.info("using config = " + nrpConfig);
-        
-        nrp = new NRP(nrpConfig);
-
-        callback();
+        redisClientFactory.create(broadcastConfig, function(err, client) {
+            
+            if (err) {
+                return callback(err);
+            }
+    
+            var nrpConfig = {
+                "client": client,
+                "scope": "broadcast_cache"
+            };
+    
+            logger.info("using config = " + nrpConfig);
+    
+            nrp = new NRP(nrpConfig);
+            nrp.connect(function(err) {
+                callback(err);
+            });
+        });
     };
 
     r.publish = function(topic, message, callback)
