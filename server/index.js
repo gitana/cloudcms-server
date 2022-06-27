@@ -16,10 +16,14 @@ var session = require('express-session');
 var cookieParser = require('cookie-parser');
 var flash = require("connect-flash");
 
+const redis = require('redis');
+const connectRedis = require('connect-redis');
+
 // we don't bind a single passport - instead, we get the constructor here by hand
 var Passport = require("passport").Passport;
 
 var util = require("../util/util");
+var redisHelper = require("../util/redis");
 
 var launchPad = require("../launchpad/index");
 var cluster = require("cluster");
@@ -36,6 +40,8 @@ var main = require("../index");
 var duster = require("../duster/index");
 
 var coreHelpers = require("../duster/helpers/core/index");
+
+var helmet = require("helmet");
 
 var toobusy = require("toobusy-js");
 toobusy.maxLag(500); // 500 ms lag in event queue, quite high but usable for now
@@ -315,12 +321,12 @@ var SETTINGS = {
 process.env.PORT = process.env.PORT || 2999;
 
 // allows for specification of alternative transports
-SETTINGS.socketTransports = [
-    'websocket',
-    'xhr-polling',
-    'jsonp-polling',
-    'polling'
-];
+// SETTINGS.socketTransports = [
+//     'websocket',
+//     'xhr-polling',
+//     'jsonp-polling',
+//     'polling'
+// ];
 
 var exports = module.exports;
 
@@ -592,7 +598,50 @@ var startSlave = function(config, afterStartFn)
     if (!process.env.CLOUDCMS_STANDALONE_HOST) {
         process.env.CLOUDCMS_STANDALONE_HOST = "local";
     }
-
+    
+    // auto-configuration for HTTPS
+    if (!process.configuration.https) {
+        process.configuration.https = {};
+    }
+    if (process.env.CLOUDCMS_HTTPS) {
+        process.configuration.https = JSON.parse(process.env.CLOUDCMS_HTTPS);
+    }
+    if (process.env.CLOUDCMS_HTTPS_KEY_FILEPATH) {
+        process.configuration.https.key = fs.readFileSync(process.env.CLOUDCMS_HTTPS_KEY_FILEPATH);
+    }
+    if (process.env.CLOUDCMS_HTTPS_CERT_FILEPATH) {
+        process.configuration.https.cert = fs.readFileSync(process.env.CLOUDCMS_HTTPS_CERT_FILEPATH);
+    }
+    if (process.env.CLOUDCMS_HTTPS_PFX_FILEPATH) {
+        process.configuration.https.pfx = fs.readFileSync(process.env.CLOUDCMS_HTTPS_PFX_FILEPATH);
+    }
+    if (process.env.CLOUDCMS_HTTPS_PASSPHRASE) {
+        process.configuration.https.passphrase = process.env.CLOUDCMS_HTTPS_PASSPHRASE;
+    }
+    if (process.env.CLOUDCMS_HTTPS_REQUEST_CERT === "true") {
+        process.configuration.https.requestCert = true;
+    }
+    if (process.env.CLOUDCMS_HTTPS_CA_FILEPATH) {
+        process.configuration.https.ca = [ fs.readFileSync(process.env.CLOUDCMS_HTTPS_CA_FILEPATH) ];
+    }
+    
+    // if https config is empty, remove it
+    if (Object.keys(process.configuration.https).length === 0) {
+        delete process.configuration.https;
+    }
+    
+    // auto configuration of session store
+    if (!process.configuration.session) {
+        process.configuration.session = {};
+    }
+    if (process.env.CLOUDCMS_SESSION_TYPE) {
+        process.configuration.session.enabled = true;
+        process.configuration.session.type = process.env.CLOUDCMS_SESSION_TYPE;
+    }
+    if (process.env.CLOUDCMS_SESSION_SECRET) {
+        process.configuration.session.secret = process.env.CLOUDCMS_SESSION_SECRET;
+    }
+    
     // session store
     var initializedSession = null;
     if (process.configuration.session)
@@ -624,6 +673,23 @@ var startSlave = function(config, afterStartFn)
                 // session file store
                 var SessionFileStore = require('session-file-store')(session);
                 sessionConfig.store = new SessionFileStore(options);
+            }
+            else if (process.configuration.session.type === "redis")
+            {
+                (async function() {
+                    var redisOptions = redisHelper.redisOptions();
+                    redisHelper.createAndConnect(redisOptions, function(err, redisClient) {
+            
+                        if (err) {
+                            console.error(err);
+                        }
+                        else
+                        {
+                            var RedisStore = connectRedis(session);
+                            sessionConfig.store = new RedisStore({ client: redisClient });
+                        }
+                    });
+                })();
             }
             else if (process.configuration.session.type === "memory" || !process.configuration.session.type)
             {
@@ -1050,26 +1116,34 @@ var startSlave = function(config, afterStartFn)
                                         // INITIALIZE THE SERVER
                                         //
                                         ////////////////////////////////////////////////////////////////////////////
-
-
-                                        // CORE OBJECTS
-                                        var server = http.Server(app);
-
+    
+                                        // create the server (either HTTP or HTTPS)
+                                        var httpServer = null;
+                                        if (process.configuration.https) {
+                                            // configure helmet to support auto-upgrade of http->https
+                                            app.use(helmet());
+                                            // create https server
+                                            httpServer = https.createServer(process.configuration.https, app);
+                                        } else {
+                                            // legacy
+                                            httpServer = http.Server(app);
+                                        }
+    
                                         // request timeout
                                         var requestTimeout = 30000; // 30 seconds
                                         if (process.configuration && process.configuration.timeout)
                                         {
                                             requestTimeout = process.configuration.timeout;
                                         }
-                                        server.setTimeout(requestTimeout);
-
+                                        httpServer.setTimeout(requestTimeout);
+    
                                         // socket
-                                        server.on("connection", function (socket) {
+                                        httpServer.on("connection", function (socket) {
                                             socket.setNoDelay(true);
                                         });
-                                        var io = process.IO = require("socket.io")(server, {
-                                            "transports": config.socketTransports
-                                        });
+                                        const { Server } = require("socket.io");
+                                        var io = process.IO = new Server(httpServer);
+                                        //io.set('transports', config.socketTransports);
                                         io.use(function (socket, next) {
 
                                             // console.log("New socket being initialized");
@@ -1160,8 +1234,8 @@ var startSlave = function(config, afterStartFn)
 
                                             // APPLY SERVER BEFORE START FUNCTIONS
                                             runFunctions(config.beforeFunctions, [app], function (err) {
-
-                                                server._listenPort = app.get("port");
+    
+                                                httpServer._listenPort = app.get("port");
 
                                                 // AFTER SERVER START
                                                 runFunctions(config.afterFunctions, [app], function (err) {
@@ -1181,7 +1255,7 @@ var startSlave = function(config, afterStartFn)
 
                                                         try
                                                         {
-                                                            server.close();
+                                                            httpServer.close();
                                                         }
                                                         catch (e)
                                                         {
@@ -1221,8 +1295,8 @@ var startSlave = function(config, afterStartFn)
                                                     {
                                                         process.send("server-startup");
                                                     }
-
-                                                    afterStartFn(app, server);
+    
+                                                    afterStartFn(app, httpServer);
 
                                                 });
                                             });

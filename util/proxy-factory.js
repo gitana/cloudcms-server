@@ -99,11 +99,11 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
 
     // create proxy server instance
     var proxyServer = new httpProxy.createProxyServer(proxyConfig);
-
+    
     // error handling
     proxyServer.on("error", function(err, req, res) {
-        console.log("A proxy error was caught: " + err + ", json: " + JSON.stringify(err));
-
+        console.log("A proxy error was caught: " + err + ", json: " + JSON.stringify(err) + ", path: " + req.path);
+        
         // do our best to send something back
         try
         {
@@ -112,7 +112,7 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
             });
         }
         catch (e) { }
-
+        
         try
         {
             res.end('Something went wrong while proxying the request.');

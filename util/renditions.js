@@ -62,7 +62,7 @@ exports = module.exports = function()
 
         var syncRows = function(rows, callback)
         {
-            var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + "/bulk/pagerenditions";
+            var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH) + "/bulk/pagerenditions";
 
             // add "authorization" for OAuth2 bearer token
             var headers = {};

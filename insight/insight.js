@@ -128,7 +128,7 @@ var doSend = function(callback)
     }
 
     // url over to cloud cms
-    var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + "/warehouses/" + warehouseId + "/interactions/_create";
+    var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH) + "/warehouses/" + warehouseId + "/interactions/_create";
     var requestConfig = {
         "url": URL,
         "qs": {},

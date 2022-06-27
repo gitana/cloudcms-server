@@ -1777,10 +1777,11 @@ var zip = exports.zip = function(directoryPath, writableStream)
  * @param {string} protocol
  * @param {string} host
  * @param [number|string] port
+ * @param {string} path
  *
  * @type {Function}
  */
-var asURL = exports.asURL = function(protocol, host, port)
+var asURL = exports.asURL = function(protocol, host, port, path)
 {
     // protocol lower case
     protocol = protocol.toLowerCase();
@@ -1805,7 +1806,20 @@ var asURL = exports.asURL = function(protocol, host, port)
             url += ":" + port;
         }
     }
-
+    
+    // include url "path" if defined
+    if (path) {
+        path = '/' + path;
+        path = path.replace(/\/+/g, '/'); // ensure no extra '/' characters
+        if (path.endsWith('/')) {
+            // remove trailing '/' character
+            path = path.substring(0, path.length - 1);
+        }
+        if (path) {
+            url += path;
+        }
+    }
+    
     return url;
 };
 

@@ -34,7 +34,7 @@ process.logInfo = process.log = function(text, level)
 var Gitana = require("gitana");
 
 // default http timeout
-process.defaultHttpTimeoutMs = 120000; // 2 minutes
+process.defaultHttpTimeoutMs = 60000;
 
 if (process.env.DEFAULT_HTTP_TIMEOUT_MS)
 {
@@ -50,25 +50,22 @@ if (process.env.DEFAULT_HTTP_TIMEOUT_MS)
 
 // default agents
 var HttpKeepAliveAgent = require('agentkeepalive');
-const templates = require("./middleware/templates/templates");
 var HttpsKeepAliveAgent = require('agentkeepalive').HttpsAgent;
 http.globalAgent = new HttpKeepAliveAgent({
     keepAlive: true,
     keepAliveMsecs: 1000,
-    freeSocketTimeout: 30000,
+    maxSockets: 16000,
+    maxFreeSockets: 256,
     timeout: process.defaultHttpTimeoutMs,
-    maxSockets: 200,
-    maxFreeSockets: 40,
-    rejectUnauthorized: false
+    freeSocketTimeout: 30000
 });
 https.globalAgent = new HttpsKeepAliveAgent({
     keepAlive: true,
     keepAliveMsecs: 1000,
-    freeSocketTimeout: 30000,
+    maxSockets: 16000,
+    maxFreeSockets: 256,
     timeout: process.defaultHttpTimeoutMs,
-    maxSockets: 200,
-    maxFreeSockets: 40,
-    rejectUnauthorized: false
+    freeSocketTimeout: 30000
 });
 
 // disable for now
@@ -127,7 +124,7 @@ exports = module.exports = function()
     // TODO: this is to disable really annoying Express 3.0 deprecated's for multipart() which should hopefully
     // TODO: be resolved soon
     console.warn = function() {};
-
+    
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
     // assume app-server base path if none provided
@@ -140,6 +137,7 @@ exports = module.exports = function()
     var defaultGitanaProxyScheme = "https";
     var defaultGitanaProxyHost = "api.cloudcms.com";
     var defaultGitanaProxyPort = 443;
+    var defaultGitanaProxyPath = "";
 
     var gitanaJsonPath = path.join(process.env.CLOUDCMS_APPSERVER_BASE_PATH, "gitana.json");
     if (fs.existsSync(gitanaJsonPath))
@@ -151,6 +149,7 @@ exports = module.exports = function()
 
             defaultGitanaProxyHost = parsedUrl.hostname;
             defaultGitanaProxyScheme = parsedUrl.protocol.substring(0, parsedUrl.protocol.length - 1); // remove the :
+            defaultGitanaProxyPath = parsedUrl.path;
 
             if (parsedUrl.port)
             {
@@ -177,10 +176,13 @@ exports = module.exports = function()
     if (!process.env.GITANA_PROXY_PORT) {
         process.env.GITANA_PROXY_PORT = defaultGitanaProxyPort;
     }
-
+    if (!process.env.GITANA_PROXY_PATH) {
+        process.env.GITANA_PROXY_PATH = defaultGitanaProxyPath;
+    }
+    
     if (cluster.isMaster)
     {
-        process.log("Gitana Proxy pointed to: " + util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT));
+        process.log("Gitana Proxy pointed to: " + util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH));
     }
 
     // all web modules are included by default

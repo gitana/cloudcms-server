@@ -46,6 +46,7 @@ server.report(function(callback) {
     console.log("Gitana Scheme: " + process.env.GITANA_PROXY_SCHEME);
     console.log("Gitana Host: " + process.env.GITANA_PROXY_HOST);
     console.log("Gitana Port: " + process.env.GITANA_PROXY_PORT);
+    console.log("Gitana Path: " + process.env.GITANA_PROXY_PATH);
     console.log("CPU Count: " + cpuCount);
 
     var virtualHost = null;
@@ -68,6 +69,7 @@ server.report(function(callback) {
     console.log("Hosts Directory: " + process.env.CLOUDCMS_HOSTS_PATH);
     console.log("LaunchPad Mode: " + process.env.CLOUDCMS_LAUNCHPAD_SETUP);
     console.log("Max Files Detected: " + process.env.CLOUDCMS_MAX_FILES);
+    console.log("Session Type: " + process.configuration.session.type);
 
     console.log("");
 

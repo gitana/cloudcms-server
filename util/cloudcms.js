@@ -374,8 +374,8 @@ exports = module.exports = function()
                 // add "authorization" for OAuth2 bearer token
                 var headers2 = gitana.platform().getDriver().getHttpHeaders();
                 headers["Authorization"] = headers2["Authorization"];
-
-                var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT) + uri;
+    
+                var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH) + uri;
                 request({
                     "method": "GET",
                     "url": URL,

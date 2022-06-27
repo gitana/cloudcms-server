@@ -17,8 +17,8 @@ exports = module.exports = function()
         if (ref)
         {
             var z = ref.indexOf("://");
-
-            var type = ref.substring(0, z + 3);
+    
+            var type = ref.substring(0, z);
             var identifier = ref.substring(z + 3);
 
             var parts = identifier.split("/").reverse();
@@ -131,8 +131,8 @@ exports = module.exports = function()
                 if (req.url.indexOf("/_admin/cache/reset") === 0 || req.url.indexOf("/_admin/cache/invalidate") === 0)
                 {
                     assertAuthenticated(req, res, function() {
-
-                        doResetCache(req.virtualHost, req.ref, function(err) {
+    
+                        doResetCache(req.virtualHost, req.query.ref, function(err) {
                             completionFn(req.virtualHost, res, err);
                         });
 
