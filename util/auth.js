@@ -1,10 +1,10 @@
-var path = require('path');
-var fs = require('fs');
+// var path = require('path');
+// var fs = require('fs');
 var os = require('os');
 var _util = require("util");
-var util = require("./util");
-var http = require("http");
-var https = require("https");
+// var util = require("./util");
+// var http = require("http");
+// var https = require("https");
 var async = require("async");
 var LRUCache = require("lru-cache");
 

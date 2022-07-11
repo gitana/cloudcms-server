@@ -1,3 +1,5 @@
+var request = require("../../util/request");
+
 /**
  * Sample New York Times Events tag for Dust.
  *
@@ -6,7 +8,6 @@
 exports = module.exports = function(app, dust, callback)
 {
     var support = require("../support")(dust);
-    var request = require("../../util/request");
 
     // helper functions
     var isDefined = support.isDefined;

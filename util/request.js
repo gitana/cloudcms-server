@@ -1,9 +1,9 @@
 var axios = require("axios");
 
-var http = require("http");
-var https = require("https");
-
-var FormData = require("form-data");
+// var http = require("http");
+// var https = require("https");
+//
+// var FormData = require("form-data");
 
 /**
  * Incoming config:
