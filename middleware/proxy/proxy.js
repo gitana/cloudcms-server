@@ -237,7 +237,7 @@ exports = module.exports = function()
                 {
                     req.url = "/";
                 }
-
+                
                 // caching scenario
                 _handleCacheRead(req, function (err, readStream) {
 
@@ -257,6 +257,7 @@ exports = module.exports = function()
                                 "message": "Missing baseURL from request bound gitana-config"
                             });
                         }
+                        
                         proxyFactory.acquireProxyHandler(proxyTarget, null, function(err, proxyHandler) {
                             if (err) {
                                 return next(err);

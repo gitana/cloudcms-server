@@ -458,7 +458,12 @@ exports = module.exports = function()
     {
         // take out a cluster-wide lock on the "channelId"
         // so that two "threads" can't acquire/release at the same time for a given channel
-        _LOCK(channelId, function (releaseLockFn) {
+        _LOCK(channelId, function (err, releaseLockFn) {
+            
+            if (err) {
+                return callback(err);
+            }
+            
             provider.acquireLock(channelId, user, function(err, success) {
                 releaseLockFn();
                 callback(err, success);
@@ -477,7 +482,12 @@ exports = module.exports = function()
     {
         // take out a cluster-wide lock on the "channelId"
         // so that two "threads" can't acquire/release at the same time for a given channel
-        _LOCK(channelId, function (releaseLockFn) {
+        _LOCK(channelId, function (err, releaseLockFn) {
+            
+            if (err) {
+                return callback(err);
+            }
+            
             provider.releaseLock(channelId, userId, function(err, success) {
                 releaseLockFn();
                 callback(err, success);

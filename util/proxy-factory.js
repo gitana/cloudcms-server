@@ -15,7 +15,8 @@ var exports = module.exports;
 
 var _LOCK = function(lockIdentifiers, workFunction)
 {
-    process.locks.lock(lockIdentifiers.join("_"), workFunction);
+    var name = lockIdentifiers.join("_");
+    process.locks.lock(name, workFunction);
 };
 
 var NAMED_PROXY_HANDLERS_CACHE = require("lru-cache")({
@@ -34,9 +35,15 @@ var acquireProxyHandler = exports.acquireProxyHandler = function(proxyTarget, pa
     {
         return callback(null, _cachedHandler);
     }
-
+    
     // take out a thread lock
-    _LOCK(["acquireProxyHandler", name], function(releaseLockFn) {
+    _LOCK(["acquireProxyHandler", name], function(err, releaseLockFn) {
+        
+        if (err)
+        {
+            // failed to acquire lock
+            return callback(err);
+        }
 
         // second check to make sure another thread didn't create the handler in the meantime
         _cachedHandler = NAMED_PROXY_HANDLERS_CACHE[name];
@@ -48,7 +55,7 @@ var acquireProxyHandler = exports.acquireProxyHandler = function(proxyTarget, pa
 
         // create the proxy handler and cache it into LRU cache
         _cachedHandler = createProxyHandler(proxyTarget, pathPrefix);
-
+    
         // store back into LRU cache
         NAMED_PROXY_HANDLERS_CACHE[name] = _cachedHandler;
 
@@ -141,8 +148,16 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
                     {
                         var identifier = req.identity_properties.provider_id + "/" + req.identity_properties.user_identifier;
 
-                        _LOCK([identifier], function(releaseLockFn) {
-
+                        _LOCK([identifier], function(err, releaseLockFn) {
+    
+                            if (err)
+                            {
+                                // failed to acquire lock
+                                console.log("FAILED TO ACQUIRE LOCK", err);
+                                req.log("FAILED TO ACQUIRE LOCK", err);
+                                return;
+                            }
+    
                             var cleanup = function (full)
                             {
                                 delete Gitana.APPS[req.identity_properties.token];
@@ -375,7 +390,7 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
                 req.headers["authorization"] = "Bearer " + req.gitana_proxy_access_token;
             }
         }
-
+        
         if (pathPrefix) {
             req.url = path.join(pathPrefix, req.url);
         }

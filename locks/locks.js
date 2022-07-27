@@ -34,7 +34,8 @@ exports = module.exports = function()
         var self = this;
 
         // set up defaults
-        if (!process.env.CLOUDCMS_LOCKS_TYPE) {
+        if (!process.env.CLOUDCMS_LOCKS_TYPE)
+        {
             process.env.CLOUDCMS_LOCKS_TYPE = "memory";
 
             if (process.configuration.setup !== "single") {
@@ -71,8 +72,8 @@ exports = module.exports = function()
      */
     var lock = r.lock = function(key, fn)
     {
-        provider.lock(key, function(releaseFn) {
-            fn(function(afterReleaseCallback) {
+        provider.lock(key, function(err, releaseFn) {
+            fn(err, function(afterReleaseCallback) {
 
                 releaseFn();
 

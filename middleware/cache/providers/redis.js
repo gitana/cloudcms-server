@@ -1,9 +1,3 @@
-//var path = require("path");
-
-//var redis = require("redis");
-var logFactory = require("../../../util/logger");
-//const redisHelper = require("../../../util/redis");
-
 var redisClientFactory = require("../../../clients/redis");
 const redisHelper = require("../../../util/redis");
 
@@ -37,7 +31,7 @@ exports = module.exports = function(cacheConfig)
 
     r.write = function(key, value, seconds, callback)
     {
-        logger.info('write, key = ' + key + ', value = ' + value + '', seconds = ' + seconds');
+        logger.info('write, key = ' + key + ', value = ' + value + ', seconds = ' + seconds + ', typeofval: ' + typeof(value));
         (async function() {
     
             var reply = null;
@@ -45,14 +39,12 @@ exports = module.exports = function(cacheConfig)
     
             try
             {
-                if (seconds <= -1)
-                {
-                    reply = await client.set([key, JSON.stringify(value)]);
+                var config = {};
+                if (seconds >= 0) {
+                    config["EX"] = seconds;
                 }
-                else
-                {
-                    reply = await client.set([key, JSON.stringify(value), "EX", seconds]);
-                }
+                
+                reply = await client.set(key, JSON.stringify(value), config);
             }
             catch (e)
             {
@@ -64,7 +56,7 @@ exports = module.exports = function(cacheConfig)
             }
     
             if (err) {
-                logger.error("write error. key: " + key + " value: " + JSON.stringify(value) + ". error:" + err);
+                logger.error("write error. key: " + key + " value: " + JSON.stringify(value) + ". error:" + err + ", value type: " + typeof(value));
             }
     
             callback(err, reply);
@@ -83,7 +75,7 @@ exports = module.exports = function(cacheConfig)
     
             try
             {
-                reply = await client.get([key]);
+                reply = await client.get(key);
             }
             catch (e)
             {
@@ -91,7 +83,7 @@ exports = module.exports = function(cacheConfig)
             }
     
             if (err) {
-                logger.error("read error. key: " + key + ". error:" + err);
+                logger.error("read error. key: " + key + ". error: " + err);
             }
     
             if (reply) {
@@ -128,12 +120,16 @@ exports = module.exports = function(cacheConfig)
             
             try
             {
-                await client.del([key]);
+                await client.del(key);
                 logger.info("remove. key: " + key);
             }
             catch (e)
             {
                 err = e;
+            }
+    
+            if (err) {
+                logger.error("del error. key: " + key + ". error: " + err);
             }
     
             callback(err);
@@ -151,7 +147,7 @@ exports = module.exports = function(cacheConfig)
     
             try
             {
-                reply = await client.keys([prefix + '*']);
+                reply = await client.keys(prefix + '*');
             }
             catch (e)
             {
@@ -159,11 +155,11 @@ exports = module.exports = function(cacheConfig)
             }
     
             if (err) {
-                logger.error("error reading prefix: " + prefix + ". error:" + err);
+                logger.error("error reading keys for prefix: " + prefix + ". error:" + err);
             }
     
             if (reply) {
-                logger.info("[keys -> reply = " + reply);
+                logger.info("keys -> reply = " + reply);
             }
     
             callback(err, reply);

@@ -436,7 +436,11 @@ exports = module.exports = function()
         }
 
         // only allow one "thread" at a time to load the branch
-        _LOCK(cacheKey, function(releaseLockFn) {
+        _LOCK(cacheKey, function(err, releaseLockFn) {
+            
+            if (err) {
+                return callback(err);
+            }
 
             var loadFn = function(finished) {
 

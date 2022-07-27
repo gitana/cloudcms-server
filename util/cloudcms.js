@@ -1072,7 +1072,7 @@ exports = module.exports = function()
     r.download = function(contentStore, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, callback)
     {
         // claim a lock around this node for this server
-        _LOCK(contentStore, _lock_identifier(repositoryId, branchId, nodeId), function(releaseLockFn) {
+        _LOCK(contentStore, _lock_identifier(repositoryId, branchId, nodeId), function(err, releaseLockFn) {
 
             // workhorse - pass releaseLockFn back to callback
             downloadNode(contentStore, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, function (err, filePath, cacheInfo) {
@@ -1085,7 +1085,7 @@ exports = module.exports = function()
     r.preview = function(contentStore, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, callback)
     {
         // claim a lock around this node for this server
-        _LOCK(contentStore, _lock_identifier(repositoryId, branchId, nodeId), function(releaseLockFn) {
+        _LOCK(contentStore, _lock_identifier(repositoryId, branchId, nodeId), function(err, releaseLockFn) {
 
             // workhorse - pass releaseLockFn back to callback
             previewNode(contentStore, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, function(err, filePath, cacheInfo) {
@@ -1098,7 +1098,7 @@ exports = module.exports = function()
     r.invalidate = function(contentStore, repositoryId, branchId, nodeId, paths, callback)
     {
         // claim a lock around this node for this server
-        _LOCK(contentStore, _lock_identifier(repositoryId, branchId, nodeId), function(releaseLockFn) {
+        _LOCK(contentStore, _lock_identifier(repositoryId, branchId, nodeId), function(err, releaseLockFn) {
 
             invalidateNode(contentStore, repositoryId, branchId, nodeId, function () {
 
@@ -1118,7 +1118,7 @@ exports = module.exports = function()
     r.downloadAttachable = function(contentStore, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, forceReload, callback)
     {
         // claim a lock around this node for this server
-        _LOCK(contentStore, _lock_identifier(datastoreId, objectId), function(releaseLockFn) {
+        _LOCK(contentStore, _lock_identifier(datastoreId, objectId), function(err, releaseLockFn) {
 
             // workhorse - pass releaseLockFn back to callback
             downloadAttachable(contentStore, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, forceReload, function(err, filePath, cacheInfo) {
@@ -1131,7 +1131,7 @@ exports = module.exports = function()
     r.previewAttachable = function(contentStore, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, previewId, size, mimetype, forceReload, callback)
     {
         // claim a lock around this node for this server
-        _LOCK(contentStore, _lock_identifier(datastoreId, objectId), function(releaseLockFn) {
+        _LOCK(contentStore, _lock_identifier(datastoreId, objectId), function(err, releaseLockFn) {
 
             // workhorse - pass releaseLockFn back to callback
             previewAttachable(contentStore, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, previewId, size, mimetype, forceReload, function (err, filePath, cacheInfo) {
@@ -1144,7 +1144,7 @@ exports = module.exports = function()
     r.invalidateAttachable = function(contentStore, datastoreTypeId, datastoreId, objectTypeId, objectId, callback)
     {
         // claim a lock around this node for this server
-        _LOCK(contentStore, _lock_identifier(datastoreId, objectId), function(releaseLockFn) {
+        _LOCK(contentStore, _lock_identifier(datastoreId, objectId), function(err, releaseLockFn) {
 
             // TODO: not implemented
             callback();

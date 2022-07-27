@@ -158,6 +158,7 @@ process.on('message', _workerIncomingMessagesHandler);
 
 var _lock = function(key, fn) {
 
+    console.log("z1: " + key);
     // notify master that we have something waiting to run for this lock
     _sendMessageToMaster({
         "type": "claim",
@@ -165,6 +166,7 @@ var _lock = function(key, fn) {
             "key": key
         },
         "callback": function(ticket) {
+            console.log("z2: " + ticket);
 
             fn.call(null, function(afterReleaseCallback) {
 

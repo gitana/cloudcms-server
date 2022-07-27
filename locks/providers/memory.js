@@ -23,7 +23,7 @@ exports = module.exports = function(lockConfig)
     r.lock = function(key, fn)
     {
         locker.writeLock(key, function(releaseCallbackFn) {
-            fn(releaseCallbackFn);
+            fn(null, releaseCallbackFn);
         });
     };
 

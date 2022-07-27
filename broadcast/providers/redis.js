@@ -29,7 +29,7 @@ exports = module.exports = function(broadcastConfig)
                 "scope": "broadcast_cache"
             };
     
-            logger.info("using config = " + nrpConfig);
+            //logger.info("using config = " + nrpConfig);
     
             nrp = new NRP(nrpConfig);
             nrp.connect(function(err) {

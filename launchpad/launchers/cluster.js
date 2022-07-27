@@ -1,121 +1,99 @@
-var cluster = require("cluster");
-var async = require("async");
-
 var clusterlock = require("../../temp/clusterlock");
 
-var workers = [];
+const cluster = require("cluster");
+const { Server } = require("socket.io");
+const numCPUs = require("os").cpus().length;
+const { setupMaster, setupWorker } = require("@socket.io/sticky");
+const { createAdapter, setupPrimary } = require("@socket.io/cluster-adapter");
 
-module.exports = function(options)
-{
-    // always take up the max # of CPU's
-    var cpuCount = require("os").cpus().length;
-
-    var factoryCallback = options.factory;
-    var reportCallback = options.report;
-    if (!reportCallback) {
-        reportCallback = function() { };
-    }
-    var completionCallback = options.complete;
-    if (!completionCallback) {
-        completionCallback = function() { };
-    }
-
-    if (cluster.isMaster)
+module.exports = function(config) {
+    
+    var r = {};
+    
+    r.startCluster = function(httpServer, callback)
     {
-        // master
+        // setup sticky sessions
+        setupMaster(httpServer, {
+            loadBalancingMethod: "least-connection",
+        });
 
-        var fns = [];
-        for (var i = 0; i < cpuCount; i++)
+        // setup connections between the workers
+        setupPrimary();
+
+        // needed for packets containing buffers
+        cluster.setupPrimary({
+            serialization: "advanced"
+        });
+
+        return callback();
+    };
+    
+    r.afterStartCluster = function(httpServer, callback)
+    {
+        // start up cluster locks
+        clusterlock.setup();
+        
+        var startupCount = 0;
+        
+        var workers = [];
+        for (let i = 0; i < numCPUs; i++)
         {
-            var fn = function (i, workers) {
-                return function (done) {
-
-                    var spawn = function (i, afterSpawnFn) {
-
-                        if (!afterSpawnFn) {
-                            afterSpawnFn = function () { };
-                        }
-
-                        workers[i] = cluster.fork();
-
-                        workers[i].on('exit', function (worker, workers, i) {
-                            return function() {
-                                console.error("launchpad: worker " + i + " exited");
-                                worker.exited = true;
-
-                                // are all workers exited?
-                                var all = true;
-                                for (var z = 0; z < workers.length; z++)
-                                {
-                                    if (!workers[z].exited) {
-                                        all = false;
-                                    }
-                                }
-
-                                if (all)
-                                {
-                                    console.log("launchpad: all workers exited, terminating process");
-                                    return process.exit(-1);
-                                }
-
-                                // set a timeout to otherwise restart worker in 5 seconds
-                                setTimeout(function() {
-                                    console.log("launchpad: restarting worker: " + i);
-                                    spawn(i);
-                                    worker.exited = false;
-                                }, 5000);
-                            }
-                        }(workers[i], workers, i));
-
-                        workers[i].on('message', function (msg, c) {
-
-                            if (msg === "server-startup")
-                            {
-                                afterSpawnFn();
-                            }
-                        });
-                    };
-                    spawn(i, function () {
-                        done();
-                    });
-                };
-            }(i, workers);
-            fns.push(fn);
-        }
-
-        async.parallel(fns, function (err) {
-
-            // start up cluster locks
-            clusterlock.setup();
-
-            // tell the first worker to report
-            if (workers.length > 0)
-            {
-                workers[0].send("server-report");
+            var workerEnv = {};
+            if (i === 0) {
+                workerEnv["CLUSTER_REPORT"] = true;
             }
-
-            setTimeout(function() {
-                completionCallback();
-            }, 250);
-        });
-    }
-    else
-    {
-        // slave
-
-        factoryCallback(function(server) {
-
-            server.listen(server._listenPort);
-
-            // listen for the "server-report" message and fire the callback
-            process.on('message', function (msg, msgData) {
-
-                if (msg === "server-report")
-                {
-                    reportCallback();
+            
+            var worker = cluster.fork(workerEnv);
+            
+            worker.on('message', function (msg, c) {
+                if (msg === "worker-startup") {
+                    startupCount++;
                 }
-
             });
+            
+            workers.push(worker);
+        }
+        
+        cluster.on("exit", (worker) => {
+            console.log(`Worker ${worker.process.pid} died`);
+            cluster.fork();
         });
-    }
-};
+        
+        // wait for workers to start
+        var waitFn = function() {
+            setTimeout(function() {
+                if (startupCount >= numCPUs) {
+                    return callback(null, workers);
+                }
+                else
+                {
+                    waitFn();
+                }
+            }, 25);
+        };
+        waitFn();
+    };
+    
+    r.afterStartServer = function(app, httpServer, callback)
+    {
+        // worker
+    
+        const io = new Server(httpServer);
+    
+        // use the cluster adapter
+        io.adapter(createAdapter());
+    
+        // setup connection with the primary process
+        setupWorker(io);
+    
+        io.on("connection", (socket) => {
+            // TODO
+        });
+
+        httpServer.io = io;
+
+        return callback();
+    };
+    
+    return r;
+}
