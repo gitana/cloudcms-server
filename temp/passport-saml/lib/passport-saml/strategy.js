@@ -22,6 +22,10 @@ class AbstractStrategy extends passport_strategy_1.Strategy {
             this.name = "saml";
         }
         this._verify = verify;
+        this._validateAssertion = options.validateAssertion;
+        if (typeof(this._validateAssertion) === "undefined") {
+            this._validateAssertion = true;
+        }
         if (this.constructor.newSamlProviderOnConstruct) {
             this._saml = new node_saml_1.SAML(options);
         }
@@ -70,14 +74,16 @@ class AbstractStrategy extends passport_strategy_1.Strategy {
         };
         if (req.query && (req.query.SAMLResponse || req.query.SAMLRequest)) {
             const originalQuery = url.parse(req.url).query;
+            
+            //console.log("S1: " + this._validateAssertion);
             this._saml
-                .validateRedirectAsync(req.query, originalQuery)
+                .validateRedirectAsync(req.query, originalQuery, this._validateAssertion)
                 .then(validateCallback)
                 .catch((err) => this.error(err));
         }
         else if (req.body && req.body.SAMLResponse) {
             this._saml
-                .validatePostResponseAsync(req.body)
+                .validatePostResponseAsync(req.body, this._validateAssertion)
                 .then(validateCallback)
                 .catch((err) => this.error(err));
         }

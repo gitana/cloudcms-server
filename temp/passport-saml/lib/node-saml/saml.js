@@ -107,7 +107,7 @@ class SAML {
                 "urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport",
             ],
             validateInResponseTo: (_r = ctorOptions.validateInResponseTo) !== null && _r !== void 0 ? _r : false,
-            cert: (0, utility_1.assertRequired)(ctorOptions.cert, "cert is required"),
+            //cert: (0, utility_1.assertRequired)(ctorOptions.cert, "cert is required"),
             requestIdExpirationPeriodMs: (_s = ctorOptions.requestIdExpirationPeriodMs) !== null && _s !== void 0 ? _s : 28800000,
             cacheProvider: (_t = ctorOptions.cacheProvider) !== null && _t !== void 0 ? _t : new inmemory_cache_provider_1.CacheProvider({
                 keyExpirationPeriodMs: ctorOptions.requestIdExpirationPeriodMs,
@@ -117,6 +117,20 @@ class SAML {
             authnRequestBinding: (_x = ctorOptions.authnRequestBinding) !== null && _x !== void 0 ? _x : "HTTP-Redirect",
             racComparison: (_y = ctorOptions.racComparison) !== null && _y !== void 0 ? _y : "exact",
         };
+        
+        // CUSTOM
+        options.validateAssertion = ctorOptions.validateAssertion;
+        if (typeof(options.validateAssertion) === "undefined") {
+            options.validateAssertion = true;
+        }
+        if (options.validateAssertion === false) {
+            delete options.cert;
+        }
+        else
+        {
+            options.cert = (0, utility_1.assertRequired)(ctorOptions.cert, "cert is required");
+        }
+        
         /**
          * List of possible values:
          * - exact : Assertion context must exactly match a context in the list
@@ -511,9 +525,17 @@ class SAML {
         else {
             checkedCerts = [this.options.cert];
         }
-        checkedCerts.forEach((cert) => {
-            (0, utility_1.assertRequired)(cert, "unknown cert found");
-        });
+        // CUSTOM: don't assert required certs if validateAssertion is false
+        if (this.options.validateAssertion == false)
+        {
+            // skip
+        }
+        else
+        {
+            checkedCerts.forEach((cert) => {
+                (0, utility_1.assertRequired)(cert, "unknown cert found");
+            });
+        }
         return checkedCerts;
     }
     // This function checks that the |currentNode| in the |fullXml| document contains exactly 1 valid
@@ -553,7 +575,7 @@ class SAML {
             return (0, xml_1.validateXmlSignatureForCert)(signature, this._certToPEM(certToCheck), fullXml, currentNode);
         });
     }
-    async validatePostResponseAsync(container) {
+    async validatePostResponseAsync(container, validateAssertion) {
         let xml, doc, inResponseTo;
         try {
             xml = Buffer.from(container.SAMLResponse, "base64").toString("utf8");
@@ -565,10 +587,14 @@ class SAML {
                 inResponseTo = inResponseToNodes.length ? inResponseToNodes[0].nodeValue : null;
                 await this.validateInResponseTo(inResponseTo);
             }
-            const certs = await this.certsToCheck();
             // Check if this document has a valid top-level signature
+            var certs = await this.certsToCheck();
             let validSignature = false;
-            if (this.validateSignature(xml, doc.documentElement, certs)) {
+            if (validateAssertion === false)
+            {
+                validSignature = true;
+            }
+            else if (this.validateSignature(xml, doc.documentElement, certs)) {
                 validSignature = true;
             }
             const assertions = xml_1.xpath.selectElements(doc, "/*[local-name()='Response']/*[local-name()='Assertion']");
@@ -678,7 +704,7 @@ class SAML {
             return;
         }
     }
-    async validateRedirectAsync(container, originalQuery) {
+    async validateRedirectAsync(container, originalQuery, validateAssertion) {
         const samlMessageType = container.SAMLRequest ? "SAMLRequest" : "SAMLResponse";
         const data = Buffer.from(container[samlMessageType], "base64");
         const inflated = await inflateRawAsync(data);
@@ -690,7 +716,7 @@ class SAML {
         await this.hasValidSignatureForRedirect(container, originalQuery);
         return await processValidlySignedSamlLogoutAsync(this, doc, dom);
     }
-    async hasValidSignatureForRedirect(container, originalQuery) {
+    async hasValidSignatureForRedirect(container, originalQuery, validateAssertion) {
         const tokens = originalQuery.split("&");
         const getParam = (key) => {
             const exists = tokens.filter((t) => {
@@ -699,6 +725,13 @@ class SAML {
             return exists[0];
         };
         if (container.Signature) {
+    
+            // CUSTOM
+            if (validateAssertion === false)
+            {
+                return true;
+            }
+    
             let urlString = getParam("SAMLRequest") || getParam("SAMLResponse");
             if (getParam("RelayState")) {
                 urlString += "&" + getParam("RelayState");
