@@ -38,12 +38,25 @@ module.exports = function(type, config, options)
     
     if (!fork)
     {
-        return launchWorker(launcher, config, options, function(err) {
+        return launchWorker(launcher, config, options, function(err, app, httpServer) {
             
             if (err) {
                 return completionFn(config, err);
             }
-            
+    
+            var httpServerPort = -1;
+            // if (app) {
+            //     httpServerPort = app.get("port");
+            // }
+            if (httpServerPort === -1) {
+                httpServerPort = process.env.PORT;
+            }
+            if (httpServerPort === -1) {
+                httpServerPort = 3000;
+            }
+    
+            httpServer.listen(httpServerPort);
+    
             reportFn(config);
             completionFn(config);
         });
@@ -147,7 +160,7 @@ var launchWorker = function(launcher, config, options, done)
                     reportFn(config);
                 }
 
-                done();
+                done(null, app, httpServer);
             });
         });
     });
