@@ -1,6 +1,5 @@
 //var auth = require("../../../util/auth");
 
-//var SamlStrategy = require("../../../temp/passport-saml").Strategy;
 var SamlStrategy = require('passport-saml').Strategy;
 var AbstractProvider = require("./abstract");
 

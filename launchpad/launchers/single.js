@@ -20,6 +20,12 @@ module.exports = function(config) {
     
         io.on("connection", (socket) => {
             // TODO
+            
+            // always catch err
+            socket.on("error", function(err) {
+                console.log("Caught socket error");
+                console.log(err.stack);
+            });
         });
         
         httpServer.io = io;

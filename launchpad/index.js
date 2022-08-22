@@ -1,5 +1,18 @@
 const cluster = require("cluster");
 
+// Handle uncaught exceptions...
+process.on('uncaughtException', function(err, source) {
+    // if (err === "read ECONNRESET")
+    // {
+    //     // skip
+    // }
+    // else
+    // {
+        console.log(`Launchpad - process received event 'uncaughtException': ${err}, source: ${source}`);
+        console.log(err.stack);
+    // }
+});
+
 module.exports = function(type, config, options)
 {
     if (!type) {

@@ -311,9 +311,7 @@ var SETTINGS = {
         //"reapInterval": -1
     },
     "awareness": {
-        "enabled": false,
-        "type": "memory",
-        "config": {}
+        "enabled": false
     },
     "graphql": {
         "enabled": true,
@@ -1253,7 +1251,7 @@ var configureServer = function(config, app, httpServer, configureServerFinishedF
             // APPLY CUSTOM SOCKET.IO CONFIG
             runFunctions(config.socketFunctions, [socket], function (err) {
                 
-                require("../middleware/awareness/awareness").initSocketIO(function() {
+                require("../middleware/awareness/awareness").initSocketIO(io, function() {
                     next();
                 });
                 

@@ -6,7 +6,7 @@
   },
   "name": "cloudcms-server",
   "description": "Cloud CMS Application Server Module",
-  "version": "0.9.260",
+  "version": "0.9.261",
   "repository": {
     "type": "git",
     "url": "git://github.com/gitana/cloudcms-server.git"
@@ -68,7 +68,7 @@
     "passport-linkedin": "^1.0.0",
     "passport-local": "^1.0.0",
     "passport-oauth": "^1.0.0",
-    "passport-saml": "^3.2.1",
+    "passport-saml": "^2.2.0",
     "passport-twitter": "^0.1.5",
     "pkginfo": "^0.4.1",
     "q": "^1.5.1",

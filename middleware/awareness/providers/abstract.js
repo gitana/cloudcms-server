@@ -2,7 +2,7 @@
  * Abstract class for an Awareness Provider.
  *
  * This class provides an interface or base functions that any implementation class must implement in order to
- * work with the Awareness Service.  Any methods that
+ * work with the Awareness Service.
  *
  */
 class AbstractProvider
