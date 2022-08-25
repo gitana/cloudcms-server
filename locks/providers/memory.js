@@ -1,6 +1,4 @@
-var path = require("path");
-
-var ReadWriteLock = require("rwlock");
+var AsyncLock = require('async-lock');
 
 /**
  * Simple in-memory lock service.
@@ -12,8 +10,8 @@ var ReadWriteLock = require("rwlock");
 exports = module.exports = function(lockConfig)
 {
     var r = {};
-
-    var locker = new ReadWriteLock();
+    
+    var lock = new AsyncLock();
 
     r.init = function(callback)
     {
@@ -22,8 +20,13 @@ exports = module.exports = function(lockConfig)
 
     r.lock = function(key, fn)
     {
-        locker.writeLock(key, function(releaseCallbackFn) {
+        lock.acquire(key, function(releaseCallbackFn) {
             fn(null, releaseCallbackFn);
+        }, function(err, ret) {
+            // lock was released
+            if (err) {
+                console.error("Memory Lock heard error: ", err, " return value: ", ret);
+            }
         });
     };
 

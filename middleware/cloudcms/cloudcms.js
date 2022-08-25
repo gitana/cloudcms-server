@@ -441,7 +441,13 @@ exports = module.exports = function()
             if (err) {
                 return callback(err);
             }
-
+    
+            var branch = CACHED_BRANCHES[cacheKey];
+            if (branch) {
+                callback(null, Chain(branch));
+                return releaseLockFn();
+            }
+            
             var loadFn = function(finished) {
 
                 Chain(repository).trap(function(e) {
@@ -468,23 +474,21 @@ exports = module.exports = function()
 
                         if (err) {
 
+                            callback(err);
+                            
                             // release the lock
-                            releaseLockFn();
-
-                            // do the callback
-                            return callback(err);
+                            return releaseLockFn();
                         }
 
                         // success!
 
                         // store in cache
                         CACHED_BRANCHES[cacheKey] = branch;
-
+    
+                        callback(null, branch);
+                        
                         // release the lock
-                        releaseLockFn();
-
-                        // do the callback
-                        return callback(null, branch);
+                        return releaseLockFn();
                     });
                 }
 
@@ -1443,11 +1447,10 @@ exports = module.exports = function()
 
                     // the range requested (for streaming)
                     //var range = req.headers["range"];
-
+    
                     cloudcmsUtil.preview(contentStore, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, function(err, filePath, cacheInfo, releaseLock) {
 
-                        if (err)
-                        {
+                        if (err) {
                             req.log("Error on preview node: " + err.message + ", err: " + JSON.stringify(err));
                         }
 
@@ -1479,8 +1482,7 @@ exports = module.exports = function()
                                 // UZI: file deleted by invalidate before this gets called
                                 contentStore.sendFile(res, filePath, cacheInfo, function(err) {
 
-                                    if (err)
-                                    {
+                                    if (err) {
                                         util.handleSendFileError(req, res, filePath, cacheInfo, req.log, err);
                                     }
 

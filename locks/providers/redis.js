@@ -13,7 +13,7 @@ exports = module.exports = function(locksConfig)
     var redlock = null;
     var client = null;
     
-    var logger = redisHelper.redisLogger("REDIS_LOCKS", "CLOUDCMS_LOCKS_", "error")
+    var logger = redisHelper.redisLogger("REDIS_LOCKS", "CLOUDCMS_LOCKS_", "debug")
     
     var r = {};
 

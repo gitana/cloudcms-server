@@ -25,6 +25,8 @@ var async = require("async");
  */
 exports = module.exports = function()
 {
+    var lockTimeoutMs = 120000; // two minutes
+    
     var provider = null;
 
     var r = {};
@@ -72,12 +74,55 @@ exports = module.exports = function()
      */
     var lock = r.lock = function(key, fn)
     {
-        provider.lock(key, function(err, releaseFn) {
+        var __log = function(key, text) {
+            // var skip = false;
+            // if (key === "channels") { skip = true; }
+            // if (!skip) {
+            //     console.log("[LOCK: " + key + "] " + text);
+            // }
+        };
+    
+        __log(key, "request");
+        provider.lock(key, function(err, _releaseFn) {
+            
+            // wrap the releaseFn with a wrapper that can only fire once
+            var releaseFn = function(_releaseFn)
+            {
+                var triggered = false;
+                return function() {
+                    if (!triggered) {
+                        triggered = true;
+                        _releaseFn();
+                        return true;
+                    }
+                    
+                    return false;
+                }
+            }(_releaseFn);
+            
+            // after 120 seconds, we force release lock (if it hasn't already been released)
+            (function(key, releaseFn) {
+                setTimeout(function() {
+                    var released = releaseFn();
+                    if (released) {
+                        __log(key, "timed out, released");
+                    }
+                }, lockTimeoutMs);
+            })(key, releaseFn);
+            
+            __log(key, "taken");
+            
             fn(err, function(afterReleaseCallback) {
+                __log(key, "pre-release");
 
-                releaseFn();
-
-                if (afterReleaseCallback)
+                var released = releaseFn();
+                if (released) {
+                    __log(key, "released");
+                } else {
+                    __log(key, "not released, was previously released on timeout");
+                }
+    
+                if (released && afterReleaseCallback)
                 {
                     afterReleaseCallback();
                 }

@@ -52,9 +52,14 @@ class AbstractAsyncProvider extends AbstractProvider
     {
         var self = this;
         
+        //console.log("a1");
         self._lock("channels", function(err, releaseLockFn) {
+            // console.log("a2: ", err);
+            // console.log("a3: ", releaseLockFn);
             self.doRegister(channelId, user, function(err) {
+                // console.log("a4 ", err);
                 callback(err);
+                // console.log("a5: ", releaseLockFn);
                 return releaseLockFn();
             });
         });
@@ -206,37 +211,39 @@ class AbstractAsyncProvider extends AbstractProvider
                                 return done();
                             }
                             
-                            if (channel.users && Object.keys(channel.users).length > 0)
+                            if (!channel.users || Object.keys(channel.users).length === 0)
                             {
-                                // populate all of the user IDs that need to be removed
-                                var userIdsToRemove = [];
-                                for (var userId in channel.users)
-                                {
-                                    var entry = channel.users[userId];
-                                    if (entry.time < beforeMs)
-                                    {
-                                        updatedMembershipChannelIds.push(channelId);
-                                        userIdsToRemove.push(userId);
-                                        
-                                        var expiredUserIds = expiredUserIdsByChannelId[channelId]
-                                        if (!expiredUserIds) {
-                                            expiredUserIds = expiredUserIdsByChannelId[channelId] = [];
-                                        }
-                                        
-                                        expiredUserIds.push(userId);
-                                    }
-                                }
-                                
-                                // remove the user IDs
-                                for (var i = 0; i < userIdsToRemove.length; i++)
-                                {
-                                    delete channel.users[userIdsToRemove[i]];
-                                }
-                                
-                                self.writeChannel(channelId, channel, function() {
-                                    done();
-                                });
+                                return done();
                             }
+
+                            // populate all of the user IDs that need to be removed
+                            var userIdsToRemove = [];
+                            for (var userId in channel.users)
+                            {
+                                var entry = channel.users[userId];
+                                if (entry.time < beforeMs)
+                                {
+                                    updatedMembershipChannelIds.push(channelId);
+                                    userIdsToRemove.push(userId);
+                                    
+                                    var expiredUserIds = expiredUserIdsByChannelId[channelId]
+                                    if (!expiredUserIds) {
+                                        expiredUserIds = expiredUserIdsByChannelId[channelId] = [];
+                                    }
+                                    
+                                    expiredUserIds.push(userId);
+                                }
+                            }
+                            
+                            // remove the user IDs
+                            for (var i = 0; i < userIdsToRemove.length; i++)
+                            {
+                                delete channel.users[userIdsToRemove[i]];
+                            }
+                            
+                            self.writeChannel(channelId, channel, function() {
+                                done();
+                            });
                             
                         });
                     };

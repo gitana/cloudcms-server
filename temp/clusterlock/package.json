@@ -13,7 +13,7 @@
     "shared"
   ],
   "devDependencies": {
-    "rwlock": "^5.0.0"
+    "async-lock": "^1.3.2"
   },
   "maintainers": [
     {
