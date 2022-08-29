@@ -9,8 +9,6 @@ class SessionAdapter extends AbstractAdapter
 
     identify(req, callback)
     {
-        var _this = super;
-        
         if (req.session)
         {
             return req.session.reload(function() {
@@ -27,7 +25,7 @@ class SessionAdapter extends AbstractAdapter
                 }
                 else
                 {
-                    return _this.identify(req, callback);
+                    return super.identify(req, callback);
                 }
             });
         }
