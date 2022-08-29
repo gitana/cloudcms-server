@@ -698,443 +698,453 @@ var _start = function(overrides, callback) {
     });
 };
 
+var initSession = function(initDone)
+{
+    if (!process.configuration.session) {
+        return initDone();
+    }
+    if (!process.configuration.session.enabled) {
+        return initDone();
+    }
+    
+    var sessionSecret = process.configuration.session.secret;
+    if (!sessionSecret) {
+        sessionSecret = "secret";
+    }
+    
+    var sessionConfig = {
+        secret: sessionSecret,
+        resave: false,
+        saveUninitialized: false
+    };
+    
+    if (process.configuration.session.type) {
+        process.configuration.session.type = process.configuration.session.type.toLowerCase();
+    }
+    
+    if (process.configuration.session.type === "file")
+    {
+        var options = {};
+        if (process.configuration.session.ttl)
+        {
+            options.ttl = process.configuration.session.ttl;
+        }
+        if (process.configuration.session.reapInterval)
+        {
+            options.reapInterval = process.configuration.session.reapInterval;
+        }
+        // session file store
+        var SessionFileStore = require('session-file-store')(session);
+        sessionConfig.store = new SessionFileStore(options);
+        return initDone(null, session(sessionConfig));
+    }
+    else if (process.configuration.session.type === "redis")
+    {
+        var redisOptions = redisHelper.redisOptions();
+        return redisHelper.createAndConnect(redisOptions, function(err, redisClient) {
+            
+            if (err) {
+                return initDone(err);
+            }
+            
+            var RedisStore = connectRedis(session);
+            sessionConfig.store = new RedisStore({ client: redisClient });
+            initDone(null, session(sessionConfig));
+        });
+    }
+    else if (process.configuration.session.type === "memory" || !process.configuration.session.type)
+    {
+        var options = {};
+        options.checkPeriod = 86400000; // prune expired entries every 24h
+        
+        // session memory store
+        var MemoryStore = require('memorystore')(session);
+        sessionConfig.store = new MemoryStore(options);
+        return initDone(null, session(sessionConfig));
+    }
+};
+
 var startServer = function(config, startServerFinishedFn)
 {
     var app = express();
     app.disable('x-powered-by');
     
-    // session store
-    var initializedSession = null;
-    if (process.configuration.session)
-    {
-        if (process.configuration.session.enabled)
-        {
-            var sessionSecret = process.configuration.session.secret;
-            if (!sessionSecret) {
-                sessionSecret = "secret";
-            }
+    initSession(function(err, initializedSession) {
 
-            var sessionConfig = {
-                secret: sessionSecret,
-                resave: false,
-                saveUninitialized: false
-            };
-
-            if (process.configuration.session.type === "file")
-            {
-                var options = {};
-                if (process.configuration.session.ttl)
-                {
-                    options.ttl = process.configuration.session.ttl;
-                }
-                if (process.configuration.session.reapInterval)
-                {
-                    options.reapInterval = process.configuration.session.reapInterval;
-                }
-                // session file store
-                var SessionFileStore = require('session-file-store')(session);
-                sessionConfig.store = new SessionFileStore(options);
-            }
-            else if (process.configuration.session.type === "redis")
-            {
-                (async function() {
-                    var redisOptions = redisHelper.redisOptions();
-                    redisHelper.createAndConnect(redisOptions, function(err, redisClient) {
-    
-                        if (err) {
-                            console.error(err);
-                        }
-                        else
-                        {
-                            var RedisStore = connectRedis(session);
-                            sessionConfig.store = new RedisStore({ client: redisClient });
-                        }
-                    });
-                })();
-            }
-            else if (process.configuration.session.type === "memory" || !process.configuration.session.type)
-            {
-                var options = {};
-                options.checkPeriod = 86400000; // prune expired entries every 24h
-
-                // session memory store
-                var MemoryStore = require('memorystore')(session);
-                sessionConfig.store = new MemoryStore(options);
-            }
-
-            initializedSession = session(sessionConfig);
+        if (err) {
+            throw err;
         }
-    }
+        
+        // global temp directory
+        util.createTempDirectory(function(err, tempDirectory) {
+            process.env.CLOUDCMS_TEMPDIR_PATH = tempDirectory;
     
-    // global temp directory
-    util.createTempDirectory(function(err, tempDirectory) {
-        process.env.CLOUDCMS_TEMPDIR_PATH = tempDirectory;
-
-        // global service starts
-        main.init(app, function (err) {
-
-            app.enable('strict routing');
-
-            ////////////////////////////////////////////////////////////////////////////
-            //
-            // BASE CONFIGURATION
-            //
-            // Configures NodeJS app server using dustjs templating engine
-            // Runs on port 3000 by default
-            //
-            ////////////////////////////////////////////////////////////////////////////
-
-            // all environments
-            app.set('port', process.env.PORT);
-            app.set('views', process.env.CLOUDCMS_APPSERVER_BASE_PATH + "/views");
-
-            if (config.viewEngine === "dust")
-            {
-                var cons = require('consolidate');
-
-                app.set('view engine', 'html');
-                app.set('view engine', 'dust');
-                app.engine('html', cons.dust);
-                app.engine('dust', cons.dust);
-            }
-            else if (config.viewEngine === "handlebars" || config.viewEngine === "hbs")
-            {
-                var hbs = require('hbs');
-
-                app.set('view engine', 'html');
-                app.set('view engine', 'hbs');
-                app.engine('html', hbs.__express);
-                app.engine('hbs', hbs.__express);
-            }
-
-            ////////////////////////////////////////////////////////////////////////////
-            //
-            // VIRTUAL SUPPORT
-            //
-            // Configure NodeJS to load virtual driver and configure for virtual descriptors
-            // ahead of anything else running.
-            //
-            ////////////////////////////////////////////////////////////////////////////
-
-            // custom morgan logger
-            morgan(function (tokens, req, res) {
-
-                var status = res.statusCode;
-                var len = parseInt(res.getHeader('Content-Length'), 10);
-                var host = req.domainHost;
-                if (req.virtualHost) {
-                    host = req.virtualHost;
-                }
-
-                len = isNaN(len) ? '0b' : len = bytes(len);
-
-                var d = new Date();
-                var dateString = d.toDateString();
-                var timeString = d.toTimeString();
-
-                // gray color
-                var grayColor = "\x1b[90m";
-
-                // status color
-                var color = 32;
-                if (status >= 500) {
-                    color = 31;
-                }
-                else if (status >= 400) {
-                    color = 33;
-                }
-                else if (status >= 300) {
-                    color = 36;
-                }
-                var statusColor = "\x1b[" + color + "m";
-
-                // final color
-                var finalColor = "\x1b[0m";
-
-                if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
+            // global service starts
+            main.init(app, function (err) {
+    
+                app.enable('strict routing');
+    
+                ////////////////////////////////////////////////////////////////////////////
+                //
+                // BASE CONFIGURATION
+                //
+                // Configures NodeJS app server using dustjs templating engine
+                // Runs on port 3000 by default
+                //
+                ////////////////////////////////////////////////////////////////////////////
+    
+                // all environments
+                app.set('port', process.env.PORT);
+                app.set('views', process.env.CLOUDCMS_APPSERVER_BASE_PATH + "/views");
+    
+                if (config.viewEngine === "dust")
                 {
-                    grayColor = "";
-                    statusColor = "";
-                    finalColor = "";
+                    var cons = require('consolidate');
+    
+                    app.set('view engine', 'html');
+                    app.set('view engine', 'dust');
+                    app.engine('html', cons.dust);
+                    app.engine('dust', cons.dust);
                 }
-
-                var message = '';
-                message += grayColor + '<' + req.id + '> ';
-                message += grayColor + '[' + dateString + ' ' + timeString + '] ';
-                message += grayColor + host + ' ';
-                //message += grayColor + '(' + req.ip + ') ';
-                message += statusColor + res.statusCode + ' ';
-                message += statusColor + (new Date - req._startTime) + ' ms ';
-                message += grayColor + '"' + req.method + ' ';
-                message += grayColor + req.originalUrl + '" ';
-                message += grayColor + len + ' ';
-                message += finalColor;
-
-                return message;
-            });
-
-            /*
-            // debug headers being set
-            app.use(function(req, res, next) {
-                var setHeader = res.setHeader;
-                res.setHeader = function(a,b) {
-                    console.trace("Writing header: " + a + " = " + b);
-                    setHeader.call(this, a,b);
-                };
-                next();
-            });
-            */
-
-            // middleware which blocks requests when we're too busy
-            app.use(function(req, res, next) {
-                if (toobusy()) {
-                    res.status(503).send("The web application is too busy to serve this request.  Please try again.");
-                } else {
-                    next();
+                else if (config.viewEngine === "handlebars" || config.viewEngine === "hbs")
+                {
+                    var hbs = require('hbs');
+    
+                    app.set('view engine', 'html');
+                    app.set('view engine', 'hbs');
+                    app.engine('html', hbs.__express);
+                    app.engine('hbs', hbs.__express);
                 }
-            });
-
-            // add req.id  re
-            app.use(function (req, res, next) {
-                requestCounter++;
-                req.id = requestCounter;
-                next();
-            });
-
-            // APPLY CUSTOM INIT FUNCTIONS
-            runFunctions(config.initFunctions, [app], function (err) {
-
-                // retain originalUrl and originalPath since these can get modified along the way
-                app.use(function (req, res, next) {
-                    req.originalUrl = req.url;
-                    req.originalPath = req.path;
-                    next();
+    
+                ////////////////////////////////////////////////////////////////////////////
+                //
+                // VIRTUAL SUPPORT
+                //
+                // Configure NodeJS to load virtual driver and configure for virtual descriptors
+                // ahead of anything else running.
+                //
+                ////////////////////////////////////////////////////////////////////////////
+    
+                // custom morgan logger
+                morgan(function (tokens, req, res) {
+    
+                    var status = res.statusCode;
+                    var len = parseInt(res.getHeader('Content-Length'), 10);
+                    var host = req.domainHost;
+                    if (req.virtualHost) {
+                        host = req.virtualHost;
+                    }
+    
+                    len = isNaN(len) ? '0b' : len = bytes(len);
+    
+                    var d = new Date();
+                    var dateString = d.toDateString();
+                    var timeString = d.toTimeString();
+    
+                    // gray color
+                    var grayColor = "\x1b[90m";
+    
+                    // status color
+                    var color = 32;
+                    if (status >= 500) {
+                        color = 31;
+                    }
+                    else if (status >= 400) {
+                        color = 33;
+                    }
+                    else if (status >= 300) {
+                        color = 36;
+                    }
+                    var statusColor = "\x1b[" + color + "m";
+    
+                    // final color
+                    var finalColor = "\x1b[0m";
+    
+                    if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
+                    {
+                        grayColor = "";
+                        statusColor = "";
+                        finalColor = "";
+                    }
+    
+                    var message = '';
+                    message += grayColor + '<' + req.id + '> ';
+                    message += grayColor + '[' + dateString + ' ' + timeString + '] ';
+                    message += grayColor + host + ' ';
+                    //message += grayColor + '(' + req.ip + ') ';
+                    message += statusColor + res.statusCode + ' ';
+                    message += statusColor + (new Date - req._startTime) + ' ms ';
+                    message += grayColor + '"' + req.method + ' ';
+                    message += grayColor + req.originalUrl + '" ';
+                    message += grayColor + len + ' ';
+                    message += finalColor;
+    
+                    return message;
                 });
-
-                // req.param method
-                app.use(requestParam);
-
-                // add req.log function
-                app.use(function (req, res, next) {
-
-                    req._log = req.log = function (text/*, warn*/) {
-
-                        var host = req.domainHost;
-                        if (req.virtualHost)
-                        {
-                            host = req.virtualHost;
-                        }
-
-                        var timestamp = moment(new Date()).format("MM/DD/YYYY HH:mm:ss Z");
-                        var grayColor = "\x1b[90m";
-                        var finalColor = "\x1b[0m";
-
-                        // in production, don't use colors
-                        if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
-                        {
-                            grayColor = "";
-                            finalColor = "";
-                        }
-
-                        var message = '';
-                        message += grayColor + '<' + req.id + '> ';
-                        if (cluster.worker && cluster.worker.id)
-                        {
-                            message += grayColor + '(' + cluster.worker.id + ') ';
-                        }
-                        message += grayColor + '[' + timestamp + '] ';
-                        message += grayColor + host + ' ';
-                        message += grayColor + text + '';
-                        message += finalColor;
-
-                        /*
-                        if (warn)
-                        {
-                            message = "\r\n**** SLOW RESPONSE ****\r\n" + message + "\r\n";
-                        }
-                        */
-
-                        console.log(message);
+    
+                /*
+                // debug headers being set
+                app.use(function(req, res, next) {
+                    var setHeader = res.setHeader;
+                    res.setHeader = function(a,b) {
+                        console.trace("Writing header: " + a + " = " + b);
+                        setHeader.call(this, a,b);
                     };
-
                     next();
                 });
-
-                // common interceptors and config
-                main.common1(app);
-
-                // general logging of requests
-                // gather statistics on response time
-                app.use(responseTime(function (req, res, time) {
-
-                    var warn = false;
-                    if (time > 1000)
-                    {
-                        warn = true;
+                */
+    
+                // middleware which blocks requests when we're too busy
+                app.use(function(req, res, next) {
+                    if (toobusy()) {
+                        res.status(503).send("The web application is too busy to serve this request.  Please try again.");
+                    } else {
+                        next();
                     }
-
-                    var requestPath = req.originalPath;
-                    if (requestPath)
-                    {
-                        var filter = false;
-                        if (requestPath.indexOf("/login") > -1)
+                });
+    
+                // add req.id  re
+                app.use(function (req, res, next) {
+                    requestCounter++;
+                    req.id = requestCounter;
+                    next();
+                });
+    
+                // APPLY CUSTOM INIT FUNCTIONS
+                runFunctions(config.initFunctions, [app], function (err) {
+    
+                    // retain originalUrl and originalPath since these can get modified along the way
+                    app.use(function (req, res, next) {
+                        req.originalUrl = req.url;
+                        req.originalPath = req.path;
+                        next();
+                    });
+    
+                    // req.param method
+                    app.use(requestParam);
+    
+                    // add req.log function
+                    app.use(function (req, res, next) {
+    
+                        req._log = req.log = function (text/*, warn*/) {
+    
+                            var host = req.domainHost;
+                            if (req.virtualHost)
+                            {
+                                host = req.virtualHost;
+                            }
+    
+                            var timestamp = moment(new Date()).format("MM/DD/YYYY HH:mm:ss Z");
+                            var grayColor = "\x1b[90m";
+                            var finalColor = "\x1b[0m";
+    
+                            // in production, don't use colors
+                            if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
+                            {
+                                grayColor = "";
+                                finalColor = "";
+                            }
+    
+                            var message = '';
+                            message += grayColor + '<' + req.id + '> ';
+                            if (cluster.worker && cluster.worker.id)
+                            {
+                                message += grayColor + '(' + cluster.worker.id + ') ';
+                            }
+                            message += grayColor + '[' + timestamp + '] ';
+                            message += grayColor + host + ' ';
+                            message += grayColor + text + '';
+                            message += finalColor;
+    
+                            /*
+                            if (warn)
+                            {
+                                message = "\r\n**** SLOW RESPONSE ****\r\n" + message + "\r\n";
+                            }
+                            */
+    
+                            console.log(message);
+                        };
+    
+                        next();
+                    });
+    
+                    // common interceptors and config
+                    main.common1(app);
+    
+                    // general logging of requests
+                    // gather statistics on response time
+                    app.use(responseTime(function (req, res, time) {
+    
+                        var warn = false;
+                        if (time > 1000)
                         {
-                            filter = true;
+                            warn = true;
                         }
-                        if (requestPath.indexOf("/token") > -1)
+    
+                        var requestPath = req.originalPath;
+                        if (requestPath)
                         {
-                            filter = true;
+                            var filter = false;
+                            if (requestPath.indexOf("/login") > -1)
+                            {
+                                filter = true;
+                            }
+                            if (requestPath.indexOf("/token") > -1)
+                            {
+                                filter = true;
+                            }
+                            if (filter)
+                            {
+                                requestPath = util.stripQueryStringFromUrl(requestPath);
+                            }
                         }
-                        if (filter)
-                        {
-                            requestPath = util.stripQueryStringFromUrl(requestPath);
-                        }
-                    }
-
-                    req.log(req.method + " " + requestPath + " [" + res.statusCode + "] (" + time.toFixed(2) + " ms)", warn);
-                }));
-
-                // set up CORS allowances
-                // this lets CORS requests float through the proxy
-                app.use(main.ensureCORS());
-
-                // set up default security headers
-                app.use(main.ensureHeaders());
-
-                // common interceptors and config
-                main.common2(app);
-
-                // APPLY CUSTOM DRIVER FUNCTIONS
-                runFunctions(config.driverFunctions, [app], function(err) {
-
-                    // binds gitana driver into place
-                    main.common3(app);
-
-                    // parse cookies
-                    app.use(cookieParser());
-
-                    // cloudcms things need to run here
-                    main.common4(app, true);
-
-                    // APPLY CUSTOM FILTER FUNCTIONS
-                    runFunctions(config.filterFunctions, [app], function (err) {
-
-                        // PATH BASED PERFORMANCE CACHING
-                        main.perf1(app);
-
-                        // proxy - anything that goes to /proxy is handled here early and nothing processes afterwards
-                        main.proxy(app);
-
-                        // MIMETYPE BASED PERFORMANCE CACHING
-                        main.perf2(app);
-
-                        // DEVELOPMENT BASED PERFORMANCE CACHING
-                        main.perf3(app);
-
-                        // standard body parsing + a special cloud cms body parser that makes a last ditch effort for anything
-                        // that might be JSON (regardless of content type)
-                        app.use(function (req, res, next) {
-
-                            multipart(process.configuration.bodyParsers.multipart || {})(req, res, function (err) {
-                                bodyParser.json(process.configuration.bodyParsers.json || {})(req, res, function (err) {
-                                    bodyParser.urlencoded(process.configuration.bodyParsers.urlencoded || {})(req, res, function (err) {
-                                        main.bodyParser()(req, res, function (err) {
-                                            next(err);
+    
+                        req.log(req.method + " " + requestPath + " [" + res.statusCode + "] (" + time.toFixed(2) + " ms)", warn);
+                    }));
+    
+                    // set up CORS allowances
+                    // this lets CORS requests float through the proxy
+                    app.use(main.ensureCORS());
+    
+                    // set up default security headers
+                    app.use(main.ensureHeaders());
+    
+                    // common interceptors and config
+                    main.common2(app);
+    
+                    // APPLY CUSTOM DRIVER FUNCTIONS
+                    runFunctions(config.driverFunctions, [app], function(err) {
+    
+                        // binds gitana driver into place
+                        main.common3(app);
+    
+                        // parse cookies
+                        app.use(cookieParser());
+    
+                        // cloudcms things need to run here
+                        main.common4(app, true);
+    
+                        // APPLY CUSTOM FILTER FUNCTIONS
+                        runFunctions(config.filterFunctions, [app], function (err) {
+    
+                            // PATH BASED PERFORMANCE CACHING
+                            main.perf1(app);
+    
+                            // proxy - anything that goes to /proxy is handled here early and nothing processes afterwards
+                            main.proxy(app);
+    
+                            // MIMETYPE BASED PERFORMANCE CACHING
+                            main.perf2(app);
+    
+                            // DEVELOPMENT BASED PERFORMANCE CACHING
+                            main.perf3(app);
+    
+                            // standard body parsing + a special cloud cms body parser that makes a last ditch effort for anything
+                            // that might be JSON (regardless of content type)
+                            app.use(function (req, res, next) {
+    
+                                multipart(process.configuration.bodyParsers.multipart || {})(req, res, function (err) {
+                                    bodyParser.json(process.configuration.bodyParsers.json || {})(req, res, function (err) {
+                                        bodyParser.urlencoded(process.configuration.bodyParsers.urlencoded || {})(req, res, function (err) {
+                                            main.bodyParser()(req, res, function (err) {
+                                                next(err);
+                                            });
                                         });
                                     });
                                 });
+    
                             });
-
-                        });
-
-                        if (initializedSession)
-                        {
-                            app.use(initializedSession);
-                            app.use(flash());
-                        }
-
-                        // this is the same as calling
-                        // app.use(passport.initialize());
-                        // except we create a new passport each time and store on request to support multitenancy
-                        app.use(function(req, res, next) {
-
-                            var passport = new Passport();
-                            passport._key = "passport-" + req.virtualHost;
-
-                            req._passport = {};
-                            req._passport.instance = passport;
-
-                            if (req.session && req.session[passport._key])
+    
+                            if (initializedSession)
                             {
-                                // load data from existing session
-                                req._passport.session = req.session[passport._key];
+                                app.use(initializedSession);
+                                app.use(flash());
                             }
-
-                            // add this in
-                            req.passport = req._passport.instance;
-
-                            // passport - serialize and deserialize
-                            req.passport.serializeUser(function(user, done) {
-                                done(null, user);
-                            });
-                            req.passport.deserializeUser(function(user, done) {
-                                done(null, user);
-                            });
-
-                            next();
-                        });
-
-                        // passport session
-                        if (initializedSession)
-                        {
+    
+                            // this is the same as calling
+                            // app.use(passport.initialize());
+                            // except we create a new passport each time and store on request to support multitenancy
                             app.use(function(req, res, next) {
-                                req.passport.session()(req, res, next);
-                            });
-                        }
-
-                        // welcome files
-                        main.welcome(app);
-
-                        // configure cloudcms app server command handing
-                        main.interceptors(app, true);
-
-                        //app.use(app.router);
-
-                        // healthcheck middleware
-                        main.healthcheck(app);
-
-                        // APPLY CUSTOM ROUTES
-                        runFunctions(config.routeFunctions, [app], function (err) {
-
-                            // configure cloudcms app server handlers
-                            main.handlers(app, true);
-
-                            // register error functions
-                            runFunctions(config.errorFunctions, [app], function (err) {
-
-                                // APPLY CUSTOM CONFIGURE FUNCTIONS
-                                var allConfigureFunctions = [];
-                                for (var env in config.configureFunctions)
+    
+                                var passport = new Passport();
+                                passport._key = "passport-" + req.virtualHost;
+    
+                                req._passport = {};
+                                req._passport.instance = passport;
+    
+                                if (req.session && req.session[passport._key])
                                 {
-                                    var functions = config.configureFunctions[env];
-                                    if (functions)
+                                    // load data from existing session
+                                    req._passport.session = req.session[passport._key];
+                                }
+    
+                                // add this in
+                                req.passport = req._passport.instance;
+    
+                                // passport - serialize and deserialize
+                                req.passport.serializeUser(function(user, done) {
+                                    done(null, user);
+                                });
+                                req.passport.deserializeUser(function(user, done) {
+                                    done(null, user);
+                                });
+    
+                                next();
+                            });
+    
+                            // passport session
+                            if (initializedSession)
+                            {
+                                app.use(function(req, res, next) {
+                                    req.passport.session()(req, res, next);
+                                });
+                            }
+    
+                            // welcome files
+                            main.welcome(app);
+    
+                            // configure cloudcms app server command handing
+                            main.interceptors(app, true);
+    
+                            //app.use(app.router);
+    
+                            // healthcheck middleware
+                            main.healthcheck(app);
+    
+                            // APPLY CUSTOM ROUTES
+                            runFunctions(config.routeFunctions, [app], function (err) {
+    
+                                // configure cloudcms app server handlers
+                                main.handlers(app, true);
+    
+                                // register error functions
+                                runFunctions(config.errorFunctions, [app], function (err) {
+    
+                                    // APPLY CUSTOM CONFIGURE FUNCTIONS
+                                    var allConfigureFunctions = [];
+                                    for (var env in config.configureFunctions)
                                     {
-                                        for (var i = 0; i < functions.length; i++)
+                                        var functions = config.configureFunctions[env];
+                                        if (functions)
                                         {
-                                            allConfigureFunctions.push(functions[i]);
+                                            for (var i = 0; i < functions.length; i++)
+                                            {
+                                                allConfigureFunctions.push(functions[i]);
+                                            }
                                         }
                                     }
-                                }
-                                runFunctions(allConfigureFunctions, [app], function (err) {
-
-                                    // create the server (either HTTP or HTTPS)
-                                    createHttpServer(app, function(err, httpServer) {
-                                        
-                                        if (err) {
-                                            return startServerFinishedFn(err);
-                                        }
-                                        
-                                        startServerFinishedFn(null, app, httpServer);
+                                    runFunctions(allConfigureFunctions, [app], function (err) {
+    
+                                        // create the server (either HTTP or HTTPS)
+                                        createHttpServer(app, function(err, httpServer) {
+                                            
+                                            if (err) {
+                                                return startServerFinishedFn(err);
+                                            }
+                                            
+                                            startServerFinishedFn(null, app, httpServer);
+                                        });
                                     });
                                 });
                             });

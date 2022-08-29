@@ -9,15 +9,27 @@ class SessionAdapter extends AbstractAdapter
 
     identify(req, callback)
     {
-        if (req.session && req.session._auth_profile) 
+        var _this = super;
+        
+        if (req.session)
         {
-            var properties = {
-                "token": req.session._auth_profile.unique_name,
-                "trusted": true,
-                "profile": req.session._auth_profile
-            };
-
-            return callback(null, properties);
+            return req.session.reload(function() {
+    
+                if (req.session._auth_profile)
+                {
+                    var properties = {
+                        "token": req.session._auth_profile.unique_name,
+                        "trusted": true,
+                        "profile": req.session._auth_profile
+                    };
+        
+                    return callback(null, properties);
+                }
+                else
+                {
+                    return _this.identify(req, callback);
+                }
+            });
         }
         
         return super.identify(req, callback);
