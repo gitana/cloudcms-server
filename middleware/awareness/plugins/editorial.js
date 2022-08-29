@@ -41,7 +41,7 @@ exports.bindSocket = function(socket, provider)
         var acquireEditorialWorkspace = function(socket, provider, sessionKey, repositoryId, branchId, type, force, callback)
         {
             // send an HTTP command to acquire an editorial workspace for this repository and branch
-            var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH) + "/oneteam/editorial/session/acquire";
+            var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH) + "/oneteam/editorial/workspace/acquire";
 
             var headers = {};
             //headers["Authorization"] = socket.gitana.platform().getDriver().getHttpHeaders()["Authorization"];
@@ -97,7 +97,7 @@ exports.bindSocket = function(socket, provider)
     var releaseEditorialWorkspace = function(socket, provider, sessionKey, repositoryId, branchId, callback)
     {
         // send an HTTP command to release the session
-        var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH) + "/oneteam/editorial/session/release";
+        var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH) + "/oneteam/editorial/workspace/release";
 
         var json = {};
         json.repositoryId = repositoryId;
@@ -141,7 +141,7 @@ exports.bindSocket = function(socket, provider)
      */
     var commitEditorialWorkspace = function(socket, provider, sessionKey, repositoryId, branchId, callback)
     {
-        var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH) + "/oneteam/editorial/session/commit";
+        var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH) + "/oneteam/editorial/workspace/commit";
 
         var json = {};
         json.repositoryId = repositoryId;
@@ -184,7 +184,7 @@ exports.bindSocket = function(socket, provider)
      */
     var editorialWorkspaceInfo = function(socket, provider, sessionKey, repositoryId, branchId, callback)
     {
-        var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH) + "/oneteam/editorial/session/info";
+        var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH) + "/oneteam/editorial/workspace/info";
 
         var json = {};
         json.repositoryId = repositoryId;
