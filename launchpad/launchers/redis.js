@@ -32,10 +32,10 @@ module.exports = function(config) {
         httpServer.io = io;
 
         io.engine.on("connection_error", function(err) {
-            console.log("CONNECTION ERROR");
+            // console.log("CONNECTION ERROR");
             // console.log("REQUEST: ", err.req);      // the request object
             // console.log("CODE: " + err.code);     // the error code, for example 1
-            console.log("MESSAGE: ", err.message);  // the error message, for example "Session ID unknown"
+            // console.log("MESSAGE: ", err.message);  // the error message, for example "Session ID unknown"
             // console.log("CONTEXT: ", err.context);  // some additional error context
         });
 
@@ -49,7 +49,7 @@ module.exports = function(config) {
 
         // on connect
         io.on("connection", (socket) => {
-            console.log("Redis Launcher on('connection') - socket id:" + socket.id);
+            //console.log("Redis Launcher on('connection') - socket id:" + socket.id);
             socket.on('message', function(m) {
                 console.log("Socket Connection message: " + m);
             });

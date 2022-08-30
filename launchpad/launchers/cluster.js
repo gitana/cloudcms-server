@@ -3,11 +3,6 @@ const { Server } = require("socket.io");
 const { setupMaster, setupWorker } = require("@socket.io/sticky");
 const { createAdapter, setupPrimary } = require("@socket.io/cluster-adapter");
 
-var numCPUs = require("os").cpus().length;
-if (process.env.FORCE_SINGLE_CPU) {
-    numCPUs = 1;
-}
-
 module.exports = function(config) {
     
     var r = {};
@@ -34,7 +29,12 @@ module.exports = function(config) {
     r.afterStartCluster = function(httpServer, callback)
     {
         var startupCount = 0;
-        
+    
+        var numCPUs = require("os").cpus().length;
+        if (process.env.FORCE_SINGLE_CPU) {
+            numCPUs = 1;
+        }
+    
         var workers = [];
         for (let i = 0; i < numCPUs; i++)
         {
