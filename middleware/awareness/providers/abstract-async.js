@@ -52,21 +52,13 @@ class AbstractAsyncProvider extends AbstractProvider
     {
         var self = this;
         
-        //console.log("a1");
-        self._lock("channels", function(err, releaseLockFn) {
-            // console.log("a2: ", err);
-            // console.log("a3: ", releaseLockFn);
-            self.doRegister(channelId, user, function(err) {
-                // console.log("a4 ", err);
-                callback(err);
-                // console.log("a5: ", releaseLockFn);
-                return releaseLockFn();
-            });
+        self.doRegister(channelId, user, function(err) {
+            callback(err);
         });
     }
     
     /**
-     * Workhorse method.  The "channels" lock is taken out ahead of this being called.
+     * Workhorse method.
      *
      * @param channelId
      * @param user
@@ -160,21 +152,6 @@ class AbstractAsyncProvider extends AbstractProvider
     }
     
     expire(beforeMs, callback)
-    {
-        var self = this;
-        
-        self._lock("channels", function(err, releaseLockFn) {
-            self._expire(beforeMs, function(err) {
-                callback(err);
-                return releaseLockFn();
-            });
-        });
-    }
-    
-    /**
-     * @override
-     */
-    _expire(beforeMs, callback)
     {
         var self = this;
         

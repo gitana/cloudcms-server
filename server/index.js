@@ -740,17 +740,13 @@ var initSession = function(initDone)
     }
     else if (process.configuration.session.type === "redis")
     {
+        var IORedis = require("ioredis");
         var redisOptions = redisHelper.redisOptions();
-        return redisHelper.createAndConnect(redisOptions, function(err, redisClient) {
-            
-            if (err) {
-                return initDone(err);
-            }
-            
-            var RedisStore = connectRedis(session);
-            sessionConfig.store = new RedisStore({ client: redisClient });
-            initDone(null, session(sessionConfig));
-        });
+        var redisClient = new IORedis(redisOptions.url);
+    
+        var RedisStore = connectRedis(session);
+        sessionConfig.store = new RedisStore({ client: redisClient });
+        initDone(null, session(sessionConfig));
     }
     else if (process.configuration.session.type === "memory" || !process.configuration.session.type)
     {

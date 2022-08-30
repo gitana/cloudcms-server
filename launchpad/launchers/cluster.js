@@ -1,13 +1,12 @@
-var clusterlock = require("../../temp/clusterlock");
-
 const cluster = require("cluster");
 const { Server } = require("socket.io");
-const numCPUs = require("os").cpus().length;
 const { setupMaster, setupWorker } = require("@socket.io/sticky");
 const { createAdapter, setupPrimary } = require("@socket.io/cluster-adapter");
 
-// numCPUs = 1;
-// console.log("FORCE ONE CPU");
+var numCPUs = require("os").cpus().length;
+if (process.env.FORCE_SINGLE_CPU) {
+    numCPUs = 1;
+}
 
 module.exports = function(config) {
     
@@ -17,25 +16,23 @@ module.exports = function(config) {
     {
         // setup sticky sessions
         setupMaster(httpServer, {
-            loadBalancingMethod: "least-connection"
+            //loadBalancingMethod: "least-connection"
+            loadBalancingMethod: "round-robin"
         });
 
         // setup connections between the workers
         setupPrimary();
 
         // needed for packets containing buffers
-        cluster.setupPrimary({
-            serialization: "advanced"
-        });
+        // cluster.setupPrimary({
+        //     serialization: "advanced"
+        // });
 
         return callback();
     };
     
     r.afterStartCluster = function(httpServer, callback)
     {
-        // start up cluster locks
-        clusterlock.setup();
-        
         var startupCount = 0;
         
         var workers = [];

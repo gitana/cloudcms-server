@@ -13,6 +13,8 @@ exports = module.exports = function(lockConfig)
 
     r.init = function(callback)
     {
+        ClusterLock.setup();
+        
         callback();
     };
 

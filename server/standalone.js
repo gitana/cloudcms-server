@@ -36,6 +36,9 @@ server.after(function(app, callback) {
 server.report(function(callback) {
 
     var cpuCount = require('os').cpus().length;
+    if (process.env.FORCE_SINGLE_CPU) {
+        cpuCount = 1;
+    }
 
     var port = process.env.PORT;
 
