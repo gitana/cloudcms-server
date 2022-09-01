@@ -1,16 +1,6 @@
 var path = require('path');
-// var fs = require('fs');
-// var http = require('http');
-// var https = require('https');
-
-// var httpProxy = require('http-proxy');
-
-// var oauth2 = require("../../util/oauth2")();
-
-// var async = require("async");
 
 var util = require("../../util/util");
-// var auth = require("../../util/auth");
 
 var proxyFactory = require("../../util/proxy-factory");
 
@@ -235,16 +225,16 @@ exports = module.exports = function()
                 }
                 
                 // caching scenario
-                // _handleCacheRead(req, function (err, readStream) {
-                //
-                //     if (!err && readStream)
-                //     {
-                //         return util.sendFile(res, readStream, function (err) {
-                //             // done!
-                //         });
-                //     }
+                _handleCacheRead(req, function (err, readStream) {
 
-                    // _handleWrapCacheWriter(req, res, function(err) {
+                    if (!err && readStream)
+                    {
+                        return util.sendFile(res, readStream, function (err) {
+                            // done!
+                        });
+                    }
+
+                    _handleWrapCacheWriter(req, res, function(err) {
 
                         // acquire the proxy handler
                         var proxyTarget = req.gitanaConfig.baseURL;
@@ -261,8 +251,8 @@ exports = module.exports = function()
 
                             proxyHandler(req, res);
                         });
-                    // });
-                //});
+                    });
+                });
             }
             else
             {
