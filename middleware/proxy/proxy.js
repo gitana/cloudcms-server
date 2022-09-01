@@ -82,20 +82,17 @@ exports = module.exports = function()
         contentStore.existsFile(filePath, function(exists) {
 
             if (!exists) {
-                callback();
-                return;
+                return callback();
             }
 
             contentStore.fileStats(filePath, function(err, stats) {
 
                 if (err) {
-                    callback();
-                    return;
+                    return callback();
                 }
 
-                if (stats.size == 0) {
-                    callback();
-                    return;
+                if (stats.size === 0) {
+                    return callback();
                 }
 
                 var handleGoodStream = function()
@@ -117,8 +114,7 @@ exports = module.exports = function()
                 // check cacheInfo for expireTime
                 contentStore.readFile(filePath + ".cache", function(err, cacheInfoText) {
 
-                    if (err || !cacheInfoText)
-                    {
+                    if (err || !cacheInfoText) {
                         return handleBadStream();
                     }
 
@@ -215,7 +211,7 @@ exports = module.exports = function()
                 contentStore.writeFile(filePath + ".cache", JSON.stringify(cacheInfo), function() {
                     _end.call(res, data, encoding);
                 });
-``            };
+            };
 
             callback();
         });
@@ -239,16 +235,16 @@ exports = module.exports = function()
                 }
                 
                 // caching scenario
-                _handleCacheRead(req, function (err, readStream) {
+                // _handleCacheRead(req, function (err, readStream) {
+                //
+                //     if (!err && readStream)
+                //     {
+                //         return util.sendFile(res, readStream, function (err) {
+                //             // done!
+                //         });
+                //     }
 
-                    if (!err && readStream)
-                    {
-                        return util.sendFile(res, readStream, function (err) {
-                            // done!
-                        });
-                    }
-
-                    _handleWrapCacheWriter(req, res, function(err) {
+                    // _handleWrapCacheWriter(req, res, function(err) {
 
                         // acquire the proxy handler
                         var proxyTarget = req.gitanaConfig.baseURL;
@@ -265,8 +261,8 @@ exports = module.exports = function()
 
                             proxyHandler(req, res);
                         });
-                    });
-                });
+                    // });
+                //});
             }
             else
             {

@@ -2,7 +2,7 @@ var http = require("http");
 var https = require("https");
 var path = require("path");
 
-var httpProxy = require("http-proxy");
+var httpProxy = require("../temp/http-proxy");
 
 var auth = require("./auth");
 var util = require("./util");
@@ -73,7 +73,10 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
     // This must appear at the top of the app.js file (ahead of config) for things to work
     //
     ////////////////////////////////////////////////////////////////////////////
-
+    
+    // parse the target to get host
+    var proxyHost = urlTool.parse(proxyTarget).host;
+    
     // NOTE: changeOrigin must be true because of the way that we set host to host:port
     // in http-proxy's common.js line 102, the host is only properly set up if changeOrigin is set to true
     // this sets the "host" header and it has to match what is set at the network/transport level in a way
@@ -84,23 +87,31 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
         "agent": http.globalAgent,
         "xfwd": false,
         "proxyTimeout": process.defaultHttpTimeoutMs,
-        "changeOrigin": true
+        "timeout": process.defaultHttpTimeoutMs,
+        //"changeOrigin": true
+        "headers": {
+            "host": proxyHost
+        },
+        "cookieDomainRewrite": true
     };
 
     // use https?
     if (util.isHttps(proxyTarget))
     {
-        // parse the target to get host
-        var proxyHost = urlTool.parse(proxyTarget).host;
-
         proxyConfig = {
             "target": proxyTarget,
             "agent": https.globalAgent,
+            "xfwd": false,
+            "proxyTimeout": process.defaultHttpTimeoutMs,
+            "timeout": process.defaultHttpTimeoutMs,
             "headers": {
                 "host": proxyHost
-            }
+            },
+            "cookieDomainRewrite": true
         };
     }
+    
+    console.log("Using proxy config: " + proxyConfig);
 
     // create proxy server instance
     var proxyServer = new httpProxy.createProxyServer(proxyConfig);
@@ -129,7 +140,9 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
     // and if we hear it, we automatically invalidate the SSO chain so that the next request
     // will continue to work
     proxyServer.on("proxyRes", function (proxyRes, req, res) {
-
+        
+        console.log("proxyRes.1");
+        
         if (req.gitana_user)
         {
             var chunks = [];
@@ -140,6 +153,8 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
             });
 
             proxyRes.on("end", function () {
+    
+                console.log("proxyRes.end, code: " + proxyRes.statusCode);
 
                 if (proxyRes.statusCode === 401)
                 {
@@ -194,6 +209,15 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
     });
 
     var proxyHandlerServer = http.createServer(function(req, res) {
+
+        console.log("proxy.1: " + req.url);
+        if (req.headers)
+        {
+            for (var k in req.headers)
+            {
+                console.log("proxy.2 header " + k + " = " + req.headers[k]);
+            }
+        }
 
         // used to auto-assign the client header for /oauth/token requests
         oauth2.autoProxy(req);
@@ -253,129 +277,9 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
 
         // set x-cloudcms-server-version header
         req.headers["x-cloudcms-server-version"] = process.env.CLOUDCMS_APPSERVER_PACKAGE_VERSION;
-
-        // determine the domain to set the "host" header on the proxied call
-        // this is what we pass to the API server
-        var cookieDomain = req.domainHost;
-
-        // if the incoming request is coming off of a CNAME entry that is maintained elsewhere (and they're just
-        // forwarding the CNAME request to our machine), then we try to detect this...
-        //
-        // our algorithm here is pretty weak but suffices for the moment.
-        // if the req.headers["x-forwarded-host"] first entry is in the req.headers["referer"] then we consider
-        // things to have been CNAME forwarded
-        // and so we write cookies back to the req.headers["x-forwarded-host"] first entry domain
-        /*
-        var xForwardedHost = req.headers["x-forwarded-host"];
-        if (xForwardedHost)
-        {
-            xForwardedHost = xForwardedHost.split(",");
-            if (xForwardedHost.length > 0)
-            {
-                var cnameCandidate = xForwardedHost[0];
-
-                var referer = req.headers["referer"];
-                if (referer && referer.indexOf("://" + cnameCandidate) > -1)
-                {
-                    req.log("Detected CNAME: " + cnameCandidate);
-
-                    proxyHostHeader = cnameCandidate;
-                }
-            }
-        }
-        */
-
-        // we fall back to using http-node-proxy's xfwd support
-        // thus, spoof header here on request so that "x-forwarded-host" is set properly
-        //req.headers["host"] = proxyHostHeader;
-
+    
         // keep alive
         req.headers["connection"] = "keep-alive";
-
-        // allow forced cookie domains
-        var forcedCookieDomain = req.headers["cloudcmscookiedomain"];
-        if (!forcedCookieDomain)
-        {
-            if (process.env.CLOUDCMS_FORCE_COOKIE_DOMAIN)
-            {
-                forcedCookieDomain = process.env.CLOUDCMS_FORCE_COOKIE_DOMAIN;
-            }
-        }
-        if (forcedCookieDomain)
-        {
-            cookieDomain = forcedCookieDomain;
-        }
-
-        var updateSetCookieValue = function(value)
-        {
-            // replace the domain with the host
-            var i = value.toLowerCase().indexOf("domain=");
-            if (i > -1)
-            {
-                var j = value.indexOf(";", i);
-                if (j === -1)
-                {
-                    value = value.substring(0, i);
-                }
-                else
-                {
-                    value = value.substring(0, i) + value.substring(j);
-                }
-            }
-
-            // if the originating request isn't secure, strip out "secure" from cookie
-            if (!util.isSecure(req))
-            {
-                var i = value.toLowerCase().indexOf("; secure");
-                if (i > -1)
-                {
-                    value = value.substring(0, i);
-                }
-            }
-
-            // if the original request is secure, ensure cookies have "secure" set
-            if (util.isSecure(req))
-            {
-                var i = value.toLowerCase().indexOf("; secure");
-                var j = value.toLowerCase().indexOf(";secure");
-                if (i === -1 && j === -1)
-                {
-                    value += ";secure";
-                }
-            }
-
-            return value;
-        };
-
-        // handles the setting of response headers
-        // we filter off stuff we do not care about
-        // we ensure proper domain on set-cookie (TODO: is this needed anymore?)
-        var _setHeader = res.setHeader;
-        res.setHeader = function(key, value)
-        {
-            var _key = key.toLowerCase();
-
-            if (_key.indexOf("access-control-") === 0)
-            {
-                // skip any access control headers
-            }
-            else
-            {
-                if (_key === "set-cookie")
-                {
-                    for (var x in value)
-                    {
-                        value[x] = updateSetCookieValue(value[x]);
-                    }
-                }
-
-                var existing = this.getHeader(key);
-                if (!existing)
-                {
-                    _setHeader.call(this, key, value);
-                }
-            }
-        };
 
         // if the incoming request didn't have an "Authorization" header
         // and we have a logged in Gitana User via Auth, then set authorization header to Bearer Access Token
@@ -394,8 +298,19 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
         if (pathPrefix) {
             req.url = path.join(pathPrefix, req.url);
         }
+    
+        console.log("proxy.4: " + req.url);
+        if (req.headers)
+        {
+            for (var k in req.headers)
+            {
+                console.log("proxy.4 header " + k + " = " + req.headers[k]);
+            }
+        }
 
         proxyServer.web(req, res);
+        
+        console.log("proxy.5");
     });
 
     return proxyHandlerServer.listeners('request')[0];
