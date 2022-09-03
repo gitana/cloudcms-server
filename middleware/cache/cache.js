@@ -28,7 +28,7 @@ exports = module.exports = function()
 
             process.env.CLOUDCMS_CACHE_TYPE = "memory";
     
-            // auto-configure for redis if possible
+            // auto-configure
             if (process.env.CLOUDCMS_LAUNCHPAD_SETUP === "redis")
             {
                 process.env.CLOUDCMS_CACHE_TYPE = "redis";

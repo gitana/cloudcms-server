@@ -15,7 +15,7 @@ module.exports = function()
         {
             process.env.CLOUDCMS_BROADCAST_TYPE = "local";
     
-            // auto-configure for redis if possible
+            // auto-configure
             if (process.env.CLOUDCMS_LAUNCHPAD_SETUP === "redis")
             {
                 process.env.CLOUDCMS_BROADCAST_TYPE = "redis";
