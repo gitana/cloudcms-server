@@ -40,10 +40,6 @@ var coreHelpers = require("../duster/helpers/core/index");
 
 var helmet = require("helmet");
 
-var toobusy = require("toobusy-js");
-toobusy.maxLag(500); // 500 ms lag in event queue, quite high but usable for now
-toobusy.interval(250);
-
 var responseTime = require("response-time");
 
 // safely checks for the existence of a path
@@ -890,16 +886,7 @@ var startServer = function(config, startServerFinishedFn)
                 });
                 */
     
-                // middleware which blocks requests when we're too busy
-                app.use(function(req, res, next) {
-                    if (toobusy()) {
-                        res.status(503).send("The web application is too busy to serve this request.  Please try again.");
-                    } else {
-                        next();
-                    }
-                });
-    
-                // add req.id  re
+                // increment and assign request id
                 app.use(function (req, res, next) {
                     requestCounter++;
                     req.id = requestCounter;
@@ -1311,21 +1298,6 @@ var configureServer = function(config, app, httpServer, configureServerFinishedF
                     catch (e)
                     {
                         console.log("Server.close produced error: " + JSON.stringify(e));
-                    }
-                    
-                    // ask toobusy to shut down as cleanly as we can
-                    if (cluster.isMaster)
-                    {
-                        console.log(" -> Closing toobusy monitor");
-                    }
-                    
-                    try
-                    {
-                        toobusy.shutdown();
-                    }
-                    catch (e)
-                    {
-                        console.log("toobusy.shutdown produced error: " + JSON.stringify(e));
                     }
                     
                     if (cluster.isMaster)

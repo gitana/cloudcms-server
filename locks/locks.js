@@ -39,8 +39,10 @@ exports = module.exports = function()
         if (!process.env.CLOUDCMS_LOCKS_TYPE)
         {
             process.env.CLOUDCMS_LOCKS_TYPE = "memory";
-
-            if (process.configuration.setup !== "single") {
+    
+            // auto-configure for redis if possible
+            if (process.env.CLOUDCMS_LAUNCHPAD_SETUP === "redis")
+            {
                 process.env.CLOUDCMS_LOCKS_TYPE = "redis";
             }
         }
@@ -84,6 +86,12 @@ exports = module.exports = function()
     
         __log(key, "request");
         provider.lock(key, function(err, _releaseFn) {
+            
+            if (err) {
+                console.log("[LOCK: " + key + "] err: ", err);
+                try { _releaseFn(); } catch (e) { }
+                return fn(err);
+            }
             
             // wrap the releaseFn with a wrapper that can only fire once
             var releaseFn = function(_releaseFn)

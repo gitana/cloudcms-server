@@ -40,6 +40,8 @@ var acquireProxyHandler = exports.acquireProxyHandler = function(proxyTarget, pa
         
         if (err)
         {
+            console.log("Failed to acquire proxy handler: " + name + ", err: ", err);
+            
             // failed to acquire lock
             return callback(err);
         }
@@ -53,6 +55,7 @@ var acquireProxyHandler = exports.acquireProxyHandler = function(proxyTarget, pa
         }
 
         // create the proxy handler and cache it into LRU cache
+        //console.log("Acquiring proxy handler: " + name + ", for target: " + proxyTarget + " and prefix: " + pathPrefix);
         _cachedHandler = createProxyHandler(proxyTarget, pathPrefix);
     
         // store back into LRU cache
@@ -101,6 +104,7 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
     webConfig.port = port;
     webConfig.protocol = protocol;
     //webConfig.path = null;
+    webConfig.timeout = 120000;
     webConfig.proxyTimeout = 120000;
     webConfig.proxyName = "Cloud CMS UI Proxy";
     webConfig.onReq = function(req, options) {
@@ -268,80 +272,8 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
         });
     };
     
-    
     // cookie domain rewrite?
-    
-    // // if we're using auth credentials that are picked up in SSO chain, then we listen for a 401
-    // // and if we hear it, we automatically invalidate the SSO chain so that the next request
-    // // will continue to work
-    // proxyServer.on("proxyRes", function (proxyRes, req, res) {
-    //
-    //     console.log("proxyRes.1");
-    //
-    //     if (req.gitana_user)
-    //     {
-    //         var chunks = [];
-    //         // triggers on data receive
-    //         proxyRes.on('data', function(chunk) {
-    //             // add received chunk to chunks array
-    //             chunks.push(chunk);
-    //         });
-    //
-    //         proxyRes.on("end", function () {
-    //
-    //             console.log("proxyRes.end, code: " + proxyRes.statusCode);
-    //
-    //             if (proxyRes.statusCode === 401)
-    //             {
-    //                 var text = "" + Buffer.concat(chunks);
-    //                 if (text && (text.indexOf("invalid_token") > -1) || (text.indexOf("invalid_grant") > -1))
-    //                 {
-    //                     var identifier = req.identity_properties.provider_id + "/" + req.identity_properties.user_identifier;
-    //
-    //                     _LOCK([identifier], function(err, releaseLockFn) {
-    //
-    //                         if (err)
-    //                         {
-    //                             // failed to acquire lock
-    //                             console.log("FAILED TO ACQUIRE LOCK", err);
-    //                             req.log("FAILED TO ACQUIRE LOCK", err);
-    //                             return;
-    //                         }
-    //
-    //                         var cleanup = function (full)
-    //                         {
-    //                             delete Gitana.APPS[req.identity_properties.token];
-    //                             delete Gitana.PLATFORM_CACHE[req.identity_properties.token];
-    //
-    //                             if (full) {
-    //                                 auth.removeUserCacheEntry(identifier);
-    //                             }
-    //                         };
-    //
-    //                         // null out the access token
-    //                         // this will force the refresh token to be used to get a new one on the next request
-    //                         req.gitana_user.getDriver().http.refresh(function (err) {
-    //
-    //                             if (err) {
-    //                                 cleanup(true);
-    //                                 req.log("Invalidated auth state for gitana user: " + req.identity_properties.token);
-    //                                 releaseLockFn();
-    //                                 return;
-    //                             }
-    //
-    //                             req.gitana_user.getDriver().reloadAuthInfo(function () {
-    //                                 cleanup(true);
-    //                                 req.log("Refreshed token for gitana user: " + req.identity_properties.token);
-    //                                 releaseLockFn();
-    //                             });
-    //                         });
-    //                     });
-    //                 }
-    //
-    //             }
-    //         });
-    //     }
-    // });
+    // not needed - this is handled intrinsically by http2-proxy
 
     return proxyRequestHandler;
 };

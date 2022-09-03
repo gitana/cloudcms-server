@@ -65,7 +65,7 @@ module.exports = function(config) {
         
         cluster.on("exit", (worker) => {
             console.log(`Worker ${worker.process.pid} died`);
-            cluster.fork();
+            //cluster.fork();
         });
         
         // wait for workers to start

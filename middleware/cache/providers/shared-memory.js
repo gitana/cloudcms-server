@@ -1,7 +1,7 @@
-var path = require("path");
-var memored = require('../../../temp/memored');
+//var path = require("path");
+var memored = require("memored");
 
-var cluster = require("cluster");
+//var cluster = require("cluster");
 
 /**
  * Shared cluster memory using memored

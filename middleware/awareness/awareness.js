@@ -43,8 +43,10 @@ exports = module.exports = function()
         if (!process.env.CLOUDCMS_AWARENESS_TYPE)
         {
             process.env.CLOUDCMS_AWARENESS_TYPE = "memory";
-
-            if (process.configuration.setup !== "single") {
+    
+            // auto-configure for redis if possible
+            if (process.env.CLOUDCMS_LAUNCHPAD_SETUP === "redis")
+            {
                 process.env.CLOUDCMS_AWARENESS_TYPE = "redis";
             }
         }

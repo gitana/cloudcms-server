@@ -1,16 +1,7 @@
 {
-  "author": {
-    "name": "Gitana Software, Inc.",
-    "email": "info@cloudcms.com",
-    "url": "https://www.cloudcms.com"
-  },
-  "name": "cloudcms-server",
-  "description": "Cloud CMS Application Server Module",
-  "version": "3.2.285",
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/gitana/cloudcms-server.git"
-  },
+  "name": "d1",
+  "description": "D1",
+  "version": "0.0.1",
   "dependencies": {
     "@socket.io/cluster-adapter": "^0.2.0",
     "@socket.io/redis-adapter": "^7.2.0",
@@ -52,7 +43,6 @@
     "klaw": "^1.3.1",
     "lru-cache": "^4.1.5",
     "marked": "^4.0.14",
-    "memored": "^1.1.1",
     "memorystore": "^1.6.1",
     "mime": "^1.6.0",
     "mkdirp": "^0.5.1",
@@ -92,34 +82,5 @@
     "vm2": "^3.8.4",
     "watch": "^0.13.0",
     "winston": "^3.3.3"
-  },
-  "contributors": [
-    {
-      "name": "Michael Uzquiano",
-      "email": "uzi@cloudcms.com"
-    },
-    {
-      "name": "Harry Moore",
-      "email": "harry.moore@cloudcms.com"
-    }
-  ],
-  "keywords": [
-    "wcm",
-    "web",
-    "cloudcms",
-    "cms",
-    "content",
-    "json",
-    "rest",
-    "mobile",
-    "content management",
-    "javascript",
-    "nodejs",
-    "api",
-    "jsoncms",
-    "baas",
-    "caching",
-    "renditions"
-  ],
-  "main": "index"
+  }
 }
