@@ -1,0 +1,14 @@
+{
+  "author": {
+    "name": "Gitana Software, Inc.",
+    "email": "info@cloudcms.com",
+    "url": "https://www.cloudcms.com"
+  },
+  "name": "d1",
+  "description": "D1",
+  "version": "0.0.1",
+  "dependencies": {
+    "http2-proxy": "^5.0.53",
+    "finalhandler": "^1.2.0"
+  }
+}

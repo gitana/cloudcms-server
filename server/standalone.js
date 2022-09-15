@@ -36,6 +36,9 @@ server.after(function(app, callback) {
 server.report(function(callback) {
 
     var cpuCount = require('os').cpus().length;
+    if (process.env.FORCE_SINGLE_CPU) {
+        cpuCount = 1;
+    }
 
     var port = process.env.PORT;
 
@@ -70,6 +73,10 @@ server.report(function(callback) {
     console.log("LaunchPad Mode: " + process.env.CLOUDCMS_LAUNCHPAD_SETUP);
     console.log("Max Files Detected: " + process.env.CLOUDCMS_MAX_FILES);
     console.log("Session Type: " + process.configuration.session.type);
+    
+    if (process.configuration.https) {
+        console.log("Server is configured to use HTTPS");
+    }
 
     console.log("");
 

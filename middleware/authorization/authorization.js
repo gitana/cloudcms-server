@@ -41,17 +41,20 @@ exports = module.exports = function()
              }
              */
 
-            if (pathRequiresAuthorization) {
-                if (req.session && req.session.requestContext) {
-                    next();
-                }
-                else {
-                    res.redirect("/login");
-                }
+            if (!pathRequiresAuthorization)
+            {
+                return next();
             }
-            else {
+            
+            if (req.session && req.session.requestContext)
+            {
                 next();
             }
+            else
+            {
+                res.redirect("/login");
+            }
+            
         });
     };
 

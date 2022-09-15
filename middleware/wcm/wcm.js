@@ -309,7 +309,7 @@ exports = module.exports = function()
                     req.application(function (err, application) {
 
                         var loadingPagesCacheKey = application._doc + "-wcm-loading-pages";
-                        _LOCK(null, loadingPagesCacheKey, function (releaseLockFn) {
+                        _LOCK(null, loadingPagesCacheKey, function (err, releaseLockFn) {
                             
                             // check again inside lock in case another request preloaded this before we arrived
                             req.cache.read(WCM_PAGES, function (err, cachedPages) {
@@ -716,7 +716,7 @@ exports = module.exports = function()
         var cacheFilePath = cloudcms.toCacheFilePath(pageFilePath);
 
         // take out a lock so that only one "request" can write to cache at a time for this path
-        _LOCK(contentStore, _lock_identifier(pageBasePath), function(releaseLockFn) {
+        _LOCK(contentStore, _lock_identifier(pageBasePath), function(err, releaseLockFn) {
 
             // write page file
             contentStore.writeFile(pageFilePath, text, function (err) {
@@ -773,7 +773,7 @@ exports = module.exports = function()
         var cacheFilePath = cloudcms.toCacheFilePath(pageFilePath);
 
         // take out a lock so that only one "request" can read from cache at a time for this path
-        _LOCK(contentStore, _lock_identifier(pageBasePath), function(releaseLockFn) {
+        _LOCK(contentStore, _lock_identifier(pageBasePath), function(err, releaseLockFn) {
 
             contentStore.readFile(cacheFilePath, function(err, cacheInfoString) {
 
@@ -858,7 +858,7 @@ exports = module.exports = function()
 
     var _handleCachePageInvalidate = function(contentStore, pageBasePath, callback)
     {
-        _LOCK(contentStore, _lock_identifier(pageBasePath), function(releaseLockFn) {
+        _LOCK(contentStore, _lock_identifier(pageBasePath), function(err, releaseLockFn) {
 
             contentStore.existsDirectory(pageBasePath, function (exists) {
 

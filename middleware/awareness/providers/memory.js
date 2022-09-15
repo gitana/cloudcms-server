@@ -24,20 +24,6 @@ class MemoryProvider extends AbstractAsyncProvider
         callback();
     }
 
-    readOrCreateChannel(channelId, callback)
-    {
-        var self = this;
-
-        var channel = self.channelMap[channelId];
-        if (channel) {
-            return callback(null, channel);
-        }
-
-        channel = self.channelMap[channelId] = {};
-
-        callback(null, channel);
-    }
-
     readChannel(channelId, callback)
     {
         var self = this;

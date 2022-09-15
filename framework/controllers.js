@@ -162,10 +162,10 @@ var handleInvalidate = function(req, res)
     // new timestamp
     process.env.CLOUDCMS_APPSERVER_TIMESTAMP = new Date().getTime();
 
-    // update all socket clients
-    process.IO.sockets.emit("timestamp", {
-        "timestamp": process.env.CLOUDCMS_APPSERVER_TIMESTAMP
-    });
+    // // update all socket clients
+    // process.IO.sockets.emit("timestamp", {
+    //     "timestamp": process.env.CLOUDCMS_APPSERVER_TIMESTAMP
+    // });
 
     console.log("Server timestamp regenerated");
 

@@ -46,8 +46,10 @@ exports = module.exports = function()
         if (!process.env.CLOUDCMS_AWARENESS_TYPE)
         {
             process.env.CLOUDCMS_AWARENESS_TYPE = "memory";
-
-            if (process.configuration.setup !== "single") {
+    
+            // auto-configure
+            if (process.env.CLOUDCMS_LAUNCHPAD_SETUP === "redis")
+            {
                 process.env.CLOUDCMS_AWARENESS_TYPE = "redis";
             }
         }
@@ -63,10 +65,15 @@ exports = module.exports = function()
         if (!process.configuration.awareness.config) {
             process.configuration.awareness.config = {};
         }
-
+    
+        // init any plugins?
+        if (!process.configuration.awareness.plugins) {
+            process.configuration.awareness.plugins = [];
+        }
+    
         var type = process.configuration.awareness.type;
         var config = process.configuration.awareness.config;
-
+        
         var providerFactory = require("./providers/" + type);
         provider = new providerFactory(config);
 
@@ -76,12 +83,6 @@ exports = module.exports = function()
             if (err) {
                 return callback(err);
             }
-
-            // init any plugins?
-            if (!process.configuration.awareness.plugins) {
-                process.configuration.awareness.plugins = [];
-            }
-
 
             var fns = [];
             for (var i = 0; i < pluginPaths.length; i++)
@@ -118,15 +119,18 @@ exports = module.exports = function()
     /**
      * This gets called whenever a new socket is connected to the Cloud CMS server.
      *
+     * @param io
+     * @param callback
+     *
      * @type {Function}
      */
-    var initSocketIO = r.initSocketIO = function(callback) {
-
+    var initSocketIO = r.initSocketIO = function(io, callback) {
+    
         // initialize socket IO event handlers so that awareness binds to any new, incoming sockets
-        socketInit(process.IO);
+        socketInit(io);
 
         // ensure the reaper is initialized
-        reaperInit(process.IO, REAP_FREQUENCY_MS, REAP_MAX_AGE_MS, function(err) {
+        reaperInit(io, REAP_FREQUENCY_MS, REAP_MAX_AGE_MS, function(err) {
             callback(err);
         });
     };
@@ -175,7 +179,7 @@ exports = module.exports = function()
         // when a socket.io connection is established, we set up some default listeners for events that the client
         // may emit to us
         io.on("connection", function(socket) {
-
+            
             // "register" -> indicates that a user is in a channel
             socket.on("register", function(channelId, user, dirty, callback) {
 
@@ -196,24 +200,32 @@ exports = module.exports = function()
                             return callback(err);
                         }
 
-                        // if we were already registered, just callback
-                        // however, if "dirty" is set, then we always hand back membership
-                        if (!dirty && alreadyRegistered)
-                        {
-                            return callback();
-                        }
-
-                        if (!alreadyRegistered)
-                        {
-                            // logger.info("New registration - channelId: " + channelId + ",userId=" + user.id + " (" + user.name + ")");
-
+                        // // if we were already registered, just callback
+                        // // however, if "dirty" is set, then we always hand back membership
+                        // if (!dirty && alreadyRegistered)
+                        // {
+                        //     logger.info("Already registered, not dirty - channelId: " + channelId + ",userId=" + user.id + " (" + user.name + ")");
+                        //
+                        //     return callback();
+                        // }
+                        //
+                        // if (!alreadyRegistered)
+                        // {
+                        //     logger.info("New registration - channelId: " + channelId + ",userId=" + user.id + " (" + user.name + ")");
+    
+                            //logger.info("Register - channelId: " + channelId + ", userId=" + user.id + " (" + user.name + ")");
                             socket.join(channelId);
-                        }
+                        //}
 
                         discover(channelId, function(err, userArray) {
 
-                            if (!err) {
-                                logger.info("Discover - channelId: " + channelId + ", userId=" + user.id + " (" + user.name + ") handing back: " + userArray.length);
+                            if (err)
+                            {
+                                logger.info("Discover - channelId: " + channelId + ", err: " + JSON.stringify(err));
+                            }
+                            else
+                            {
+                                //logger.info("Discover - channelId: " + channelId + ", userId=" + user.id + " (" + user.name + ") handing back: " + userArray.length);
                                 io.sockets.in(channelId).emit("membershipChanged", channelId, userArray);
                             }
 
@@ -415,6 +427,8 @@ exports = module.exports = function()
      */
     var register = r.register = function(channelId, user, callback)
     {
+        //console.log("Awareness - heard register, channel: " + channelId + ", user: " + user.id);
+        
         provider.register(channelId, user, callback);
     };
 
@@ -461,7 +475,12 @@ exports = module.exports = function()
     {
         // take out a cluster-wide lock on the "channelId"
         // so that two "threads" can't acquire/release at the same time for a given channel
-        _LOCK(channelId, function (releaseLockFn) {
+        _LOCK(channelId, function (err, releaseLockFn) {
+            
+            if (err) {
+                return callback(err);
+            }
+            
             provider.acquireLock(channelId, user, function(err, success) {
                 releaseLockFn();
                 callback(err, success);
@@ -480,7 +499,12 @@ exports = module.exports = function()
     {
         // take out a cluster-wide lock on the "channelId"
         // so that two "threads" can't acquire/release at the same time for a given channel
-        _LOCK(channelId, function (releaseLockFn) {
+        _LOCK(channelId, function (err, releaseLockFn) {
+            
+            if (err) {
+                return callback(err);
+            }
+            
             provider.releaseLock(channelId, userId, function(err, success) {
                 releaseLockFn();
                 callback(err, success);

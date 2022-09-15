@@ -64,6 +64,12 @@ exports = module.exports = function()
         {
             var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH) + "/bulk/pagerenditions";
 
+            var agent = http.globalAgent;
+            if (process.env.GITANA_PROXY_SCHEME === "https")
+            {
+                agent = https.globalAgent;
+            }
+
             // add "authorization" for OAuth2 bearer token
             var headers = {};
             var headers2 = gitana.platform().getDriver().getHttpHeaders();

@@ -1,8 +1,7 @@
-var logFactory = require("../../util/logger");
-//var redisHelper = require("../../util/redis");
-
-var redisClientFactory = require("../../clients/redis");
 const redisHelper = require("../../util/redis");
+
+const IORedis = require("ioredis");
+var Redlock = require("redlock");
 
 /**
  * Redis lock service.
@@ -11,69 +10,79 @@ const redisHelper = require("../../util/redis");
  */
 exports = module.exports = function(locksConfig)
 {
-    var redisLock = require("redislock");
-    redisLock.setDefaults({
-        timeout: 200000,
-        retries: 2000,
-        delay: 50
-    });
-    
+    var redlock = null;
     var client = null;
     
-    var logger = redisHelper.redisLogger("REDIS_LOCKS", "CLOUDCMS_LOCKS_", "error")
+    var logger = redisHelper.redisLogger("REDIS_LOCKS", "CLOUDCMS_LOCKS_", "debug")
     
     var r = {};
-    
+
     r.init = function(callback)
     {
-        redisClientFactory.create(locksConfig, function(err, _client) {
-            
-            if (err) {
-                return callback(err);
+        var redisOptions = redisHelper.redisOptions(locksConfig);
+        client = new IORedis(redisOptions.url);
+        
+        redlock = new Redlock(
+            [client],
+            {
+                // the expected clock drift; for more details
+                // see http://redis.io/topics/distlock
+                driftFactor: 0.01, // multiplied by lock ttl to determine drift time
+        
+                // the max number of times Redlock will attempt
+                // to lock a resource before erroring
+                retryCount:  10,
+        
+                // the time in ms between attempts
+                retryDelay:  200, // time in ms
+        
+                // the max time in ms randomly added to retries
+                // to improve performance under high contention
+                // see https://www.awsarchitectureblog.com/2015/03/backoff.html
+                retryJitter:  200 // time in ms
             }
-            
-            client = _client;
-            
-            return callback();
-        });
+        );
+
+        return callback();
     };
-    
+
     r.lock = function(key, fn)
     {
+        key = key.trim();
+        key = key.toLowerCase();
+        key = key.replace(/[\W_]+/g,"");
+        
         var lockKey = "cloudcms:locks:write:" + key;
+    
+        logger.debug("lock.acquire:", lockKey);
         
-        var lock = redisLock.createLock(client);
-        
-        var releaseCallbackFn = function(lock, lockKey) {
-            return function() {
-                logger.info("lock.release - " + lockKey);
-                lock.release(function(err) {
-                    
-                    if (err) {
-                        console.log("Failed to release redis lock: " + lockKey);
-                        console.log("Error: " + err);
-                        return;
-                    }
-                    
-                    logger.info("lock.released - " + lockKey);
-                });
-            }
-        }(lock, lockKey);
-        
-        logger.info("lock.acquire - " + lockKey);
-        lock.acquire(lockKey, function(err) {
+        redlock.lock(lockKey, 2000, function(err, lock) {
             
             if (err) {
-                console.log("Failed to acquire redis lock: " + lockKey);
-                console.log("Error: " + err);
-                return;
+                logger.error("Failed to acquire redis lock:", lockKey, err);
+                return fn(err);
             }
+    
+            logger.debug("lock.acquired:", lockKey);
+
+            var releaseCallbackFn = function(lock, lockKey) {
+                return function() {
+    
+                    logger.debug("lock.release:", lockKey);
+                    
+                    lock.unlock(function(err) {
+                        if (err) {
+                            logger.error("Failed to release redis lock:", lockKey, err);
+                        }
+                    });
+                }
+            }(lock, lockKey);
+    
+            logger.debug("lock.invokeFn");
+            fn(null, releaseCallbackFn);
             
-            logger.info("lock.acquired - " + lockKey);
-            
-            fn(releaseCallbackFn);
         });
     };
-    
+
     return r;
 };

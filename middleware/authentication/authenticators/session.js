@@ -25,8 +25,11 @@ class SessionAuthenticator extends DefaultAuthenticator
 
             req.user = gitanaUser;
 
-            if (req.session && req.session.save) {
-                req.session.save();
+            if (req.session)
+            {
+                return req.session.save(function() {
+                    callback();
+                });
             }
 
             callback();

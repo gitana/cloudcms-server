@@ -69,26 +69,23 @@ exports = module.exports = function()
     {
         if (!repositoryId)
         {
-            callback({
+            return callback({
                 "message": "Missing repositoryId in ensureContentDirectory()"
             });
-            return;
         }
 
         if (!branchId)
         {
-            callback({
+            return callback({
                 "message": "Missing branchId in ensureContentDirectory()"
             });
-            return;
         }
 
         if (!locale)
         {
-            callback({
+            return callback({
                 "message": "Missing locale in ensureContentDirectory()"
             });
-            return;
         }
 
         var contentDirectoryPath = path.join(repositoryId, branchId, nodeId, locale);
@@ -149,21 +146,17 @@ exports = module.exports = function()
             if (err)
             {
                 // nothing found
-                callback({
+                return callback({
                     "message": "Nothing cached on disk"
                 });
-
-                return;
             }
 
             if (!cacheInfoString)
             {
                 // nothing found
-                callback({
+                return callback({
                     "message": "Nothing cached on disk"
                 });
-
-                return;
             }
 
             var invalidate = function () {
@@ -352,18 +345,35 @@ exports = module.exports = function()
                     "err": previousError
                 });
             }
-
-            contentStore.writeStream(filePath, function(err, tempStream) {
-
-                if (err)
+            
+            var failFast = function(contentStore, filePath, cb) {
+                var triggered = false;
+                
+                return function(tempStream, err)
                 {
+                    // don't allow this to be called twice
+                    if (triggered) {
+                        return;
+                    }
+    
+                    triggered = true;
+                    
                     // ensure stream is closed
-                    closeWriteStream(tempStream);
-
+                    if (tempStream) {
+                        closeWriteStream(tempStream);
+                    }
+    
                     // ensure cleanup
                     return safeRemove(contentStore, filePath, function () {
                         cb(err);
                     });
+                };
+            }(contentStore, filePath, cb);
+            
+            contentStore.writeStream(filePath, function(err, tempStream) {
+
+                if (err) {
+                    return failFast(tempStream, err);
                 }
 
                 var cacheFilePath = toCacheFilePath(filePath);
@@ -374,7 +384,13 @@ exports = module.exports = function()
                 // add "authorization" for OAuth2 bearer token
                 var headers2 = gitana.platform().getDriver().getHttpHeaders();
                 headers["Authorization"] = headers2["Authorization"];
-    
+
+                var agent = http.globalAgent;
+                if (process.env.GITANA_PROXY_SCHEME === "https")
+                {
+                    agent = https.globalAgent;
+                }
+
                 var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH) + uri;
                 request({
                     "method": "GET",
@@ -393,18 +409,10 @@ exports = module.exports = function()
                     {
                         response.data.pipe(tempStream).on("close", function (err) {
 
-                            // TODO: not needed here?
-                            // ensure stream is closed
-                            // closeWriteStream(tempStream);
-
                             if (err)
                             {
                                 // some went wrong at disk io level?
-                                return safeRemove(contentStore, filePath, function () {
-                                    cb({
-                                        "message": "Failed to download: " + JSON.stringify(err)
-                                    });
-                                });
+                                return failFast(tempStream, err);
                             }
 
                             contentStore.existsFile(filePath, function (exists) {
@@ -413,57 +421,39 @@ exports = module.exports = function()
 
                                     // write cache file
                                     var cacheInfo = buildCacheInfo(response);
-                                    if (cacheInfo)
-                                    {
-                                        contentStore.writeFile(cacheFilePath, JSON.stringify(cacheInfo, null, "    "), function (err) {
+                                    if (!cacheInfo) {
+                                        return cb(null, filePath, null);
+                                    }
+                                    
+                                    contentStore.writeFile(cacheFilePath, JSON.stringify(cacheInfo, null, "    "), function (err) {
 
-                                            if (err)
-                                            {
-                                                // failed to write cache file, thus the whole thing is invalid
-                                                safeRemove(contentStore, cacheFilePath, function () {
-                                                    safeRemove(contentStore, filePath, function () {
-                                                        cb({
-                                                            "message": "Failed to write cache file: " + cacheFilePath
-                                                        });
-                                                    });
+                                        if (err)
+                                        {
+                                            // failed to write cache file, thus the whole thing is invalid
+                                            return safeRemove(contentStore, cacheFilePath, function () {
+                                                failFast(tempStream, {
+                                                    "message": "Failed to write cache file: " + cacheFilePath + ", err: " + JSON.stringify(err)
                                                 });
-                                            }
-                                            else
-                                            {
-                                                cb(null, filePath, cacheInfo);
-                                            }
+                                            });
+                                        }
 
-                                        });
-                                    }
-                                    else
-                                    {
                                         cb(null, filePath, cacheInfo);
-                                    }
+                                    });
                                 }
                                 else
                                 {
-                                    //process.log("WARN: exists false, " + filePath);
-
                                     // for some reason, file wasn't found
                                     // roll back the whole thing
                                     safeRemove(contentStore, cacheFilePath, function () {
-                                        safeRemove(contentStore, filePath, function () {
-                                            cb({
-                                                "message": "Failed to verify written cached file: " + filePath
-                                            });
+                                        failFast(tempStream, {
+                                            "message": "Failed to verify written cached file: " + filePath
                                         });
                                     });
                                 }
                             });
 
                         }).on("error", function (err) {
-
-                            console.log("f2");
-
-                            // ensure stream is closed
-                            closeWriteStream(tempStream);
-
-                            process.log("Pipe error: " + err);
+                            failFast(tempStream, err);
                         });
                     }
                     else
@@ -477,10 +467,7 @@ exports = module.exports = function()
                         });
 
                         response.on('end', function () {
-
-                            // ensure stream is closed
-                            closeWriteStream(tempStream);
-
+                            
                             var afterCleanup = function () {
 
                                 // see if it is "invalid_token"
@@ -515,9 +502,11 @@ exports = module.exports = function()
                                     "code": response.status,
                                     "body": body
                                 });
-
                             };
-
+    
+                            // ensure stream is closed
+                            closeWriteStream(tempStream);
+    
                             // clean things up
                             safeRemove(contentStore, cacheFilePath, function () {
                                 safeRemove(contentStore, filePath, function () {
@@ -528,14 +517,24 @@ exports = module.exports = function()
 
                     }
 
-                });
+                }).on('error', function (e) {
+                    failFast(tempStream, e);
+    
+                }).on('end', function (e) {
+
+                    // ensure stream is closed
+                    closeWriteStream(tempStream);
+
+                }).end();
 
                 tempStream.on("error", function (e) {
                     process.log("Temp stream errored out");
                     process.log(e);
+    
+                    failFast(tempStream, e);
 
                     // ensure stream is closed
-                    closeWriteStream(tempStream);
+                    //closeWriteStream(tempStream);
 
                 });
             });
@@ -593,8 +592,7 @@ exports = module.exports = function()
                 readFromDisk(contentStore, filePath, function (err, cacheInfo) {
 
                     if (!err && cacheInfo) {
-                        callback(err, filePath, cacheInfo);
-                        return;
+                        return callback(err, filePath, cacheInfo);
                     }
 
                     // either there was an error (in which case things were cleaned up)
@@ -616,13 +614,12 @@ exports = module.exports = function()
 
                         if (err) {
                             process.log("writeToDisk error, err: " + err.message + ", body: " + err.body);
-                            callback(err);
+                            return callback(err);
                         }
-                        else {
-                            //process.log("Fetched: " + assetPath);
-                            //process.log("Retrieved from server: " + filePath);
-                            callback(null, filePath, cacheInfo);
-                        }
+
+                        //process.log("Fetched: " + assetPath);
+                        //process.log("Retrieved from server: " + filePath);
+                        callback(null, filePath, cacheInfo);
                     });
                 });
             };
@@ -734,6 +731,7 @@ exports = module.exports = function()
                     writeToDisk(contentStore, gitana, uri, filePath, function (err, filePath, responseHeaders) {
 
                         if (err) {
+                            
                             if (err.code === 404) {
                                 return callback();
                             }
@@ -1057,7 +1055,7 @@ exports = module.exports = function()
     r.download = function(contentStore, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, callback)
     {
         // claim a lock around this node for this server
-        _LOCK(contentStore, _lock_identifier(repositoryId, branchId, nodeId), function(releaseLockFn) {
+        _LOCK(contentStore, _lock_identifier(repositoryId, branchId, nodeId), function(err, releaseLockFn) {
 
             // workhorse - pass releaseLockFn back to callback
             downloadNode(contentStore, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, function (err, filePath, cacheInfo) {
@@ -1070,7 +1068,7 @@ exports = module.exports = function()
     r.preview = function(contentStore, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, callback)
     {
         // claim a lock around this node for this server
-        _LOCK(contentStore, _lock_identifier(repositoryId, branchId, nodeId), function(releaseLockFn) {
+        _LOCK(contentStore, _lock_identifier(repositoryId, branchId, nodeId), function(err, releaseLockFn) {
 
             // workhorse - pass releaseLockFn back to callback
             previewNode(contentStore, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, function(err, filePath, cacheInfo) {
@@ -1083,10 +1081,9 @@ exports = module.exports = function()
     r.invalidate = function(contentStore, repositoryId, branchId, nodeId, paths, callback)
     {
         // claim a lock around this node for this server
-        _LOCK(contentStore, _lock_identifier(repositoryId, branchId, nodeId), function(releaseLockFn) {
+        _LOCK(contentStore, _lock_identifier(repositoryId, branchId, nodeId), function(err, releaseLockFn) {
 
             invalidateNode(contentStore, repositoryId, branchId, nodeId, function () {
-
                 invalidateNodePaths(contentStore, repositoryId, branchId, paths, function() {
 
                     // release lock
@@ -1103,7 +1100,7 @@ exports = module.exports = function()
     r.downloadAttachable = function(contentStore, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, forceReload, callback)
     {
         // claim a lock around this node for this server
-        _LOCK(contentStore, _lock_identifier(datastoreId, objectId), function(releaseLockFn) {
+        _LOCK(contentStore, _lock_identifier(datastoreId, objectId), function(err, releaseLockFn) {
 
             // workhorse - pass releaseLockFn back to callback
             downloadAttachable(contentStore, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, forceReload, function(err, filePath, cacheInfo) {
@@ -1116,7 +1113,7 @@ exports = module.exports = function()
     r.previewAttachable = function(contentStore, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, previewId, size, mimetype, forceReload, callback)
     {
         // claim a lock around this node for this server
-        _LOCK(contentStore, _lock_identifier(datastoreId, objectId), function(releaseLockFn) {
+        _LOCK(contentStore, _lock_identifier(datastoreId, objectId), function(err, releaseLockFn) {
 
             // workhorse - pass releaseLockFn back to callback
             previewAttachable(contentStore, gitana, datastoreTypeId, datastoreId, objectTypeId, objectId, attachmentId, locale, previewId, size, mimetype, forceReload, function (err, filePath, cacheInfo) {
@@ -1129,7 +1126,7 @@ exports = module.exports = function()
     r.invalidateAttachable = function(contentStore, datastoreTypeId, datastoreId, objectTypeId, objectId, callback)
     {
         // claim a lock around this node for this server
-        _LOCK(contentStore, _lock_identifier(datastoreId, objectId), function(releaseLockFn) {
+        _LOCK(contentStore, _lock_identifier(datastoreId, objectId), function(err, releaseLockFn) {
 
             // TODO: not implemented
             callback();

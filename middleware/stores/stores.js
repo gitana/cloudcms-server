@@ -176,7 +176,7 @@ exports = module.exports = function()
             if (!stores) {
                 return afterCheck();
             }
-
+    
             return process.cache.read("module-descriptors-" + host, function(err, moduleDescriptorsForHost) {
 
                 if (err) {

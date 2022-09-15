@@ -5,7 +5,7 @@
 var path = require("path");
 var cluster = require("cluster");
 
-var ReadWriteLock = require("rwlock");
+var AsyncLock = require('async-lock');
 
 var releaseFunctions = {};
 
@@ -18,7 +18,7 @@ var _setup = function() {
 
     if (cluster.isMaster)
     {
-        var lock = new ReadWriteLock();
+        var lock = new AsyncLock();
 
         var _claim = function(message)
         {
@@ -26,7 +26,7 @@ var _setup = function() {
 
             var ticket = "ticket-" + message.id;
 
-            lock.writeLock(key, function(releaseFn) {
+            lock.acquire(key, function(releaseFn) {
 
                 releaseFunctions[ticket] = releaseFn;
 

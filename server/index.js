@@ -16,7 +16,7 @@ var session = require('express-session');
 var cookieParser = require('cookie-parser');
 var flash = require("connect-flash");
 
-const redis = require('redis');
+//const redis = require('redis');
 const connectRedis = require('connect-redis');
 
 // we don't bind a single passport - instead, we get the constructor here by hand
@@ -30,9 +30,6 @@ var cluster = require("cluster");
 
 var requestParam = require("request-param")();
 
-var app = express();
-app.disable('x-powered-by');
-
 // cloudcms app server support
 var main = require("../index");
 
@@ -43,17 +40,29 @@ var coreHelpers = require("../duster/helpers/core/index");
 
 var helmet = require("helmet");
 
-var toobusy = require("toobusy-js");
-toobusy.maxLag(500); // 500 ms lag in event queue, quite high but usable for now
-toobusy.interval(250);
-
 var responseTime = require("response-time");
+
+// safely checks for the existence of a path
+var safeExists = function(_path)
+{
+    var exists = false;
+    try
+    {
+        exists = fs.existsSync(_path);
+    }
+    catch (e)
+    {
+        // swallow
+    }
+    
+    return exists;
+}
 
 var requestCounter = 0;
 
 // holds configuration settings
 var SETTINGS = {
-    "setup": "single", // single, cluster, sticky-cluster
+    "setup": "single", // single, cluster, redis
     "name": "Cloud CMS Application Server",
     "socketFunctions": [],
     "routeFunctions": [],
@@ -116,7 +125,6 @@ var SETTINGS = {
             "web": "app",
             "content": "tmp",
             "templates": "app",
-            "themes": "app",
             "modules": "app"
         },
         "virtual": {
@@ -125,7 +133,6 @@ var SETTINGS = {
             "web": "tmp",
             "content": "tmp",
             "templates": "tmp",
-            "themes": "tmp",
             "modules": "tmp"
         },
         "oneteam": {
@@ -134,7 +141,6 @@ var SETTINGS = {
             "web": "app",
             "content": "hosts_fs",
             "templates": "app",
-            "themes": "app",
             "modules": "hosts_fs"
         },
         "net-development": {
@@ -143,7 +149,6 @@ var SETTINGS = {
             "web": "hosts_fs",
             "content": "hosts_fs",
             "templates": "hosts_fs",
-            "themes": "hosts_fs",
             "modules": "hosts_fs"
         },
         "net-production": {
@@ -152,7 +157,6 @@ var SETTINGS = {
             "web": "hosts_s3fs",
             "content": "hosts_s3fs",
             "templates": "hosts_s3fs",
-            "themes": "hosts_s3fs",
             "modules": "hosts_s3fs"
         },
         "net-development-s3": {
@@ -160,8 +164,7 @@ var SETTINGS = {
             "config": "hosts_s3",
             "web": "hosts_s3",
             "content": "hosts_s3",
-            "templates": "hosts_s3",
-            "themes": "hosts_s3"
+            "templates": "hosts_s3"
         },
         "net-development-s3fs": {
             "root": "hosts_s3fs",
@@ -169,7 +172,6 @@ var SETTINGS = {
             "web": "hosts_s3fs",
             "content": "hosts_s3fs",
             "templates": "hosts_s3fs",
-            "themes": "hosts_s3fs",
             "modules": "hosts_s3fs"
         }
     },
@@ -305,9 +307,7 @@ var SETTINGS = {
         //"reapInterval": -1
     },
     "awareness": {
-        "enabled": false,
-        "type": "memory",
-        "config": {}
+        "enabled": false
     },
     "graphql": {
         "enabled": true,
@@ -317,16 +317,66 @@ var SETTINGS = {
     }
 };
 
+// always push core tag helpers to the front
+SETTINGS.dustFunctions.unshift(coreHelpers);
+
+// if SETTINGS.errorFunctions is empty, plug in a default error handler
+if (SETTINGS.errorFunctions.length === 0)
+{
+    SETTINGS.errorFunctions.push(main.defaultErrorHandler);
+}
+else
+{
+    // otherwise, if they plugged in a custom error handler, make sure we at least have a console logger ahead of it
+    // so that things are sure to get logged out to console
+    SETTINGS.errorFunctions.unshift(main.consoleErrorLogger);
+}
+
+// insert an error handler to handle refresh token failures
+SETTINGS.errorFunctions.unshift(main.refreshTokenErrorHandler);
+
+// CLOUDCMS_HOSTS_PATH environment variable
+// assume /hosts with optional fallback to /System/Volumes/Data/hosts for MacOS support
+if (!process.env.CLOUDCMS_HOSTS_PATH)
+{
+    process.env.CLOUDCMS_HOSTS_PATH = "/hosts";
+    
+    if (!safeExists(process.env.CLOUDCMS_HOSTS_PATH))
+    {
+        if (safeExists("/System/Volumes/Data/hosts"))
+        {
+            process.env.CLOUDCMS_HOSTS_PATH = "/System/Volumes/Data/hosts";
+        }
+        else
+        {
+            const homedir = require('os').homedir();
+            
+            if (safeExists(homedir + "/hosts"))
+            {
+                process.env.CLOUDCMS_HOSTS_PATH = homedir + "/hosts";
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // runs on 2999 by default
 process.env.PORT = process.env.PORT || 2999;
-
-// allows for specification of alternative transports
-// SETTINGS.socketTransports = [
-//     'websocket',
-//     'xhr-polling',
-//     'jsonp-polling',
-//     'polling'
-// ];
 
 var exports = module.exports;
 
@@ -511,62 +561,19 @@ var _start = function(overrides, callback) {
         callback = function() {};
     }
 
-    // always push core tag helpers to the front
-    SETTINGS.dustFunctions.unshift(coreHelpers);
-
-    // if SETTINGS.errorFunctions is empty, plug in a default error handler
-    if (SETTINGS.errorFunctions.length === 0)
-    {
-        SETTINGS.errorFunctions.push(main.defaultErrorHandler);
-    }
-    else
-    {
-        // otherwise, if they plugged in a custom error handler, make sure we at least have a console logger ahead of it
-        // so that things are sure to get logged out to console
-        SETTINGS.errorFunctions.unshift(main.consoleErrorLogger);
-    }
-
-    // insert an error handler to handle refresh token failures
-    SETTINGS.errorFunctions.unshift(main.refreshTokenErrorHandler);
-
     // create our master config
     var config = clone(SETTINGS);
     if (overrides) {
         util.merge(overrides, config);
     }
-
-    // assume for launchpad
-    if (!config.setup) {
-        config.setup = "single";
-    }
-
-    launchPad({
-        "setup": config.setup,
-        "factory": function(done) {
-            startSlave(config, function(app, server) {
-                done(server);
-            });
-        },
-        "report": function() {
-            runFunctions(config.reportFunctions, [], function(err) {
-                // todo
-            });
-        },
-        "complete": function() {
-            callback();
-        }
-    });
-};
-
-var startSlave = function(config, afterStartFn)
-{
+    
     // set up modes
     process.env.CLOUDCMS_APPSERVER_MODE = "development";
-
-    if (process.env.NODE_ENV == "production") {
+    
+    if (process.env.NODE_ENV === "production") {
         process.env.CLOUDCMS_APPSERVER_MODE = "production";
     }
-
+    
     /*
     // set up domain hosting
     // if not otherwise specified, we assume hosting at *.cloudcms.net
@@ -577,10 +584,10 @@ var startSlave = function(config, afterStartFn)
         }
     }
     */
-
+    
     // store config on process instance
     process.configuration = config;
-
+    
     // some config overrides can come in through process.configuration
     if (process.configuration) {
         if (process.configuration.virtualHost && process.configuration.virtualHost.domain) {
@@ -594,10 +601,11 @@ var startSlave = function(config, afterStartFn)
     if (process.env.CLOUDCMS_VIRTUAL_HOST_DOMAIN) {
         process.env.CLOUDCMS_VIRTUAL_HOST_DOMAIN = process.env.CLOUDCMS_VIRTUAL_HOST_DOMAIN.toLowerCase();
     }
-
+    
     if (!process.env.CLOUDCMS_STANDALONE_HOST) {
         process.env.CLOUDCMS_STANDALONE_HOST = "local";
     }
+    
     
     // auto-configuration for HTTPS
     if (!process.configuration.https) {
@@ -630,10 +638,16 @@ var startSlave = function(config, afterStartFn)
         delete process.configuration.https;
     }
     
+    
     // auto configuration of session store
     if (!process.configuration.session) {
         process.configuration.session = {};
     }
+    // auto-configuration for redis?
+    if (process.env.CLOUDCMS_REDIS_URL || (process.env.CLOUDCMS_REDIS_ENDPOINT && process.env.CLOUDCMS_REDIS_PORT)) {
+        process.env.CLOUDCMS_SESSION_TYPE = "redis";
+    }
+    
     if (process.env.CLOUDCMS_SESSION_TYPE) {
         process.configuration.session.enabled = true;
         process.configuration.session.type = process.env.CLOUDCMS_SESSION_TYPE;
@@ -642,123 +656,126 @@ var startSlave = function(config, afterStartFn)
         process.configuration.session.secret = process.env.CLOUDCMS_SESSION_SECRET;
     }
     
-    // session store
-    var initializedSession = null;
-    if (process.configuration.session)
-    {
-        if (process.configuration.session.enabled)
-        {
-            var sessionSecret = process.configuration.session.secret;
-            if (!sessionSecret) {
-                sessionSecret = "secret";
-            }
-
-            var sessionConfig = {
-                secret: sessionSecret,
-                resave: false,
-                saveUninitialized: false
-            };
-
-            if (process.configuration.session.type === "file")
-            {
-                var options = {};
-                if (process.configuration.session.ttl)
-                {
-                    options.ttl = process.configuration.session.ttl;
-                }
-                if (process.configuration.session.reapInterval)
-                {
-                    options.reapInterval = process.configuration.session.reapInterval;
-                }
-                // session file store
-                var SessionFileStore = require('session-file-store')(session);
-                sessionConfig.store = new SessionFileStore(options);
-            }
-            else if (process.configuration.session.type === "redis")
-            {
-                (async function() {
-                    var redisOptions = redisHelper.redisOptions();
-                    redisHelper.createAndConnect(redisOptions, function(err, redisClient) {
-            
-                        if (err) {
-                            console.error(err);
-                        }
-                        else
-                        {
-                            var RedisStore = connectRedis(session);
-                            sessionConfig.store = new RedisStore({ client: redisClient });
-                        }
-                    });
-                })();
-            }
-            else if (process.configuration.session.type === "memory" || !process.configuration.session.type)
-            {
-                var options = {};
-                options.checkPeriod = 86400000; // prune expired entries every 24h
-
-                // session memory store
-                var MemoryStore = require('memorystore')(session);
-                sessionConfig.store = new MemoryStore(options);
-            }
-
-            initializedSession = session(sessionConfig);
+    
+    // determine the max files
+    util.maxFiles(function(err, maxFiles) {
+        process.env.CLOUDCMS_MAX_FILES = maxFiles;
+        
+        // assume for launchpad
+        if (!config.setup) {
+            config.setup = "single";
         }
+        
+        launchPad(config.setup, config, {
+            "createHttpServer": function(app, done) {
+                createHttpServer(app, function(err, httpServer) {
+                    done(err, httpServer);
+                });
+            },
+            "startServer": function(config, done) {
+                startServer(config, function(err, app, httpServer, httpServerPort) {
+                    done(err, app, httpServer, httpServerPort);
+                });
+            },
+            "configureServer": function(config, app, httpServer, done) {
+                configureServer(config, app, httpServer, function(err) {
+                    done(err);
+                });
+            },
+            "report": function(config) {
+                runFunctions(config.reportFunctions, [], function(err) {
+                    // todo
+                });
+            },
+            "complete": function(config, err) {
+                callback(err);
+            }
+        });
+    });
+};
+
+var initSession = function(initDone)
+{
+    if (!process.configuration.session) {
+        return initDone();
     }
-
-    // safely checks for the existence of a path
-    var safeExists = function(_path)
-    {
-        var exists = false;
-        try
-        {
-            exists = fs.existsSync(_path);
-        }
-        catch (e)
-        {
-            // swallow
-        }
-
-        return exists;
+    if (!process.configuration.session.enabled) {
+        return initDone();
     }
-
-    // CLOUDCMS_HOSTS_PATH environment variable
-    // assume /hosts with optional fallback to /System/Volumes/Data/hosts for MacOS support
-    if (!process.env.CLOUDCMS_HOSTS_PATH)
-    {
-        process.env.CLOUDCMS_HOSTS_PATH = "/hosts";
-
-        if (!safeExists(process.env.CLOUDCMS_HOSTS_PATH))
-        {
-            if (safeExists("/System/Volumes/Data/hosts"))
-            {
-                process.env.CLOUDCMS_HOSTS_PATH = "/System/Volumes/Data/hosts";
-            }
-            else
-            {
-                const homedir = require('os').homedir();
-
-                if (safeExists(homedir + "/hosts"))
-                {
-                    process.env.CLOUDCMS_HOSTS_PATH = homedir + "/hosts";
-                }
-            }
-        }
+    
+    var sessionSecret = process.configuration.session.secret;
+    if (!sessionSecret) {
+        sessionSecret = "secret";
     }
+    
+    var sessionConfig = {
+        secret: sessionSecret,
+        resave: false,
+        saveUninitialized: false
+    };
+    
+    if (process.configuration.session.type) {
+        process.configuration.session.type = process.configuration.session.type.toLowerCase();
+    }
+    
+    if (process.configuration.session.type === "file")
+    {
+        var options = {};
+        if (process.configuration.session.ttl)
+        {
+            options.ttl = process.configuration.session.ttl;
+        }
+        if (process.configuration.session.reapInterval)
+        {
+            options.reapInterval = process.configuration.session.reapInterval;
+        }
+        // session file store
+        var SessionFileStore = require('session-file-store')(session);
+        sessionConfig.store = new SessionFileStore(options);
+        return initDone(null, session(sessionConfig));
+    }
+    else if (process.configuration.session.type === "redis")
+    {
+        var IORedis = require("ioredis");
+        var redisOptions = redisHelper.redisOptions();
+        var redisClient = new IORedis(redisOptions.url);
+    
+        var RedisStore = connectRedis(session);
+        sessionConfig.store = new RedisStore({ client: redisClient });
+        initDone(null, session(sessionConfig));
+    }
+    else if (process.configuration.session.type === "memory" || !process.configuration.session.type)
+    {
+        var options = {};
+        options.checkPeriod = 86400000; // prune expired entries every 24h
+        
+        // session memory store
+        var MemoryStore = require('memorystore')(session);
+        sessionConfig.store = new MemoryStore(options);
+        return initDone(null, session(sessionConfig));
+    }
+};
 
-    // global temp directory
-    util.createTempDirectory(function(err, tempDirectory) {
-        process.env.CLOUDCMS_TEMPDIR_PATH = tempDirectory;
+var startServer = function(config, startServerFinishedFn)
+{
+    var app = express();
+    app.disable('x-powered-by');
+    
+    initSession(function(err, initializedSession) {
 
-        // determine the max files
-        util.maxFiles(function(err, maxFiles) {
-
-            process.env.CLOUDCMS_MAX_FILES = maxFiles;
-
+        if (err) {
+            throw err;
+        }
+        
+        // global temp directory
+        util.createTempDirectory(function(err, tempDirectory) {
+            process.env.CLOUDCMS_TEMPDIR_PATH = tempDirectory;
+    
             // global service starts
             main.init(app, function (err) {
-
+    
                 app.enable('strict routing');
-
+    
                 ////////////////////////////////////////////////////////////////////////////
                 //
                 // BASE CONFIGURATION
@@ -767,15 +784,15 @@ var startSlave = function(config, afterStartFn)
                 // Runs on port 3000 by default
                 //
                 ////////////////////////////////////////////////////////////////////////////
-
+    
                 // all environments
                 app.set('port', process.env.PORT);
                 app.set('views', process.env.CLOUDCMS_APPSERVER_BASE_PATH + "/views");
-
+    
                 if (config.viewEngine === "dust")
                 {
                     var cons = require('consolidate');
-
+    
                     app.set('view engine', 'html');
                     app.set('view engine', 'dust');
                     app.engine('html', cons.dust);
@@ -784,13 +801,13 @@ var startSlave = function(config, afterStartFn)
                 else if (config.viewEngine === "handlebars" || config.viewEngine === "hbs")
                 {
                     var hbs = require('hbs');
-
+    
                     app.set('view engine', 'html');
                     app.set('view engine', 'hbs');
                     app.engine('html', hbs.__express);
                     app.engine('hbs', hbs.__express);
                 }
-
+    
                 ////////////////////////////////////////////////////////////////////////////
                 //
                 // VIRTUAL SUPPORT
@@ -799,26 +816,26 @@ var startSlave = function(config, afterStartFn)
                 // ahead of anything else running.
                 //
                 ////////////////////////////////////////////////////////////////////////////
-
+    
                 // custom morgan logger
                 morgan(function (tokens, req, res) {
-
+    
                     var status = res.statusCode;
                     var len = parseInt(res.getHeader('Content-Length'), 10);
                     var host = req.domainHost;
                     if (req.virtualHost) {
                         host = req.virtualHost;
                     }
-
+    
                     len = isNaN(len) ? '0b' : len = bytes(len);
-
+    
                     var d = new Date();
                     var dateString = d.toDateString();
                     var timeString = d.toTimeString();
-
+    
                     // gray color
                     var grayColor = "\x1b[90m";
-
+    
                     // status color
                     var color = 32;
                     if (status >= 500) {
@@ -831,17 +848,17 @@ var startSlave = function(config, afterStartFn)
                         color = 36;
                     }
                     var statusColor = "\x1b[" + color + "m";
-
+    
                     // final color
                     var finalColor = "\x1b[0m";
-
-                    if (process.env.CLOUDCMS_APPSERVER_MODE == "production")
+    
+                    if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
                     {
                         grayColor = "";
                         statusColor = "";
                         finalColor = "";
                     }
-
+    
                     var message = '';
                     message += grayColor + '<' + req.id + '> ';
                     message += grayColor + '[' + dateString + ' ' + timeString + '] ';
@@ -853,10 +870,10 @@ var startSlave = function(config, afterStartFn)
                     message += grayColor + req.originalUrl + '" ';
                     message += grayColor + len + ' ';
                     message += finalColor;
-
+    
                     return message;
                 });
-
+    
                 /*
                 // debug headers being set
                 app.use(function(req, res, next) {
@@ -868,58 +885,49 @@ var startSlave = function(config, afterStartFn)
                     next();
                 });
                 */
-
-                // middleware which blocks requests when we're too busy
-                app.use(function(req, res, next) {
-                    if (toobusy()) {
-                        res.status(503).send("The web application is too busy to serve this request.  Please try again.");
-                    } else {
-                        next();
-                    }
-                });
-
-                // add req.id  re
+    
+                // increment and assign request id
                 app.use(function (req, res, next) {
                     requestCounter++;
                     req.id = requestCounter;
                     next();
                 });
-
+    
                 // APPLY CUSTOM INIT FUNCTIONS
                 runFunctions(config.initFunctions, [app], function (err) {
-
+    
                     // retain originalUrl and originalPath since these can get modified along the way
                     app.use(function (req, res, next) {
                         req.originalUrl = req.url;
                         req.originalPath = req.path;
                         next();
                     });
-
+    
                     // req.param method
                     app.use(requestParam);
-
+    
                     // add req.log function
                     app.use(function (req, res, next) {
-
+    
                         req._log = req.log = function (text/*, warn*/) {
-
+    
                             var host = req.domainHost;
                             if (req.virtualHost)
                             {
                                 host = req.virtualHost;
                             }
-
+    
                             var timestamp = moment(new Date()).format("MM/DD/YYYY HH:mm:ss Z");
                             var grayColor = "\x1b[90m";
                             var finalColor = "\x1b[0m";
-
+    
                             // in production, don't use colors
                             if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
                             {
                                 grayColor = "";
                                 finalColor = "";
                             }
-
+    
                             var message = '';
                             message += grayColor + '<' + req.id + '> ';
                             if (cluster.worker && cluster.worker.id)
@@ -930,33 +938,33 @@ var startSlave = function(config, afterStartFn)
                             message += grayColor + host + ' ';
                             message += grayColor + text + '';
                             message += finalColor;
-
+    
                             /*
                             if (warn)
                             {
                                 message = "\r\n**** SLOW RESPONSE ****\r\n" + message + "\r\n";
                             }
                             */
-
+    
                             console.log(message);
                         };
-
+    
                         next();
                     });
-
+    
                     // common interceptors and config
                     main.common1(app);
-
+    
                     // general logging of requests
                     // gather statistics on response time
                     app.use(responseTime(function (req, res, time) {
-
+    
                         var warn = false;
                         if (time > 1000)
                         {
                             warn = true;
                         }
-
+    
                         var requestPath = req.originalPath;
                         if (requestPath)
                         {
@@ -974,51 +982,51 @@ var startSlave = function(config, afterStartFn)
                                 requestPath = util.stripQueryStringFromUrl(requestPath);
                             }
                         }
-
+    
                         req.log(req.method + " " + requestPath + " [" + res.statusCode + "] (" + time.toFixed(2) + " ms)", warn);
                     }));
-
+    
                     // set up CORS allowances
                     // this lets CORS requests float through the proxy
                     app.use(main.ensureCORS());
-
+    
                     // set up default security headers
                     app.use(main.ensureHeaders());
-
+    
                     // common interceptors and config
                     main.common2(app);
-
+    
                     // APPLY CUSTOM DRIVER FUNCTIONS
                     runFunctions(config.driverFunctions, [app], function(err) {
-
+    
                         // binds gitana driver into place
                         main.common3(app);
-
+    
                         // parse cookies
                         app.use(cookieParser());
-
+    
                         // cloudcms things need to run here
                         main.common4(app, true);
-
+    
                         // APPLY CUSTOM FILTER FUNCTIONS
                         runFunctions(config.filterFunctions, [app], function (err) {
-
+    
                             // PATH BASED PERFORMANCE CACHING
                             main.perf1(app);
-
+    
                             // proxy - anything that goes to /proxy is handled here early and nothing processes afterwards
                             main.proxy(app);
-
+    
                             // MIMETYPE BASED PERFORMANCE CACHING
                             main.perf2(app);
-
+    
                             // DEVELOPMENT BASED PERFORMANCE CACHING
                             main.perf3(app);
-
+    
                             // standard body parsing + a special cloud cms body parser that makes a last ditch effort for anything
                             // that might be JSON (regardless of content type)
                             app.use(function (req, res, next) {
-
+    
                                 multipart(process.configuration.bodyParsers.multipart || {})(req, res, function (err) {
                                     bodyParser.json(process.configuration.bodyParsers.json || {})(req, res, function (err) {
                                         bodyParser.urlencoded(process.configuration.bodyParsers.urlencoded || {})(req, res, function (err) {
@@ -1028,35 +1036,35 @@ var startSlave = function(config, afterStartFn)
                                         });
                                     });
                                 });
-
+    
                             });
-
+    
                             if (initializedSession)
                             {
                                 app.use(initializedSession);
                                 app.use(flash());
                             }
-
+    
                             // this is the same as calling
                             // app.use(passport.initialize());
                             // except we create a new passport each time and store on request to support multitenancy
                             app.use(function(req, res, next) {
-
+    
                                 var passport = new Passport();
                                 passport._key = "passport-" + req.virtualHost;
-
+    
                                 req._passport = {};
                                 req._passport.instance = passport;
-
+    
                                 if (req.session && req.session[passport._key])
                                 {
                                     // load data from existing session
                                     req._passport.session = req.session[passport._key];
                                 }
-
+    
                                 // add this in
                                 req.passport = req._passport.instance;
-
+    
                                 // passport - serialize and deserialize
                                 req.passport.serializeUser(function(user, done) {
                                     done(null, user);
@@ -1064,10 +1072,10 @@ var startSlave = function(config, afterStartFn)
                                 req.passport.deserializeUser(function(user, done) {
                                     done(null, user);
                                 });
-
+    
                                 next();
                             });
-
+    
                             // passport session
                             if (initializedSession)
                             {
@@ -1075,27 +1083,27 @@ var startSlave = function(config, afterStartFn)
                                     req.passport.session()(req, res, next);
                                 });
                             }
-
+    
                             // welcome files
                             main.welcome(app);
-
+    
                             // configure cloudcms app server command handing
                             main.interceptors(app, true);
-
+    
                             //app.use(app.router);
-
+    
                             // healthcheck middleware
                             main.healthcheck(app);
-
+    
                             // APPLY CUSTOM ROUTES
                             runFunctions(config.routeFunctions, [app], function (err) {
-
+    
                                 // configure cloudcms app server handlers
                                 main.handlers(app, true);
-
+    
                                 // register error functions
                                 runFunctions(config.errorFunctions, [app], function (err) {
-
+    
                                     // APPLY CUSTOM CONFIGURE FUNCTIONS
                                     var allConfigureFunctions = [];
                                     for (var env in config.configureFunctions)
@@ -1110,196 +1118,15 @@ var startSlave = function(config, afterStartFn)
                                         }
                                     }
                                     runFunctions(allConfigureFunctions, [app], function (err) {
-
-                                        ////////////////////////////////////////////////////////////////////////////
-                                        //
-                                        // INITIALIZE THE SERVER
-                                        //
-                                        ////////////////////////////////////////////////////////////////////////////
     
                                         // create the server (either HTTP or HTTPS)
-                                        var httpServer = null;
-                                        if (process.configuration.https) {
-                                            // configure helmet to support auto-upgrade of http->https
-                                            app.use(helmet());
-                                            // create https server
-                                            httpServer = https.createServer(process.configuration.https, app);
-                                        } else {
-                                            // legacy
-                                            httpServer = http.Server(app);
-                                        }
-    
-                                        // request timeout
-                                        var requestTimeout = 30000; // 30 seconds
-                                        if (process.configuration && process.configuration.timeout)
-                                        {
-                                            requestTimeout = process.configuration.timeout;
-                                        }
-                                        httpServer.setTimeout(requestTimeout);
-    
-                                        // socket
-                                        httpServer.on("connection", function (socket) {
-                                            socket.setNoDelay(true);
-                                        });
-                                        const { Server } = require("socket.io");
-                                        var io = process.IO = new Server(httpServer);
-                                        //io.set('transports', config.socketTransports);
-                                        io.use(function (socket, next) {
-
-                                            // console.log("New socket being initialized");
-
-                                            // attach _log function
-                                            socket._log = function (text) {
-
-                                                var host = socket.handshake.headers.host;
-                                                if (socket.handshake.headers["x-forwarded-host"])
-                                                {
-                                                    host = socket.handshake.headers["x-forwarded-host"];
-                                                }
-
-                                                var d = new Date();
-                                                var dateString = d.toDateString();
-                                                var timeString = d.toTimeString();
-
-                                                // gray color
-                                                var grayColor = "\x1b[90m";
-
-                                                // final color
-                                                var finalColor = "\x1b[0m";
-
-                                                if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
-                                                {
-                                                    grayColor = "";
-                                                    finalColor = "";
-                                                }
-
-                                                var message = '';
-                                                message += grayColor + '<socket> ';
-                                                message += grayColor + '[' + dateString + ' ' + timeString + '] ';
-                                                message += grayColor + host + ' ';
-                                                message += grayColor + text + '';
-                                                message += finalColor;
-
-                                                console.log(message);
-                                            };
-                                            /*
-                                            socket.on("connect", function () {
-                                                console.log("Socket connect()");
-                                            });
-                                            */
-                                            /*
-                                            socket.on("disconnect", function () {
-                                                var message = "Socket disconnected";
-                                                if (socket && socket.host)
-                                                {
-                                                    message += ", host=" + socket.host;
-                                                }
-                                                if (socket && socket.gitana && socket.gitana.application && socket.gitana.application())
-                                                {
-                                                    message += ", application=" + socket.gitana.application().title;
-                                                }
-                                                console.log(message);
-                                            });
-                                            */
-
-                                            // APPLY CUSTOM SOCKET.IO CONFIG
-                                            runFunctions(config.socketFunctions, [socket], function (err) {
-
-                                                require("../middleware/awareness/awareness").initSocketIO(function() {
-                                                    next();
-                                                });
-
-                                                // INSIGHT SERVER
-                                                // if (config.insight && config.insight.enabled)
-                                                // {
-                                                //     console.log("Init Insight to Socket");
-
-                                                //     require("../insight/insight").init(socket, function () {
-                                                //         next();
-                                                //     });
-                                                // }
-                                                // else
-                                                // {
-                                                //     next();
-                                                // }
-                                            });
-
-                                        });
-
-                                        // SET INITIAL VALUE FOR SERVER TIMESTAMP
-                                        process.env.CLOUDCMS_APPSERVER_TIMESTAMP = new Date().getTime();
-
-                                        // DUST
-                                        runFunctions(config.dustFunctions, [app, duster.getDust()], function (err) {
-
-                                            // APPLY SERVER BEFORE START FUNCTIONS
-                                            runFunctions(config.beforeFunctions, [app], function (err) {
-    
-                                                httpServer._listenPort = app.get("port");
-
-                                                // AFTER SERVER START
-                                                runFunctions(config.afterFunctions, [app], function (err) {
-
-                                                    function cleanup() {
-
-                                                        if (cluster.isMaster)
-                                                        {
-                                                            console.log("");
-                                                            console.log("");
-
-                                                            console.log("Cloud CMS Module shutting down");
-
-                                                            // close server connections as cleanly as we can
-                                                            console.log(" -> Closing server connections");
-                                                        }
-
-                                                        try
-                                                        {
-                                                            httpServer.close();
-                                                        }
-                                                        catch (e)
-                                                        {
-                                                            console.log("Server.close produced error: " + JSON.stringify(e));
-                                                        }
-
-                                                        // ask toobusy to shut down as cleanly as we can
-                                                        if (cluster.isMaster)
-                                                        {
-                                                            console.log(" -> Closing toobusy monitor");
-                                                        }
-
-                                                        try
-                                                        {
-                                                            toobusy.shutdown();
-                                                        }
-                                                        catch (e)
-                                                        {
-                                                            console.log("toobusy.shutdown produced error: " + JSON.stringify(e));
-                                                        }
-
-                                                        if (cluster.isMaster)
-                                                        {
-                                                            console.log("");
-                                                        }
-
-                                                        // tell the process to exit
-                                                        process.exit();
-                                                    }
-
-                                                    // listen for kill or interrupt so that we can shut down cleanly
-                                                    process.on('SIGINT', cleanup);
-                                                    process.on('SIGTERM', cleanup);
-
-                                                    // if we are on a worker process, then inform the master that we completed
-                                                    if (process.send)
-                                                    {
-                                                        process.send("server-startup");
-                                                    }
-    
-                                                    afterStartFn(app, httpServer);
-
-                                                });
-                                            });
+                                        createHttpServer(app, function(err, httpServer) {
+                                            
+                                            if (err) {
+                                                return startServerFinishedFn(err);
+                                            }
+                                            
+                                            startServerFinishedFn(null, app, httpServer);
                                         });
                                     });
                                 });
@@ -1311,6 +1138,187 @@ var startSlave = function(config, afterStartFn)
         });
     });
 };
+
+var createHttpServer = function(app, done)
+{
+    // create the server (either HTTP or HTTPS)
+    var httpServer = null;
+    
+    if (process.configuration.https)
+    {
+        if (app)
+        {
+            // configure helmet to support auto-upgrade of http->https
+            app.use(helmet());
+        }
+            
+        // create https server
+        httpServer = https.createServer(process.configuration.https, app);
+    }
+    else
+    {
+        // legacy
+        httpServer = http.Server(app);
+    }
+    
+    // request timeout
+    var requestTimeout = 30000; // 30 seconds
+    if (process.configuration && process.configuration.timeout)
+    {
+        requestTimeout = process.configuration.timeout;
+    }
+    httpServer.setTimeout(requestTimeout);
+    
+    // socket
+    httpServer.on("connection", function (socket) {
+        socket.setNoDelay(true);
+    });
+    
+    done(null, httpServer);
+}
+
+var configureServer = function(config, app, httpServer, configureServerFinishedFn)
+{
+    var io = httpServer.io;
+    if (io)
+    {
+        //io.set('transports', config.socketTransports);
+        io.use(function (socket, next) {
+            
+            // console.log("New socket being initialized");
+            
+            // attach _log function
+            socket._log = function (text) {
+                
+                var host = socket.handshake.headers.host;
+                if (socket.handshake.headers["x-forwarded-host"])
+                {
+                    host = socket.handshake.headers["x-forwarded-host"];
+                }
+                
+                var d = new Date();
+                var dateString = d.toDateString();
+                var timeString = d.toTimeString();
+                
+                // gray color
+                var grayColor = "\x1b[90m";
+                
+                // final color
+                var finalColor = "\x1b[0m";
+                
+                if (process.env.CLOUDCMS_APPSERVER_MODE === "production")
+                {
+                    grayColor = "";
+                    finalColor = "";
+                }
+                
+                var message = '';
+                message += grayColor + '<socket> ';
+                message += grayColor + '[' + dateString + ' ' + timeString + '] ';
+                message += grayColor + host + ' ';
+                message += grayColor + text + '';
+                message += finalColor;
+                
+                console.log(message);
+            };
+            /*
+            socket.on("connect", function () {
+                console.log("Socket connect()");
+            });
+            */
+            /*
+            socket.on("disconnect", function () {
+                var message = "Socket disconnected";
+                if (socket && socket.host)
+                {
+                    message += ", host=" + socket.host;
+                }
+                if (socket && socket.gitana && socket.gitana.application && socket.gitana.application())
+                {
+                    message += ", application=" + socket.gitana.application().title;
+                }
+                console.log(message);
+            });
+            */
+            
+            // APPLY CUSTOM SOCKET.IO CONFIG
+            runFunctions(config.socketFunctions, [socket], function (err) {
+                
+                require("../middleware/awareness/awareness").initSocketIO(io, function() {
+                    next();
+                });
+                
+                // INSIGHT SERVER
+                // if (config.insight && config.insight.enabled)
+                // {
+                //     console.log("Init Insight to Socket");
+                
+                //     require("../insight/insight").init(socket, function () {
+                //         next();
+                //     });
+                // }
+                // else
+                // {
+                //     next();
+                // }
+            });
+            
+        });
+    }
+    
+    // SET INITIAL VALUE FOR SERVER TIMESTAMP
+    process.env.CLOUDCMS_APPSERVER_TIMESTAMP = new Date().getTime();
+    
+    // DUST
+    runFunctions(config.dustFunctions, [app, duster.getDust()], function (err) {
+        
+        // APPLY SERVER BEFORE START FUNCTIONS
+        runFunctions(config.beforeFunctions, [app], function (err) {
+            
+            // AFTER SERVER START
+            runFunctions(config.afterFunctions, [app], function (err) {
+                
+                function cleanup() {
+                    
+                    if (cluster.isMaster)
+                    {
+                        console.log("");
+                        console.log("");
+                        
+                        console.log("Cloud CMS Module shutting down");
+                        
+                        // close server connections as cleanly as we can
+                        console.log(" -> Closing server connections");
+                    }
+                    
+                    try
+                    {
+                        httpServer.close();
+                    }
+                    catch (e)
+                    {
+                        console.log("Server.close produced error: " + JSON.stringify(e));
+                    }
+                    
+                    if (cluster.isMaster)
+                    {
+                        console.log("");
+                    }
+                    
+                    // tell the process to exit
+                    process.exit();
+                }
+                
+                // listen for kill or interrupt so that we can shut down cleanly
+                process.on('SIGINT', cleanup);
+                process.on('SIGTERM', cleanup);
+                
+                configureServerFinishedFn();
+            });
+        });
+    });
+};
+
 
 
 ////////////////////////////////////////////////////////////////////////////

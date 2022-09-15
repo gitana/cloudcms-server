@@ -323,7 +323,7 @@ var syncProfile = exports.syncProfile = function(req, res, strategy, domainId, p
                     }
                 }
 
-                _LOCK([CACHE_IDENTIFIER], function(releaseLockFn) {
+                _LOCK([CACHE_IDENTIFIER], function(err, releaseLockFn) {
                     _handleSyncUser(req, strategy, settings, key, domainId, providerId, providerUserId, token, refreshToken, userObject, groupsArray, function (err, gitanaUser) {
 
                         if (err) {

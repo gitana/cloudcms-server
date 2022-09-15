@@ -603,7 +603,7 @@ var executeFunction = exports.executeFunction = function(identifier, fn, afterFn
     // take out a lock to ensure that the first thread to pass through here is the only one
     // and gets to run by itself on the cluster
     var exclusiveLockKey = "exclusiveLock-" + identifier;
-    process.locks.lock(exclusiveLockKey, function (releaseLockFn) {
+    process.locks.lock(exclusiveLockKey, function (err, releaseLockFn) {
 
         var firstRunCacheKey = "firstRun-" + identifier;
         process.cache.read(firstRunCacheKey, function(err, value) {
@@ -1806,7 +1806,7 @@ var asURL = exports.asURL = function(protocol, host, port, path)
             url += ":" + port;
         }
     }
-    
+
     // include url "path" if defined
     if (path) {
         path = '/' + path;
@@ -1819,7 +1819,7 @@ var asURL = exports.asURL = function(protocol, host, port, path)
             url += path;
         }
     }
-    
+
     return url;
 };
 

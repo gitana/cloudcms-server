@@ -14,28 +14,33 @@ class AbstractAsyncProvider extends AbstractProvider
     {
         super(config);
     }
-
+    
+    _lock(lockKey, workFunction)
+    {
+        process.locks.lock(lockKey, workFunction);
+    }
+    
     readOrCreateChannel(channelId, callback) {
 
         var self = this;
 
         self.readChannel(channelId, function(err, channel) {
-
+    
             if (err) {
                 return callback(err);
             }
-
+    
             if (channel) {
                 return callback(null, channel);
             }
 
             var channel = {};
             self.writeChannel(channelId, channel, function(err) {
-
+    
                 if (err) {
                     return callback(err);
                 }
-
+    
                 callback(null, channel);
             });
         });
@@ -46,26 +51,44 @@ class AbstractAsyncProvider extends AbstractProvider
     register(channelId, user, callback)
     {
         var self = this;
-
+        
+        self.doRegister(channelId, user, function(err) {
+            callback(err);
+        });
+    }
+    
+    /**
+     * Workhorse method.
+     *
+     * @param channelId
+     * @param user
+     * @param callback
+     * @private
+     */
+    doRegister(channelId, user, callback)
+    {
+        var self = this;
+        
         self.readOrCreateChannel(channelId, function (err, channel) {
-
+    
             if (err) {
                 return callback(err);
             }
-
+        
             if (!channel.users) {
                 channel.users = {};
             }
-
+        
             channel.users[user.id] = {
                 "user": user,
                 "time": new Date().getTime()
             };
-
+            
             self.writeChannel(channelId, channel, function (err) {
                 callback(err);
             });
         });
+        
     }
 
     discover(channelId, callback)
@@ -101,96 +124,6 @@ class AbstractAsyncProvider extends AbstractProvider
         });
     }
 
-    expire(beforeMs, callback)
-    {
-        var self = this;
-
-        self.listChannelIds(function(err, channelIds) {
-
-            if (err) {
-                return callback(err);
-            }
-
-            if (!channelIds || channelIds.length === 0) {
-                return callback(null, [], {});
-            }
-
-            // a list of channel IDs whose memberships were updated
-            var updatedMembershipChannelIds = [];
-            var expiredUserIdsByChannelId = {};
-
-            var fns = [];
-
-            for (var i = 0; i < channelIds.length; i++)
-            {
-                var channelId = channelIds[i];
-
-                var fn = function (channelId, updatedMembershipChannelIds, expiredUserIdsByChannelId, beforeMs) {
-                    return function (done) {
-
-                        self.readChannel(channelId, function(err, channel) {
-
-                            if (err) {
-                                return done(err);
-                            }
-
-                            if (!channel) {
-                                return done();
-                            }
-
-                            var updatedMembership = false;
-
-                            if (channel.users)
-                            {
-                                // populate all of the user IDs that need to be removed
-                                var userIdsToRemove = [];
-                                for (var userId in channel.users)
-                                {
-                                    var entry = channel.users[userId];
-                                    if (entry.time < beforeMs)
-                                    {
-                                        updatedMembership = true;
-                                        userIdsToRemove.push(userId);
-
-                                        var expiredUserIds = expiredUserIdsByChannelId[channelId]
-                                        if (!expiredUserIds) {
-                                            expiredUserIds = expiredUserIdsByChannelId[channelId] = [];
-                                        }
-
-                                        expiredUserIds.push(userId);
-                                    }
-                                }
-
-                                // remove the user IDs
-                                for (var i = 0; i < userIdsToRemove.length; i++)
-                                {
-                                    delete channel.users[userIdsToRemove[i]];
-                                }
-                            }
-
-                            if (updatedMembership)
-                            {
-                                updatedMembershipChannelIds.push(channelId);
-                            }
-
-                            done();
-                        });
-                    };
-                }(channelId, updatedMembershipChannelIds, expiredUserIdsByChannelId, beforeMs);
-                fns.push(fn);
-            }
-
-            async.parallel(fns, function(err) {
-
-                if (err) {
-                    return callback(err);
-                }
-
-                callback(null, updatedMembershipChannelIds, expiredUserIdsByChannelId);
-            });
-        });
-    }
-
     checkRegistered(channelId, userId, callback)
     {
         var self = this;
@@ -217,7 +150,95 @@ class AbstractAsyncProvider extends AbstractProvider
 
         });
     }
+    
+    expire(beforeMs, callback)
+    {
+        var self = this;
+        
+        self.listChannelIds(function(err, channelIds) {
+            
+            if (err) {
+                return callback(err);
+            }
+            
+            if (!channelIds || channelIds.length === 0) {
+                return callback(null, [], {});
+            }
+            
+            // a list of channel IDs whose memberships were updated
+            var updatedMembershipChannelIds = [];
+            var expiredUserIdsByChannelId = {};
+            
+            var fns = [];
+            
+            for (var i = 0; i < channelIds.length; i++)
+            {
+                var channelId = channelIds[i];
+                
+                var fn = function (channelId, updatedMembershipChannelIds, expiredUserIdsByChannelId, beforeMs) {
+                    return function (done) {
+                        
+                        self.readChannel(channelId, function(err, channel) {
+                            
+                            if (err) {
+                                return done(err);
+                            }
+                            
+                            if (!channel) {
+                                return done();
+                            }
+                            
+                            if (!channel.users || Object.keys(channel.users).length === 0)
+                            {
+                                return done();
+                            }
 
+                            // populate all of the user IDs that need to be removed
+                            var userIdsToRemove = [];
+                            for (var userId in channel.users)
+                            {
+                                var entry = channel.users[userId];
+                                if (entry.time < beforeMs)
+                                {
+                                    updatedMembershipChannelIds.push(channelId);
+                                    userIdsToRemove.push(userId);
+                                    
+                                    var expiredUserIds = expiredUserIdsByChannelId[channelId]
+                                    if (!expiredUserIds) {
+                                        expiredUserIds = expiredUserIdsByChannelId[channelId] = [];
+                                    }
+                                    
+                                    expiredUserIds.push(userId);
+                                }
+                            }
+                            
+                            // remove the user IDs
+                            for (var i = 0; i < userIdsToRemove.length; i++)
+                            {
+                                delete channel.users[userIdsToRemove[i]];
+                            }
+                            
+                            self.writeChannel(channelId, channel, function() {
+                                done();
+                            });
+                            
+                        });
+                    };
+                }(channelId, updatedMembershipChannelIds, expiredUserIdsByChannelId, beforeMs);
+                fns.push(fn);
+            }
+            
+            async.parallel(fns, function(err) {
+                
+                if (err) {
+                    return callback(err);
+                }
+                
+                callback(null, updatedMembershipChannelIds, expiredUserIdsByChannelId);
+            });
+        });
+    };
+    
     acquireLock(channelId, user, callback)
     {
         var self = this;
@@ -303,14 +324,16 @@ class AbstractAsyncProvider extends AbstractProvider
             callback(null, lock);
         });
     }
-
-
+    
+    
+    
+    
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     //
     // ABSTRACT METHODS
     //
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+    
     // ABSTRACT
     readChannel(channelId, callback)
     {
@@ -328,7 +351,7 @@ class AbstractAsyncProvider extends AbstractProvider
     {
         throw new Error("listChannelIds() method is not implemented");
     }
-
+    
     // ABSTRACT
     readLock(lockId, callback)
     {

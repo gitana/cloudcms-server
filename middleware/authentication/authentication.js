@@ -436,15 +436,21 @@ exports = module.exports = function()
                                         }
                                         else
                                         {
-                                            req.session.registration_strategy_id = strategyId;
-                                            req.session.registration_user_object = userObject;
-                                            req.session.registration_user_identifier = userIdentifier;
-                                            req.session.registration_groups_array = groupsArray;
-                                            req.session.registration_mandatory_groups_array = mandatoryGroupsArray;
-                                            req.session.registration_token = info.token;
-                                            req.session.registration_refresh_token = info.refresh_token;
-
-                                            return res.redirect(registrationRedirectUrl);
+                                            return req.session.reload(function() {
+    
+                                                req.session.registration_strategy_id = strategyId;
+                                                req.session.registration_user_object = userObject;
+                                                req.session.registration_user_identifier = userIdentifier;
+                                                req.session.registration_groups_array = groupsArray;
+                                                req.session.registration_mandatory_groups_array = mandatoryGroupsArray;
+                                                req.session.registration_token = info.token;
+                                                req.session.registration_refresh_token = info.refresh_token;
+                                                
+                                                req.session.save(function() {
+                                                    res.redirect(registrationRedirectUrl);
+                                                });
+                                                
+                                            });
                                         }
                                     });
                                 }
@@ -765,13 +771,19 @@ exports = module.exports = function()
                         }
                         else
                         {
-                            req.session.registration_strategy_id = strategyId;
-                            req.session.registration_user_object = properties.user_object;
-                            req.session.registration_user_identifier = properties.user_identifier;
-                            req.session.registration_token = properties.token;
-                            req.session.registration_refresh_token = properties.refresh_token;
-
-                            return res.redirect(registrationRedirect);
+                            return req.session.reload(function() {
+    
+                                req.session.registration_strategy_id = strategyId;
+                                req.session.registration_user_object = properties.user_object;
+                                req.session.registration_user_identifier = properties.user_identifier;
+                                req.session.registration_token = properties.token;
+                                req.session.registration_refresh_token = properties.refresh_token;
+    
+                                req.session.save(function() {
+                                    res.redirect(registrationRedirect);
+                                });
+                                
+                            });
                         }
                     }
 

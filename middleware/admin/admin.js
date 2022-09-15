@@ -131,7 +131,7 @@ exports = module.exports = function()
                 if (req.url.indexOf("/_admin/cache/reset") === 0 || req.url.indexOf("/_admin/cache/invalidate") === 0)
                 {
                     assertAuthenticated(req, res, function() {
-    
+
                         doResetCache(req.virtualHost, req.query.ref, function(err) {
                             completionFn(req.virtualHost, res, err);
                         });

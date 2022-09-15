@@ -1,16 +1,6 @@
 var path = require('path');
-// var fs = require('fs');
-// var http = require('http');
-// var https = require('https');
-
-// var httpProxy = require('http-proxy');
-
-// var oauth2 = require("../../util/oauth2")();
-
-// var async = require("async");
 
 var util = require("../../util/util");
-// var auth = require("../../util/auth");
 
 var proxyFactory = require("../../util/proxy-factory");
 
@@ -82,20 +72,17 @@ exports = module.exports = function()
         contentStore.existsFile(filePath, function(exists) {
 
             if (!exists) {
-                callback();
-                return;
+                return callback();
             }
 
             contentStore.fileStats(filePath, function(err, stats) {
 
                 if (err) {
-                    callback();
-                    return;
+                    return callback();
                 }
 
-                if (stats.size == 0) {
-                    callback();
-                    return;
+                if (stats.size === 0) {
+                    return callback();
                 }
 
                 var handleGoodStream = function()
@@ -117,8 +104,7 @@ exports = module.exports = function()
                 // check cacheInfo for expireTime
                 contentStore.readFile(filePath + ".cache", function(err, cacheInfoText) {
 
-                    if (err || !cacheInfoText)
-                    {
+                    if (err || !cacheInfoText) {
                         return handleBadStream();
                     }
 
@@ -215,7 +201,7 @@ exports = module.exports = function()
                 contentStore.writeFile(filePath + ".cache", JSON.stringify(cacheInfo), function() {
                     _end.call(res, data, encoding);
                 });
-``            };
+            };
 
             callback();
         });
@@ -237,7 +223,7 @@ exports = module.exports = function()
                 {
                     req.url = "/";
                 }
-
+                
                 // caching scenario
                 _handleCacheRead(req, function (err, readStream) {
 
@@ -257,6 +243,7 @@ exports = module.exports = function()
                                 "message": "Missing baseURL from request bound gitana-config"
                             });
                         }
+                        
                         proxyFactory.acquireProxyHandler(proxyTarget, null, function(err, proxyHandler) {
                             if (err) {
                                 return next(err);
