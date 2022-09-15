@@ -46,7 +46,7 @@ exports = module.exports = function()
         var engineId = storeConfiguration[storeType];
 
         var engine = ENGINES[engineId];
-    
+        
         var engineType = process.configuration.storeEngines[engineId].type;
         var engineConfiguration = process.configuration.storeEngines[engineId].config;
 

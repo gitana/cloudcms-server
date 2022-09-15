@@ -125,6 +125,7 @@ var SETTINGS = {
             "web": "app",
             "content": "tmp",
             "templates": "app",
+            "themes": "app",
             "modules": "app"
         },
         "virtual": {
@@ -133,6 +134,7 @@ var SETTINGS = {
             "web": "tmp",
             "content": "tmp",
             "templates": "tmp",
+            "themes": "tmp",
             "modules": "tmp"
         },
         "oneteam": {
@@ -141,6 +143,7 @@ var SETTINGS = {
             "web": "app",
             "content": "hosts_fs",
             "templates": "app",
+            "themes": "hosts_fs",
             "modules": "hosts_fs"
         },
         "net-development": {
@@ -149,6 +152,7 @@ var SETTINGS = {
             "web": "hosts_fs",
             "content": "hosts_fs",
             "templates": "hosts_fs",
+            "themes": "hosts_fs",
             "modules": "hosts_fs"
         },
         "net-production": {
@@ -157,6 +161,7 @@ var SETTINGS = {
             "web": "hosts_s3fs",
             "content": "hosts_s3fs",
             "templates": "hosts_s3fs",
+            "themes": "hosts_s3fs",
             "modules": "hosts_s3fs"
         },
         "net-development-s3": {
@@ -164,6 +169,7 @@ var SETTINGS = {
             "config": "hosts_s3",
             "web": "hosts_s3",
             "content": "hosts_s3",
+            "themes": "hosts_s3",
             "templates": "hosts_s3"
         },
         "net-development-s3fs": {
@@ -172,6 +178,7 @@ var SETTINGS = {
             "web": "hosts_s3fs",
             "content": "hosts_s3fs",
             "templates": "hosts_s3fs",
+            "themes": "hosts_s3fs",
             "modules": "hosts_s3fs"
         }
     },

@@ -2,8 +2,8 @@ var path = require('path');
 //var fs = require('fs');
 var util = require("./util");
 
-// var http = require("http");
-// var https = require("https");
+var http = require("http");
+var https = require("https");
 
 var request = require("./request");
 

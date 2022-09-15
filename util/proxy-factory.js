@@ -8,7 +8,8 @@ var util = require("./util");
 var oauth2 = require("./oauth2")();
 
 var urlTool = require("url");
-const finalhandler = require("finalhandler");
+
+var LRUCache = require("lru-cache");
 
 var exports = module.exports;
 
@@ -18,7 +19,7 @@ var _LOCK = function(lockIdentifiers, workFunction)
     process.locks.lock(name, workFunction);
 };
 
-var NAMED_PROXY_HANDLERS_CACHE = require("lru-cache")({
+var NAMED_PROXY_HANDLERS_CACHE = new LRUCache({
     max: 200,
     maxAge: 1000 * 60 * 60 // 60 minutes
 });
