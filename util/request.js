@@ -28,7 +28,13 @@ module.exports = function(config, callback)
 {
     // request config - https://github.com/request/request#requestoptions-callback
     // axios config - https://www.npmjs.com/package/axios
-
+    
+    if (!callback) {
+        callback = function(err, response, data) {
+            // nothing
+        };
+    }
+    
     var requestConfig = {};
     requestConfig.url = config.uri || config.url;
     requestConfig.method = config.method || "get";
@@ -109,7 +115,7 @@ module.exports = function(config, callback)
     }
     */
     
-    axios.request(requestConfig).then(function(response) {
+    return axios.request(requestConfig).then(function(response) {
         callback(null, response, response.data);
     }, function(error) {
         callback(error);
