@@ -33,12 +33,12 @@ exports = module.exports = function()
             // force key to "virtualdriver"
             configuration.virtualDriver.key = VIRTUAL_DRIVER_CACHE_KEY;
 
-            console.log("a1: " + JSON.stringify(configuration.virtualDriver, null, 2));
+            //console.log("a1: " + JSON.stringify(configuration.virtualDriver, null, 2));
             
             // either connect anew or re-use an existing connection to Cloud CMS for this application
             Gitana.connect(configuration.virtualDriver, function(err) {
     
-                console.log("a2:" + err);
+                //console.log("a2:" + err);
                 if (err)
                 {
                     return callback(err);

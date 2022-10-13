@@ -43,10 +43,18 @@ var bindSubscriptions = function()
             };
 
             // fire to reference
-            process.IO.to(reference).emit("watchResource", reference, watchObject);
+            try {
+                if (reference) {
+                    process.IO.to(reference).emit("watchResource", reference, watchObject);
+                }
+            } catch (e) { }
 
             // fire to head reference
-            process.IO.to(headReference).emit("watchResource", headReference, watchObject);
+            try {
+                if (headReference) {
+                    process.IO.to(headReference).emit("watchResource", headReference, watchObject);
+                }
+            } catch (e) { }
         }
 
         done();
