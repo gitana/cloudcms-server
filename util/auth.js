@@ -8,16 +8,18 @@ var http = require("http");
 var https = require("https");
 var async = require("async");
 
+var LRU = require("lru-cache");
+
 // trusted profile cache size 100
-var TRUSTED_PROFILE_CACHE = require("lru-cache")({
+var TRUSTED_PROFILE_CACHE = new LRU({
     max:100,
-    maxAge: 1000 * 60 * 15 // 15 minutes
+    ttl: 1000 * 60 * 15 // 15 minutes
 });
 
 // user entry cache size 100
-var USER_ENTRY_CACHE = require("lru-cache")({
+var USER_ENTRY_CACHE = new LRU({
     max: 100,
-    maxAge: 1000 * 60 * 15 // 15 minutes
+    ttl: 1000 * 60 * 15 // 15 minutes
 });
 
 var Gitana = require("gitana");
