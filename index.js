@@ -48,6 +48,13 @@ if (process.env.DEFAULT_HTTP_TIMEOUT_MS)
     }
 }
 
+// dns fix for Node 17 +
+// see: https://nodejs.org/api/dns.html#dnssetdefaultresultorderorder
+var dns = require("dns");
+if (typeof(dns.setDefaultResultOrder) !== "undefined") {
+    dns.setDefaultResultOrder("ipv4first");
+}
+
 // default agents
 var HttpKeepAliveAgent = require('agentkeepalive');
 var HttpsKeepAliveAgent = require('agentkeepalive').HttpsAgent;
