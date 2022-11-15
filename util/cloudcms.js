@@ -555,7 +555,7 @@ exports = module.exports = function()
     var downloadNode = function(contentStore, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, callback)
     {
         // ensure path starts with "/"
-        if (nodePath && nodePath.substring(0, 1) !== "/") {
+        if (nodePath && !nodePath.startsWith("/")) {
             nodePath = "/" + nodePath;
         }
 
@@ -666,7 +666,7 @@ exports = module.exports = function()
         }
 
         // ensure path starts with "/"
-        if (nodePath && nodePath.substring(0, 1) !== "/") {
+        if (nodePath && !nodePath.startsWith("/")) {
             nodePath = "/" + nodePath;
         }
 
