@@ -324,6 +324,12 @@ var syncProfile = exports.syncProfile = function(req, res, strategy, domainId, p
                 }
 
                 _LOCK([CACHE_IDENTIFIER], function(err, releaseLockFn) {
+                    
+                    if (err) {
+                        try { releaseLockFn(); } catch (e) { }
+                        return callback(err);
+                    }
+                    
                     _handleSyncUser(req, strategy, settings, key, domainId, providerId, providerUserId, token, refreshToken, userObject, groupsArray, function (err, gitanaUser) {
 
                         if (err) {
@@ -333,14 +339,14 @@ var syncProfile = exports.syncProfile = function(req, res, strategy, domainId, p
 
                         // no user found
                         if (!gitanaUser) {
-                            releaseLockFn();
+                            try { releaseLockFn(); } catch (e) { }
                             return callback();
                         }
 
                         _handleConnectAsUser(req, key, gitanaUser, function (err, platform, appHelper, key) {
 
                             if (err) {
-                                releaseLockFn();
+                                try { releaseLockFn(); } catch (e) { }
                                 return callback(err);
                             }
 
@@ -351,8 +357,8 @@ var syncProfile = exports.syncProfile = function(req, res, strategy, domainId, p
                                 "appHelper": appHelper,
                                 "key": key
                             });
-
-                            releaseLockFn();
+    
+                            try { releaseLockFn(); } catch (e) { }
 
                             callback(err, gitanaUser, platform, appHelper, key, platform.getDriver());
                         }, gitanaUser);
