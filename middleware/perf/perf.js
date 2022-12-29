@@ -194,8 +194,9 @@ exports = module.exports = function()
                             car = filename;
                         }
                         var regex1 = new RegExp("-[0-9a-f]{32}$"); // md5
-                        var regex2 = new RegExp("-[0-9]{13}$"); // timestamp
-                        if (regex1.test(car) || regex2.test(car))
+                        var regex2 = new RegExp("-[0-9]{13}$"); // timestamp?
+                        var regex3 = new RegExp("-[0-9]{10}$"); // epoch millis
+                        if (regex1.test(car) || regex2.test(car) || regex3.test(car))
                         {
                             var x = car.lastIndexOf("-");
 
