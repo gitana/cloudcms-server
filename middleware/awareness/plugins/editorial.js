@@ -5,7 +5,7 @@ var socketUtil = require("../../../util/socket");
 
 var request = require("../../../util/request");
 
-exports.bindSocket = function(socket, provider)
+exports.bindSocket = function(socket, provider, io)
 {
     socketUtil.bindGitana(socket, function() {
 

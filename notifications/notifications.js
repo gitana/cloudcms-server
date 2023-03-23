@@ -72,11 +72,11 @@ var handleNotificationMessages = function(items, callback) {
     var fns = [];
     for (var i = 0; i < items.length; i++)
     {
-        var fn = function(item, i) {
+        var fn = function(item, index) {
             return function(done) {
 
                 //logFn("WORKING ON ITEM: " + i + ", item: " + JSON.stringify(item, null, "  "));
-                console.log("WORKING ON ITEM: " + i + ", item: " + JSON.stringify(item, null, "  "));
+                console.log("WORKING ON ITEM: " + index + ", item: " + JSON.stringify(item, null, "  "));
 
                 var operation = item.operation;
 
@@ -540,6 +540,8 @@ var handleNotificationMessages = function(items, callback) {
 
                     var host = determineHost(item);
 
+                    var _fns = [];
+                    
                     var deployments = item.deployments;
                     if (deployments && deployments.length > 0)
                     {
@@ -554,17 +556,77 @@ var handleNotificationMessages = function(items, callback) {
                                 "host": host,
                                 "deployment": deployment
                             };
-
-                            // broadcast event
-                            process.broadcast.publish("deployment_synced", message, function(err) {
-                                if (err) {
-                                    logInfo("published deployment_synced message. err:" + err + "\nmessage: " + JSON.stringify(message,null,2));
+                            
+                            var _fn = function(message) {
+                                return function(d) {
+                                    // broadcast event
+                                    process.broadcast.publish("deployment_synced", message, function(err) {
+                                        if (err) {
+                                            logInfo("published deployment_synced message. err:" + err + "\nmessage: " + JSON.stringify(message,null,2));
+                                        }
+                                        return done(err);
+                                    });
                                 }
-                                return done(err);
-                            });
-
+                            }(message);
+                            _fns.push(_fn);
                         }
                     }
+                    
+                    async.parallelLimit(_fns, 4, function(err) {
+                        done(err);
+                    });
+                }
+                else if (operation === "api_event")
+                {
+                    var eventType = item.type;
+                    var eventId = item.id;
+                    var objects = item.objects;
+    
+                    var host = determineHost(item);
+                    
+                    var _fns = [];
+                    if (objects && objects.length > 0)
+                    {
+                        for (var z = 0; z < objects.length; z++)
+                        {
+                            var object = objects[z];
+    
+                            var applicationId = object.applicationId;
+                            var deploymentKey = item.deploymentKey;
+                            
+                            var objectType = object.type; // sidekickMessage
+                            var objectId = object.id;
+                            var objectRef = object.ref;
+    
+                            var publishMessage = {
+                                "applicationId": applicationId,
+                                "deploymentKey": deploymentKey,
+                                "host": host,
+                                "eventType": eventType,
+                                "eventId": eventId,
+                                "objectType": objectType,
+                                "objectId": objectId,
+                                "objectRef": objectRef,
+                                "object": object.object
+                            };
+                            
+                            var _fn = function(publishMessage) {
+                                return function(d) {
+                                    // broadcast event
+                                    process.broadcast.publish("api_event", publishMessage, function(err) {
+                                        if (err) {
+                                            logInfo("published api_event message. err:" + err + "\nmessage: " + JSON.stringify(publishMessage,null,2));
+                                        }
+                                        return d(err);
+                                    });
+                                }
+                            }(publishMessage);
+                            _fns.push(_fn);
+                        }
+                    }
+                    async.parallelLimit(_fns, 4, function(err) {
+                        done(err);
+                    });
                 }
                 else
                 {

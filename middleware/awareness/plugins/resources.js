@@ -5,7 +5,7 @@ var socketUtil = require("../../../util/socket");
 
 var subscriptionsBound = false;
 
-var bindSubscriptions = function()
+var bindSubscriptions = function(io)
 {
     if (subscriptionsBound) {
         return;
@@ -45,14 +45,14 @@ var bindSubscriptions = function()
             // fire to reference
             try {
                 if (reference) {
-                    process.IO.to(reference).emit("watchResource", reference, watchObject);
+                    io.to(reference).emit("watchResource", reference, watchObject);
                 }
             } catch (e) { }
 
             // fire to head reference
             try {
                 if (headReference) {
-                    process.IO.to(headReference).emit("watchResource", headReference, watchObject);
+                    io.to(headReference).emit("watchResource", headReference, watchObject);
                 }
             } catch (e) { }
         }
@@ -61,9 +61,9 @@ var bindSubscriptions = function()
     });
 };
 
-exports.bindSocket = function(socket, provider)
+exports.bindSocket = function(socket, provider, io)
 {
-    bindSubscriptions();
+    bindSubscriptions(io);
 
     socketUtil.bindGitana(socket, function() {
 

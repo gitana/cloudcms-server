@@ -16,7 +16,8 @@ exports = module.exports = function()
 
     var pluginPaths = [
         "./plugins/editorial",
-        "./plugins/resources"
+        "./plugins/resources",
+        "./plugins/api_event"
     ];
     var plugins = {};
 
@@ -149,21 +150,21 @@ exports = module.exports = function()
             var r = {};
 
             // allow plugins to bind on("connection") handlers
-            r.bindOnSocketConnection = function(socket, provider, callback)
+            r.bindOnSocketConnection = function(socket, provider, io, callback)
             {
                 var fns = [];
                 for (var pluginPath in plugins)
                 {
                     var plugin = plugins[pluginPath];
 
-                    var fn = function(pluginPath, plugin, socket) {
+                    var fn = function(pluginPath, plugin, socket, io) {
                         return function(done) {
-
-                            plugin.bindSocket(socket, provider);
+    
+                            plugin.bindSocket(socket, provider, io);
 
                             done();
                         }
-                    }(pluginPath, plugin, socket);
+                    }(pluginPath, plugin, socket, io);
                     fns.push(fn);
                 }
 
@@ -309,7 +310,7 @@ exports = module.exports = function()
             });
 
             // allow plugins to register more on() handlers if they wish
-            pluginProxy.bindOnSocketConnection(socket, provider, function() {
+            pluginProxy.bindOnSocketConnection(socket, provider, io, function() {
                 // done
             });
 
