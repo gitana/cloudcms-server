@@ -55,14 +55,20 @@ exports = module.exports = function()
             });
         }
 
-        if (!moduleConfig.source)
+        var source = moduleConfig.source40;
+        if (!source)
+        {
+            source = moduleConfig.source;
+        }
+
+        if (!source)
         {
             return callback({
                 "message": "Missing module config source settings"
             });
         }
 
-        var sourceType = moduleConfig.source.type;
+        var sourceType = source.type;
         if (!sourceType)
         {
             return callback({
@@ -70,7 +76,7 @@ exports = module.exports = function()
             });
         }
 
-        var sourceUrl = moduleConfig.source.uri;
+        var sourceUrl = source.uri;
         if (!sourceUrl)
         {
             return callback({
@@ -78,12 +84,12 @@ exports = module.exports = function()
             });
         }
 
-        var sourcePath = moduleConfig.source.path;
+        var sourcePath = source.path;
         if (!sourcePath) {
             sourcePath = "/";
         }
 
-        var sourceBranch = moduleConfig.source.branch;
+        var sourceBranch = source.branch;
         if (!sourceBranch) {
             sourceBranch = "master";
         }
