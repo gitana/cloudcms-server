@@ -231,10 +231,11 @@ exports.bindSocket = function(socket, provider, io)
                 var x1 = cookieValue.indexOf("GITANA_TICKET=");
                 if (x1 > -1)
                 {
-                    var x2 = cookieValue.indexOf(";", x1 + 14);
+                    ticket = cookieValue.substring(x1 + 14);
+                    var x2 = ticket.indexOf(";");
                     if (x2 > -1)
                     {
-                        ticket = cookieValue.substring(x1 + 14, x2);
+                        ticket = ticket.substring(0, x2);
                     }
                 }
             }
