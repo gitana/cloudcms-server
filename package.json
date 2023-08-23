@@ -1,12 +1,12 @@
 {
   "author": {
     "name": "Gitana Software, Inc.",
-    "email": "info@cloudcms.com",
-    "url": "https://www.cloudcms.com"
+    "email": "info@gitana.io",
+    "url": "https://gitana.io"
   },
   "name": "cloudcms-server",
   "description": "Cloud CMS Application Server Module",
-  "version": "3.2.288",
+  "version": "3.2.289",
   "repository": {
     "type": "git",
     "url": "git://github.com/gitana/cloudcms-server.git"
