@@ -1,14 +1,11 @@
-var http = require("http");
-var https = require("https");
+// var http = require("http");
+// var https = require("https");
 var path = require("path");
 
 var auth = require("./auth");
-var util = require("./util");
+// var util = require("./util");
 
 var oauth2 = require("./oauth2")();
-
-var urlTool = require("url");
-const finalhandler = require("finalhandler");
 
 var LRU = require("lru-cache");
 
@@ -73,59 +70,95 @@ var acquireProxyHandler = exports.acquireProxyHandler = function(proxyTarget, pa
 
 var createProxyHandler = function(proxyTarget, pathPrefix)
 {
-    const proxy = require("http2-proxy");
-    const finalhandler = require('finalhandler')
+    const { proxy, close } = require('fast-proxy')({
+        base: proxyTarget,
+        cacheURLs: 0,
+        http2: true,
+        //undici: true
+    });
     
-    const defaultWebHandler = function(err, req, res) {
-        if (err)
+    var proxyOptions = {};
+    proxyOptions.onResponse = function(req, res, stream) {
+        
+        if (req.gitana_user)
         {
-            console.log("A web proxy error was caught, path: " + req.path + ", err: ", err);
-            try { res.status(500); } catch (e) { }
-            try { res.end('Something went wrong while proxying the request.'); } catch (e) { }
+            var chunks = [];
+        
+            // triggers on data receive
+            stream.on('data', function(chunk) {
+                console.log("DATA!");
+                // add received chunk to chunks array
+                chunks.push(chunk);
+            });
+    
+            stream.on("end", function () {
+                
+                if (stream.statusCode === 401)
+                {
+                    var text = "" + Buffer.concat(chunks);
+                    if (text && (text.indexOf("invalid_token") > -1) || (text.indexOf("invalid_grant") > -1))
+                    {
+                        var identifier = req.identity_properties.provider_id + "/" + req.identity_properties.user_identifier;
+                    
+                        _LOCK([identifier], function(err, releaseLockFn) {
+                        
+                            if (err)
+                            {
+                                // failed to acquire lock
+                                console.log("FAILED TO ACQUIRE LOCK", err);
+                                req.log("FAILED TO ACQUIRE LOCK", err);
+                                try { releaseLockFn(); } catch (e) { }
+                                return;
+                            }
+                        
+                            var cleanup = function (full)
+                            {
+                                delete Gitana.APPS[req.identity_properties.token];
+                                delete Gitana.PLATFORM_CACHE[req.identity_properties.token];
+                            
+                                if (full) {
+                                    auth.removeUserCacheEntry(identifier);
+                                }
+                            };
+                        
+                            // null out the access token
+                            // this will force the refresh token to be used to get a new one on the next request
+                            req.gitana_user.getDriver().http.refresh(function (err) {
+                            
+                                if (err) {
+                                    cleanup(true);
+                                    req.log("Invalidated auth state for gitana user: " + req.identity_properties.token);
+                                    return releaseLockFn();
+                                }
+                            
+                                req.gitana_user.getDriver().reloadAuthInfo(function () {
+                                    cleanup(true);
+                                    req.log("Refreshed token for gitana user: " + req.identity_properties.token);
+                                    releaseLockFn();
+                                });
+                            });
+                        });
+                    }
+                
+                }
+            });
         }
     
-        finalhandler(req, res)(err);
-    };
-    
-    // const defaultWsHandler = function(err, req, socket, head) {
-    //     if (err) {
-    //         console.error('proxy error (ws)', err);
-    //         socket.destroy();
-    //     }
-    // };
-    
-    //console.log("Proxy Target: " + proxyTarget);
-    
-    var hostname = urlTool.parse(proxyTarget).hostname;
-    var port = urlTool.parse(proxyTarget).port;
-    var protocol = urlTool.parse(proxyTarget).protocol;
-    
-    // web
-    var webConfig = {};
-    webConfig.hostname = hostname;
-    webConfig.port = port;
-    webConfig.protocol = protocol;
-    //webConfig.path = null;
-    webConfig.timeout = 120000;
-    webConfig.proxyTimeout = 120000;
-    webConfig.proxyName = "Cloud CMS UI Proxy";
-    webConfig.onReq = function(req, options) {
-
-        if (!options.headers) {
-            options.headers = {};
-        }
-        var headers = options.headers;
-
-        if (options.path && options.path.startsWith("/proxy")) {
-            options.path = options.path.substring(6);
-        }
-    
-        if (pathPrefix) {
-            options.path = path.join(pathPrefix, options.path);
+        //res.setHeader('x-powered-by', 'cloudcms');
+        if (stream.statusCode && stream.headers) {
+            res.writeHead(stream.statusCode, stream.headers)
         }
         
+        stream.pipe(res)
+    };
+    proxyOptions.rewriteRequestHeaders = function(req, headers)
+    {
         // used to auto-assign the client header for /oauth/token requests
         oauth2.autoProxy(req);
+        if (req.headers && req.headers.authorization)
+        {
+            headers["authorization"] = req.headers.authorization;
+        }
     
         // copy domain host into "x-cloudcms-domainhost"
         if (req.domainHost) {
@@ -197,85 +230,21 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
                 headers["authorization"] = "Bearer " + req.gitana_proxy_access_token;
             }
         }
-    };
-    webConfig.onRes = function(req, res, proxyRes) {
-    
-        if (req.gitana_user)
-        {
-            var chunks = [];
-            
-            // triggers on data receive
-            proxyRes.on('data', function(chunk) {
-                // add received chunk to chunks array
-                chunks.push(chunk);
-            });
-
-            proxyRes.on("end", function () {
-
-                if (proxyRes.statusCode === 401)
-                {
-                    var text = "" + Buffer.concat(chunks);
-                    if (text && (text.indexOf("invalid_token") > -1) || (text.indexOf("invalid_grant") > -1))
-                    {
-                        var identifier = req.identity_properties.provider_id + "/" + req.identity_properties.user_identifier;
-
-                        _LOCK([identifier], function(err, releaseLockFn) {
-
-                            if (err)
-                            {
-                                // failed to acquire lock
-                                console.log("FAILED TO ACQUIRE LOCK", err);
-                                req.log("FAILED TO ACQUIRE LOCK", err);
-                                try { releaseLockFn(); } catch (e) { }
-                                return;
-                            }
-
-                            var cleanup = function (full)
-                            {
-                                delete Gitana.APPS[req.identity_properties.token];
-                                delete Gitana.PLATFORM_CACHE[req.identity_properties.token];
-
-                                if (full) {
-                                    auth.removeUserCacheEntry(identifier);
-                                }
-                            };
-
-                            // null out the access token
-                            // this will force the refresh token to be used to get a new one on the next request
-                            req.gitana_user.getDriver().http.refresh(function (err) {
-
-                                if (err) {
-                                    cleanup(true);
-                                    req.log("Invalidated auth state for gitana user: " + req.identity_properties.token);
-                                    return releaseLockFn();
-                                }
-
-                                req.gitana_user.getDriver().reloadAuthInfo(function () {
-                                    cleanup(true);
-                                    req.log("Refreshed token for gitana user: " + req.identity_properties.token);
-                                    releaseLockFn();
-                                });
-                            });
-                        });
-                    }
-
-                }
-            });
-        }
         
-        //res.setHeader('x-powered-by', 'cloudcms');
-        res.writeHead(proxyRes.statusCode, proxyRes.headers)
-        proxyRes.pipe(res)
+        return headers;
     };
+    // rewrite response headers
+    proxyOptions.rewriteHeaders = function(headers)
+    {
+        return headers;
+    };
+    
+    //////////////////////////////////////////////////////////////////////////
     
     var proxyRequestHandler = function(req, res) {
-        proxy.web(req, res, webConfig, function(err, req, res) {
-            defaultWebHandler(err, req, res);
-        });
+        
+        proxy(req, res, pathPrefix, proxyOptions);
     };
     
-    // cookie domain rewrite?
-    // not needed - this is handled intrinsically by http2-proxy
-
     return proxyRequestHandler;
 };
