@@ -73,6 +73,7 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
     const { proxy, close } = require('fast-proxy')({
         base: proxyTarget,
         cacheURLs: 0,
+        maxSockets: 16000,
         //http2: true,
         //undici: true
     });

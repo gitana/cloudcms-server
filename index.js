@@ -55,26 +55,6 @@ if (typeof(dns.setDefaultResultOrder) !== "undefined") {
     dns.setDefaultResultOrder("ipv4first");
 }
 
-// default agents
-var HttpKeepAliveAgent = require('agentkeepalive');
-var HttpsKeepAliveAgent = require('agentkeepalive').HttpsAgent;
-http.globalAgent = new HttpKeepAliveAgent({
-    keepAlive: true,
-    keepAliveMsecs: 5000,
-    maxSockets: 16000,
-    maxFreeSockets: 256,
-    timeout: process.defaultHttpTimeoutMs,
-    freeSocketTimeout: 4000
-});
-https.globalAgent = new HttpsKeepAliveAgent({
-    keepAlive: true,
-    keepAliveMsecs: 1000,
-    maxSockets: 16000,
-    maxFreeSockets: 256,
-    timeout: process.defaultHttpTimeoutMs,
-    freeSocketTimeout: 4000
-});
-
 // disable for now
 /*
 // report http/https socket state every minute
