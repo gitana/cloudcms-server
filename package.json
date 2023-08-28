@@ -6,7 +6,7 @@
   },
   "name": "cloudcms-server",
   "description": "Cloud CMS Application Server Module",
-  "version": "3.2.290",
+  "version": "3.2.292",
   "repository": {
     "type": "git",
     "url": "git://github.com/gitana/cloudcms-server.git"
@@ -16,7 +16,6 @@
     "@socket.io/redis-adapter": "^7.2.0",
     "@socket.io/sticky": "^1.0.1",
     "accepts": "^1.3.8",
-    "agentkeepalive": "^4.2.1",
     "alpaca": "^1.5.27",
     "archiver": "^1.3.0",
     "async": "^3.2.3",
