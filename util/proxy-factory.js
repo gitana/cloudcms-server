@@ -34,35 +34,40 @@ var acquireProxyHandler = exports.acquireProxyHandler = function(proxyTarget, pa
         return callback(null, _cachedHandler);
     }
     
-    // take out a thread lock
-    _LOCK(["acquireProxyHandler", name], function(err, releaseLockFn) {
-        
-        if (err)
-        {
-            console.log("Failed to acquire proxy handler: " + name + ", err: ", err);
-            
-            // failed to acquire lock
-            return callback(err);
-        }
-
-        // second check to make sure another thread didn't create the handler in the meantime
-        _cachedHandler = NAMED_PROXY_HANDLERS_CACHE[name];
-        if (_cachedHandler)
-        {
-            releaseLockFn();
-            return callback(null, _cachedHandler);
-        }
-
-        // create the proxy handler and cache it into LRU cache
-        //console.log("Acquiring proxy handler: " + name + ", for target: " + proxyTarget + " and prefix: " + pathPrefix);
-        _cachedHandler = createProxyHandler(proxyTarget, pathPrefix);
+    // // take out a thread lock
+    // _LOCK(["acquireProxyHandler", name], function(err, releaseLockFn) {
+    //
+    //     if (err)
+    //     {
+    //         console.log("Failed to acquire proxy handler: " + name + ", err: ", err);
+    //
+    //         // failed to acquire lock
+    //         return callback(err);
+    //     }
+    //
+    //     // second check to make sure another thread didn't create the handler in the meantime
+    //     _cachedHandler = NAMED_PROXY_HANDLERS_CACHE[name];
+    //     if (_cachedHandler)
+    //     {
+    //         releaseLockFn();
+    //         return callback(null, _cachedHandler);
+    //     }
+    //
+    //     // create the proxy handler and cache it into LRU cache
+    //     //console.log("Acquiring proxy handler: " + name + ", for target: " + proxyTarget + " and prefix: " + pathPrefix);
+    //     _cachedHandler = createProxyHandler(proxyTarget, pathPrefix);
+    //
+    //     // store back into LRU cache
+    //     NAMED_PROXY_HANDLERS_CACHE[name] = _cachedHandler;
+    //
+    //     releaseLockFn();
+    //     callback(null, _cachedHandler);
+    // });
     
-        // store back into LRU cache
-        NAMED_PROXY_HANDLERS_CACHE[name] = _cachedHandler;
-
-        releaseLockFn();
-        callback(null, _cachedHandler);
-    });
+    _cachedHandler = createProxyHandler(proxyTarget, pathPrefix);
+    NAMED_PROXY_HANDLERS_CACHE[name] = _cachedHandler;
+    
+    callback(null, _cachedHandler);
 };
 
 
@@ -242,7 +247,6 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
     //////////////////////////////////////////////////////////////////////////
     
     var proxyRequestHandler = function(req, res) {
-        
         proxy(req, res, pathPrefix, proxyOptions);
     };
     
