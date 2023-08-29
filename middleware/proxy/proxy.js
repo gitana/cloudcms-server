@@ -244,10 +244,8 @@ exports = module.exports = function()
                             });
                         }
                         
-                        var t1 = new Date().getTime();
                         proxyFactory.acquireProxyHandler(proxyTarget, null, function(err, proxyHandler) {
-                            var t2 = new Date().getTime();
-                            console.log("t21: " + (t2-t1));
+
                             if (err) {
                                 return next(err);
                             }

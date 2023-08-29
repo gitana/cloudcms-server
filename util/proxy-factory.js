@@ -9,6 +9,8 @@ var oauth2 = require("./oauth2")();
 
 var LRU = require("lru-cache");
 
+const { lookup } = require('dns-lookup-cache');
+
 var exports = module.exports;
 
 var _LOCK = function(lockIdentifiers, workFunction)
@@ -64,8 +66,7 @@ var acquireProxyHandler = exports.acquireProxyHandler = function(proxyTarget, pa
     //     callback(null, _cachedHandler);
     // });
     
-    _cachedHandler = createProxyHandler(proxyTarget, pathPrefix);
-    NAMED_PROXY_HANDLERS_CACHE[name] = _cachedHandler;
+    _cachedHandler = NAMED_PROXY_HANDLERS_CACHE[name] = createProxyHandler(proxyTarget, pathPrefix);
     
     callback(null, _cachedHandler);
 };
@@ -243,6 +244,9 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
     {
         return headers;
     };
+    // request invoke settings
+    proxyOptions.request = {};
+    proxyOptions.request.lookup = lookup;
     
     //////////////////////////////////////////////////////////////////////////
     
