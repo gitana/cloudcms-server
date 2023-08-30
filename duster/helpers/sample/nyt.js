@@ -1,3 +1,5 @@
+var request = require("../../../util/request");
+
 /**
  * Sample New York Times Events tag for Dust.
  *
@@ -49,7 +51,6 @@ exports = module.exports = function(app, dust, callback)
         return map(chunk, function(chunk) {
             setTimeout(function() {
 
-                var request = require("request");
                 var API_KEY = "3d8d573ec0ae966ea57245357cfcf57f:1:70698955";
 
                 var url = "http://api.nytimes.com/svc/events/v2/listings.json?api-key=" + API_KEY;
@@ -77,17 +78,16 @@ exports = module.exports = function(app, dust, callback)
 
                 //console.log("URL:" + url);
 
-                var request = require("request");
-                request(url, function (error, response, body) {
+                request(url, function (error, response, json) {
 
-                    if (error || response.statusCode !== 200)
+                    if (error || response.status !== 200)
                     {
                         if (error) {
                             console.log("ERROR: " + error);
                         }
 
-                        if (response.statusCode !== 200) {
-                            console.log("STATUS CODE: " + response.statusCode);
+                        if (response.status !== 200) {
+                            console.log("STATUS CODE: " + response.status);
                         }
 
                         chunk.write("There was an error loading this section");
@@ -96,7 +96,6 @@ exports = module.exports = function(app, dust, callback)
                         return;
                     }
 
-                    var json = JSON.parse(body);
                     console.log("BODY: " + JSON.stringify(json, null, "  "));
 
                     var resultObject = {

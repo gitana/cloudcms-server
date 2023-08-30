@@ -1,6 +1,3 @@
-var http = require("http");
-var path = require("path");
-var request = require("request");
 var util = require("../util/util");
 
 /**
@@ -147,7 +144,7 @@ var doSend = function(callback)
     // if it fails, we add it back to the queue
     util.retryGitanaRequest(log, gitana, requestConfig, 1, function(err, response, body) {
 
-        if (response && response.statusCode === 200 && body)
+        if (response && response.status === 200 && body)
         {
             console.log("Insight sync for warehouse: " + warehouseId + " succeeded");
         }

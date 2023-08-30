@@ -93,9 +93,9 @@ exports = module.exports = function()
 
                 util.retryGitanaRequest(logMethod, gitana, requestConfig, 2, function(err, response, body) {
 
-                    if (response && response.statusCode === 200 && body)
+                    if (response && response.status === 200 && body)
                     {
-                        var config = JSON.parse(body).config;
+                        var config = body.config;
                         if (!config)
                         {
                             // nothing found
@@ -113,9 +113,9 @@ exports = module.exports = function()
                     else
                     {
                         logMethod("Load virtual driver config failed");
-                        if (response && response.statusCode)
+                        if (response && response.status)
                         {
-                            logMethod("Response status code: " + response.statusCode);
+                            logMethod("Response status code: " + response.status);
                         }
                         if (err) {
                             logMethod("Err: " + JSON.stringify(err));
@@ -123,7 +123,10 @@ exports = module.exports = function()
                         if (body) {
                             logMethod("Body: " + body);
                         }
-                        var message = body;
+                        var message = null;
+                        if (body) {
+                            message = JSON.stringify(body);
+                        }
                         if (!message) {
                             message = "Unable to load virtual driver configuration";
                         }

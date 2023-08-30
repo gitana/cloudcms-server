@@ -1,10 +1,9 @@
-var path = require("path");
-var fs = require("fs");
 var util = require("../../util/util");
-var request = require("request");
 
 var http = require("http");
 var https = require("https");
+
+var request = require("../../util/request");
 
 /**
  * Form middleware.
@@ -126,41 +125,32 @@ exports = module.exports = function()
             var headers = {};
             headers["Authorization"] = req.gitana.platform().getDriver().getHttpHeaders()["Authorization"];
 
-            var agent = http.globalAgent;
-            if (process.env.GITANA_PROXY_SCHEME === "https")
-            {
-                agent = https.globalAgent;
-            }
-
             request({
                 "method": "POST",
                 "url": URL,
                 "qs": {},
                 "json": form,
                 "headers": headers,
-                "agent": agent,
                 "timeout": process.defaultHttpTimeoutMs
-            }, function(err, response, body) {
+            }, function(err, response, json) {
 
                 console.log("Response error: " + JSON.stringify(err));
                 console.log("Response: " + JSON.stringify(response,null,2));
-                console.log("Body: " + JSON.stringify(body,null,2));
+                console.log("Body: " + JSON.stringify(json,null,2));
 
-                if (err || (response && response.body && response.body.error))
+                if (err || (json && json.error))
                 {
                     if (failureUrl)
                     {
                         return res.redirect(failureUrl);
                     }
-                    else
-                    {
-                        res.status(500);
-                        res.json({
-                            "ok": false,
-                            "err": err || response.body.message,
-                            "message": body
-                        });
-                    }
+
+                    res.status(500);
+                    res.json({
+                        "ok": false,
+                        "err": err || json.message,
+                        "message": json
+                    });
 
                     return;
                 }
@@ -199,21 +189,16 @@ exports = module.exports = function()
             var headers = {};
             headers["Authorization"] = req.gitana.platform().getDriver().getHttpHeaders()["Authorization"];
 
-            var agent = http.globalAgent;
-            if (process.env.GITANA_PROXY_SCHEME === "https")
-            {
-                agent = https.globalAgent;
-            }
-
             request({
                 "method": "POST",
                 "url": URL,
                 "qs": {},
                 "json": form,
                 "headers": headers,
-                "agent": agent,
                 "timeout": process.defaultHttpTimeoutMs
-            }).pipe(res);
+            }, function(err, response, json) {
+                response.data.pipe(res);
+            });
 
         });
     };

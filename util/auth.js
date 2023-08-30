@@ -1,25 +1,20 @@
-var path = require('path');
-var fs = require('fs');
 var os = require('os');
 var _util = require("util");
-var util = require("./util");
-var request = require("request");
-var http = require("http");
-var https = require("https");
 var async = require("async");
+var LRUCache = require("lru-cache");
 
-var LRU = require("lru-cache");
+var request = require("./request");
 
 // trusted profile cache size 100
-var TRUSTED_PROFILE_CACHE = new LRU({
+var TRUSTED_PROFILE_CACHE = new LRUCache({
     max:100,
-    ttl: 1000 * 60 * 15 // 15 minutes
+    maxAge: 1000 * 60 * 15 // 15 minutes
 });
 
 // user entry cache size 100
-var USER_ENTRY_CACHE = new LRU({
+var USER_ENTRY_CACHE = new LRUCache({
     max: 100,
-    ttl: 1000 * 60 * 15 // 15 minutes
+    maxAge: 1000 * 60 * 15 // 15 minutes
 });
 
 var Gitana = require("gitana");
@@ -139,15 +134,12 @@ var impersonate = exports.impersonate = function(req, key, targetUser, callback)
         var headers = {};
         headers["Authorization"] = req.gitana.platform().getDriver().getHttpHeaders()["Authorization"];
 
-        var agent = util.getAgent(req.gitanaConfig.baseURL);
-
         request({
             "method": "POST",
             "url": req.gitanaConfig.baseURL + "/auth/impersonate/" + targetUser.getDomainId() + "/" + targetUser.getId(),
             "qs": {},
             "json": {},
             "headers": headers,
-            "agent": agent,
             "timeout": process.defaultHttpTimeoutMs
         }, function(err, response, json) {
 
@@ -336,7 +328,7 @@ var syncProfile = exports.syncProfile = function(req, res, strategy, domainId, p
                     _handleSyncUser(req, strategy, settings, key, domainId, providerId, providerUserId, token, refreshToken, userObject, groupsArray, function (err, gitanaUser) {
 
                         if (err) {
-                            try { releaseLockFn(); } catch (e) { }
+                            releaseLockFn();
                             return callback(err);
                         }
 
@@ -448,8 +440,6 @@ var __handleSyncUser = function(req, strategy, settings, key, domainId, provider
     var headers = {};
     headers["Authorization"] = authorizationHeader;
 
-    var agent = util.getAgent(req.gitanaConfig.baseURL);
-
     if (!userObject) {
         userObject = {};
     }
@@ -475,7 +465,6 @@ var __handleSyncUser = function(req, strategy, settings, key, domainId, provider
         },
         "json": json,
         "headers": headers,
-        "agent": agent,
         "timeout": process.defaultHttpTimeoutMs
     };
 

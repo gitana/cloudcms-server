@@ -1,10 +1,11 @@
 var path = require('path');
-var fs = require('fs');
+//var fs = require('fs');
 var util = require("./util");
-var request = require("request");
 
 var http = require("http");
 var https = require("https");
+
+var request = require("./request");
 
 exports = module.exports = function()
 {
@@ -396,36 +397,36 @@ exports = module.exports = function()
                     "url": URL,
                     "qs": {},
                     "headers": headers,
-                    "timeout": process.defaultHttpTimeoutMs,
-                    "agent": agent
-                }).on('response', function (response) {
-
-                    //process.log("Status Code: " + response.statusCode);
-
-                    if (response.statusCode >= 200 && response.statusCode <= 204)
+                    "responseType": "stream"
+                }, function(err, response) {
+    
+                    if (err) {
+                        closeWriteStream(tempStream);
+                        return cb(err);
+                    }
+    
+                    if (response.status >= 200 && response.status <= 204)
                     {
-                        response.pipe(tempStream).on("close", function (err) {
-
-                            if (err)
-                            {
+                        response.data.pipe(tempStream).on("close", function (err) {
+            
+                            if (err) {
                                 // some went wrong at disk io level?
                                 return failFast(tempStream, err);
                             }
-
+            
                             contentStore.existsFile(filePath, function (exists) {
-
+                
                                 if (exists) {
-
+                    
                                     // write cache file
                                     var cacheInfo = buildCacheInfo(response);
                                     if (!cacheInfo) {
                                         return cb(null, filePath, null);
                                     }
-                                    
+                    
                                     contentStore.writeFile(cacheFilePath, JSON.stringify(cacheInfo, null, "    "), function (err) {
-
-                                        if (err)
-                                        {
+                        
+                                        if (err) {
                                             // failed to write cache file, thus the whole thing is invalid
                                             return safeRemove(contentStore, cacheFilePath, function () {
                                                 failFast(tempStream, {
@@ -433,12 +434,10 @@ exports = module.exports = function()
                                                 });
                                             });
                                         }
-
+                        
                                         cb(null, filePath, cacheInfo);
                                     });
-                                }
-                                else
-                                {
+                                } else {
                                     // for some reason, file wasn't found
                                     // roll back the whole thing
                                     safeRemove(contentStore, cacheFilePath, function () {
@@ -448,7 +447,7 @@ exports = module.exports = function()
                                     });
                                 }
                             });
-
+            
                         }).on("error", function (err) {
                             failFast(tempStream, err);
                         });
@@ -456,54 +455,49 @@ exports = module.exports = function()
                     else
                     {
                         // some kind of http error (usually permission denied or invalid_token)
-
+        
                         var body = "";
-
-                        response.on('data', function (chunk) {
+        
+                        response.data.on('data', function (chunk) {
                             body += chunk;
                         });
-
-                        response.on('end', function () {
-                            
+        
+                        response.data.on('end', function () {
+            
                             var afterCleanup = function () {
-
+                
                                 // see if it is "invalid_token"
                                 // if so, we can automatically retry
                                 var isInvalidToken = false;
-                                try
-                                {
+                                try {
                                     var json = JSON.parse(body);
-                                    if (json && json.error === "invalid_token")
-                                    {
+                                    if (json && json.error === "invalid_token") {
                                         isInvalidToken = true;
                                     }
-                                }
-                                catch (e)
-                                {
+                                } catch (e) {
                                     // swallow
                                 }
-
-                                if (isInvalidToken)
-                                {
+                
+                                if (isInvalidToken) {
                                     // fire for retry
                                     return _refreshAccessTokenAndRetry(contentStore, gitana, uri, filePath, attemptCount, maxAttemptsAllowed, {
                                         "message": "Unable to load asset from remote store",
-                                        "code": response.statusCode,
+                                        "code": response.status,
                                         "body": body
                                     }, cb);
                                 }
-
+                
                                 // otherwise, it's not worth retrying at this time
                                 cb({
                                     "message": "Unable to load asset from remote store",
-                                    "code": response.statusCode,
+                                    "code": response.status,
                                     "body": body
                                 });
                             };
-    
+            
                             // ensure stream is closed
                             closeWriteStream(tempStream);
-    
+            
                             // clean things up
                             safeRemove(contentStore, cacheFilePath, function () {
                                 safeRemove(contentStore, filePath, function () {
@@ -511,18 +505,18 @@ exports = module.exports = function()
                                 });
                             });
                         });
-
+        
                     }
-
-                }).on('error', function (e) {
-                    failFast(tempStream, e);
-    
-                }).on('end', function (e) {
-
-                    // ensure stream is closed
-                    closeWriteStream(tempStream);
-
-                }).end();
+                });
+                // }).on('error', function (e) {
+                //     failFast(tempStream, e);
+                //
+                // }).on('end', function (e) {
+                //
+                //     // ensure stream is closed
+                //     closeWriteStream(tempStream);
+                //
+                // }).end();
 
                 tempStream.on("error", function (e) {
                     process.log("Temp stream errored out");
@@ -561,7 +555,7 @@ exports = module.exports = function()
     var downloadNode = function(contentStore, gitana, repositoryId, branchId, nodeId, attachmentId, nodePath, locale, forceReload, callback)
     {
         // ensure path starts with "/"
-        if (nodePath && nodePath.substring(0, 1) !== "/") {
+        if (nodePath && !nodePath.startsWith("/")) {
             nodePath = "/" + nodePath;
         }
 
@@ -672,7 +666,7 @@ exports = module.exports = function()
         }
 
         // ensure path starts with "/"
-        if (nodePath && nodePath.substring(0, 1) !== "/") {
+        if (nodePath && !nodePath.startsWith("/")) {
             nodePath = "/" + nodePath;
         }
 

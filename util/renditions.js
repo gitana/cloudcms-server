@@ -1,13 +1,14 @@
-var path = require('path');
-var fs = require('fs');
+// var path = require('path');
+// var fs = require('fs');
 var util = require("../util/util");
-var async = require("async");
-var request = require("request");
+//var async = require("async");
 
-var http = require("http");
-var https = require("https");
+// var http = require("http");
+// var https = require("https");
 
-var logFactory = require("../util/logger");
+var logFactory = require("./logger");
+
+var request = require("./request");
 
 /**
  * WCM Resource Dependency Manager
@@ -82,9 +83,8 @@ exports = module.exports = function()
                     "rows": rows
                 },
                 "headers": headers,
-                "timeout": process.defaultHttpTimeoutMs,
-                "agent": agent
-            }, function (err, response, body) {
+                "timeout": process.defaultHttpTimeoutMs
+            }, function (err, response, json) {
                 callback();
             });
         };

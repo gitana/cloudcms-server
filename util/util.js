@@ -1,7 +1,6 @@
 var fs = require("fs");
 var path = require("path");
 var mkdirp = require('mkdirp');
-var request = require("request");
 var mime = require("mime");
 var uuidv4 = require("uuid/v4");
 var os = require("os");
@@ -12,6 +11,8 @@ var sha1 = require("sha1");
 var klaw = require("klaw");
 var targz = require('targz');
 var archiver = require("archiver");
+
+var request = require("./request");
 
 var http = require("http");
 var https = require("https");
@@ -681,17 +682,7 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
                 "err": previousError
             });
         }
-
-        // make sure agent is applied
-        if (!config.agent && config.url)
-        {
-            var agent = getAgent(config.url);
-            if (agent)
-            {
-                config.agent = agent;
-            }
-        }
-
+        
         // make sure we have a headers object
         if (!config.headers)
         {
@@ -709,16 +700,19 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
         config.headers["Authorization"] = headers2["Authorization"];
 
         // make the request
+        console.log("C: " + JSON.stringify(config, null, 2));
         request(config, function(err, response, body) {
-
+            console.log("E: " + err);
+            console.log("B: " + body);
+            
             if (response)
             {
                 // ok case (just callback)
-                if (response.statusCode === 200)
+                if (response.status === 200)
                 {
                     return cb(err, response, body);
                 }
-                else if (response.statusCode === 429)
+                else if (response.status === 429)
                 {
                     // we heard "too many requests", so we wait a bit and then retry
                     // TODO: look at HTTP headers to determine how long to wait?
@@ -726,7 +720,7 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
                         logMethod("Too Many Requests heard, attempting retry (" + (currentAttempts + 1) + " / " + maxAttempts + ")");
                         _retryHandler(gitana, config, currentAttempts, maxAttempts, {
                             "message": "Heard 429 Too Many Requests",
-                            "code": response.statusCode,
+                            "code": response.status,
                             "body": body,
                             "err": err
                         }, cb);
@@ -762,7 +756,7 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
                 // refresh the access token and then retry
                 return _invalidTokenRetryHandler(gitana, config, currentAttempts, maxAttempts, {
                     "message": "Unable to refresh access token and retry",
-                    "code": response.statusCode,
+                    "code": response.status,
                     "body": body,
                     "err": err
                 }, cb);
@@ -772,7 +766,7 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
             cb(err, response, body);
         });
     };
-
+    
     _handler(gitana, config, 0, maxAttempts, null, callback);
 };
 

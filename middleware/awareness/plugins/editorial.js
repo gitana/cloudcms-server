@@ -3,12 +3,9 @@ exports = module.exports = {};
 var util = require("../../../util/util");
 var socketUtil = require("../../../util/socket");
 
-var request = require("request");
+var request = require("../../../util/request");
 
-var http = require("http");
-var https = require("https");
-
-exports.bindSocket = function(socket, provider)
+exports.bindSocket = function(socket, provider, io)
 {
     socketUtil.bindGitana(socket, function() {
 
@@ -63,27 +60,20 @@ exports.bindSocket = function(socket, provider)
                 qs["force"] = true;
             }
 
-            var agent = http.globalAgent;
-            if (process.env.GITANA_PROXY_SCHEME === "https")
-            {
-                agent = https.globalAgent;
-            }
-
             request({
                 "method": "POST",
                 "url": URL,
                 "qs": {},
                 "json": json,
                 "headers": headers,
-                "agent": agent,
                 "timeout": process.defaultHttpTimeoutMs
-            }, function(err, response, body) {
+            }, function(err, response, json) {
 
-                if (err || (response && response.body && response.body.error)) {
+                if (err || (json && json.error)) {
                     return callback(err);
                 }
 
-                callback(null, body._doc, body.branchId);
+                callback(null, json._doc, json.branchId);
             });
         };
     });

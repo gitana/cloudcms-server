@@ -75,6 +75,14 @@ https.globalAgent = new HttpsKeepAliveAgent({
     freeSocketTimeout: 60000
 });
 
+// install dns cache
+const CacheableLookup = require("cacheable-lookup");
+const cacheable = new CacheableLookup({
+    // Set any custom options here
+});
+cacheable.install(http.globalAgent);
+cacheable.install(https.globalAgent);
+
 // disable for now
 /*
 // report http/https socket state every minute
