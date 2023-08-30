@@ -1,10 +1,4 @@
-var path = require('path');
-var http = require('http');
-var request = require('request');
 var util = require("../../util/util");
-var Gitana = require("gitana");
-
-var fs = require("fs");
 
 /**
  * Retrieves local driver configuration for hosts from Cloud CMS.

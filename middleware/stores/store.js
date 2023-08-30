@@ -1,9 +1,6 @@
-var request = require('request');
 var path = require('path');
 
 var util = require("../../util/util");
-
-var stores = require("./stores");
 
 /**
  * Helper methods for working with domains, identities and connections.
