@@ -11,8 +11,8 @@ exports = module.exports = function()
 {
     var logger = logFactory("AWARENESS");
     var provider = null;
-    var REAP_FREQUENCY_MS = 3000; // three seconds
-    var REAP_MAX_AGE_MS = 5000; // five seconds
+    var REAP_FREQUENCY_MS = 5000; // five seconds
+    var REAP_MAX_AGE_MS = 120000; // two minutes
 
     var pluginPaths = ["./plugins/editorial"];
     var plugins = {};
@@ -382,6 +382,7 @@ exports = module.exports = function()
 
                                             if (!err && success)
                                             {
+                                                console.log("REAPING, channel: " + channelId + ", user: " + userId);
                                                 io.sockets.in(channelId).emit("lockReleased", channelId, userId);
                                             }
 
