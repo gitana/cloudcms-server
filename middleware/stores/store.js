@@ -1,4 +1,3 @@
-var request = require('request');
 var path = require('path');
 
 var util = require("../../util/util");

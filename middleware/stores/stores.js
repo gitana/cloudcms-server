@@ -520,7 +520,7 @@ exports = module.exports = function()
                         callback();
                     });
                 };
-    
+
                 process.cache.read("module-descriptors-" + host, function(err, moduleDescriptors) {
 
                     moduleDescriptors = null;

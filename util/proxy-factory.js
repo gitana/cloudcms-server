@@ -1,15 +1,13 @@
-var http = require("http");
-var https = require("https");
+// var http = require("http");
+// var https = require("https");
 var path = require("path");
 
 var auth = require("./auth");
-var util = require("./util");
+// var util = require("./util");
 
 var oauth2 = require("./oauth2")();
 
-var urlTool = require("url");
-
-var LRUCache = require("lru-cache");
+var LRU = require("lru-cache");
 
 var exports = module.exports;
 
@@ -19,9 +17,9 @@ var _LOCK = function(lockIdentifiers, workFunction)
     process.locks.lock(name, workFunction);
 };
 
-var NAMED_PROXY_HANDLERS_CACHE = new LRUCache({
+var NAMED_PROXY_HANDLERS_CACHE = new LRU({
     max: 200,
-    maxAge: 1000 * 60 * 60 // 60 minutes
+    ttl: 1000 * 60 * 60 // 60 minutes
 });
 
 var acquireProxyHandler = exports.acquireProxyHandler = function(proxyTarget, pathPrefix, callback)
@@ -35,36 +33,40 @@ var acquireProxyHandler = exports.acquireProxyHandler = function(proxyTarget, pa
     {
         return callback(null, _cachedHandler);
     }
-    
-    // take out a thread lock
-    _LOCK(["acquireProxyHandler", name], function(err, releaseLockFn) {
-        
-        if (err)
-        {
-            console.log("Failed to acquire proxy handler: " + name + ", err: ", err);
-            
-            // failed to acquire lock
-            return callback(err);
-        }
 
-        // second check to make sure another thread didn't create the handler in the meantime
-        _cachedHandler = NAMED_PROXY_HANDLERS_CACHE[name];
-        if (_cachedHandler)
-        {
-            releaseLockFn();
-            return callback(null, _cachedHandler);
-        }
+    // // take out a thread lock
+    // _LOCK(["acquireProxyHandler", name], function(err, releaseLockFn) {
+    //
+    //     if (err)
+    //     {
+    //         console.log("Failed to acquire proxy handler: " + name + ", err: ", err);
+    //
+    //         // failed to acquire lock
+    //         return callback(err);
+    //     }
+    //
+    //     // second check to make sure another thread didn't create the handler in the meantime
+    //     _cachedHandler = NAMED_PROXY_HANDLERS_CACHE[name];
+    //     if (_cachedHandler)
+    //     {
+    //         releaseLockFn();
+    //         return callback(null, _cachedHandler);
+    //     }
+    //
+    //     // create the proxy handler and cache it into LRU cache
+    //     //console.log("Acquiring proxy handler: " + name + ", for target: " + proxyTarget + " and prefix: " + pathPrefix);
+    //     _cachedHandler = createProxyHandler(proxyTarget, pathPrefix);
+    //
+    //     // store back into LRU cache
+    //     NAMED_PROXY_HANDLERS_CACHE[name] = _cachedHandler;
+    //
+    //     releaseLockFn();
+    //     callback(null, _cachedHandler);
+    // });
 
-        // create the proxy handler and cache it into LRU cache
-        //console.log("Acquiring proxy handler: " + name + ", for target: " + proxyTarget + " and prefix: " + pathPrefix);
-        _cachedHandler = createProxyHandler(proxyTarget, pathPrefix);
-    
-        // store back into LRU cache
-        NAMED_PROXY_HANDLERS_CACHE[name] = _cachedHandler;
+    _cachedHandler = NAMED_PROXY_HANDLERS_CACHE[name] = createProxyHandler(proxyTarget, pathPrefix);
 
-        releaseLockFn();
-        callback(null, _cachedHandler);
-    });
+    callback(null, _cachedHandler);
 };
 
 
@@ -72,146 +74,30 @@ var acquireProxyHandler = exports.acquireProxyHandler = function(proxyTarget, pa
 
 var createProxyHandler = function(proxyTarget, pathPrefix)
 {
-    const proxy = require("http2-proxy");
-    const finalhandler = require('finalhandler')
-    
-    const defaultWebHandler = function(err, req, res) {
-        if (err)
-        {
-            console.log("A web proxy error was caught, path: " + req.path + ", err: ", err);
-            try { res.status(500); } catch (e) { }
-            try { res.end('Something went wrong while proxying the request.'); } catch (e) { }
-        }
-    
-        finalhandler(req, res)(err);
-    };
-    
-    // const defaultWsHandler = function(err, req, socket, head) {
-    //     if (err) {
-    //         console.error('proxy error (ws)', err);
-    //         socket.destroy();
-    //     }
-    // };
-    
-    //console.log("Proxy Target: " + proxyTarget);
-    
-    var hostname = urlTool.parse(proxyTarget).hostname;
-    var port = urlTool.parse(proxyTarget).port;
-    var protocol = urlTool.parse(proxyTarget).protocol;
-    
-    // web
-    var webConfig = {};
-    webConfig.hostname = hostname;
-    webConfig.port = port;
-    webConfig.protocol = protocol;
-    //webConfig.path = null;
-    webConfig.timeout = 120000;
-    webConfig.proxyTimeout = 120000;
-    webConfig.proxyName = "Cloud CMS UI Proxy";
-    webConfig.onReq = function(req, options) {
+    const { proxy, close } = require('fast-proxy')({
+        base: proxyTarget,
+        cacheURLs: 0,
+        //http2: true,
+        //undici: true
+    });
 
-        if (!options.headers) {
-            options.headers = {};
-        }
-        var headers = options.headers;
+    var proxyOptions = {};
+    proxyOptions.onResponse = function(req, res, stream) {
 
-        if (options.path && options.path.startsWith("/proxy")) {
-            options.path = options.path.substring(6);
-        }
-    
-        if (pathPrefix) {
-            options.path = path.join(pathPrefix, options.path);
-        }
-        
-        // used to auto-assign the client header for /oauth/token requests
-        oauth2.autoProxy(req);
-    
-        // copy domain host into "x-cloudcms-domainhost"
-        if (req.domainHost) {
-            headers["x-cloudcms-domainhost"] = req.domainHost; // this could be "localhost"
-        }
-    
-        // copy virtual host into "x-cloudcms-virtualhost"
-        if (req.virtualHost) {
-            headers["x-cloudcms-virtualhost"] = req.virtualHost; // this could be "root.cloudcms.net" or "abc.cloudcms.net"
-        }
-    
-        // copy deployment descriptor info
-        if (req.descriptor)
-        {
-            if (req.descriptor.tenant)
-            {
-                if (req.descriptor.tenant.id)
-                {
-                    headers["x-cloudcms-tenant-id"] = req.descriptor.tenant.id;
-                }
-            
-                if (req.descriptor.tenant.title)
-                {
-                    headers["x-cloudcms-tenant-title"] = req.descriptor.tenant.title;
-                }
-            }
-        
-            if (req.descriptor.application)
-            {
-                if (req.descriptor.application.id)
-                {
-                    headers["x-cloudcms-application-id"] = req.descriptor.application.id;
-                }
-            
-                if (req.descriptor.application.title)
-                {
-                    headers["x-cloudcms-application-title"] = req.descriptor.application.title;
-                }
-            }
-        }
-    
-        // set optional "x-cloudcms-origin" header
-        var cloudcmsOrigin = null;
-        if (req.virtualHost)
-        {
-            cloudcmsOrigin = req.virtualHost;
-        }
-        if (cloudcmsOrigin)
-        {
-            headers["x-cloudcms-origin"] = cloudcmsOrigin;
-        }
-    
-        // set x-cloudcms-server-version header
-        headers["x-cloudcms-server-version"] = process.env.CLOUDCMS_APPSERVER_PACKAGE_VERSION;
-    
-        // keep alive
-        //req.headers["connection"] = "keep-alive";
-    
-        // if the incoming request didn't have an "Authorization" header
-        // and we have a logged in Gitana User via Auth, then set authorization header to Bearer Access Token
-        if (!req.headers["authorization"])
-        {
-            if (req.gitana_user)
-            {
-                headers["authorization"] = "Bearer " + req.gitana_user.getDriver().http.accessToken();
-            }
-            else if (req.gitana_proxy_access_token)
-            {
-                headers["authorization"] = "Bearer " + req.gitana_proxy_access_token;
-            }
-        }
-    };
-    webConfig.onRes = function(req, res, proxyRes) {
-    
         if (req.gitana_user)
         {
             var chunks = [];
-            
+
             // triggers on data receive
-            proxyRes.on('data', function(chunk) {
+            stream.on('data', function(chunk) {
+                console.log("DATA!");
                 // add received chunk to chunks array
                 chunks.push(chunk);
             });
 
-            proxyRes.on("end", function () {
+            stream.on("end", function () {
 
-                if (proxyRes.statusCode === 401)
+                if (stream.statusCode === 401)
                 {
                     var text = "" + Buffer.concat(chunks);
                     if (text && (text.indexOf("invalid_token") > -1) || (text.indexOf("invalid_grant") > -1))
@@ -261,20 +147,109 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
                 }
             });
         }
-        
+
         //res.setHeader('x-powered-by', 'cloudcms');
-        res.writeHead(proxyRes.statusCode, proxyRes.headers)
-        proxyRes.pipe(res)
+        if (stream.statusCode && stream.headers) {
+            res.writeHead(stream.statusCode, stream.headers)
+        }
+
+        stream.pipe(res)
     };
-    
+    proxyOptions.rewriteRequestHeaders = function(req, headers)
+    {
+        // used to auto-assign the client header for /oauth/token requests
+        oauth2.autoProxy(req);
+        if (req.headers && req.headers.authorization)
+        {
+            headers["authorization"] = req.headers.authorization;
+        }
+
+        // copy domain host into "x-cloudcms-domainhost"
+        if (req.domainHost) {
+            headers["x-cloudcms-domainhost"] = req.domainHost; // this could be "localhost"
+        }
+
+        // copy virtual host into "x-cloudcms-virtualhost"
+        if (req.virtualHost) {
+            headers["x-cloudcms-virtualhost"] = req.virtualHost; // this could be "root.cloudcms.net" or "abc.cloudcms.net"
+        }
+
+        // copy deployment descriptor info
+        if (req.descriptor)
+        {
+            if (req.descriptor.tenant)
+            {
+                if (req.descriptor.tenant.id)
+                {
+                    headers["x-cloudcms-tenant-id"] = req.descriptor.tenant.id;
+                }
+
+                if (req.descriptor.tenant.title)
+                {
+                    headers["x-cloudcms-tenant-title"] = req.descriptor.tenant.title;
+                }
+            }
+
+            if (req.descriptor.application)
+            {
+                if (req.descriptor.application.id)
+                {
+                    headers["x-cloudcms-application-id"] = req.descriptor.application.id;
+                }
+
+                if (req.descriptor.application.title)
+                {
+                    headers["x-cloudcms-application-title"] = req.descriptor.application.title;
+                }
+            }
+        }
+
+        // set optional "x-cloudcms-origin" header
+        var cloudcmsOrigin = null;
+        if (req.virtualHost)
+        {
+            cloudcmsOrigin = req.virtualHost;
+        }
+        if (cloudcmsOrigin)
+        {
+            headers["x-cloudcms-origin"] = cloudcmsOrigin;
+        }
+
+        // set x-cloudcms-server-version header
+        headers["x-cloudcms-server-version"] = process.env.CLOUDCMS_APPSERVER_PACKAGE_VERSION;
+
+        // keep alive
+        //req.headers["connection"] = "keep-alive";
+
+        // if the incoming request didn't have an "Authorization" header
+        // and we have a logged in Gitana User via Auth, then set authorization header to Bearer Access Token
+        if (!req.headers["authorization"])
+        {
+            if (req.gitana_user)
+            {
+                headers["authorization"] = "Bearer " + req.gitana_user.getDriver().http.accessToken();
+            }
+            else if (req.gitana_proxy_access_token)
+            {
+                headers["authorization"] = "Bearer " + req.gitana_proxy_access_token;
+            }
+        }
+
+        return headers;
+    };
+    // rewrite response headers
+    proxyOptions.rewriteHeaders = function(headers)
+    {
+        return headers;
+    };
+    // request invoke settings
+    //proxyOptions.request = {};
+
+    //////////////////////////////////////////////////////////////////////////
+
     var proxyRequestHandler = function(req, res) {
-        proxy.web(req, res, webConfig, function(err, req, res) {
-            defaultWebHandler(err, req, res);
-        });
+        proxy(req, res, pathPrefix, proxyOptions);
     };
-    
-    // cookie domain rewrite?
-    // not needed - this is handled intrinsically by http2-proxy
 
     return proxyRequestHandler;
 };

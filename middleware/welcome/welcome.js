@@ -1,7 +1,4 @@
 var path = require('path');
-var fs = require('fs');
-var http = require('http');
-var request = require('request');
 var util = require("../../util/util");
 
 /**
