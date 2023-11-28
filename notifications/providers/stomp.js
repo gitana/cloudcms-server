@@ -63,6 +63,7 @@ module.exports.start = function(configuration, callback)
         var MessageConsumer = function MessageConsumer() { };
         MessageConsumer.prototype.init = function init(done) {
             console.log("STOMP client initializing to host: " + host + ", port: " + port);
+            var self = this;
             var stompClient = new Stomp({
                 "host": host,
                 "port": port,
@@ -85,6 +86,11 @@ module.exports.start = function(configuration, callback)
                 });
 
                 done();
+            }, function(err) {
+                console.error("STOMP Error: " + err);
+                setTimeout(function() {
+                    self.init(done);
+                }, 5000)
             });
         };
         holder.consumer = new MessageConsumer();
