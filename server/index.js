@@ -547,10 +547,14 @@ var runFunctions = function (functions, args, callback) {
  * @param callback optional callback function
  */
 exports.start = function(overrides, callback) {
+    console.log("START ER UP");
+    console.trace();
+
 
     setTimeout(function() {
         _start(overrides, function(err) {
             if (callback) {
+                console.log(callback.toString());
                 callback(err);
             }
         });
@@ -780,6 +784,10 @@ var startServer = function(config, startServerFinishedFn)
     
             // global service starts
             main.init(app, function (err) {
+                
+                if (err) {
+                    return startServerFinishedFn(err);
+                }
     
                 app.enable('strict routing');
     

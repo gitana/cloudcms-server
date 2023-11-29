@@ -88,9 +88,7 @@ module.exports.start = function(configuration, callback)
                 done();
             }, function(err) {
                 console.error("STOMP Error: " + err);
-                setTimeout(function() {
-                    self.init(done);
-                }, 5000)
+                done(err);
             });
         };
         holder.consumer = new MessageConsumer();
