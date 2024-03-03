@@ -1162,16 +1162,24 @@ var createHttpServer = function(app, done)
     }
     
     // request timeout
-    var requestTimeout = 30000; // 30 seconds
+    var requestTimeout = 120000; // 2 minutes
     if (process.configuration && process.configuration.timeout)
     {
         requestTimeout = process.configuration.timeout;
     }
-    httpServer.setTimeout(requestTimeout);
+    httpServer.setTimeout(requestTimeout, function(socket) {
+        try { socket.end(); } catch (e) { }
+        try { socket.destroy(); } catch (e) { }
+    });
     
     // socket
     httpServer.on("connection", function (socket) {
         socket.setNoDelay(true);
+        
+        socket.setTimeout(requestTimeout, function(socket) {
+            try { socket.end(); } catch (e) { }
+            try { socket.destroy(); } catch (e) { }
+        });
     });
     
     done(null, httpServer);
