@@ -34,42 +34,10 @@ var acquireProxyHandler = exports.acquireProxyHandler = function(proxyTarget, pa
         return callback(null, _cachedHandler);
     }
     
-    // // take out a thread lock
-    // _LOCK(["acquireProxyHandler", name], function(err, releaseLockFn) {
-    //
-    //     if (err)
-    //     {
-    //         console.log("Failed to acquire proxy handler: " + name + ", err: ", err);
-    //
-    //         // failed to acquire lock
-    //         return callback(err);
-    //     }
-    //
-    //     // second check to make sure another thread didn't create the handler in the meantime
-    //     _cachedHandler = NAMED_PROXY_HANDLERS_CACHE[name];
-    //     if (_cachedHandler)
-    //     {
-    //         releaseLockFn();
-    //         return callback(null, _cachedHandler);
-    //     }
-    //
-    //     // create the proxy handler and cache it into LRU cache
-    //     //console.log("Acquiring proxy handler: " + name + ", for target: " + proxyTarget + " and prefix: " + pathPrefix);
-    //     _cachedHandler = createProxyHandler(proxyTarget, pathPrefix);
-    //
-    //     // store back into LRU cache
-    //     NAMED_PROXY_HANDLERS_CACHE[name] = _cachedHandler;
-    //
-    //     releaseLockFn();
-    //     callback(null, _cachedHandler);
-    // });
-    
     _cachedHandler = NAMED_PROXY_HANDLERS_CACHE[name] = createProxyHandler(proxyTarget, pathPrefix);
     
     callback(null, _cachedHandler);
 };
-
-
 
 
 var createProxyHandler = function(proxyTarget, pathPrefix)
@@ -77,6 +45,13 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
     const { proxy, close } = require('fast-proxy')({
         base: proxyTarget,
         cacheURLs: 0,
+        keepAlive: true,
+        keepAliveMsecs: process.defaultKeepAliveMs,
+        maxSockets: 2048,
+        maxFreeSockets: 64,
+        timeout: process.defaultHttpTimeoutMs,
+        freeSocketTimeout: 30000
+
         //http2: true,
         //undici: true
     });

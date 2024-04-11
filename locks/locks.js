@@ -80,7 +80,7 @@ exports = module.exports = function()
             // var skip = false;
             // if (key === "channels") { skip = true; }
             // if (!skip) {
-            //     console.log("[LOCK: " + key + "] " + text);
+                 console.log("[LOCK: " + key + "] " + text);
             // }
         };
     

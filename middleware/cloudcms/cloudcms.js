@@ -435,72 +435,48 @@ exports = module.exports = function()
             return callback(null, Chain(branch));
         }
 
-        // only allow one "thread" at a time to load the branch
-        _LOCK(cacheKey, function(err, releaseLockFn) {
-            
-            if (err) {
-                return callback(err);
-            }
-    
-            var branch = CACHED_BRANCHES[cacheKey];
-            if (branch) {
-                callback(null, Chain(branch));
-                return releaseLockFn();
-            }
-            
-            var loadFn = function(finished) {
+        var loadFn = function(finished) {
 
-                Chain(repository).trap(function(e) {
+            Chain(repository).trap(function(e) {
 
-                    // unable to load branch!
-                    process.log("Unable to load branch: " + repository._doc + "/" + branchId + ", err: " + e);
-                    process.log(e);
-                    finished({
-                        "message": "Unable to load branch: " + repository._doc + "/" + branchId
-                    });
-                    return false;
-                }).readBranch(branchId).then(function() {
-                    finished(null, this);
+                // unable to load branch!
+                process.log("Unable to load branch: " + repository._doc + "/" + branchId + ", err: " + e);
+                process.log(e);
+                finished({
+                    "message": "Unable to load branch: " + repository._doc + "/" + branchId
                 });
-
-            };
-
-            loadFn(function(err, branch) {
-
-                if (err || !branch)
-                {
-                    // try again...
-                    return loadFn(function(err, branch) {
-
-                        if (err) {
-
-                            callback(err);
-                            
-                            // release the lock
-                            return releaseLockFn();
-                        }
-
-                        // success!
-
-                        // store in cache
-                        CACHED_BRANCHES[cacheKey] = branch;
-    
-                        callback(null, branch);
-                        
-                        // release the lock
-                        return releaseLockFn();
-                    });
-                }
-
-                // store in cache
-                CACHED_BRANCHES[cacheKey] = branch;
-
-                // release the lock
-                releaseLockFn();
-
-                // do the callback
-                return callback(null, branch);
+                return false;
+            }).readBranch(branchId).then(function() {
+                finished(null, this);
             });
+
+        };
+
+        loadFn(function(err, branch) {
+
+            if (err || !branch)
+            {
+                // try again...
+                return loadFn(function(err, branch) {
+
+                    if (err) {
+                        return callback(err);
+                    }
+
+                    // success!
+
+                    // store in cache
+                    CACHED_BRANCHES[cacheKey] = branch;
+
+                    return callback(null, branch);
+                });
+            }
+
+            // store in cache
+            CACHED_BRANCHES[cacheKey] = branch;
+
+            // do the callback
+            return callback(null, branch);
         });
     };
 

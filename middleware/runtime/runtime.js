@@ -205,9 +205,15 @@ exports = module.exports = function()
                         data.branchId = process.env.CLOUDCMS_RUNTIME_BRANCH_ID;
                     }
 
+                    // don't bother writing if we don't have anything to persist
+                    if (!data.releaseId && !data.branchId)
+                    {
+                        req.runtime = data;
+                        next();
+                    }
+
                     // create runtime file
                     store.writeFile("runtime.json", JSON.stringify(data, null, "  "), function(err) {
-
                         req.runtime = data;
                         next();
                     });

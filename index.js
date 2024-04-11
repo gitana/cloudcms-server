@@ -33,8 +33,11 @@ process.logInfo = process.log = function(text, level)
 // by default, set up Gitana driver so that it limits to five concurrent HTTP requests back to Cloud CMS API at at time
 var Gitana = require("gitana");
 
-// default http timeout
-process.defaultHttpTimeoutMs = 60000;
+// default keep alive (3 minutes)
+process.defaultKeepAliveMs = (3 * 60 * 1000);
+
+// default http timeout (2 minutes)
+process.defaultHttpTimeoutMs = 2 * 60 * 1000;
 
 if (process.env.DEFAULT_HTTP_TIMEOUT_MS)
 {

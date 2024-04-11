@@ -508,25 +508,12 @@ exports = module.exports = function()
         
                     }
                 });
-                // }).on('error', function (e) {
-                //     failFast(tempStream, e);
-                //
-                // }).on('end', function (e) {
-                //
-                //     // ensure stream is closed
-                //     closeWriteStream(tempStream);
-                //
-                // }).end();
 
                 tempStream.on("error", function (e) {
                     process.log("Temp stream errored out");
                     process.log(e);
     
                     failFast(tempStream, e);
-
-                    // ensure stream is closed
-                    //closeWriteStream(tempStream);
-
                 });
             });
 
