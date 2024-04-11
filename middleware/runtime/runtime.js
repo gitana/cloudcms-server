@@ -209,7 +209,7 @@ exports = module.exports = function()
                     if (!data.releaseId && !data.branchId)
                     {
                         req.runtime = data;
-                        next();
+                        return next();
                     }
 
                     // create runtime file
