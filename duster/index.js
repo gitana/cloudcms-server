@@ -218,9 +218,9 @@ exports.execute = function(req, store, filePath, model, callback)
     var executeTemplate = function(template, templatePath, context, callback)
     {
         // execute template
-        var t1 = new Date().getTime();
+        var t1 = Date.now();
         dust.render(template, context, function(err, out) {
-            var t2 = new Date().getTime();
+            var t2 = Date.now();
 
             if (err)
             {

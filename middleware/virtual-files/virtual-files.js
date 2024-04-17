@@ -8,23 +8,26 @@ var util = require("../../util/util");
  */
 exports = module.exports = function()
 {
+    var SENTINEL_NOT_FOUND_VALUE = "null";
+
     var r = {};
 
-    r.interceptor = function() {
-        return util.createInterceptor("virtualHost", function (req, res, next, stores, cache, configuration) {
+    r.interceptor = function()
+    {
+        return util.createInterceptor("virtualFiles", function (req, res, next, stores, cache, configuration) {
 
             var completionFunction = function (err, descriptor) {
 
                 if (err) {
+                    console.log("ERR: ", err);
+
                     // something went wrong
-                    next();
-                    return;
+                    return next();
                 }
 
                 if (!descriptor) {
                     // nothing found
-                    next();
-                    return;
+                    return next();
                 }
 
                 // yes, virtual host deployed, store a few interesting things on the request
@@ -53,48 +56,54 @@ exports = module.exports = function()
             // NOTE: null is a valid sentinel value (meaning none)
             process.deploymentDescriptorCache.read(req.virtualHost, function(err, descriptor) {
 
+                // check for null sentinel
+                if (descriptor === SENTINEL_NOT_FOUND_VALUE) {
+                    return completionFunction();
+                }
+
                 if (typeof(descriptor) !== "undefined" || descriptor === null) {
                     // all done
-                    completionFunction(null, descriptor);
-                    return;
+                    return completionFunction(null, descriptor);
                 }
-                else
-                {
-                    // nothing in cache, load from disk
-                    // check if there is a descriptor on disk
-                    rootStore.existsFile("descriptor.json", function (exists) {
 
-                        if (exists) {
+                // nothing in cache, load from disk
+                // check if there is a descriptor on disk
+                rootStore.existsFile("descriptor.json", function (exists) {
 
-                            // load the descriptor
-                            rootStore.readFile("descriptor.json", function (err, descriptor) {
+                    if (exists) {
 
-                                if (err) {
-                                    // no file descriptor, virtual files not deployed
-                                    next();
-                                    return;
-                                }
+                        // load the descriptor
+                        rootStore.readFile("descriptor.json", function (err, descriptor) {
 
-                                // yes, there is a descriptor, so we have virtual files
+                            if (err) {
+                                // no file descriptor, virtual files not deployed
+                                next();
+                                return;
+                            }
 
-                                // convert descriptor to JSON
-                                descriptor = JSON.parse(descriptor);
+                            // yes, there is a descriptor, so we have virtual files
 
-                                // CACHE: write
-                                process.deploymentDescriptorCache.write(req.virtualHost, descriptor, function() {
+                            // convert descriptor to JSON
+                            descriptor = JSON.parse(descriptor);
 
-                                    // all done
-                                    completionFunction(null, descriptor);
+                            // CACHE: write
+                            process.deploymentDescriptorCache.write(req.virtualHost, descriptor, function() {
 
-                                });
+                                // all done
+                                completionFunction(null, descriptor);
 
                             });
-                        }
-                        else {
+
+                        });
+                    }
+                    else
+                    {
+                        // write null sentinel and return nothing
+                        process.deploymentDescriptorCache.write(req.virtualHost, SENTINEL_NOT_FOUND_VALUE, function() {
                             completionFunction();
-                        }
-                    });
-                }
+                        });
+                    }
+                });
             });
 
         });

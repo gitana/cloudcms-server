@@ -47,10 +47,10 @@ var createProxyHandler = function(proxyTarget, pathPrefix)
         cacheURLs: 0,
         keepAlive: true,
         keepAliveMsecs: process.defaultKeepAliveMs,
-        maxSockets: 2048,
-        maxFreeSockets: 64,
+        maxSockets: 1024,
+        maxFreeSockets: 256,
         timeout: process.defaultHttpTimeoutMs,
-        freeSocketTimeout: 30000
+        freeSocketTimeout: 5000
 
         //http2: true,
         //undici: true

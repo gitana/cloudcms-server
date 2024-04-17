@@ -695,11 +695,11 @@ exports = module.exports = function()
         return function(req, res, next) {
 
             // record filter start time
-            var _auth_filter_start_ms = new Date().getTime();
+            var _auth_filter_start_ms = Date.now();
 
             fn(req, res, function(result, authenticator) {
 
-                var _auth_filter_end_ms = new Date().getTime() - _auth_filter_start_ms;
+                var _auth_filter_end_ms = Date.now() - _auth_filter_start_ms;
 
                 util.setHeader(res, "x-cloudcms-auth-filter-ms", _auth_filter_end_ms);
 
@@ -736,8 +736,11 @@ exports = module.exports = function()
                         };
                     }
 
-                    if (result.err && result.err.message) {
-                        req.log("Auth strategy: " + strategyId + " - filter error: " + result.err.message);
+                    if (!result.skip)
+                    {
+                        if (result.err && result.err.message) {
+                            req.log("Auth strategy: " + strategyId + " - filter error: " + result.err.message);
+                        }
                     }
 
                     var providerId = null;

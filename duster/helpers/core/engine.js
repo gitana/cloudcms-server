@@ -1231,7 +1231,7 @@ module.exports = function(app, dust)
                             "config": {}
                         };
 
-                        var divId = formId || "form" + new Date().getTime();
+                        var divId = formId || "form" + Date.now();
                         
                         chunk.write("<div id='" + divId + "'></div>");
                         chunk.write("<script src='/_lib/formhelper/formhelper.js'></script>");

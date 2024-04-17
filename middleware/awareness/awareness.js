@@ -333,7 +333,7 @@ exports = module.exports = function()
         var reap = function() {
 
             // reap anything before a calculated time in the past
-            var beforeMs = new Date().getTime() - maxAgeMs;
+            var beforeMs = Date.now() - maxAgeMs;
 
             // run expirations
             expire(beforeMs, function(err, updatedMembershipChannelIds, expiredUserIdsByChannelId) {

@@ -39,6 +39,9 @@ process.defaultKeepAliveMs = (3 * 60 * 1000);
 // default http timeout (2 minutes)
 process.defaultHttpTimeoutMs = 2 * 60 * 1000;
 
+// default exclusive lock timeout (2 minutes)
+process.defaultExclusiveLockTimeoutMs = 2 * 60 * 1000;
+
 if (process.env.DEFAULT_HTTP_TIMEOUT_MS)
 {
     try
@@ -63,19 +66,19 @@ var HttpKeepAliveAgent = require('agentkeepalive');
 var HttpsKeepAliveAgent = require('agentkeepalive').HttpsAgent;
 http.globalAgent = new HttpKeepAliveAgent({
     keepAlive: true,
-    keepAliveMsecs: 30000,
-    maxSockets: 24000,
+    keepAliveMsecs: process.defaultKeepAliveMs,
+    maxSockets: 1024,
     maxFreeSockets: 256,
     timeout: process.defaultHttpTimeoutMs,
-    freeSocketTimeout: 60000
+    freeSocketTimeout: 5000
 });
 https.globalAgent = new HttpsKeepAliveAgent({
     keepAlive: true,
-    keepAliveMsecs: 30000,
-    maxSockets: 24000,
+    keepAliveMsecs: process.defaultKeepAliveMs,
+    maxSockets: 1024,
     maxFreeSockets: 256,
     timeout: process.defaultHttpTimeoutMs,
-    freeSocketTimeout: 60000
+    freeSocketTimeout: 5000
 });
 
 // install dns cache

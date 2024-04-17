@@ -376,7 +376,7 @@ module.exports = function(configStore)
 
                         _watchLog("Detected changes on disk - reloading...");
 
-                        var t1 = new Date().getTime();
+                        var t1 = Date.now();
 
                         // reload context
                         loadContext(function (err, context) {
@@ -390,7 +390,7 @@ module.exports = function(configStore)
                                 compileContextToRegistry(context);
                                 registry.reloadContext(context);
 
-                                var t2 = new Date().getTime();
+                                var t2 = Date.now();
                                 _watchLog("Reloaded context in: " + (t2 - t1) + " ms");
                             }
                             catch (e)

@@ -729,7 +729,7 @@ exports = module.exports = function()
 
                             var cacheKey = cacheSettingsKey(application.ref(), "application", "application");
 
-                            var nowMs = new Date().getTime();
+                            var nowMs = Date.now();
 
                             var timestamp = CACHED_APP_SETTINGS_TIMESTAMPS[cacheKey];
                             if (!timestamp || (nowMs - timestamp > CACHED_APP_SETTINGS_TTL))

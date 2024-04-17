@@ -272,7 +272,7 @@ exports = module.exports = function()
 
         ensureInvalidate(function() {
 
-            var now = new Date().getTime();
+            var now = Date.now();
 
             req.cache.read(WCM_PAGES, function (err, cachedPages) {
                 req.cache.read(WCM_PAGES_CACHE_TIME, function(err, cachedPagesTime) {
@@ -356,7 +356,7 @@ exports = module.exports = function()
                                             {
                                                 req.log("Falling back to using cached pages, will retain for " + WCM_PAGES_CACHE_RETRY_TIME_MS + " ms before trying again");
                                                 req.cache.write(WCM_PAGES_CACHE_TIME, {
-                                                    "ms": (new Date().getTime() + WCM_PAGES_CACHE_RETRY_TIME_MS)
+                                                    "ms": (Date.now() + WCM_PAGES_CACHE_RETRY_TIME_MS)
                                                 });
 
                                                 return finished(null, cachedPages);
@@ -386,7 +386,7 @@ exports = module.exports = function()
                                         // build out pages
                                         var loadedPages = {};
 
-                                        var queryTimeMs = new Date().getTime();
+                                        var queryTimeMs = Date.now();
 
                                         branch.trap(function (err) {
 

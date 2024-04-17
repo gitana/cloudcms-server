@@ -16,7 +16,7 @@ exports = module.exports = function()
      */
     r.localeInterceptor = function()
     {
-        return function(req, res, next)
+        return function locale(req, res, next)
         {
             var acceptLanguage = "en-us"
 

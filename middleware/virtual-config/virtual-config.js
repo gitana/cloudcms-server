@@ -399,14 +399,13 @@ exports = module.exports = function()
                             process.driverConfigCache.write(req.virtualHost, {
                                 "config": gitanaConfig
                             }, function (err) {
-                                completionFunction(null, gitanaConfig);
+                                completionFunction(err, gitanaConfig);
                             });
                         }
                         else
                         {
                             // mark with sentinel
-                            process.driverConfigCache.write(req.virtualHost, SENTINEL_NOT_FOUND_VALUE, 5, function (err)
-                            {
+                            process.driverConfigCache.write(req.virtualHost, SENTINEL_NOT_FOUND_VALUE, 5, function (err) {
                                 completionFunction();
                             });
                         }

@@ -16,12 +16,12 @@ exports = module.exports = function(engine, engineType, engineId, engineConfigur
     var debugStart = function(text) {
         if (DEBUG_LOG) {
             console.log("[" + engineId + "] " + text);
-            t1 = new Date().getTime();
+            t1 = Date.now();
         }
     };
     var debugFinish = function(text) {
         if (DEBUG_LOG) {
-            t2 = new Date().getTime();
+            t2 = Date.now();
             console.log("[" + engineId + "] " + text + ": " + (t2-t1) + " ms");
         }
     };

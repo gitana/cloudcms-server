@@ -160,7 +160,7 @@ var handleInvalidate = function(req, res)
     trigger("invalidate");
 
     // new timestamp
-    process.env.CLOUDCMS_APPSERVER_TIMESTAMP = new Date().getTime();
+    process.env.CLOUDCMS_APPSERVER_TIMESTAMP = Date.now();
 
     // // update all socket clients
     // process.IO.sockets.emit("timestamp", {

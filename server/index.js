@@ -760,6 +760,47 @@ var startServer = function(config, startServerFinishedFn)
 {
     var app = express();
     app.disable('x-powered-by');
+
+    // customize the app use() method to provide sensible logging
+    app._use = app.use;
+    app.use = function(f)
+    {
+        if (typeof(f) !== "function")
+        {
+            return app._use.apply(app, arguments);
+        }
+
+        return app._use(function(f) {
+            return function(req, res, next)
+            {
+                var functionName = f.name;
+                if (!functionName) {
+                    functionName = "unknown";
+                }
+
+                var id = req.id;
+
+                var startTime = process.hrtime();
+
+                f(req, res, function() {
+                    var totalTime = process.hrtime(startTime);
+                    var totalTimeMs = (totalTime[1] / 1000000).toFixed(2);
+                    // if (totalTimeMs > 100)
+                    // {
+                    //     if (id)
+                    //     {
+                    //         console.log("[" + id + "](" + functionName + ") time: " + totalTimeMs);
+                    //     }
+                    //
+                    //     //console.trace();
+                    //     //process.exit(-1);
+                    // }
+
+                    next();
+                });
+            }
+        }(f));
+    };
     
     initSession(function(err, initializedSession) {
 
@@ -873,7 +914,7 @@ var startServer = function(config, startServerFinishedFn)
     
                     return message;
                 });
-    
+
                 /*
                 // debug headers being set
                 app.use(function(req, res, next) {
@@ -887,7 +928,7 @@ var startServer = function(config, startServerFinishedFn)
                 */
     
                 // increment and assign request id
-                app.use(function (req, res, next) {
+                app.use(function increment_and_assign_id(req, res, next) {
                     requestCounter++;
                     req.id = requestCounter;
                     next();
@@ -897,7 +938,7 @@ var startServer = function(config, startServerFinishedFn)
                 runFunctions(config.initFunctions, [app], function (err) {
     
                     // retain originalUrl and originalPath since these can get modified along the way
-                    app.use(function (req, res, next) {
+                    app.use(function retain_original_url_path(req, res, next) {
                         req.originalUrl = req.url;
                         req.originalPath = req.path;
                         next();
@@ -907,7 +948,7 @@ var startServer = function(config, startServerFinishedFn)
                     app.use(requestParam);
     
                     // add req.log function
-                    app.use(function (req, res, next) {
+                    app.use(function bind_req_log(req, res, next) {
     
                         req._log = req.log = function (text/*, warn*/) {
     
@@ -945,7 +986,7 @@ var startServer = function(config, startServerFinishedFn)
                                 message = "\r\n**** SLOW RESPONSE ****\r\n" + message + "\r\n";
                             }
                             */
-    
+
                             console.log(message);
                         };
     
@@ -1171,7 +1212,9 @@ var createHttpServer = function(app, done)
         try { socket.end(); } catch (e) { }
         try { socket.destroy(); } catch (e) { }
     });
-    
+
+    var c = 0;
+
     // socket
     httpServer.on("connection", function (socket) {
         socket.setNoDelay(true);
@@ -1275,7 +1318,7 @@ var configureServer = function(config, app, httpServer, configureServerFinishedF
     }
     
     // SET INITIAL VALUE FOR SERVER TIMESTAMP
-    process.env.CLOUDCMS_APPSERVER_TIMESTAMP = new Date().getTime();
+    process.env.CLOUDCMS_APPSERVER_TIMESTAMP = Date.now();
     
     // DUST
     runFunctions(config.dustFunctions, [app, duster.getDust()], function (err) {

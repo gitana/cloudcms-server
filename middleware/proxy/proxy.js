@@ -110,7 +110,7 @@ exports = module.exports = function()
 
                     var cacheInfo = JSON.parse(cacheInfoText);
                     var expireTime = cacheInfo.expireTime;
-                    if (new Date().getTime() > expireTime)
+                    if (Date.now() > expireTime)
                     {
                         handleBadStream();
                     }
@@ -196,7 +196,7 @@ exports = module.exports = function()
 
                 // write a cache info file as well
                 var cacheInfo = {
-                    "expireTime": new Date().getTime() + cacheTTL
+                    "expireTime": Date.now() + cacheTTL
                 };
                 contentStore.writeFile(filePath + ".cache", JSON.stringify(cacheInfo), function() {
                     _end.call(res, data, encoding);

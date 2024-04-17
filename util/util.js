@@ -700,11 +700,8 @@ var retryGitanaRequest = exports.retryGitanaRequest = function(logMethod, gitana
         config.headers["Authorization"] = headers2["Authorization"];
 
         // make the request
-        console.log("C: " + JSON.stringify(config, null, 2));
         request(config, function(err, response, body) {
-            console.log("E: " + err);
-            console.log("B: " + body);
-            
+
             if (response)
             {
                 // ok case (just callback)
@@ -850,43 +847,42 @@ var pluck = exports.pluck = function(list, propertyPath)
 //
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-// global pool of interceptor timings
-process.timings = {};
-var incrementTimings = function(req, family, id, time)
-{
-    var increment = function(map, family, id, time)
-    {
-        var key = family + ":" + id;
-
-        // interceptor timings
-        if (!map[key]) {
-            map[key] = {
-                count: 0,
-                total: 0,
-                avg: 0
-            };
-        }
-
-        map[key].count++;
-        map[key].total += time;
-        map[key].avg = map[key].total / map[key].count;
-        map[key].avg = map[key].avg.toFixed(2);
-    };
-
-    // increment global timings
-    increment(process.timings, family, id, time);
-
-    // increment request timings
-    if (!req.timings) {
-        req.timings = {};
-    }
-    increment(req.timings, family, id, time);
-};
-
-var getGlobalTimings = exports.getGlobalTimings = function()
-{
-    return process.timings;
-};
+// // global pool of interceptor timings
+// var incrementTimings = function(req, family, id, time)
+// {
+//     var increment = function(map, family, id, time)
+//     {
+//         var key = family + ":" + id;
+//
+//         // interceptor timings
+//         if (!map[key]) {
+//             map[key] = {
+//                 count: 0,
+//                 total: 0,
+//                 avg: 0
+//             };
+//         }
+//
+//         map[key].count++;
+//         map[key].total += time;
+//         map[key].avg = map[key].total / map[key].count;
+//         map[key].avg = map[key].avg.toFixed(2);
+//     };
+//
+//     // increment global timings
+//     increment(process.timings, family, id, time);
+//
+//     // increment request timings
+//     if (!req.timings) {
+//         req.timings = {};
+//     }
+//     increment(req.timings, family, id, time);
+// };
+//
+// var getGlobalTimings = exports.getGlobalTimings = function()
+// {
+//     return process.timings;
+// };
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -895,7 +891,6 @@ var getGlobalTimings = exports.getGlobalTimings = function()
 //
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-
 var createHandler = exports.createHandler = function(id, configName, fn)
 {
     if (typeof(configName) === "function") {
@@ -903,30 +898,30 @@ var createHandler = exports.createHandler = function(id, configName, fn)
         configName = id;
     }
 
-    return function(req, res, next) {
+    var func = function(req, res, next) {
 
-        var startAt = process.hrtime();
+        //var startAt = process.hrtime();
 
         // override next so that we can capture completion of interceptor
         var _next = next;
         next = function(err) {
-            if (startAt)
-            {
-                var diff = process.hrtime(startAt);
-                var time = diff[0] * 1e3 + diff[1] * 1e-6;
-                incrementTimings(req, "handler", id, time);
-                startAt = null;
-            }
+            // if (startAt)
+            // {
+            //     var diff = process.hrtime(startAt);
+            //     var time = diff[0] * 1e3 + diff[1] * 1e-6;
+            //     incrementTimings(req, "handler", id, time);
+            //     startAt = null;
+            // }
             return _next.call(_next, err);
         };
         onHeaders(res, function() {
-            if (startAt)
-            {
-                var diff = process.hrtime(startAt);
-                var time = diff[0] * 1e3 + diff[1] * 1e-6;
-                incrementTimings(req, "handler", id, time);
-                startAt = null;
-            }
+            // if (startAt)
+            // {
+            //     var diff = process.hrtime(startAt);
+            //     var time = diff[0] * 1e3 + diff[1] * 1e-6;
+            //     incrementTimings(req, "handler", id, time);
+            //     startAt = null;
+            // }
         });
 
         req.configuration(configName, function(err, handlerConfiguration) {
@@ -943,6 +938,10 @@ var createHandler = exports.createHandler = function(id, configName, fn)
             fn(req, res, next, req.stores, req.cache, handlerConfiguration);
         });
     };
+
+    Object.defineProperty(func, "name", { value: id });
+
+    return func;
 };
 
 var createInterceptor = exports.createInterceptor = function(id, configName, fn)
@@ -952,30 +951,30 @@ var createInterceptor = exports.createInterceptor = function(id, configName, fn)
         configName = id;
     }
 
-    return function(req, res, next) {
+    var func = function(req, res, next) {
 
-        var startAt = process.hrtime();
+        //var startAt = process.hrtime();
 
         // override next so that we can capture completion of interceptor
         var _next = next;
         next = function(err) {
-            if (startAt > -1)
-            {
-                var diff = process.hrtime(startAt);
-                var time = diff[0] * 1e3 + diff[1] * 1e-6;
-                incrementTimings(req, "interceptor", id, time);
-                startAt = -1;
-            }
+            // if (startAt > -1)
+            // {
+            //     var diff = process.hrtime(startAt);
+            //     var time = diff[0] * 1e3 + diff[1] * 1e-6;
+            //     incrementTimings(req, "interceptor", id, time);
+            //     startAt = -1;
+            // }
             return _next.call(_next, err);
         };
         onHeaders(res, function() {
-            if (startAt > -1)
-            {
-                var diff = process.hrtime(startAt);
-                var time = diff[0] * 1e3 + diff[1] * 1e-6;
-                incrementTimings(req, "interceptor", id, time);
-                startAt = -1;
-            }
+            // if (startAt > -1)
+            // {
+            //     var diff = process.hrtime(startAt);
+            //     var time = diff[0] * 1e3 + diff[1] * 1e-6;
+            //     incrementTimings(req, "interceptor", id, time);
+            //     startAt = -1;
+            // }
         });
 
         req.configuration(configName, function(err, interceptorConfiguration) {
@@ -992,6 +991,10 @@ var createInterceptor = exports.createInterceptor = function(id, configName, fn)
             fn(req, res, next, req.stores, req.cache, interceptorConfiguration);
         });
     };
+
+    Object.defineProperty(func, "name", { value: id });
+
+    return func;
 };
 
 var replaceAll = exports.replaceAll = function(text, find, replace)

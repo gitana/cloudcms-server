@@ -81,7 +81,7 @@ class AbstractAsyncProvider extends AbstractProvider
         
             channel.users[user.id] = {
                 "user": user,
-                "time": new Date().getTime()
+                "time": Date.now()
             };
             
             self.writeChannel(channelId, channel, function (err) {

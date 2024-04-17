@@ -4,6 +4,8 @@ var http = require('http');
 var util = require("../../util/util");
 var Gitana = require("gitana");
 
+var Loaders = require("../../util/loaders");
+
 /**
  * Runtime middleware.
  *
@@ -56,7 +58,7 @@ exports = module.exports = function()
         var data = {};
 
         // generate a cache buster (in case we're in production mode)
-        data.cb = new Date().getTime();
+        data.cb = Date.now();
         if (json.cb) {
             data.cb = json.cb;
         }
@@ -162,63 +164,86 @@ exports = module.exports = function()
      */
     r.interceptor = function()
     {
+        var loadRuntime = function(req, res, callback)
+        {
+            var store = req.stores.content;
+            var key = store.id;
+
+            // define the loader (loads runtime)
+            var loader = function(store)
+            {
+                return function(cb)
+                {
+                    store.existsFile("runtime.json", function(exists) {
+
+                        if (exists)
+                        {
+                            store.readFile("runtime.json", function (err, data) {
+
+                                if (err) {
+                                    return cb(err);
+                                }
+
+                                return cb(null, JSON.parse(data));
+                            });
+                        }
+                        else
+                        {
+                            // write initial file
+
+                            var runtime = {};
+
+                            // cache buster (cb)
+                            runtime.cb = Date.now();
+                            if (process.env.CLOUDCMS_RUNTIME_CB) {
+                                runtime.cb = process.env.CLOUDCMS_RUNTIME_CB;
+                            }
+
+                            // release id
+                            runtime.releaseId = null;
+                            if (process.env.CLOUDCMS_RUNTIME_RELEASE_ID) {
+                                runtime.releaseId = process.env.CLOUDCMS_RUNTIME_RELEASE_ID;
+                            }
+
+                            // branch id
+                            runtime.branchId = null;
+                            if (process.env.CLOUDCMS_RUNTIME_BRANCH_ID) {
+                                runtime.branchId = process.env.CLOUDCMS_RUNTIME_BRANCH_ID;
+                            }
+
+                            // don't bother writing to disk if we don't have any state to set
+                            if (!runtime.releaseId && !runtime.branchId) {
+                                return cb(null, runtime);
+                            }
+
+                            // create runtime file
+                            store.writeFile("runtime.json", JSON.stringify(runtime, null, 2), function (err) {
+                                return cb(null, runtime);
+                            });
+                        }
+                    });
+                }
+            }(store);
+
+            // wrap loader with caching + an exclusive lock
+            var cachedExclusiveLoader = Loaders.cachedExclusive(loader, process.runtimeCache, key, process.defaultExclusiveLockTimeoutMs);
+
+            cachedExclusiveLoader(callback);
+        };
+
         return util.createInterceptor("runtime", function(req, res, next, stores, cache, configuration) {
 
-            var store = req.stores.content;
+            loadRuntime(req, res, function(err, runtime) {
 
-            store.existsFile("runtime.json", function(exists) {
-
-                if (exists)
-                {
-                    store.readFile("runtime.json", function(err, data) {
-
-                        if (err) {
-                            req.log("Error loading runtime.json");
-                            return next();
-                        }
-
-                        req.runtime = JSON.parse(data);
-                        next();
-                    });
+                if (err) {
+                    req.log("Error loading runtime");
+                    req.log(err);
+                    return next();
                 }
-                else
-                {
-                    // write initial file
 
-                    var data = {};
-
-                    // cache buster (cb)
-                    data.cb = new Date().getTime();
-                    if (process.env.CLOUDCMS_RUNTIME_CB) {
-                        data.cb = process.env.CLOUDCMS_RUNTIME_CB;
-                    }
-
-                    // release id
-                    data.releaseId = null;
-                    if (process.env.CLOUDCMS_RUNTIME_RELEASE_ID) {
-                        data.releaseId = process.env.CLOUDCMS_RUNTIME_RELEASE_ID;
-                    }
-
-                    // branch id
-                    data.branchId = null;
-                    if (process.env.CLOUDCMS_RUNTIME_BRANCH_ID) {
-                        data.branchId = process.env.CLOUDCMS_RUNTIME_BRANCH_ID;
-                    }
-
-                    // don't bother writing if we don't have anything to persist
-                    if (!data.releaseId && !data.branchId)
-                    {
-                        req.runtime = data;
-                        return next();
-                    }
-
-                    // create runtime file
-                    store.writeFile("runtime.json", JSON.stringify(data, null, "  "), function(err) {
-                        req.runtime = data;
-                        next();
-                    });
-                }
-            })
+                req.runtime = runtime;
+                next();
+            });
         });
     };
 

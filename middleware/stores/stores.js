@@ -144,13 +144,13 @@ exports = module.exports = function()
             else if (stores)
             {
                 CACHED_STORES_BY_HOST[host] = stores;
-                CACHED_STORES_EXPIRATION_MS_BY_HOST[host] = new Date().getTime() + TTL_MS;
+                CACHED_STORES_EXPIRATION_MS_BY_HOST[host] = Date.now() + TTL_MS;
             }
 
             var val = CACHED_STORES_BY_HOST[host];
 
             var expTime = CACHED_STORES_EXPIRATION_MS_BY_HOST[host];
-            if (expTime && new Date().getTime() > expTime)
+            if (expTime && Date.now() > expTime)
             {
                 delete CACHED_STORES_BY_HOST[host];
                 delete CACHED_STORES_EXPIRATION_MS_BY_HOST[host];

@@ -26,7 +26,7 @@ exports = module.exports = function(cacheConfig)
 
         if (seconds > -1)
         {
-            expirationTimeMap[key] = new Date().getTime() + (seconds * 1000);
+            expirationTimeMap[key] = Date.now() + (seconds * 1000);
         }
 
         callback();
@@ -39,7 +39,7 @@ exports = module.exports = function(cacheConfig)
         var expirationTime = expirationTimeMap[key];
         if (expirationTime)
         {
-            var now = new Date().getTime();
+            var now = Date.now();
             if (now > expirationTime)
             {
                 delete valueMap[key];

@@ -53,11 +53,16 @@ exports = module.exports = function()
         provider.init(function(err) {
 
             // global caches
-            process.deploymentDescriptorCache = createNamespacedCache.call(r, "descriptors");
+            process.deploymentDescriptorCache = createNamespacedCache.call(r, "descriptors", {
+                "seconds": 5 * 60 // 5 minutes (5 minutes * (60 seconds / minute) = 300 seconds)
+            });
             process.driverConfigCache = createNamespacedCache.call(r, "driverconfigs", {
                 "seconds": 5 * 60 // 5 minutes (5 minutes * (60 seconds / minute) = 300 seconds)
             });
             process.subKeyMapCache = createNamespacedCache.call(r, "keyMap");
+            process.runtimeCache = createNamespacedCache.call(r, "runtimes", {
+                "seconds": 5 * 60 // 5 minutes (5 minutes * (60 seconds / minute) = 300 seconds)
+            });
 
             // subscribe to node invalidation broadcast events
             process.broadcast.subscribe("node_invalidation", function (message, channel, invalidationDone) {
