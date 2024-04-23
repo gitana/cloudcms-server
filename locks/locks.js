@@ -80,7 +80,7 @@ exports = module.exports = function()
             // var skip = false;
             // if (key === "channels") { skip = true; }
             // if (!skip) {
-                 console.log("[LOCK: " + key + "] " + text);
+            //    console.log("[LOCK: " + key + "] " + text);
             // }
         };
     
@@ -88,7 +88,7 @@ exports = module.exports = function()
         provider.lock(key, function(err, _releaseFn) {
             
             if (err) {
-                console.log("[LOCK: " + key + "] err: ", err);
+                //console.log("[LOCK: " + key + "] err: ", err);
                 try { _releaseFn(); } catch (e) { }
                 return fn(err);
             }
