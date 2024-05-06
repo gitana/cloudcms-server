@@ -147,11 +147,6 @@ exports = module.exports = function()
         }
     };
 
-    // var _LOCK = function(lockKey, workFunction)
-    // {
-    //     process.locks.lock(lockKey, workFunction);
-    // };
-
     var r = {};
 
     /**

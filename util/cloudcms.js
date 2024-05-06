@@ -710,7 +710,7 @@ exports = module.exports = function()
 
                         if (err) {
                             
-                            if (err.code === 404) {
+                            if (err.status === 404) {
                                 return callback();
                             }
 

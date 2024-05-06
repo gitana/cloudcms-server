@@ -1,9 +1,11 @@
 var axios = require("axios");
+var http = require("http");
+var https = require("https");
 
-// var http = require("http");
-// var https = require("https");
-//
-// var FormData = require("form-data");
+var client = axios.create({
+    "httpAgent": http.globalAgent,
+    "httpsAgent": https.globalAgent
+});
 
 /**
  * Incoming config:
@@ -127,7 +129,7 @@ module.exports = function(config, callback)
     }
     */
     
-    return axios.request(requestConfig).then(function(response) {
+    return client.request(requestConfig).then(function(response) {
         callback(null, response, response.data);
     }, function(error) {
         callback(error);

@@ -414,11 +414,6 @@ exports = module.exports = function()
         });
     };
 
-    var _LOCK = function(cacheKey, workFunction)
-    {
-        process.locks.lock("branchload-" + cacheKey, workFunction);
-    };
-
     // store a cache of branches since we don't want to reload these every time
     var CACHED_BRANCHES = {};
 
@@ -1426,9 +1421,9 @@ exports = module.exports = function()
     
                     cloudcmsUtil.preview(contentStore, gitana, repositoryId, branchId, nodeId, nodePath, attachmentId, locale, previewId, size, mimetype, forceReload, function(err, filePath, cacheInfo, releaseLock) {
 
-                        if (err) {
-                            req.log("Error on preview node: " + err.message + ", err: " + JSON.stringify(err));
-                        }
+                        // if (err) {
+                        //     req.log("Error on preview node: " + err.message + ", err: " + JSON.stringify(err));
+                        // }
 
                         // if the file was found on disk or was downloaded, then stream it back
                         if (!err && filePath && cacheInfo)
@@ -1481,7 +1476,6 @@ exports = module.exports = function()
 
                             releaseLock();
                         }
-
                     });
                 }
                 else
