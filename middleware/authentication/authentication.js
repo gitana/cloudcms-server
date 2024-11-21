@@ -813,7 +813,31 @@ exports = module.exports = function()
                             }
                             redirectUrl += "requested_url=" + requested_url;
 
-                            return res.redirect(redirectUrl);
+                            res.status(200);
+                            res.type("text/html");
+
+                            // serve back a redirect via html
+                            var html = " \
+                                <html> \
+                                    <head> \
+                                        <script> \
+                                            var _redirectUrl = '" + redirectUrl + "'; \
+                                            var hash = window.location.hash ? window.location.hash : ''; \
+                                            if (hash && hash.indexOf('#') === 0) { \
+                                                hash = hash.substring(1); \
+                                            } \
+                                            if (hash) { \
+                                                _redirectUrl += '&requested_hash=' + hash; \
+                                            } \
+                                            window.location.href = _redirectUrl; \
+                                </script> \
+                                    </head> \
+                                </html> \
+                            ";
+                            res.send(html);
+                            return;
+
+                            //return res.redirect(redirectUrl);
                         }
                         else if (loginHandler)
                         {
