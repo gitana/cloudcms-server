@@ -346,7 +346,7 @@ exports = module.exports = function()
                 if (doesNotExist)
                 {
                     // are we being spoofed? kill the connection
-                    console.log("[BLACKLIST KILL: " + req.virtualHost + "]");
+                    console.log("[BLACKLIST KILL: " + req.virtualHost + " > " + req.method + " " + req.url + "]");
                     return res.end();
                 }
 
@@ -383,7 +383,7 @@ exports = module.exports = function()
                     if (cachedValue === SENTINEL_NOT_FOUND_VALUE)
                     {
                         // null means there verifiably isn't anything on disk (null used as sentinel marker)
-                        completionFunction();
+                        completionFunction(null, null, true);
                     }
                     else
                     {
