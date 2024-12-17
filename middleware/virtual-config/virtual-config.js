@@ -163,12 +163,12 @@ exports = module.exports = function()
             var loadFromRemote = function(finishedLoading) {
 
                 // check cache to see if we already tried to load this in the past few minutes and were sorely disappointed
-                process.cache.read(VCSENTINEL_CACHE_KEY, function (err, failedRecently) {
+                process.cache.read(VCSENTINEL_CACHE_KEY, function (err, doesNotExist) {
 
-                    if (failedRecently) {
+                    if (doesNotExist) {
                         return finishedLoading({
                             "message": "No virtual config found for host (from previous attempt)"
-                        });
+                        }, null, true);
                     }
 
                     // load the gitana.json file from Cloud CMS
@@ -183,8 +183,8 @@ exports = module.exports = function()
 
                         if (!virtualConfig)
                         {
-                            // mark that it failed (5 seconds TTL)
-                            return process.cache.write(VCSENTINEL_CACHE_KEY, SENTINEL_NOT_FOUND_VALUE, 5, function() {
+                            // mark that it failed (30 minute TTL)
+                            return process.cache.write(VCSENTINEL_CACHE_KEY, true, 30 * 60, function() {
                                 finishedLoading({
                                     "message": "No virtual config found for host: " + host
                                 });
@@ -314,8 +314,8 @@ exports = module.exports = function()
             }
             else
             {
-                loadFromRemote(function(err, gitanaJson) {
-                    callback(err, gitanaJson);
+                loadFromRemote(function(err, gitanaJson, doesNotExist) {
+                    callback(err, gitanaJson, doesNotExist);
                 });
             }
         });
@@ -341,15 +341,27 @@ exports = module.exports = function()
                 configuration.key = "virtual";
             }
 
-            var completionFunction = function (err, gitanaConfig) {
-                if (err) {
-                    if (err.message) {
+            var completionFunction = function (err, gitanaConfig, doesNotExist)
+            {
+                if (doesNotExist)
+                {
+                    // are we being spoofed? kill the connection
+                    console.log("[BLACKLIST KILL: " + req.virtualHost + "]");
+                    return res.end();
+                }
+
+                if (err)
+                {
+                    if (err.message)
+                    {
                         req.log(err.message);
                     }
+
                     return next();
                 }
 
-                if (gitanaConfig) {
+                if (gitanaConfig)
+                {
                     // store config
                     req.gitanaConfig = gitanaConfig;
 
@@ -382,28 +394,27 @@ exports = module.exports = function()
                 else
                 {
                     // try to load from disk
-                    acquireGitanaJson(req.virtualHost, req.rootStore, req.log, function (err, gitanaConfig)
+                    acquireGitanaJson(req.virtualHost, req.rootStore, req.log, function (err, gitanaConfig, doesNotExist)
                     {
-                        if (err)
+                        if (err && !doesNotExist)
                         {
                             return completionFunction(err);
                         }
 
                         if (gitanaConfig)
                         {
-                            process.driverConfigCache.write(req.virtualHost, {
+                            return process.driverConfigCache.write(req.virtualHost, {
                                 "config": gitanaConfig
                             }, function (err) {
                                 completionFunction(err, gitanaConfig);
                             });
                         }
-                        else
-                        {
-                            // mark with sentinel
-                            process.driverConfigCache.write(req.virtualHost, SENTINEL_NOT_FOUND_VALUE, 5, function (err) {
-                                completionFunction();
-                            });
-                        }
+
+                        // mark with sentinel (30 minutes)
+                        console.log("[BLACKLIST ADD: " + req.virtualHost + "]");
+                        process.driverConfigCache.write(req.virtualHost, SENTINEL_NOT_FOUND_VALUE, 30 * 60, function (err) {
+                            completionFunction(null, null, true);
+                        });
                     });
                 }
             });
