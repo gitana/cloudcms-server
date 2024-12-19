@@ -992,6 +992,37 @@ var startServer = function(config, startServerFinishedFn)
     
                         next();
                     });
+
+                    // kills immediately based on path, headers or other detections
+                    app.use(function(req, res, next) {
+
+                        var kill = false;
+                        if (req.path.endsWith("/env"))
+                        {
+                            kill = true;
+                        }
+
+                        if (kill)
+                        {
+                            var text = "KILL, method: " + req.method + ", url: " + req.url;
+                            if (req.headers)
+                            {
+                                text += ", headers: " + JSON.stringify(req.headers);
+                            }
+                            if (req.query)
+                            {
+                                text += ", query: " + JSON.stringify(req.query);
+                            }
+                            console.log(text);
+
+                            // are we being spoofed? kill the connection
+                            res.blocked = true;
+                            res.writeHead(503, { 'Content-Type': 'application/json' });
+                            return res.end(JSON.stringify({"error": true, "message": "Bad Request."}));
+                        }
+
+                        next();
+                    });
     
                     // common interceptors and config
                     main.common1(app);
@@ -1023,8 +1054,16 @@ var startServer = function(config, startServerFinishedFn)
                                 requestPath = util.stripQueryStringFromUrl(requestPath);
                             }
                         }
+
+                        var m = "";
+                        if (res.blocked)
+                        {
+                            m += "*BLOCKED* ";
+                        }
+                        m += req.method + " " + requestPath + " [" + res.statusCode + "]";
+                        m += " (" + time.toFixed(2) + " ms)";
     
-                        req.log(req.method + " " + requestPath + " [" + res.statusCode + "] (" + time.toFixed(2) + " ms)", warn);
+                        req.log(m, warn);
                     }));
     
                     // set up CORS allowances

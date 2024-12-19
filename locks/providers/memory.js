@@ -22,10 +22,10 @@ exports = module.exports = function(lockConfig)
     {
         lock.acquire(key, function(releaseCallbackFn) {
             fn(null, releaseCallbackFn);
-        }, function(err, ret) {
+        }, function(err, value) {
             // lock was released
             if (err) {
-                console.error("Memory Lock heard error: ", err, " return value: ", ret);
+                console.error("Memory Lock heard error: ", err, " return value: ", value);
             }
         });
     };

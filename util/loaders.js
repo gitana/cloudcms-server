@@ -94,6 +94,11 @@ var exclusive = exports.exclusive = function(loader, key, timeout)
                 }, 0);
                 callback.call(this, err, value);
             });
+        }, function(err, value) {
+            // lock was released
+            if (err) {
+                console.error("Failed to acquire lock for key: " + key + ", error: ", err, " return value: ", value);
+            }
         }, opts);
     };
 };

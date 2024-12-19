@@ -35,8 +35,12 @@ var _setup = function() {
                 };
 
                 _sendMessageToWorker(message);
+            }, function(err, value) {
+                // lock was released
+                if (value) {
+                    console.error("Cluster Lock heard error: ", err, " return value: ", value);
+                }
             });
-
         };
 
         var _release = function(message)
