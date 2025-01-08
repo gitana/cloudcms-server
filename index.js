@@ -239,12 +239,10 @@ exports = module.exports = function()
     var registration = require("./middleware/registration/registration");
     var resources = require("./middleware/resources/resources");
     var runtime = require("./middleware/runtime/runtime");
-    var serverTags = require("./middleware/server-tags/server-tags");
     var storeService = require("./middleware/stores/stores");
     var templates = require("./middleware/templates/templates");
     var virtualConfig = require("./middleware/virtual-config/virtual-config");
     var virtualFiles = require("./middleware/virtual-files/virtual-files");
-    var wcm = require("./middleware/wcm/wcm");
     var welcome = require("./middleware/welcome/welcome");
     var awareness = require("./middleware/awareness/awareness");
     var userAgent = require('express-useragent');
@@ -484,15 +482,6 @@ exports = module.exports = function()
 
         // supports user-configured dynamic configuration
         app.use(config.remoteConfigInterceptor());
-
-        // tag processing, injection of scripts, etc, kind of a catch all at the moment
-        app.use(serverTags.interceptor(configuration));
-
-        if (includeCloudCMS)
-        {
-            // handles retrieval of content from wcm
-            app.use(wcm.wcmInterceptor());
-        }
     };
 
     r.handlers = function(app, includeCloudCMS)
@@ -565,12 +554,6 @@ exports = module.exports = function()
 
         // add User-Agent device info to req
         app.use(userAgent.express());
-
-        if (includeCloudCMS)
-        {
-            // handles retrieval of content from wcm
-            app.use(wcm.wcmHandler());
-        }
 
         // handles 404
         app.use(final.finalHandler());

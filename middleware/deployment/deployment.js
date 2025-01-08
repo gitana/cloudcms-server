@@ -1,10 +1,4 @@
-//var path = require('path');
-//var fs = require('fs');
-//var http = require('http');
 var util = require("../../util/util");
-//var uuidv4 = require("uuid/v4");
-//var Gitana = require("gitana");
-var duster = require("../../duster/index");
 
 /**
  * Deployment middleware.
@@ -303,10 +297,6 @@ exports = module.exports = function()
                     // invalidate any cache state for this application
                     logFn("Invalidating application cache for application: " + descriptor.application.id);
                     process.cache.invalidateCacheForApp(descriptor.application.id);
-
-                    // invalidate "duster" cache for this application
-                    logFn("Invalidating duster cache for application: " + descriptor.application.id);
-                    duster.invalidateCacheForApp(descriptor.application.id);
 
                     // invalidate gitana driver for this application
                     process.broadcast.publish("application_invalidation", {

@@ -1,8 +1,10 @@
+var mime = require("mime");
+const { v4: uuidv4 } = require("uuid");
+
 var fs = require("fs");
 var path = require("path");
-var mkdirp = require('mkdirp');
-var mime = require("mime");
-var uuidv4 = require("uuid/v4");
+//var mime = require("mime");
+//var uuidv4 = require("uuid/v4");
 var os = require("os");
 var async = require("async");
 var temp = require("temp");
@@ -544,7 +546,9 @@ var rmdir = exports.rmdir = function(directoryPath)
 
 var mkdirs = exports.mkdirs = function(directoryPath, callback)
 {
-    mkdirp(directoryPath, function(err) {
+    fs.mkdir(directoryPath, {
+        recursive: true
+    }, function(err) {
         callback(err);
     });
 };
@@ -1205,7 +1209,9 @@ var handleSendFileError = exports.handleSendFileError = function(req, res, fileP
 
 var createDirectory = exports.createDirectory = function(directoryPath, callback)
 {
-    mkdirp(directoryPath, function(err) {
+    fs.mkdir(directoryPath, {
+        "recursive": true
+    }, function(err) {
 
         if (err) {
             return callback(err);
@@ -1376,7 +1382,7 @@ var isUndefined = exports.isUndefined = function(obj) {
 var lookupMimeType = exports.lookupMimeType = function(ext) {
 
     // rely on the mimetype library for base handling
-    var mimetype = mime.lookup(ext);
+    var mimetype = mime.getType(ext);
 
     var extension = ext;
     if (extension && extension.indexOf(".") === 0)

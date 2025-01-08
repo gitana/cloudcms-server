@@ -33,11 +33,6 @@ var requestParam = require("request-param")();
 // cloudcms app server support
 var main = require("../index");
 
-// duster service
-var duster = require("../duster/index");
-
-var coreHelpers = require("../duster/helpers/core/index");
-
 var helmet = require("helmet");
 
 var responseTime = require("response-time");
@@ -71,7 +66,6 @@ var SETTINGS = {
     "beforeFunctions": [],
     "afterFunctions": [],
     "reportFunctions": [],
-    "dustFunctions": [],
     "initFunctions": [],
     "filterFunctions": [],
     "driverFunctions": [],
@@ -173,11 +167,6 @@ var SETTINGS = {
             "content": "hosts_s3fs",
             "templates": "hosts_s3fs",
             "modules": "hosts_s3fs"
-        }
-    },
-    "duster": {
-        "fragments": {
-            "cache": true
         }
     },
     "virtualHost": {
@@ -317,9 +306,6 @@ var SETTINGS = {
     }
 };
 
-// always push core tag helpers to the front
-SETTINGS.dustFunctions.unshift(coreHelpers);
-
 // if SETTINGS.errorFunctions is empty, plug in a default error handler
 if (SETTINGS.errorFunctions.length === 0)
 {
@@ -439,17 +425,6 @@ exports.routes = function (fn) {
  */
 exports.error = function (fn) {
     SETTINGS.errorFunctions.push(fn);
-};
-
-/**
- * Adds an initialization function to set up dust.
- *
- * The function must have signature fn(app, dust)
- *
- * @param helperFn
- */
-var dust = exports.dust = function(fn) {
-    SETTINGS.dustFunctions.push(fn);
 };
 
 /**
@@ -821,7 +796,6 @@ var startServer = function(config, startServerFinishedFn)
                 //
                 // BASE CONFIGURATION
                 //
-                // Configures NodeJS app server using dustjs templating engine
                 // Runs on port 3000 by default
                 //
                 ////////////////////////////////////////////////////////////////////////////
@@ -830,16 +804,7 @@ var startServer = function(config, startServerFinishedFn)
                 app.set('port', process.env.PORT);
                 app.set('views', process.env.CLOUDCMS_APPSERVER_BASE_PATH + "/views");
     
-                if (config.viewEngine === "dust")
-                {
-                    var cons = require('consolidate');
-    
-                    app.set('view engine', 'html');
-                    app.set('view engine', 'dust');
-                    app.engine('html', cons.dust);
-                    app.engine('dust', cons.dust);
-                }
-                else if (config.viewEngine === "handlebars" || config.viewEngine === "hbs")
+                if (config.viewEngine === "handlebars" || config.viewEngine === "hbs")
                 {
                     var hbs = require('hbs');
     
@@ -1359,52 +1324,48 @@ var configureServer = function(config, app, httpServer, configureServerFinishedF
     // SET INITIAL VALUE FOR SERVER TIMESTAMP
     process.env.CLOUDCMS_APPSERVER_TIMESTAMP = Date.now();
     
-    // DUST
-    runFunctions(config.dustFunctions, [app, duster.getDust()], function (err) {
-        
-        // APPLY SERVER BEFORE START FUNCTIONS
-        runFunctions(config.beforeFunctions, [app], function (err) {
-            
-            // AFTER SERVER START
-            runFunctions(config.afterFunctions, [app], function (err) {
-                
-                function cleanup() {
-                    
-                    if (cluster.isMaster)
-                    {
-                        console.log("");
-                        console.log("");
-                        
-                        console.log("Cloud CMS Module shutting down");
-                        
-                        // close server connections as cleanly as we can
-                        console.log(" -> Closing server connections");
-                    }
-                    
-                    try
-                    {
-                        httpServer.close();
-                    }
-                    catch (e)
-                    {
-                        console.log("Server.close produced error: " + JSON.stringify(e));
-                    }
-                    
-                    if (cluster.isMaster)
-                    {
-                        console.log("");
-                    }
-                    
-                    // tell the process to exit
-                    process.exit();
+    // APPLY SERVER BEFORE START FUNCTIONS
+    runFunctions(config.beforeFunctions, [app], function (err) {
+
+        // AFTER SERVER START
+        runFunctions(config.afterFunctions, [app], function (err) {
+
+            function cleanup() {
+
+                if (cluster.isMaster)
+                {
+                    console.log("");
+                    console.log("");
+
+                    console.log("Cloud CMS Module shutting down");
+
+                    // close server connections as cleanly as we can
+                    console.log(" -> Closing server connections");
                 }
-                
-                // listen for kill or interrupt so that we can shut down cleanly
-                process.on('SIGINT', cleanup);
-                process.on('SIGTERM', cleanup);
-                
-                configureServerFinishedFn();
-            });
+
+                try
+                {
+                    httpServer.close();
+                }
+                catch (e)
+                {
+                    console.log("Server.close produced error: " + JSON.stringify(e));
+                }
+
+                if (cluster.isMaster)
+                {
+                    console.log("");
+                }
+
+                // tell the process to exit
+                process.exit();
+            }
+
+            // listen for kill or interrupt so that we can shut down cleanly
+            process.on('SIGINT', cleanup);
+            process.on('SIGTERM', cleanup);
+
+            configureServerFinishedFn();
         });
     });
 };

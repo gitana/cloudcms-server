@@ -22,7 +22,6 @@ This looks like:
     "beforeFunctions": [],
     "afterFunctions": [],
     "reportFunctions": [],
-    "dustFunctions": [],
     "initFunctions": [],
     "viewEngine": "handlebars",
     "storeEngines": {
@@ -114,11 +113,6 @@ This looks like:
             "content": "hosts_s3fs",
             "templates": "hosts_s3fs",
             "modules": "hosts_s3fs"
-        }
-    },
-    "duster": {
-        "fragments": {
-            "cache": true
         }
     },
     "virtualHost": {
