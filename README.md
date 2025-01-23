@@ -3,7 +3,7 @@ cloudcms-server
 
 A Node.js module that provides a framework and server-side functionality for Cloud CMS deployed Node.js applications.  This module provides the backbone capabilities for the application server tier of Cloud CMS as hosted at cloudcms.net.
 
-For more information on Cloud CMS, please visit https://www.cloudcms.com.
+For more information on Cloud CMS, please visit https://gitana.io.
 
 ## Configuration
 
