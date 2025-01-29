@@ -1,6 +1,6 @@
 //var auth = require("../../../util/auth");
 
-var SamlStrategy = require('passport-saml').Strategy;
+var SamlStrategy = require('@node-saml/passport-saml').Strategy;
 var AbstractProvider = require("./abstract");
 
 if (!process.configuration) {
@@ -57,10 +57,14 @@ class SAMLProvider extends AbstractProvider
             samlConfig.entryPoint = config.entryPoint;
         }
         if (config.cert) {
-            samlConfig.cert = config.cert;
+            samlConfig.idpCert = config.cert;
         }
-        if (config.callbackURL) {
-            samlConfig.callbackUrl = "http://localhost:5000" + config.callbackURL;
+        var callbackUrl = config.callbackURL;
+        if (!callbackUrl) {
+            callbackUrl = config.callbackUrl;
+        }
+        if (callbackUrl) {
+            samlConfig.callbackUrl = "http://localhost:5000" + callbackUrl;
         }
         if (config.issuer) {
             samlConfig.issuer = config.issuer;

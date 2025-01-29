@@ -315,16 +315,11 @@ exports = module.exports = function()
         registerAdapter("session", require("./adapters/session"));
 
         // providers
-        registerProvider("cas", require("./providers/cas"));
-        registerProvider("facebook", require("./providers/facebook"));
-        registerProvider("github", require("./providers/github"));
         registerProvider("google", require("./providers/google"));
         registerProvider("keycloak", require("./providers/keycloak"));
-        registerProvider("linkedin", require("./providers/linkedin"));
         registerProvider("local", require("./providers/local"));
         registerProvider("saml", require("./providers/saml"));
         registerProvider("trusted", require("./providers/trusted"));
-        registerProvider("twitter", require("./providers/twitter"));
 
         // authenticators
         registerAuthenticator("default", require("./authenticators/default"));

@@ -84,10 +84,6 @@ exports = module.exports = function(engineId, engineType, engineConfig)
         callback(null, null); //data
     };
 
-    r.watchDirectory = function(directoryPath, onChange)
-    {
-    };
-
     r.moveFile = function(originalFilePath, newFilePath, callback)
     {
         callback(null);

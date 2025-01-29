@@ -79,11 +79,6 @@ exports = module.exports = function(engineConfig)
         cachingAdapter.readFile(filePath, callback);
     };
 
-    r.watchDirectory = function(directoryPath, onChange)
-    {
-        cachingAdapter.watchDirectory(directoryPath, onChange);
-    };
-
     r.moveFile = function(originalFilePath, newFilePath, callback)
     {
         cachingAdapter.moveFile(originalFilePath, newFilePath, callback);
