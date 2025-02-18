@@ -16,8 +16,7 @@ var session = require('express-session');
 var cookieParser = require('cookie-parser');
 var flash = require("connect-flash");
 
-//const redis = require('redis');
-const connectRedis = require('connect-redis');
+const {RedisStore} = require("connect-redis");
 
 // we don't bind a single passport - instead, we get the constructor here by hand
 var Passport = require("passport").Passport;
@@ -715,7 +714,6 @@ var initSession = function(initDone)
         var redisOptions = redisHelper.redisOptions();
         var redisClient = new IORedis(redisOptions.url);
     
-        var RedisStore = connectRedis(session);
         sessionConfig.store = new RedisStore({ client: redisClient });
         initDone(null, session(sessionConfig));
     }
