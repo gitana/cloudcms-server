@@ -5,16 +5,18 @@ var LRUCache = require("lru-cache");
 
 var request = require("./request");
 
+const IsolatedVM = require("isolated-vm");
+
 // trusted profile cache size 100
 var TRUSTED_PROFILE_CACHE = new LRUCache({
     max:100,
-    maxAge: 1000 * 60 * 15 // 15 minutes
+    ttl: 1000 * 60 * 15 // 15 minutes
 });
 
 // user entry cache size 100
 var USER_ENTRY_CACHE = new LRUCache({
     max: 100,
-    maxAge: 1000 * 60 * 15 // 15 minutes
+    ttl: 1000 * 60 * 15 // 15 minutes
 });
 
 var Gitana = require("gitana");
@@ -652,28 +654,28 @@ var executeRule = function(req, rule, gitanaUser, callback)
         });
     };
 
-    const {VM} = require("vm2");
-    var vm = new VM({
-        timeout: 5000,
-        sandbox: {
-            "addToProject": function(projectId, teamIdentifiers) {
-                return addToProject(projectId, teamIdentifiers, function() {
-                    console.log("Added user: " + gitanaUser._doc + " to project: " + projectId + ", teams: " + JSON.stringify(teamIdentifiers));
-                });
-            },
-            "addToPlatformTeam": function(teamIdentifier) {
-                return addToPlatformTeams([teamIdentifier], function() {
-                    console.log("Added user: " + gitanaUser._doc + " to platform team: " + teamIdentifier);
-                });
-            },
-            "addToPlatformTeams": function(teamIdentifiers) {
-                return addToPlatformTeams(teamIdentifiers, function() {
-                    console.log("Added user: " + gitanaUser._doc + " to platform teams: " + JSON.stringify(teamIdentifiers));
-                });
-            }
-        }
+    const isolate = new IsolatedVM.Isolate({ memoryLimit: 32 });
+    const context = isolate.createContextSync();
+    const jail = context.global;
+
+    // functions
+    jail.setSync('addToProject', function(projectId, teamIdentifiers) {
+        return addToProject(projectId, teamIdentifiers, function() {
+            console.log("Added user: " + gitanaUser._doc + " to project: " + projectId + ", teams: " + JSON.stringify(teamIdentifiers));
+        });
     });
-    vm.run(rule);
+    jail.setSync("addToPlatformTeam", function(teamIdentifier) {
+        return addToPlatformTeams([teamIdentifier], function() {
+            console.log("Added user: " + gitanaUser._doc + " to platform team: " + teamIdentifier);
+        });
+    });
+    jail.setSync("addToPlatformTeams", function(teamIdentifiers) {
+        return addToPlatformTeams(teamIdentifiers, function() {
+            console.log("Added user: " + gitanaUser._doc + " to platform teams: " + JSON.stringify(teamIdentifiers));
+        });
+    });
+
+    context.evalSync(rule);
 
     setTimeout(function() {
         callback();
