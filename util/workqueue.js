@@ -6,7 +6,7 @@ module.exports = function(maxSize)
 
     var blockExecution = false;
 
-    var pendingWorkFns = [];
+    var pendingWorkQueue = [];
     var activeCount = 0;
 
     var processWork = function () {
@@ -24,7 +24,7 @@ module.exports = function(maxSize)
         do
         {
             // if nothing to work on, bail
-            if (pendingWorkFns.length === 0)
+            if (pendingWorkQueue.length === 0)
             {
                 process = false;
             }
@@ -40,24 +40,37 @@ module.exports = function(maxSize)
                 // increment active count
                 activeCount++;
 
-                //console.log("Active work items: " + activeCount);
+                // console.log("Active work items: " + activeCount);
 
                 // define execution function and splice/bind to 0th element from pending list
-                var executionFn = function(workFn) {
+                var executionFn = function(work) {
                     return function() {
-                        workFn(function () {
+                        var workFn = work.workFn;
+                        var callbackFn = work.callbackFn;
+
+                        // console.log("[WORKQUEUE - queue: " + pendingWorkQueue.length + ", actives: " + activeCount + "] start work");
+
+                        workFn(function(err, obj1, obj2) {
 
                             // decrement active count
                             activeCount--;
 
-                            //console.log("Active work items: " + activeCount);
+                            // console.log("[WORKQUEUE - queue: " + pendingWorkQueue.length + ", actives: " + activeCount + "] finish work");
+
+                            // fire optional callback
+                            if (callbackFn) {
+                                // console.log("[WORKQUEUE - queue: " + pendingWorkQueue.length + ", actives: " + activeCount + "] fire work callback");
+                                window.setTimeout(function() {
+                                    callbackFn(err, obj1, obj2);
+                                });
+                            }
 
                             // process more work on timeout
                             window.setTimeout(processWork);
                         });
 
                     };
-                }(pendingWorkFns.splice(0, 1)[0]);
+                }(pendingWorkQueue.splice(0, 1)[0]);
 
                 // execute on timeout
                 window.setTimeout(executionFn);
@@ -68,8 +81,17 @@ module.exports = function(maxSize)
         blockExecution = false;
     };
 
-    return function(workFn) {
-        pendingWorkFns.push(workFn);
+    return function(workFn, callbackFn) {
+
+        var pendingWork = {
+            "workFn": workFn
+        };
+
+        if (callbackFn) {
+            pendingWork.callbackFn = callbackFn;
+        }
+
+        pendingWorkQueue.push(pendingWork);
 
         // execute on timeout
         window.setTimeout(processWork);

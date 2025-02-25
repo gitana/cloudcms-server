@@ -2,6 +2,8 @@ var util = require("../../util/util");
 
 var workQueueFactory = require("../../util/workqueue");
 
+//var debugLog = process.debugLog;
+
 /**
  * Retrieves virtual driver configuration for hosts from Cloud CMS.
  *
@@ -163,9 +165,9 @@ exports = module.exports = function()
         var VCSENTINEL_CACHE_KEY = "vcSentinelFailed-" + host;
 
         // so that only N number of virtual configs are loaded at a time
-        enqueueLoadVirtualConfig(function(host, rootStore, logMethod, callback) {
+        var workFn = function(host, rootStore, logMethod) {
 
-            return function()
+            return function(done)
             {
                 rootStore.existsFile("gitana.json", function(exists) {
 
@@ -266,12 +268,12 @@ exports = module.exports = function()
 
                             if (err)
                             {
-                                return callback(err);
+                                return done(err);
                             }
 
                             if (!data)
                             {
-                                return callback({
+                                return done({
                                     "message": "The gitana.json data read from disk was null or empty"
                                 })
                             }
@@ -281,14 +283,14 @@ exports = module.exports = function()
 
                                 if (err)
                                 {
-                                    return callback(err);
+                                    return done(err);
                                 }
 
                                 // if we failed to read stats or file size 0, then delete and call back with error
                                 if (err || stats.size === 0)
                                 {
                                     return rootStore.deleteFile("gitana.json", function() {
-                                        callback({
+                                        done({
                                             "message": "There was a problem writing the driver configuration file.  Please reload."
                                         });
                                     });
@@ -317,20 +319,24 @@ exports = module.exports = function()
                                 }
 
                                 // otherwise, fine!
-                                callback(null, gitanaJson);
+                                done(null, gitanaJson);
                             });
                         });
                     }
                     else
                     {
                         loadFromRemote(function(err, gitanaJson, doesNotExist) {
-                            callback(err, gitanaJson, doesNotExist);
+                            done(err, gitanaJson, doesNotExist);
                         });
                     }
                 });
             }
 
-        }(host, rootStore, logMethod, callback));
+        }(host, rootStore, logMethod);
+
+        enqueueLoadVirtualConfig(workFn, function(err, gitanaJson, doesNotExist) {
+            callback(err, gitanaJson, doesNotExist);
+        });
     };
 
     r.interceptor = function()

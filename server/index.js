@@ -729,6 +729,8 @@ var initSession = function(initDone)
     }
 };
 
+//var debugMiddleware = process.debugMiddleware;
+
 var startServer = function(config, startServerFinishedFn)
 {
     var app = express();
@@ -897,12 +899,6 @@ var startServer = function(config, startServerFinishedFn)
                     next();
                 });
 
-                // DEBUG
-                app.use(function requestHit1(req, res, next) {
-                    console.log("[REQ: " + req.id + "] DEBUG 1");
-                    next();
-                });
-
                 // APPLY CUSTOM INIT FUNCTIONS
                 runFunctions(config.initFunctions, [app], function (err) {
     
@@ -996,12 +992,6 @@ var startServer = function(config, startServerFinishedFn)
                     // common interceptors and config
                     main.common1(app);
 
-                    // DEBUG
-                    app.use(function requestHit2(req, res, next) {
-                        console.log("[REQ: " + req.id + "] DEBUG 2");
-                        next();
-                    });
-
                     // general logging of requests
                     // gather statistics on response time
                     app.use(responseTime(function (req, res, time) {
@@ -1040,22 +1030,16 @@ var startServer = function(config, startServerFinishedFn)
     
                         req.log(m, warn);
                     }));
-    
+
                     // set up CORS allowances
                     // this lets CORS requests float through the proxy
                     app.use(main.ensureCORS());
-    
+
                     // set up default security headers
                     app.use(main.ensureHeaders());
-    
+
                     // common interceptors and config
                     main.common2(app);
-
-                    // DEBUG
-                    app.use(function requestHit3(req, res, next) {
-                        console.log("[REQ: " + req.id + "] DEBUG 3");
-                        next();
-                    });
 
                     // APPLY CUSTOM DRIVER FUNCTIONS
                     runFunctions(config.driverFunctions, [app], function(err) {
@@ -1068,12 +1052,6 @@ var startServer = function(config, startServerFinishedFn)
     
                         // cloudcms things need to run here
                         main.common4(app, true);
-
-                        // DEBUG
-                        app.use(function requestHit4(req, res, next) {
-                            console.log("[REQ: " + req.id + "] DEBUG 4");
-                            next();
-                        });
 
                         // APPLY CUSTOM FILTER FUNCTIONS
                         runFunctions(config.filterFunctions, [app], function (err) {
@@ -1089,12 +1067,6 @@ var startServer = function(config, startServerFinishedFn)
     
                             // DEVELOPMENT BASED PERFORMANCE CACHING
                             main.perf3(app);
-
-                            // DEBUG
-                            app.use(function requestHit5(req, res, next) {
-                                console.log("[REQ: " + req.id + "] DEBUG 5");
-                                next();
-                            });
 
                             // standard body parsing + a special cloud cms body parser that makes a last ditch effort for anything
                             // that might be JSON (regardless of content type)
@@ -1117,12 +1089,6 @@ var startServer = function(config, startServerFinishedFn)
                                 app.use(initializedSession);
                                 app.use(flash());
                             }
-
-                            // DEBUG
-                            app.use(function requestHit6(req, res, next) {
-                                console.log("[REQ: " + req.id + "] DEBUG 6");
-                                next();
-                            });
 
                             // this is the same as calling
                             // app.use(passport.initialize());
@@ -1163,12 +1129,6 @@ var startServer = function(config, startServerFinishedFn)
                                 });
                             }
 
-                            // DEBUG
-                            app.use(function requestHit7(req, res, next) {
-                                console.log("[REQ: " + req.id + "] DEBUG 7");
-                                next();
-                            });
-
                             // welcome files
                             main.welcome(app);
     
@@ -1180,29 +1140,11 @@ var startServer = function(config, startServerFinishedFn)
                             // healthcheck middleware
                             main.healthcheck(app);
 
-                            // DEBUG
-                            app.use(function requestHit8(req, res, next) {
-                                console.log("[REQ: " + req.id + "] DEBUG 8");
-                                next();
-                            });
-
                             // APPLY CUSTOM ROUTES
                             runFunctions(config.routeFunctions, [app], function (err) {
 
-                                // DEBUG
-                                app.use(function requestHit9(req, res, next) {
-                                    console.log("[REQ: " + req.id + "] DEBUG 9");
-                                    next();
-                                });
-
                                 // configure cloudcms app server handlers
                                 main.handlers(app, true);
-
-                                // DEBUG
-                                app.use(function requestHit10(req, res, next) {
-                                    console.log("[REQ: " + req.id + "] DEBUG 10");
-                                    next();
-                                });
 
                                 // register error functions
                                 runFunctions(config.errorFunctions, [app], function (err) {
@@ -1279,6 +1221,9 @@ var createHttpServer = function(app, done)
 
     // socket
     httpServer.on("connection", function (socket) {
+
+        //console.log("[SOCKET CONNECTION] " + socket);
+
         socket.setNoDelay(true);
         
         socket.setTimeout(requestTimeout, function(socket) {

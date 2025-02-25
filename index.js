@@ -29,6 +29,33 @@ process.logInfo = process.log = function(text, level)
     systemLogger.log(text, level);
 };
 
+// var debugLog = process.debugLog = function(req, message)
+// {
+//     var text = "[" + req.id + "] URL: " + req.url;
+//     // if (req.headers)
+//     // {
+//     //     text += ", HEADERS: " + JSON.stringify(req.headers);
+//     // }
+//     if (req.query)
+//     {
+//         text += ", QUERY: " + JSON.stringify(req.query);
+//     }
+//     text += ", MESSAGE: " + message;
+//
+//     console.log(text);
+// };
+//
+// var debugMiddleware = process.debugMiddleware = function(message)
+// {
+//     return function(req, res, next)
+//     {
+//         debugLog(req, message);
+//
+//         next();
+//     }
+// };
+
+
 
 // by default, set up Gitana driver so that it limits to five concurrent HTTP requests back to Cloud CMS API at at time
 var Gitana = require("gitana");
