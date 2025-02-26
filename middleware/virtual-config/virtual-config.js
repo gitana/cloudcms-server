@@ -16,6 +16,7 @@ exports = module.exports = function()
 
     var SENTINEL_NOT_FOUND_VALUE = "null";
     var BLACKLIST_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
+    var DISABLED_TTL_SECONDS = 60 * 10; // 10 minutes
 
     var VIRTUAL_DRIVER_CACHE_KEY = "virtualdriver";
 
@@ -115,7 +116,8 @@ exports = module.exports = function()
                         config.baseURL = configuration.virtualDriver.baseURL;
 
                         // hand back
-                        callback(null, config);
+                        var disabled = body.disabled ? true : false;
+                        callback(null, config, disabled);
                     }
                 }
                 else
@@ -183,7 +185,7 @@ exports = module.exports = function()
                             }
 
                             // load the gitana.json file from Cloud CMS
-                            loadConfigForVirtualHost(host, logMethod, function (err, virtualConfig) {
+                            loadConfigForVirtualHost(host, logMethod, function (err, virtualConfig, disabled) {
 
                                 if (err)
                                 {
@@ -194,10 +196,20 @@ exports = module.exports = function()
 
                                 if (!virtualConfig)
                                 {
-                                    // mark that it failed (30 minute TTL)
+                                    // mark that it failed (30 day blacklist TTL)
                                     return process.cache.write(VCSENTINEL_CACHE_KEY, true, BLACKLIST_TTL_SECONDS, function() {
                                         finishedLoading({
                                             "message": "No virtual config found for host: " + host
+                                        });
+                                    });
+                                }
+
+                                if (disabled)
+                                {
+                                    // mark that the virtual config is disabled (10 minutes TLL)
+                                    return process.cache.write(VCSENTINEL_CACHE_KEY, true, DISABLED_TTL_SECONDS, function() {
+                                        finishedLoading({
+                                            "message": "The virtual config was found for host: " + host + " but it has been marked as disabled"
                                         });
                                     });
                                 }

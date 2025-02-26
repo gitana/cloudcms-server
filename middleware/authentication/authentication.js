@@ -391,7 +391,9 @@ exports = module.exports = function()
 
                     if (!profile || !info)
                     {
-                        return handleFailure(null, res);
+                        return handleFailure({
+                            "message": "Authentication callback missing both profile and info"
+                        }, res);
                     }
 
                     // store these onto request
