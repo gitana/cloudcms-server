@@ -5,8 +5,6 @@ var LRUCache = require("lru-cache");
 
 var request = require("./request");
 
-const IsolatedVM = require("isolated-vm");
-
 // trusted profile cache size 100
 var TRUSTED_PROFILE_CACHE = new LRUCache({
     max:100,
@@ -389,7 +387,9 @@ var _handleConnectAsUser = function(req, key, gitanaUser, callback) {
 
 var _handleSyncUser = function(req, strategy, settings, key, domainId, providerId, providerUserId, token, refreshToken, userObject, groupsArray, callback) {
 
-    __handleSyncUser(req, strategy, settings, key, domainId, providerId, providerUserId, token, refreshToken, userObject, function(err, gitanaUser, synced) {
+    var rulesArray = buildRulesArray(req, strategy, settings, groupsArray);
+
+    __handleSyncUser(req, strategy, settings, key, domainId, providerId, providerUserId, token, refreshToken, userObject, rulesArray, function(err, gitanaUser, synced) {
 
         if (err) {
             return callback(err);
@@ -414,25 +414,12 @@ var _handleSyncUser = function(req, strategy, settings, key, domainId, providerI
             });
         }
 
-        if (!synced)
-        {
-            if (!groupsArray || groupsArray.length == 0)
-            {
-                return callback(null, gitanaUser);
-            }
-        }
-
-        // sync groups
-        __handleSyncGroups(req, strategy, settings, gitanaUser, groupsArray, function(err, gitanaUser) {
-
-            return callback(null, gitanaUser);
-
-        });
+        return callback(null, gitanaUser);
     });
 
 };
 
-var __handleSyncUser = function(req, strategy, settings, key, domainId, providerId, providerUserId, token, refreshToken, userObject, callback) {
+var __handleSyncUser = function(req, strategy, settings, key, domainId, providerId, providerUserId, token, refreshToken, userObject, rulesArray, callback) {
 
     var baseURL = req.gitanaConfig.baseURL;
     var authorizationHeader = req.gitana.getDriver().getHttpHeaders()["Authorization"];
@@ -454,6 +441,11 @@ var __handleSyncUser = function(req, strategy, settings, key, domainId, provider
         "user": userObject,
         "connection": connectionObject
     };
+
+    if (rulesArray)
+    {
+        json.rules = rulesArray;
+    }
 
     var autoCreate = strategy.autoRegister ? true : false;
 
@@ -480,7 +472,7 @@ var __handleSyncUser = function(req, strategy, settings, key, domainId, provider
         {
             // retry after getting new token
             return req.gitana.getDriver().reloadAuthInfo(function () {
-                __handleSyncUser(req, strategy, settings, key, domainId, providerId, providerUserId, token, refreshToken, userObject, function(err, gitanaUser, synced) {
+                __handleSyncUser(req, strategy, settings, key, domainId, providerId, providerUserId, token, refreshToken, userObject, rulesArray, function(err, gitanaUser, synced) {
                     callback(err, gitanaUser, synced);
                 })
             });
@@ -525,205 +517,44 @@ var __handleSyncUser = function(req, strategy, settings, key, domainId, provider
     });
 };
 
-var executeRule = function(req, rule, gitanaUser, callback)
+var buildRulesArray = function(req, strategy, settings, groupsArray)
 {
-    //
-    // addToProject(projectId)
-    // addToProject(projectId, [teamKey]);
-    //
-    // removeFromProject(projectId);
-    //
-    // addToPlatformTeam([teamKey])
-    // removeFromPlatformTeam([teamKey])
-
-    var ensureArray = function(teamIdentifiers) {
-        var array = [];
-        if (!teamIdentifiers) {
-            return array;
-        }
-
-        if (typeof(teamIdentifiers) === "string") {
-            array.push(teamIdentifiers);
-        }
-
-        for (var i = 0; i < teamIdentifiers.length; i++) {
-            array.push(teamIdentifiers[i]);
-        }
-
-        return array;
-    };
-
-    var addToProject = function(projectId, teamIdentifiers, finished) {
-
-        if (!teamIdentifiers) {
-            teamIdentifiers = "project-users-team";
-        }
-
-        teamIdentifiers = ensureArray(teamIdentifiers);
-
-        var project = null;
-        var stack = null;
-
-        return req.gitana.platform().trap(function(e) {
-            return false;
-        }).readProject(projectId).then(function(){
-            project = this;
-        }).readStack().then(function() {
-            stack = this;
-
-            var fns = [];
-            for (var i = 0; i < teamIdentifiers.length; i++)
-            {
-                var fn = function(stack, teamIdentifier, user) {
-                    return function(d) {
-
-                        console.log("Working on stack: " + stack._doc + ", team: " + teamIdentifier + ", user: " + user._doc);
-
-                        Chain(stack).trap(function(e) {
-                            d();
-                            return false;
-                        }).readTeam(teamIdentifier).then(function() {
-                            var team = this;
-
-                            Chain(team).hasMember(user, function(has) {
-                                if (has) {
-                                    return d();
-                                }
-                                Chain(team).addMember(user).then(function() {
-                                    d();
-                                });
-                            });
-                        });
-
-                    }
-                }(stack, teamIdentifiers[i], gitanaUser);
-                fns.push(fn);
-            }
-            async.series(fns, function() {
-                finished();
-            });
-        });
-    };
-
-    var addToPlatformTeams = function(teamIdentifiers, finished) {
-
-        if (!teamIdentifiers) {
-            teamIdentifiers = "project-users-team";
-        }
-
-        teamIdentifiers = ensureArray(teamIdentifiers);
-
-        var platform = null;
-
-        return Chain(req.gitana.platform()).trap(function(e) {
-            return false;
-        }).then(function() {
-            platform = this;
-
-            var fns = [];
-            for (var i = 0; i < teamIdentifiers.length; i++)
-            {
-                var fn = function(platform, teamIdentifier, user) {
-                    return function(d) {
-
-                        console.log("Working on platform team: " + teamIdentifier + ", user: " + user._doc);
-
-                        Chain(platform).trap(function(e) {
-                            d();
-                            return false;
-                        }).readTeam(teamIdentifier).then(function() {
-                            var team = this;
-
-                            Chain(team).hasMember(user, function(has) {
-                                if (has) {
-                                    return d();
-                                }
-                                Chain(team).addMember(user).then(function() {
-                                    d();
-                                });
-                            });
-                        });
-
-                    }
-                }(platform, teamIdentifiers[i], gitanaUser);
-                fns.push(fn);
-            }
-            async.series(fns, function() {
-                finished();
-            });
-        });
-    };
-
-    const isolate = new IsolatedVM.Isolate({ memoryLimit: 32 });
-    const context = isolate.createContextSync();
-    const jail = context.global;
-
-    // functions
-    jail.setSync('addToProject', function(projectId, teamIdentifiers) {
-        return addToProject(projectId, teamIdentifiers, function() {
-            console.log("Added user: " + gitanaUser._doc + " to project: " + projectId + ", teams: " + JSON.stringify(teamIdentifiers));
-        });
-    });
-    jail.setSync("addToPlatformTeam", function(teamIdentifier) {
-        return addToPlatformTeams([teamIdentifier], function() {
-            console.log("Added user: " + gitanaUser._doc + " to platform team: " + teamIdentifier);
-        });
-    });
-    jail.setSync("addToPlatformTeams", function(teamIdentifiers) {
-        return addToPlatformTeams(teamIdentifiers, function() {
-            console.log("Added user: " + gitanaUser._doc + " to platform teams: " + JSON.stringify(teamIdentifiers));
-        });
-    });
-
-    context.evalSync(rule);
-
-    setTimeout(function() {
-        callback();
-    }, 250);
-};
-
-var __handleSyncGroups = function(req, strategy, settings, gitanaUser, groupsArray, callback) {
+    var rules = [];
 
     if (!groupsArray || groupsArray.length === 0)
     {
-        return callback(null, gitanaUser);
+        return rules;
     }
 
     // if no groupMappings defined, bail
     if (!settings || !settings.sso || !settings.sso.groupMappings || settings.sso.groupMappings.length === 0) {
-        return callback(null, gitanaUser);
+        return rules;
     }
 
     // copy mappings into a lookup list
-    var groupRules = {};
+    // group key -> rules
     for (var i = 0; i < settings.sso.groupMappings.length; i++)
     {
-        groupRules[settings.sso.groupMappings[i].key] = settings.sso.groupMappings[i].values;
-    }
-
-    var fns = [];
-    for (var i = 0; i < groupsArray.length; i++)
-    {
-        var groupIdentifier = groupsArray[i];
-
-        var rules = groupRules[groupIdentifier];
-        if (rules)
+        var key = settings.sso.groupMappings[i].key;
+        var values = settings.sso.groupMappings[i].values;
+        if (values && values.length > 0)
         {
-            for (var x = 0; x < rules.length; x++)
+            for (var x = 0; x < values.length; x++)
             {
-                var fn = function (rule, gitanaUser) {
-                    return function (done) {
-                        executeRule(req, rule, gitanaUser, function (err) {
-                            done(err);
-                        });
-                    }
-                }(rules[x], gitanaUser);
-                fns.push(fn);
+                var script = values[x];
+
+                rules.push({
+                    // "condition": {
+                    //     "type": "belongsToGroup",
+                    //     "config": {
+                    //         "key": key
+                    //     }
+                    // },
+                    "script": script
+                });
             }
         }
     }
 
-    async.series(fns, function() {
-        callback(null, gitanaUser);
-    });
+    return rules;
 };

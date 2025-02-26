@@ -10,6 +10,8 @@ process.on('uncaughtException', function(err, source) {
     // {
         console.log(`Launchpad - process received event 'uncaughtException': ${err}, source: ${source}`);
         console.log(err.stack);
+        console.log("ERR: ", err);
+        console.log("SOURCE: ", source);
     // }
 });
 
