@@ -356,7 +356,7 @@ exports = module.exports = function()
                         };
                     }
 
-                    console.log("Auth Callback failed, err: " + JSON.stringify(err));
+                    console.log("Auth Callback failed, err: " + err + ", err json: " + JSON.stringify(err));
 
                     if (err.message)
                     {
@@ -384,6 +384,10 @@ exports = module.exports = function()
                 };
 
                 return function (err, profile, info) {
+
+                    if (err) {
+                        console.log("Caught error on auth callback function: ", err, JSON.stringify(err));
+                    }
 
                     if (err) {
                         return handleFailure(err, res);
