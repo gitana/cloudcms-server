@@ -29,12 +29,45 @@ process.logInfo = process.log = function(text, level)
     systemLogger.log(text, level);
 };
 
+// var debugLog = process.debugLog = function(req, message)
+// {
+//     var text = "[" + req.id + "] URL: " + req.url;
+//     // if (req.headers)
+//     // {
+//     //     text += ", HEADERS: " + JSON.stringify(req.headers);
+//     // }
+//     if (req.query)
+//     {
+//         text += ", QUERY: " + JSON.stringify(req.query);
+//     }
+//     text += ", MESSAGE: " + message;
+//
+//     console.log(text);
+// };
+//
+// var debugMiddleware = process.debugMiddleware = function(message)
+// {
+//     return function(req, res, next)
+//     {
+//         debugLog(req, message);
+//
+//         next();
+//     }
+// };
+
+
 
 // by default, set up Gitana driver so that it limits to five concurrent HTTP requests back to Cloud CMS API at at time
 var Gitana = require("gitana");
 
-// default http timeout
-process.defaultHttpTimeoutMs = 60000;
+// default keep alive (3 minutes)
+process.defaultKeepAliveMs = (3 * 60 * 1000);
+
+// default http timeout (2 minutes)
+process.defaultHttpTimeoutMs = 2 * 60 * 1000;
+
+// default exclusive lock timeout (2 minutes)
+process.defaultExclusiveLockTimeoutMs = 2 * 60 * 1000;
 
 if (process.env.DEFAULT_HTTP_TIMEOUT_MS)
 {
@@ -51,27 +84,37 @@ if (process.env.DEFAULT_HTTP_TIMEOUT_MS)
 // dns fix for Node 17 +
 // see: https://nodejs.org/api/dns.html#dnssetdefaultresultorderorder
 var dns = require("dns");
-dns.setDefaultResultOrder("ipv4first");
+if (typeof(dns.setDefaultResultOrder) !== "undefined") {
+    dns.setDefaultResultOrder("ipv4first");
+}
 
 // default agents
 var HttpKeepAliveAgent = require('agentkeepalive');
 var HttpsKeepAliveAgent = require('agentkeepalive').HttpsAgent;
 http.globalAgent = new HttpKeepAliveAgent({
     keepAlive: true,
-    keepAliveMsecs: 5000,
-    maxSockets: 16000,
+    keepAliveMsecs: process.defaultKeepAliveMs,
+    maxSockets: 1024,
     maxFreeSockets: 256,
     timeout: process.defaultHttpTimeoutMs,
-    freeSocketTimeout: 4000
+    freeSocketTimeout: 5000
 });
 https.globalAgent = new HttpsKeepAliveAgent({
     keepAlive: true,
-    keepAliveMsecs: 1000,
-    maxSockets: 16000,
+    keepAliveMsecs: process.defaultKeepAliveMs,
+    maxSockets: 1024,
     maxFreeSockets: 256,
     timeout: process.defaultHttpTimeoutMs,
-    freeSocketTimeout: 4000
+    freeSocketTimeout: 5000
 });
+
+// install dns cache
+const CacheableLookup = require("cacheable-lookup");
+const cacheable = new CacheableLookup({
+    // Set any custom options here
+});
+cacheable.install(http.globalAgent);
+cacheable.install(https.globalAgent);
 
 // disable for now
 /*
@@ -141,8 +184,8 @@ exports = module.exports = function()
     // not already specified
     var defaultGitanaProxyScheme = "https";
     var defaultGitanaProxyHost = "api.cloudcms.com";
-    var defaultGitanaProxyPort = 443;
     var defaultGitanaProxyPath = "";
+    var defaultGitanaProxyPort = 443;
 
     var gitanaJsonPath = path.join(process.env.CLOUDCMS_APPSERVER_BASE_PATH, "gitana.json");
     if (fs.existsSync(gitanaJsonPath))
@@ -153,8 +196,8 @@ exports = module.exports = function()
             var parsedUrl = url.parse(gitanaJson.baseURL);
 
             defaultGitanaProxyHost = parsedUrl.hostname;
-            defaultGitanaProxyScheme = parsedUrl.protocol.substring(0, parsedUrl.protocol.length - 1); // remove the :
             defaultGitanaProxyPath = parsedUrl.path;
+            defaultGitanaProxyScheme = parsedUrl.protocol.substring(0, parsedUrl.protocol.length - 1); // remove the :
 
             if (parsedUrl.port)
             {
@@ -178,13 +221,13 @@ exports = module.exports = function()
     if (!process.env.GITANA_PROXY_HOST) {
         process.env.GITANA_PROXY_HOST = defaultGitanaProxyHost;
     }
-    if (!process.env.GITANA_PROXY_PORT) {
-        process.env.GITANA_PROXY_PORT = defaultGitanaProxyPort;
-    }
     if (!process.env.GITANA_PROXY_PATH) {
         process.env.GITANA_PROXY_PATH = defaultGitanaProxyPath;
     }
-    
+    if (!process.env.GITANA_PROXY_PORT) {
+        process.env.GITANA_PROXY_PORT = defaultGitanaProxyPort;
+    }
+
     if (cluster.isMaster)
     {
         process.log("Gitana Proxy pointed to: " + util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH));
@@ -223,13 +266,11 @@ exports = module.exports = function()
     var registration = require("./middleware/registration/registration");
     var resources = require("./middleware/resources/resources");
     var runtime = require("./middleware/runtime/runtime");
-    var serverTags = require("./middleware/server-tags/server-tags");
     var storeService = require("./middleware/stores/stores");
     var templates = require("./middleware/templates/templates");
     var themes = require("./middleware/themes/themes");
     var virtualConfig = require("./middleware/virtual-config/virtual-config");
     var virtualFiles = require("./middleware/virtual-files/virtual-files");
-    var wcm = require("./middleware/wcm/wcm");
     var welcome = require("./middleware/welcome/welcome");
     var awareness = require("./middleware/awareness/awareness");
     var userAgent = require('express-useragent');
@@ -469,15 +510,6 @@ exports = module.exports = function()
 
         // supports user-configured dynamic configuration
         app.use(config.remoteConfigInterceptor());
-
-        // tag processing, injection of scripts, etc, kind of a catch all at the moment
-        app.use(serverTags.interceptor(configuration));
-
-        if (includeCloudCMS)
-        {
-            // handles retrieval of content from wcm
-            app.use(wcm.wcmInterceptor());
-        }
     };
 
     r.handlers = function(app, includeCloudCMS)
@@ -556,12 +588,6 @@ exports = module.exports = function()
 
         // add User-Agent device info to req
         app.use(userAgent.express());
-
-        if (includeCloudCMS)
-        {
-            // handles retrieval of content from wcm
-            app.use(wcm.wcmHandler());
-        }
 
         // handles 404
         app.use(final.finalHandler());

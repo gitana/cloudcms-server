@@ -1,5 +1,4 @@
 var util = require("../../util/util");
-var duster = require("../../duster/index");
 
 /**
  * Deployment middleware.
@@ -299,10 +298,6 @@ exports = module.exports = function()
                     logFn("Invalidating application cache for application: " + descriptor.application.id);
                     process.cache.invalidateCacheForApp(descriptor.application.id);
 
-                    // invalidate "duster" cache for this application
-                    logFn("Invalidating duster cache for application: " + descriptor.application.id);
-                    duster.invalidateCacheForApp(descriptor.application.id);
-
                     // invalidate gitana driver for this application
                     process.broadcast.publish("application_invalidation", {
                         "applicationId": descriptor.application.id,
@@ -348,36 +343,39 @@ exports = module.exports = function()
                 var rootStore = stores.root;
                 rootStore.allocated(function(allocated) {
 
+                    console.log("H2: " + allocated);
                     if (!allocated) {
-                        return callback({
+                        callback({
                             "message": "The application cannot be started because it is not deployed."
                         });
                     }
+                    else
+                    {
+                        rootStore.readFile("descriptor.json", function (err, data) {
 
-                    rootStore.readFile("descriptor.json", function (err, data) {
+                            if (err) {
+                                return callback(err);
+                            }
 
-                        if (err) {
-                            return callback(err);
-                        }
+                            data = JSON.parse(data);
 
-                        data = JSON.parse(data);
+                            // is it already started?
+                            if (data.active) {
+                                return callback({
+                                    "message": "The application is already started"
+                                });
+                            }
 
-                        // is it already started?
-                        if (data.active) {
-                            return callback({
-                                "message": "The application is already started"
+                            data.active = true;
+
+                            logFn("Starting application: " + data.application.id + " with host: " + host);
+
+                            rootStore.writeFile("descriptor.json", JSON.stringify(data, null, "  "), function (err) {
+                                console.log("Start error: "+ err);
+                                callback(err);
                             });
-                        }
-
-                        data.active = true;
-
-                        logFn("Starting application: " + data.application.id + " with host: " + host);
-
-                        rootStore.writeFile("descriptor.json", JSON.stringify(data, null, "  "), function (err) {
-                            console.log("Start error: "+ err);
-                            callback(err);
                         });
-                    });
+                    }
                 });
             });
         });

@@ -16,8 +16,7 @@ var session = require('express-session');
 var cookieParser = require('cookie-parser');
 var flash = require("connect-flash");
 
-//const redis = require('redis');
-const connectRedis = require('connect-redis');
+const {RedisStore} = require("connect-redis");
 
 // we don't bind a single passport - instead, we get the constructor here by hand
 var Passport = require("passport").Passport;
@@ -32,11 +31,6 @@ var requestParam = require("request-param")();
 
 // cloudcms app server support
 var main = require("../index");
-
-// duster service
-var duster = require("../duster/index");
-
-var coreHelpers = require("../duster/helpers/core/index");
 
 var helmet = require("helmet");
 
@@ -71,7 +65,6 @@ var SETTINGS = {
     "beforeFunctions": [],
     "afterFunctions": [],
     "reportFunctions": [],
-    "dustFunctions": [],
     "initFunctions": [],
     "filterFunctions": [],
     "driverFunctions": [],
@@ -180,11 +173,6 @@ var SETTINGS = {
             "templates": "hosts_s3fs",
             "themes": "hosts_s3fs",
             "modules": "hosts_s3fs"
-        }
-    },
-    "duster": {
-        "fragments": {
-            "cache": true
         }
     },
     "virtualHost": {
@@ -324,9 +312,6 @@ var SETTINGS = {
     }
 };
 
-// always push core tag helpers to the front
-SETTINGS.dustFunctions.unshift(coreHelpers);
-
 // if SETTINGS.errorFunctions is empty, plug in a default error handler
 if (SETTINGS.errorFunctions.length === 0)
 {
@@ -449,17 +434,6 @@ exports.error = function (fn) {
 };
 
 /**
- * Adds an initialization function to set up dust.
- *
- * The function must have signature fn(app, dust)
- *
- * @param helperFn
- */
-var dust = exports.dust = function(fn) {
-    SETTINGS.dustFunctions.push(fn);
-};
-
-/**
  * Registers a function to run before the server starts.
  *
  * @param fn
@@ -547,6 +521,7 @@ var runFunctions = function (functions, args, callback) {
  * @param callback optional callback function
  */
 exports.start = function(overrides, callback) {
+
     setTimeout(function() {
         _start(overrides, function(err) {
             if (callback) {
@@ -745,8 +720,7 @@ var initSession = function(initDone)
         var IORedis = require("ioredis");
         var redisOptions = redisHelper.redisOptions();
         var redisClient = new IORedis(redisOptions.url);
-    
-        var RedisStore = connectRedis(session);
+
         sessionConfig.store = new RedisStore({ client: redisClient });
         initDone(null, session(sessionConfig));
     }
@@ -762,11 +736,54 @@ var initSession = function(initDone)
     }
 };
 
+//var debugMiddleware = process.debugMiddleware;
+
 var startServer = function(config, startServerFinishedFn)
 {
     var app = express();
     app.disable('x-powered-by');
-    
+
+    // customize the app use() method to provide sensible logging
+    app._use = app.use;
+    app.use = function(f)
+    {
+        if (typeof(f) !== "function")
+        {
+            return app._use.apply(app, arguments);
+        }
+
+        return app._use(function(f) {
+            return function(req, res, next)
+            {
+                var functionName = f.name;
+                if (!functionName) {
+                    functionName = "unknown";
+                }
+
+                var id = req.id;
+
+                var startTime = process.hrtime();
+
+                f(req, res, function() {
+                    var totalTime = process.hrtime(startTime);
+                    var totalTimeMs = (totalTime[1] / 1000000).toFixed(2);
+                    // if (totalTimeMs > 100)
+                    // {
+                    //     if (id)
+                    //     {
+                    //         console.log("[" + id + "](" + functionName + ") time: " + totalTimeMs);
+                    //     }
+                    //
+                    //     //console.trace();
+                    //     //process.exit(-1);
+                    // }
+
+                    next();
+                });
+            }
+        }(f));
+    };
+
     initSession(function(err, initializedSession) {
 
         if (err) {
@@ -790,7 +807,6 @@ var startServer = function(config, startServerFinishedFn)
                 //
                 // BASE CONFIGURATION
                 //
-                // Configures NodeJS app server using dustjs templating engine
                 // Runs on port 3000 by default
                 //
                 ////////////////////////////////////////////////////////////////////////////
@@ -799,16 +815,7 @@ var startServer = function(config, startServerFinishedFn)
                 app.set('port', process.env.PORT);
                 app.set('views', process.env.CLOUDCMS_APPSERVER_BASE_PATH + "/views");
     
-                if (config.viewEngine === "dust")
-                {
-                    var cons = require('consolidate');
-    
-                    app.set('view engine', 'html');
-                    app.set('view engine', 'dust');
-                    app.engine('html', cons.dust);
-                    app.engine('dust', cons.dust);
-                }
-                else if (config.viewEngine === "handlebars" || config.viewEngine === "hbs")
+                if (config.viewEngine === "handlebars" || config.viewEngine === "hbs")
                 {
                     var hbs = require('hbs');
     
@@ -883,7 +890,7 @@ var startServer = function(config, startServerFinishedFn)
     
                     return message;
                 });
-    
+
                 /*
                 // debug headers being set
                 app.use(function(req, res, next) {
@@ -895,19 +902,19 @@ var startServer = function(config, startServerFinishedFn)
                     next();
                 });
                 */
-    
+
                 // increment and assign request id
-                app.use(function (req, res, next) {
+                app.use(function increment_and_assign_id(req, res, next) {
                     requestCounter++;
                     req.id = requestCounter;
                     next();
                 });
-    
+
                 // APPLY CUSTOM INIT FUNCTIONS
                 runFunctions(config.initFunctions, [app], function (err) {
     
                     // retain originalUrl and originalPath since these can get modified along the way
-                    app.use(function (req, res, next) {
+                    app.use(function retain_original_url_path(req, res, next) {
                         req.originalUrl = req.url;
                         req.originalPath = req.path;
                         next();
@@ -917,7 +924,7 @@ var startServer = function(config, startServerFinishedFn)
                     app.use(requestParam);
     
                     // add req.log function
-                    app.use(function (req, res, next) {
+                    app.use(function bind_req_log(req, res, next) {
     
                         req._log = req.log = function (text/*, warn*/) {
     
@@ -955,16 +962,47 @@ var startServer = function(config, startServerFinishedFn)
                                 message = "\r\n**** SLOW RESPONSE ****\r\n" + message + "\r\n";
                             }
                             */
-    
+
                             console.log(message);
                         };
     
                         next();
                     });
+
+                    // kills immediately based on path, headers or other detections
+                    app.use(function(req, res, next) {
+
+                        var kill = false;
+                        if (req.path.endsWith("/env"))
+                        {
+                            kill = true;
+                        }
+
+                        if (kill)
+                        {
+                            var text = "KILL, method: " + req.method + ", url: " + req.url;
+                            if (req.headers)
+                            {
+                                text += ", headers: " + JSON.stringify(req.headers);
+                            }
+                            if (req.query)
+                            {
+                                text += ", query: " + JSON.stringify(req.query);
+                            }
+                            console.log(text);
+
+                            // are we being spoofed? kill the connection
+                            res.blocked = true;
+                            res.writeHead(503, { 'Content-Type': 'application/json' });
+                            return res.end(JSON.stringify({"error": true, "message": "Bad Request."}));
+                        }
+
+                        next();
+                    });
     
                     // common interceptors and config
                     main.common1(app);
-    
+
                     // general logging of requests
                     // gather statistics on response time
                     app.use(responseTime(function (req, res, time) {
@@ -992,20 +1030,28 @@ var startServer = function(config, startServerFinishedFn)
                                 requestPath = util.stripQueryStringFromUrl(requestPath);
                             }
                         }
-    
-                        req.log(req.method + " " + requestPath + " [" + res.statusCode + "] (" + time.toFixed(2) + " ms)", warn);
+
+                        var m = "";
+                        if (res.blocked)
+                        {
+                            m += "*BLOCKED* ";
+                        }
+                        m += req.method + " " + requestPath + " [" + res.statusCode + "]";
+                        m += " (" + time.toFixed(2) + " ms)";
+
+                        req.log(m, warn);
                     }));
-    
+
                     // set up CORS allowances
                     // this lets CORS requests float through the proxy
                     app.use(main.ensureCORS());
-    
+
                     // set up default security headers
                     app.use(main.ensureHeaders());
-    
+
                     // common interceptors and config
                     main.common2(app);
-    
+
                     // APPLY CUSTOM DRIVER FUNCTIONS
                     runFunctions(config.driverFunctions, [app], function(err) {
     
@@ -1017,7 +1063,7 @@ var startServer = function(config, startServerFinishedFn)
     
                         // cloudcms things need to run here
                         main.common4(app, true);
-    
+
                         // APPLY CUSTOM FILTER FUNCTIONS
                         runFunctions(config.filterFunctions, [app], function (err) {
     
@@ -1032,7 +1078,7 @@ var startServer = function(config, startServerFinishedFn)
     
                             // DEVELOPMENT BASED PERFORMANCE CACHING
                             main.perf3(app);
-    
+
                             // standard body parsing + a special cloud cms body parser that makes a last ditch effort for anything
                             // that might be JSON (regardless of content type)
                             app.use(function (req, res, next) {
@@ -1054,7 +1100,7 @@ var startServer = function(config, startServerFinishedFn)
                                 app.use(initializedSession);
                                 app.use(flash());
                             }
-    
+
                             // this is the same as calling
                             // app.use(passport.initialize());
                             // except we create a new passport each time and store on request to support multitenancy
@@ -1093,7 +1139,7 @@ var startServer = function(config, startServerFinishedFn)
                                     req.passport.session()(req, res, next);
                                 });
                             }
-    
+
                             // welcome files
                             main.welcome(app);
     
@@ -1104,13 +1150,13 @@ var startServer = function(config, startServerFinishedFn)
     
                             // healthcheck middleware
                             main.healthcheck(app);
-    
+
                             // APPLY CUSTOM ROUTES
                             runFunctions(config.routeFunctions, [app], function (err) {
     
                                 // configure cloudcms app server handlers
                                 main.handlers(app, true);
-    
+
                                 // register error functions
                                 runFunctions(config.errorFunctions, [app], function (err) {
     
@@ -1128,7 +1174,7 @@ var startServer = function(config, startServerFinishedFn)
                                         }
                                     }
                                     runFunctions(allConfigureFunctions, [app], function (err) {
-    
+
                                         // create the server (either HTTP or HTTPS)
                                         createHttpServer(app, function(err, httpServer) {
                                             
@@ -1172,16 +1218,29 @@ var createHttpServer = function(app, done)
     }
     
     // request timeout
-    var requestTimeout = 30000; // 30 seconds
+    var requestTimeout = 120000; // 2 minutes
     if (process.configuration && process.configuration.timeout)
     {
         requestTimeout = process.configuration.timeout;
     }
-    httpServer.setTimeout(requestTimeout);
-    
+    httpServer.setTimeout(requestTimeout, function(socket) {
+        try { socket.end(); } catch (e) { }
+        try { socket.destroy(); } catch (e) { }
+    });
+
+    var c = 0;
+
     // socket
     httpServer.on("connection", function (socket) {
+
+        //console.log("[SOCKET CONNECTION] " + socket);
+
         socket.setNoDelay(true);
+
+        socket.setTimeout(requestTimeout, function(socket) {
+            try { socket.end(); } catch (e) { }
+            try { socket.destroy(); } catch (e) { }
+        });
     });
     
     done(null, httpServer);
@@ -1277,54 +1336,50 @@ var configureServer = function(config, app, httpServer, configureServerFinishedF
     }
     
     // SET INITIAL VALUE FOR SERVER TIMESTAMP
-    process.env.CLOUDCMS_APPSERVER_TIMESTAMP = new Date().getTime();
+    process.env.CLOUDCMS_APPSERVER_TIMESTAMP = Date.now();
     
-    // DUST
-    runFunctions(config.dustFunctions, [app, duster.getDust()], function (err) {
-        
-        // APPLY SERVER BEFORE START FUNCTIONS
-        runFunctions(config.beforeFunctions, [app], function (err) {
-            
-            // AFTER SERVER START
-            runFunctions(config.afterFunctions, [app], function (err) {
-                
-                function cleanup() {
-                    
-                    if (cluster.isMaster)
-                    {
-                        console.log("");
-                        console.log("");
-                        
-                        console.log("Cloud CMS Module shutting down");
-                        
-                        // close server connections as cleanly as we can
-                        console.log(" -> Closing server connections");
-                    }
-                    
-                    try
-                    {
-                        httpServer.close();
-                    }
-                    catch (e)
-                    {
-                        console.log("Server.close produced error: " + JSON.stringify(e));
-                    }
-                    
-                    if (cluster.isMaster)
-                    {
-                        console.log("");
-                    }
-                    
-                    // tell the process to exit
-                    process.exit();
+    // APPLY SERVER BEFORE START FUNCTIONS
+    runFunctions(config.beforeFunctions, [app], function (err) {
+
+        // AFTER SERVER START
+        runFunctions(config.afterFunctions, [app], function (err) {
+
+            function cleanup() {
+
+                if (cluster.isMaster)
+                {
+                    console.log("");
+                    console.log("");
+
+                    console.log("Cloud CMS Module shutting down");
+
+                    // close server connections as cleanly as we can
+                    console.log(" -> Closing server connections");
                 }
-                
-                // listen for kill or interrupt so that we can shut down cleanly
-                process.on('SIGINT', cleanup);
-                process.on('SIGTERM', cleanup);
-                
-                configureServerFinishedFn();
-            });
+
+                try
+                {
+                    httpServer.close();
+                }
+                catch (e)
+                {
+                    console.log("Server.close produced error: " + JSON.stringify(e));
+                }
+
+                if (cluster.isMaster)
+                {
+                    console.log("");
+                }
+
+                // tell the process to exit
+                process.exit();
+            }
+
+            // listen for kill or interrupt so that we can shut down cleanly
+            process.on('SIGINT', cleanup);
+            process.on('SIGTERM', cleanup);
+
+            configureServerFinishedFn();
         });
     });
 };

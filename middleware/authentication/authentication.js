@@ -315,16 +315,11 @@ exports = module.exports = function()
         registerAdapter("session", require("./adapters/session"));
 
         // providers
-        registerProvider("cas", require("./providers/cas"));
-        registerProvider("facebook", require("./providers/facebook"));
-        registerProvider("github", require("./providers/github"));
         registerProvider("google", require("./providers/google"));
         registerProvider("keycloak", require("./providers/keycloak"));
-        registerProvider("linkedin", require("./providers/linkedin"));
         registerProvider("local", require("./providers/local"));
         registerProvider("saml", require("./providers/saml"));
         registerProvider("trusted", require("./providers/trusted"));
-        registerProvider("twitter", require("./providers/twitter"));
 
         // authenticators
         registerAuthenticator("default", require("./authenticators/default"));
@@ -361,7 +356,7 @@ exports = module.exports = function()
                         };
                     }
 
-                    console.log("Auth Callback failed, err: " + JSON.stringify(err));
+                    console.log("Auth Callback failed, err: " + err + ", err json: " + JSON.stringify(err));
 
                     if (err.message)
                     {
@@ -391,12 +386,18 @@ exports = module.exports = function()
                 return function (err, profile, info) {
 
                     if (err) {
+                        console.log("Caught error on auth callback function: ", err, JSON.stringify(err));
+                    }
+
+                    if (err) {
                         return handleFailure(err, res);
                     }
 
                     if (!profile || !info)
                     {
-                        return handleFailure(null, res);
+                        return handleFailure({
+                            "message": "Authentication callback missing both profile and info"
+                        }, res);
                     }
 
                     // store these onto request
@@ -695,11 +696,11 @@ exports = module.exports = function()
         return function(req, res, next) {
 
             // record filter start time
-            var _auth_filter_start_ms = new Date().getTime();
+            var _auth_filter_start_ms = Date.now();
 
             fn(req, res, function(result, authenticator) {
 
-                var _auth_filter_end_ms = new Date().getTime() - _auth_filter_start_ms;
+                var _auth_filter_end_ms = Date.now() - _auth_filter_start_ms;
 
                 util.setHeader(res, "x-cloudcms-auth-filter-ms", _auth_filter_end_ms);
 
@@ -736,8 +737,11 @@ exports = module.exports = function()
                         };
                     }
 
-                    if (result.err && result.err.message) {
-                        req.log("Auth strategy: " + strategyId + " - filter error: " + result.err.message);
+                    if (!result.skip)
+                    {
+                        if (result.err && result.err.message) {
+                            req.log("Auth strategy: " + strategyId + " - filter error: " + result.err.message);
+                        }
                     }
 
                     var providerId = null;
@@ -810,7 +814,31 @@ exports = module.exports = function()
                             }
                             redirectUrl += "requested_url=" + requested_url;
 
-                            return res.redirect(redirectUrl);
+                            res.status(200);
+                            res.type("text/html");
+
+                            // serve back a redirect via html
+                            var html = " \
+                                <html> \
+                                    <head> \
+                                        <script> \
+                                            var _redirectUrl = '" + redirectUrl + "'; \
+                                            var hash = window.location.hash ? window.location.hash : ''; \
+                                            if (hash && hash.indexOf('#') === 0) { \
+                                                hash = hash.substring(1); \
+                                            } \
+                                            if (hash) { \
+                                                _redirectUrl += '&requested_hash=' + hash; \
+                                            } \
+                                            window.location.href = _redirectUrl; \
+                                </script> \
+                                    </head> \
+                                </html> \
+                            ";
+                            res.send(html);
+                            return;
+
+                            //return res.redirect(redirectUrl);
                         }
                         else if (loginHandler)
                         {

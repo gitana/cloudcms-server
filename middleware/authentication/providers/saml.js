@@ -57,10 +57,14 @@ class SAMLProvider extends AbstractProvider
             samlConfig.entryPoint = config.entryPoint;
         }
         if (config.cert) {
-            samlConfig.cert = config.cert;
+            samlConfig.idpCert = config.cert;
         }
-        if (config.callbackURL) {
-            samlConfig.callbackUrl = "http://localhost:5000" + config.callbackURL;
+        var callbackUrl = config.callbackURL;
+        if (!callbackUrl) {
+            callbackUrl = config.callbackUrl;
+        }
+        if (callbackUrl) {
+            samlConfig.callbackUrl = "http://localhost:5000" + callbackUrl;
         }
         if (config.issuer) {
             samlConfig.issuer = config.issuer;
