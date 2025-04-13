@@ -3,6 +3,8 @@ var http = require('http');
 var util = require("../../util/util");
 var async = require("async");
 
+var Loaders = require("../../util/loaders");
+
 var Gitana = require("gitana");
 
 ////////////////////////////////////////////////////////////////////////////
@@ -39,13 +41,34 @@ exports = module.exports = function()
 
     var doConnect = r.doConnect = function(req, gitanaConfig, callback)
     {
+        var key = JSON.stringify(gitanaConfig);
+
+        var loader = function(req, gitanaConfig)
+        {
+            return function(cb)
+            {
+                _doConnect(req, gitanaConfig, function(err) {
+                    cb.call(this, err);
+                });
+            }
+        }(req, gitanaConfig);
+
+        var exclusiveLoader = Loaders.exclusive(loader, key, process.defaultExclusiveLockTimeoutMs);
+
+        exclusiveLoader(function(err) {
+            callback.call(this, err);
+        });
+    };
+
+    var _doConnect = function(req, gitanaConfig, callback)
+    {
         // either connect anew or re-use an existing connection to Cloud CMS for this application
         Gitana.connect(gitanaConfig, function(err) {
 
             if (err)
             {
                 // log as much as we can
-                if(process.env.NODE_ENV === "production")
+                if (process.env.NODE_ENV === "production")
                 {
                     console.warn("Error connecting driver (domainHost=" + req.domainHost + ", virtualHost: " + req.virtualHost + ", err: " + JSON.stringify(err));
                 }

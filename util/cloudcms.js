@@ -7,8 +7,13 @@ var https = require("https");
 
 var request = require("./request");
 
+var workQueueFactory = require("./workqueue");
+
 exports = module.exports = function()
 {
+    // ensures that we only load 2 preview icons at a time
+    var enqueueLoadPreview = workQueueFactory(2);
+
     var toCacheFilePath = function(filePath)
     {
         var filename = path.basename(filePath);
@@ -532,10 +537,28 @@ exports = module.exports = function()
 
         };
 
-        _writeToDisk(contentStore, gitana, uri, filePath, 0, 2, null, function(err, filePath, cacheInfo) {
+        var workFn = function(contentStore, gitana, uri, filePath)
+        {
+            return function(done)
+            {
+                _writeToDisk(contentStore, gitana, uri, filePath, 0, 2, null, function(err, filePath, cacheInfo) {
+                    done(err, filePath, cacheInfo);
+                });
+            }
+        }(contentStore, gitana, uri, filePath);
+
+        if (uri && (uri.indexOf("/proxy/") > -1) && (uri.indexOf("/preview/") > -1))
+        {
+            // ensures that only up to N number of requests for preview icons may occur
+            return enqueueLoadPreview(workFn, function(err, filePath, cacheInfo) {
+                callback(err, filePath, cacheInfo);
+            });
+        }
+
+        // otherwise, invoke right away
+        workFn(function(err, filePath, cacheInfo) {
             callback(err, filePath, cacheInfo);
         });
-
     };
 
     /**
