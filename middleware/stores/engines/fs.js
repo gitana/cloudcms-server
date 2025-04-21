@@ -4,8 +4,6 @@ var http = require('http');
 
 var util = require("../../../util/util");
 
-var watch = require("watch");
-
 var async = require("async");
 
 /**
@@ -214,13 +212,6 @@ exports = module.exports = function(engineConfig)
                 callback(err, data);
             });
 
-        });
-    };
-
-    r.watchDirectory = function(directoryPath, onChange)
-    {
-        watch.watchTree(toStoragePath(directoryPath), function(f, curr, prev) {
-            onChange(f, curr, prev);
         });
     };
 

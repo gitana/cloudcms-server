@@ -442,11 +442,6 @@ exports = module.exports = function(remoteStore, settings)
         cacheStore.readFile(filePath, callback);
     };
 
-    r.watchDirectory = function(directoryPath, onChange)
-    {
-        // NOT IMPLEMENTED
-    };
-
     r.moveFile = function(originalFilePath, newFilePath, callback)
     {
         remoteStore.moveFile(originalFilePath, newFilePath, function(err) {

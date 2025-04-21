@@ -406,11 +406,6 @@ exports = module.exports = function(engineConfig)
         });
     };
 
-    // NOT IMPLEMENTED IN S3
-    r.watchDirectory = function(directoryPath, onChange)
-    {
-    };
-
     r.moveFile = function(originalFilePath, newFilePath, callback)
     {
         var originalKey = _toKey(originalFilePath);

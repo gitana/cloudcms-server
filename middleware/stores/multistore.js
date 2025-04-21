@@ -283,35 +283,6 @@ exports = module.exports = function(originalStores)
         });
     };
 
-    r.watchDirectory = function(directoryPath, onChange)
-    {
-        findFileStores(directoryPath, function(err, stores) {
-
-            if (err) {
-                return;
-            }
-
-            if (stores.length === 0) {
-                return;
-            }
-
-            var fns = [];
-            for (var i = 0; i < stores.length; i++)
-            {
-                var fn = function(s, directoryPath) {
-                    return function(done) {
-                        s.watchDirectory(directoryPath, onChange);
-                        done();
-                    }
-                }(stores[i], directoryPath);
-                fns.push(fn);
-            }
-            async.series(fns, function() {
-                // done
-            });
-        });
-    };
-
     r.moveFile = function(originalFilePath, newFilePath, callback)
     {
         // TODO: not implemented
