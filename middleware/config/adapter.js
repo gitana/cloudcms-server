@@ -359,50 +359,6 @@ module.exports = function(configStore)
 
             // all done
             callback(null, registry);
-
-            var _watchLog = function(text) {
-                process.log("[Configuration Watch] " + text);
-            };
-
-            if (process.env.CLOUDCMS_APPSERVER_CONFIG_WATCH === "true" || process.env.CLOUDCMS_APPSERVER_CONFIG_WATCH === true)
-            {
-                _watchLog("Setting up live watch...");
-
-                // set a watch
-                // watch for changes and when they happen, reload context
-                (function (registry) {
-
-                    configStore.watchDirectory("/", function () {
-
-                        _watchLog("Detected changes on disk - reloading...");
-
-                        var t1 = new Date().getTime();
-
-                        // reload context
-                        loadContext(function (err, context) {
-
-                            if (err) {
-                                return _watchLog("Failed to load configuration context: " + err);
-                            }
-
-                            try
-                            {
-                                compileContextToRegistry(context);
-                                registry.reloadContext(context);
-
-                                var t2 = new Date().getTime();
-                                _watchLog("Reloaded context in: " + (t2 - t1) + " ms");
-                            }
-                            catch (e)
-                            {
-                                _watchLog("Caught error while compiling and reloading context: " + err);
-                            }
-                        });
-                    });
-
-                })(registry);
-            }
-
         });
     };
 
