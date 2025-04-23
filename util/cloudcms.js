@@ -11,8 +11,8 @@ var workQueueFactory = require("./workqueue");
 
 exports = module.exports = function()
 {
-    // ensures that we only load 2 preview icons at a time
-    var enqueueLoadPreview = workQueueFactory(2);
+    // ensures that we only load 3 preview icons at a time
+    var previewQueueFn = workQueueFactory(3);
 
     var toCacheFilePath = function(filePath)
     {
@@ -316,8 +316,13 @@ exports = module.exports = function()
      * @param filePath
      * @param callback
      */
-    var writeToDisk = function(contentStore, gitana, uri, filePath, callback)
+    var writeToDisk = function(contentStore, gitana, uri, filePath, queueFn, callback)
     {
+        if (!callback) {
+            queueFn = callback;
+            queueFn = null;
+        }
+
         var _refreshAccessTokenAndRetry = function(contentStore, gitana, uri, filePath, attemptCount, maxAttemptsAllowed, previousError, cb)
         {
             // tell gitana driver to refresh access token
@@ -547,10 +552,9 @@ exports = module.exports = function()
             }
         }(contentStore, gitana, uri, filePath);
 
-        if (uri && (uri.indexOf("/proxy/") > -1) && (uri.indexOf("/preview/") > -1))
+        if (queueFn)
         {
-            // ensures that only up to N number of requests for preview icons may occur
-            return enqueueLoadPreview(workFn, function(err, filePath, cacheInfo) {
+            return queueFn(workFn, function(err, filePath, cacheInfo) {
                 callback(err, filePath, cacheInfo);
             });
         }
@@ -624,7 +628,7 @@ exports = module.exports = function()
                     }
 
                     // grab from Cloud CMS and write to disk
-                    writeToDisk(contentStore, gitana, uri, filePath, function (err, filePath, cacheInfo) {
+                    writeToDisk(contentStore, gitana, uri, filePath, null, function (err, filePath, cacheInfo) {
 
                         if (err) {
                             process.log("writeToDisk error, err: " + err.message + ", body: " + err.body);
@@ -742,7 +746,7 @@ exports = module.exports = function()
                         uri += "&mimetype=" + mimetype;
                     }
 
-                    writeToDisk(contentStore, gitana, uri, filePath, function (err, filePath, responseHeaders) {
+                    writeToDisk(contentStore, gitana, uri, filePath, previewQueueFn, function (err, filePath, responseHeaders) {
 
                         if (err) {
                             
@@ -899,7 +903,7 @@ exports = module.exports = function()
                     uri += "?a=true";
 
                     // grab from Cloud CMS and write to disk
-                    writeToDisk(contentStore, gitana, uri, filePath, function (err, filePath, cacheInfo) {
+                    writeToDisk(contentStore, gitana, uri, filePath, null, function (err, filePath, cacheInfo) {
 
                         if (err) {
                             callback(err);
@@ -1001,7 +1005,7 @@ exports = module.exports = function()
                         uri += "&mimetype=" + mimetype;
                     }
 
-                    writeToDisk(contentStore, gitana, uri, filePath, function (err, filePath, responseHeaders) {
+                    writeToDisk(contentStore, gitana, uri, filePath, previewQueueFn, function (err, filePath, responseHeaders) {
 
                         if (err) {
                             callback(err);
