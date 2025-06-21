@@ -117,7 +117,8 @@ module.exports = function(config, callback)
     
     return axios.request(requestConfig).then(function(response) {
         callback(null, response, response.data);
-    }, function(error) {
+    }).catch(function(error) {
         callback(error);
     });
+
 };
