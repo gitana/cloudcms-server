@@ -12,7 +12,7 @@ var workQueueFactory = require("../../util/workqueue");
 exports = module.exports = function()
 {
     // ensures that we only load 2 virtual config at a time
-    var enqueueLoadVirtualConfig = workQueueFactory(2);
+    var enqueueLoadVirtualConfig = workQueueFactory("loadVirtualConfigQueue", 2);
 
     var SENTINEL_NOT_FOUND_VALUE = "null";
     var BLACKLIST_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days

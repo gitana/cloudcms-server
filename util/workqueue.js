@@ -1,23 +1,23 @@
-module.exports = function(maxSize)
+var util = require("./util");
+
+module.exports = function(name, maxSize, debug)
 {
     if (!maxSize) {
         maxSize = 3;
     }
 
-    var blockExecution = false;
-
     var pendingWorkQueue = [];
     var activeCount = 0;
 
-    var processWork = function () {
-
-        // if another "thread" is running the processor, don't bother
-        if (blockExecution)
+    var debugLog = function(text)
+    {
+        if (debug)
         {
-            return;
+            console.log("[WORKQUEUE: " + name + "] " + text);
         }
+    }
 
-        blockExecution = true;
+    var dispatcherFn = function () {
 
         // add as many pending work items as we can, loop until full or no more pending
         var process = true;
@@ -28,73 +28,84 @@ module.exports = function(maxSize)
             {
                 process = false;
             }
-
-            // if we're full, bail
-            if (activeCount >= maxSize)
+            else
             {
-                process = false;
-            }
+                // var ids = [];
+                // for (var z = 0; z < pendingWorkQueue.length; z++)
+                // {
+                //     ids.push(pendingWorkQueue[z].id);
+                // }
+                //
+                // debugLog("Dispatcher top, queue: " + ids.join(","));
 
-            if (process)
-            {
-                // increment active count
-                activeCount++;
+                //debugLog("dispatcher, pending: " + pendingWorkQueue.length + ", actives: " + activeCount + "]");
 
-                // console.log("Active work items: " + activeCount);
+                // if we're full, bail
+                if (activeCount >= maxSize)
+                {
+                    process = false;
+                }
 
-                // define execution function and splice/bind to 0th element from pending list
-                var executionFn = function(work) {
-                    return function() {
-                        var workFn = work.workFn;
-                        var callbackFn = work.callbackFn;
+                if (process)
+                {
+                    // increment active count
+                    activeCount++;
 
-                        // console.log("[WORKQUEUE - queue: " + pendingWorkQueue.length + ", actives: " + activeCount + "] start work");
+                    // define execution function and splice/bind to 0th element from pending list
+                    var executionFn = function(work) {
+                        return function() {
+                            var workFn = work.workFn;
+                            var callbackFn = work.callbackFn;
 
-                        workFn(function(err, obj1, obj2) {
+                            debugLog("Start: " + work.id + ", queue: " + pendingWorkQueue.length + ", actives: " + activeCount);
 
-                            // decrement active count
-                            activeCount--;
+                            workFn(function(err, obj1, obj2) {
 
-                            // console.log("[WORKQUEUE - queue: " + pendingWorkQueue.length + ", actives: " + activeCount + "] finish work");
+                                // fire optional callback
+                                if (callbackFn) {
+                                    window.setTimeout(function() {
+                                        callbackFn(err, obj1, obj2);
+                                    });
+                                }
 
-                            // fire optional callback
-                            if (callbackFn) {
-                                // console.log("[WORKQUEUE - queue: " + pendingWorkQueue.length + ", actives: " + activeCount + "] fire work callback");
-                                window.setTimeout(function() {
-                                    callbackFn(err, obj1, obj2);
-                                });
-                            }
+                                // decrement active count
+                                activeCount--;
 
-                            // process more work on timeout
-                            window.setTimeout(processWork);
-                        });
+                                debugLog("Complete: " + work.id + ", queue: " + pendingWorkQueue.length + ", actives: " + activeCount);
+                            });
 
-                    };
-                }(pendingWorkQueue.splice(0, 1)[0]);
+                        };
+                    }(pendingWorkQueue.splice(0, 1)[0]);
 
-                // execute on timeout
-                window.setTimeout(executionFn);
+                    // execute on timeout
+                    window.setTimeout(executionFn);
+                }
             }
 
         } while (process);
 
-        blockExecution = false;
+        // run again on a brief timeout
+        window.setTimeout(dispatcherFn, 50);
     };
 
+    // launch dispatcher
+    window.setTimeout(dispatcherFn);
+
+    // hand back a function to register work onto the queue
     return function(workFn, callbackFn) {
 
-        var pendingWork = {
+        var work = {
+            "id": util.guid(),
             "workFn": workFn
         };
 
         if (callbackFn) {
-            pendingWork.callbackFn = callbackFn;
+            work.callbackFn = callbackFn;
         }
 
-        pendingWorkQueue.push(pendingWork);
+        pendingWorkQueue.push(work);
 
-        // execute on timeout
-        window.setTimeout(processWork);
+        //debugLog("Added to pending queue, id: " + work.id + ", pending: " + pendingWorkQueue.length);
     };
 
 };

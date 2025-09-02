@@ -11,8 +11,8 @@ var workQueueFactory = require("./workqueue");
 
 exports = module.exports = function()
 {
-    // ensures that we only load 3 preview icons at a time
-    var previewQueueFn = workQueueFactory(3);
+    // ensures that we only load 5 preview icons at a time
+    var previewQueueFn = workQueueFactory("previewQueue", 5, false);
 
     var toCacheFilePath = function(filePath)
     {
@@ -356,7 +356,8 @@ exports = module.exports = function()
                 });
             }
             
-            var failFast = function(contentStore, filePath, cb) {
+            var failFast = function(contentStore, filePath, cb)
+            {
                 var triggered = false;
                 
                 return function(tempStream, err)
@@ -383,7 +384,7 @@ exports = module.exports = function()
             contentStore.writeStream(filePath, function(err, tempStream) {
 
                 if (err) {
-                    return failFast(tempStream, err);
+                    return failFast(tempStream, err, cb);
                 }
 
                 var cacheFilePath = toCacheFilePath(filePath);
@@ -406,9 +407,10 @@ exports = module.exports = function()
                     "method": "GET",
                     "url": URL,
                     "qs": {},
+                    "timeout": 3000,
                     "headers": headers,
                     "responseType": "stream"
-                }, function(err, response) {
+                }, function(err, response, stream) {
 
                     if (err) {
                         closeWriteStream(tempStream);
@@ -417,34 +419,34 @@ exports = module.exports = function()
     
                     if (response.status >= 200 && response.status <= 204)
                     {
-                        response.data.pipe(tempStream).on("close", function (err) {
-            
+                        var handle = function (err) {
+
                             if (err) {
                                 // some went wrong at disk io level?
-                                return failFast(tempStream, err);
+                                return failFast(tempStream, err, cb);
                             }
-            
+
                             contentStore.existsFile(filePath, function (exists) {
-                
+
                                 if (exists) {
-                    
+
                                     // write cache file
                                     var cacheInfo = buildCacheInfo(response);
                                     if (!cacheInfo) {
                                         return cb(null, filePath, null);
                                     }
-                    
+
                                     contentStore.writeFile(cacheFilePath, JSON.stringify(cacheInfo, null, "    "), function (err) {
-                        
+
                                         if (err) {
                                             // failed to write cache file, thus the whole thing is invalid
                                             return safeRemove(contentStore, cacheFilePath, function () {
                                                 failFast(tempStream, {
                                                     "message": "Failed to write cache file: " + cacheFilePath + ", err: " + JSON.stringify(err)
-                                                });
+                                                }, cb);
                                             });
                                         }
-                        
+
                                         cb(null, filePath, cacheInfo);
                                     });
                                 } else {
@@ -453,13 +455,27 @@ exports = module.exports = function()
                                     safeRemove(contentStore, cacheFilePath, function () {
                                         failFast(tempStream, {
                                             "message": "Failed to verify written cached file: " + filePath
-                                        });
+                                        }, cb);
                                     });
                                 }
                             });
-            
+                        };
+
+                        // stream.on("end", function() {
+                        //     console.log("g1");
+                        // });
+                        // stream.on("finish", function() {
+                        //     console.log("g2");
+                        // });
+                        stream.on("close", handle);
+
+                        stream.pipe(tempStream).on("close", handle).on("end", function() {
+                            //console.log("a4");
+                        }).on("finish", function() {
+                            //console.log("a5");
                         }).on("error", function (err) {
-                            failFast(tempStream, err);
+                            console.log("a3");
+                            failFast(tempStream, err, cb);
                         });
                     }
                     else
@@ -467,13 +483,13 @@ exports = module.exports = function()
                         // some kind of http error (usually permission denied or invalid_token)
         
                         var body = "";
-        
-                        response.data.on('data', function (chunk) {
+
+                        stream.on('data', function (chunk) {
                             body += chunk;
                         });
-        
-                        response.data.on('end', function () {
-            
+
+                        stream.on('end', function () {
+
                             var afterCleanup = function () {
                 
                                 // see if it is "invalid_token"
@@ -515,11 +531,10 @@ exports = module.exports = function()
                                 });
                             });
                         });
-        
                     }
                 });
                 // }).on('error', function (e) {
-                //     failFast(tempStream, e);
+                //     failFast(tempStream, e, cb);
                 //
                 // }).on('end', function (e) {
                 //
@@ -532,7 +547,7 @@ exports = module.exports = function()
                     process.log("Temp stream errored out");
                     process.log(e);
     
-                    failFast(tempStream, e);
+                    failFast(tempStream, e, cb);
 
                     // ensure stream is closed
                     //closeWriteStream(tempStream);

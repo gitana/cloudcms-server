@@ -21,6 +21,10 @@ exports.bindSocket = function(socket, provider, io)
             commitEditorialWorkspace(socket, provider, sessionKey, repositoryId, branchId, callback);
         });
 
+        socket.on("touchEditorialWorkspace", function(sessionKey, repositoryId, branchId, callback) {
+            touchEditorialWorkspace(socket, provider, sessionKey, repositoryId, branchId, callback);
+        });
+
         socket.on("editorialWorkspaceInfo", function(sessionKey, repositoryId, branchId, callback) {
             editorialWorkspaceInfo(socket, provider, sessionKey, repositoryId, branchId, callback);
         });
@@ -216,6 +220,52 @@ exports.bindSocket = function(socket, provider, io)
             }
 
             callback(null, true, json.workspace);
+        });
+    };
+
+    /**
+     * Touches an editorial workspace.
+     *
+     * This is a "keep alive" call to prevent a workspace from being cleaned up while it is being
+     * worked on.
+     *
+     * @param socket
+     * @param provider
+     * @param sessionKey
+     * @param repositoryId
+     * @param branchId
+     * @param callback
+     */
+    var touchEditorialWorkspace = function(socket, provider, sessionKey, repositoryId, branchId, callback)
+    {
+        var URL = util.asURL(process.env.GITANA_PROXY_SCHEME, process.env.GITANA_PROXY_HOST, process.env.GITANA_PROXY_PORT, process.env.GITANA_PROXY_PATH) + "/oneteam/editorial/workspace/touch";
+
+        var json = {};
+        json.repositoryId = repositoryId;
+        json.branchId = branchId;
+        json.key = sessionKey;
+
+        var headers = {};
+        var gitanaTicket = extractTicket(socket);
+        if (gitanaTicket)
+        {
+            headers["GITANA_TICKET"] = gitanaTicket;
+        }
+
+        request({
+            "method": "POST",
+            "url": URL,
+            "qs": {},
+            "json": json,
+            "headers": headers,
+            "timeout": process.defaultHttpTimeoutMs
+        }, function(err, response, json) {
+
+            if (err || (json && json.error)) {
+                return callback(err);
+            }
+
+            callback(null, json);
         });
     };
 

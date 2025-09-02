@@ -103,7 +103,6 @@ module.exports = function(config, callback)
         requestConfig.responseType = config.responseType;
     }
 
-
     /*
     if (requestConfig.url.toLowerCase().indexOf("https:") > -1)
     {
@@ -114,6 +113,10 @@ module.exports = function(config, callback)
         requestConfig.httpAgent = http.globalAgent;
     }
     */
+
+    if (config.timeout) {
+        requestConfig.timeout = config.timeout;
+    }
     
     return axios.request(requestConfig).then(function(response) {
         callback(null, response, response.data);
