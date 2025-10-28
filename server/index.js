@@ -586,12 +586,55 @@ var _start = function(overrides, callback) {
     if (!process.env.CLOUDCMS_STANDALONE_HOST) {
         process.env.CLOUDCMS_STANDALONE_HOST = "local";
     }
-    
-    
+
+    // http timeout
+    // default http timeout (2 minutes)
+    process.defaultHttpTimeoutMs = 2 * 60 * 1000;
+    if (process.env.DEFAULT_HTTP_TIMEOUT_MS)
+    {
+        try {
+            process.defaultHttpTimeoutMs = parseInt(process.env.DEFAULT_HTTP_TIMEOUT_MS);
+        } catch (e) { }
+    }
+    else if (process.configuration.timeout)
+    {
+        process.defaultHttpTimeoutMs = process.configuration.timeout;
+    }
+
+    // socket keep alive (3 minutes)
+    process.defaultKeepAliveMs = (3 * 60 * 1000);
+    if (process.env.DEFAULT_KEEP_ALIVE_MS)
+    {
+        try {
+            process.defaultKeepAliveMs = parseInt(process.env.DEFAULT_KEEP_ALIVE_MS);
+        } catch (e) { }
+    }
+    else if (process.configuration.keepAliveMs)
+    {
+        process.defaultKeepAliveMs = process.configuration.keepAliveMs;
+    }
+
+
+    ///////////////////////
+    // auto-configuration for HTTP
+    ///////////////////////
+
+    if (!process.configuration.http) {
+        process.configuration.http = {};
+    }
+    process.configuration.http.keepAliveTimeout = process.defaultKeepAliveMs;
+    process.configuration.http.requestTimeout = process.defaultKeepAliveMs;
+
+    ///////////////////////
     // auto-configuration for HTTPS
+    ///////////////////////
+
     if (!process.configuration.https) {
         process.configuration.https = {};
     }
+    process.configuration.https.keepAliveTimeout = process.defaultKeepAliveMs;
+    process.configuration.https.requestTimeout = process.defaultKeepAliveMs;
+
     if (process.env.CLOUDCMS_HTTPS) {
         process.configuration.https = JSON.parse(process.env.CLOUDCMS_HTTPS);
     }
@@ -613,12 +656,6 @@ var _start = function(overrides, callback) {
     if (process.env.CLOUDCMS_HTTPS_CA_FILEPATH) {
         process.configuration.https.ca = [ fs.readFileSync(process.env.CLOUDCMS_HTTPS_CA_FILEPATH) ];
     }
-    
-    // if https config is empty, remove it
-    if (Object.keys(process.configuration.https).length === 0) {
-        delete process.configuration.https;
-    }
-    
     
     // auto configuration of session store
     if (!process.configuration.session) {
@@ -1214,19 +1251,16 @@ var createHttpServer = function(app, done)
     else
     {
         // legacy
-        httpServer = http.Server(app);
+        //httpServer = http.Server(app);
+        httpServer = http.createServer(process.configuration.http, app);
     }
     
-    // request timeout
-    var requestTimeout = 120000; // 2 minutes
-    if (process.configuration && process.configuration.timeout)
-    {
-        requestTimeout = process.configuration.timeout;
-    }
-    httpServer.setTimeout(requestTimeout, function(socket) {
+    // socket timeout
+    httpServer.setTimeout(process.defaultHttpTimeoutMs, function(socket) {
         try { socket.end(); } catch (e) { }
         try { socket.destroy(); } catch (e) { }
     });
+
 
     var c = 0;
 
