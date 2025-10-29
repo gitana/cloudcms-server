@@ -616,24 +616,12 @@ var _start = function(overrides, callback) {
 
 
     ///////////////////////
-    // auto-configuration for HTTP
-    ///////////////////////
-
-    if (!process.configuration.http) {
-        process.configuration.http = {};
-    }
-    process.configuration.http.keepAliveTimeout = process.defaultKeepAliveMs;
-    process.configuration.http.requestTimeout = process.defaultKeepAliveMs;
-
-    ///////////////////////
     // auto-configuration for HTTPS
     ///////////////////////
 
     if (!process.configuration.https) {
         process.configuration.https = {};
     }
-    process.configuration.https.keepAliveTimeout = process.defaultKeepAliveMs;
-    process.configuration.https.requestTimeout = process.defaultKeepAliveMs;
 
     if (process.env.CLOUDCMS_HTTPS) {
         process.configuration.https = JSON.parse(process.env.CLOUDCMS_HTTPS);
@@ -656,7 +644,12 @@ var _start = function(overrides, callback) {
     if (process.env.CLOUDCMS_HTTPS_CA_FILEPATH) {
         process.configuration.https.ca = [ fs.readFileSync(process.env.CLOUDCMS_HTTPS_CA_FILEPATH) ];
     }
-    
+
+    // if https config is empty, remove it
+    if (Object.keys(process.configuration.https).length === 0) {
+        delete process.configuration.https;
+    }
+
     // auto configuration of session store
     if (!process.configuration.session) {
         process.configuration.session = {};
@@ -1244,15 +1237,23 @@ var createHttpServer = function(app, done)
             // configure helmet to support auto-upgrade of http->https
             app.use(helmet());
         }
-            
+
+        process.configuration.https.keepAliveTimeout = process.defaultKeepAliveMs;
+        process.configuration.https.requestTimeout = process.defaultKeepAliveMs;
+
         // create https server
+        console.log("Create HTTPS server");
         httpServer = https.createServer(process.configuration.https, app);
     }
     else
     {
         // legacy
         //httpServer = http.Server(app);
-        httpServer = http.createServer(process.configuration.http, app);
+        console.log("Create HTTP server");
+        httpServer = http.createServer({
+            "keepAliveTimeout": process.defaultKeepAliveMs,
+            "requestTimeout": process.defaultKeepAliveMs
+        }, app);
     }
     
     // socket timeout
