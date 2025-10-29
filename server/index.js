@@ -1271,7 +1271,7 @@ var createHttpServer = function(app, done)
 
         socket.setNoDelay(true);
 
-        socket.setTimeout(requestTimeout, function(socket) {
+        socket.setTimeout(process.defaultHttpTimeoutMs, function(socket) {
             try { socket.end(); } catch (e) { }
             try { socket.destroy(); } catch (e) { }
         });
