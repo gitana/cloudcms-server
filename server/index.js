@@ -587,42 +587,11 @@ var _start = function(overrides, callback) {
         process.env.CLOUDCMS_STANDALONE_HOST = "local";
     }
 
-    // http timeout
-    // default http timeout (2 minutes)
-    process.defaultHttpTimeoutMs = 2 * 60 * 1000;
-    if (process.env.DEFAULT_HTTP_TIMEOUT_MS)
-    {
-        try {
-            process.defaultHttpTimeoutMs = parseInt(process.env.DEFAULT_HTTP_TIMEOUT_MS);
-        } catch (e) { }
-    }
-    else if (process.configuration.timeout)
-    {
-        process.defaultHttpTimeoutMs = process.configuration.timeout;
-    }
 
-    // socket keep alive (3 minutes)
-    process.defaultKeepAliveMs = (3 * 60 * 1000);
-    if (process.env.DEFAULT_KEEP_ALIVE_MS)
-    {
-        try {
-            process.defaultKeepAliveMs = parseInt(process.env.DEFAULT_KEEP_ALIVE_MS);
-        } catch (e) { }
-    }
-    else if (process.configuration.keepAliveMs)
-    {
-        process.defaultKeepAliveMs = process.configuration.keepAliveMs;
-    }
-
-
-    ///////////////////////
     // auto-configuration for HTTPS
-    ///////////////////////
-
     if (!process.configuration.https) {
         process.configuration.https = {};
     }
-
     if (process.env.CLOUDCMS_HTTPS) {
         process.configuration.https = JSON.parse(process.env.CLOUDCMS_HTTPS);
     }
