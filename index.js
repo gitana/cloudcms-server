@@ -60,26 +60,37 @@ process.logInfo = process.log = function(text, level)
 // by default, set up Gitana driver so that it limits to five concurrent HTTP requests back to Cloud CMS API at at time
 var Gitana = require("gitana");
 
+// default http timeout (10 minutes)
+process.defaultHttpTimeoutMs = 10 * 60 * 1000;
+if (process.env.DEFAULT_HTTP_TIMEOUT_MS)
+{
+    try {
+        process.defaultHttpTimeoutMs = parseInt(process.env.DEFAULT_HTTP_TIMEOUT_MS);
+    } catch (e) { }
+}
+
 // default keep alive (3 minutes)
 process.defaultKeepAliveMs = (3 * 60 * 1000);
-
-// default http timeout (2 minutes)
-process.defaultHttpTimeoutMs = 2 * 60 * 1000;
+if (process.env.DEFAULT_KEEP_ALIVE_MS)
+{
+    try {
+        process.defaultKeepAliveMs = parseInt(process.env.DEFAULT_KEEP_ALIVE_MS);
+    } catch (e) { }
+}
 
 // default exclusive lock timeout (2 minutes)
 process.defaultExclusiveLockTimeoutMs = 2 * 60 * 1000;
-
-if (process.env.DEFAULT_HTTP_TIMEOUT_MS)
+if (process.env.DEFAULT_EXCLUSIVE_LOCK_TIMEOUT_MS)
 {
-    try
-    {
-        process.defaultHttpTimeoutMs = parseInt(process.env.DEFAULT_HTTP_TIMEOUT_MS);
-    }
-    catch (e)
-    {
-
-    }
+    try {
+        process.defaultExclusiveLockTimeoutMs = parseInt(process.env.DEFAULT_EXCLUSIVE_LOCK_TIMEOUT_MS);
+    } catch (e) { }
 }
+
+// some reporting
+console.log("process.defaultHttpTimeoutMs: " + process.defaultHttpTimeoutMs);
+console.log("process.defaultKeepAliveMs: " + process.defaultKeepAliveMs);
+console.log("process.defaultExclusiveLockTimeoutMs: " + process.defaultExclusiveLockTimeoutMs);
 
 // dns fix for Node 17 +
 // see: https://nodejs.org/api/dns.html#dnssetdefaultresultorderorder
@@ -94,18 +105,18 @@ var HttpsKeepAliveAgent = require('agentkeepalive').HttpsAgent;
 http.globalAgent = new HttpKeepAliveAgent({
     keepAlive: true,
     keepAliveMsecs: process.defaultKeepAliveMs,
-    maxSockets: 1024,
-    maxFreeSockets: 256,
+    maxSockets: 2048,
+    maxFreeSockets: 64,
     timeout: process.defaultHttpTimeoutMs,
-    freeSocketTimeout: 5000
+    freeSocketTimeout: 30000
 });
 https.globalAgent = new HttpsKeepAliveAgent({
     keepAlive: true,
     keepAliveMsecs: process.defaultKeepAliveMs,
-    maxSockets: 1024,
-    maxFreeSockets: 256,
+    maxSockets: 2048,
+    maxFreeSockets: 64,
     timeout: process.defaultHttpTimeoutMs,
-    freeSocketTimeout: 5000
+    freeSocketTimeout: 30000
 });
 
 // install dns cache

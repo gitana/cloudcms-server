@@ -1188,7 +1188,17 @@ var createHttpServer = function(app, done)
 {
     // create the server (either HTTP or HTTPS)
     var httpServer = null;
-    
+
+    var serverConfig = {};
+    if (process.configuration.https)
+    {
+        for (var k in process.configuration.https) {
+            serverConfig[k] = process.configuration.https[k];
+        }
+    }
+    serverConfig.keepAliveTimeout = process.defaultKeepAliveMs;
+    serverConfig.requestTimeout = process.defaultHttpTimeoutMs;
+
     if (process.configuration.https)
     {
         if (app)
@@ -1196,23 +1206,26 @@ var createHttpServer = function(app, done)
             // configure helmet to support auto-upgrade of http->https
             app.use(helmet());
         }
-            
+
         // create https server
-        httpServer = https.createServer(process.configuration.https, app);
+        httpServer = https.createServer(serverConfig, app);
     }
     else
     {
         // legacy
-        httpServer = http.Server(app);
+        //httpServer = http.Server(app);
+        httpServer = http.createServer(serverConfig, app);
     }
     
     // request timeout
-    var requestTimeout = 120000; // 2 minutes
-    if (process.configuration && process.configuration.timeout)
-    {
-        requestTimeout = process.configuration.timeout;
-    }
-    httpServer.setTimeout(requestTimeout, function(socket) {
+    // var requestTimeoutMs = serverConfig.requestTimeout;
+    // if (process.configuration && process.configuration.timeout)
+    // {
+    //     requestTimeoutMs = process.configuration.timeout;
+    // }
+    var requestTimeoutMs = serverConfig.requestTimeout;
+    httpServer.setTimeout(requestTimeoutMs, function(socket) {
+        console.log("A1: Request Timeout: " + requestTimeoutMs);
         try { socket.end(); } catch (e) { }
         try { socket.destroy(); } catch (e) { }
     });
@@ -1226,7 +1239,7 @@ var createHttpServer = function(app, done)
 
         socket.setNoDelay(true);
         
-        socket.setTimeout(requestTimeout, function(socket) {
+        socket.setTimeout(requestTimeoutMs, function(socket) {
             try { socket.end(); } catch (e) { }
             try { socket.destroy(); } catch (e) { }
         });
