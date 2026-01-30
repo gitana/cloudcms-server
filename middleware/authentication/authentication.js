@@ -1321,6 +1321,10 @@ exports = module.exports = function()
 
                                     if (err)
                                     {
+                                        console.log("Authentication.Strategy.syncProfile error");
+                                        console.log(err);
+                                        try { console.log(JSON.stringify(err)); } catch (ee) { }
+
                                         if (strategy.userSyncErrorHandler)
                                         {
                                             return done({
