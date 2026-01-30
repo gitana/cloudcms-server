@@ -893,7 +893,7 @@ exports = module.exports = function()
                     // if we failed to sync user
                     if (result.failedUserSync)
                     {
-                        return strategy.userSyncErrorHandler(err, req, res, next);
+                        return strategy.userSyncErrorHandler(result.err, req, res, next);
                     }
 
                     // otherwise, we're in a failure state
