@@ -6,7 +6,7 @@
   },
   "name": "cloudcms-server",
   "description": "Cloud CMS Application Server Module",
-  "version": "3.2.351",
+  "version": "3.2.353",
   "repository": {
     "type": "git",
     "url": "git://github.com/gitana/cloudcms-server.git"
@@ -39,6 +39,7 @@
     "express-session": "^1.18.1",
     "express-useragent": "^1.0.15",
     "fast-proxy": "^2.2.0",
+    "form-data": "4.0.5",
     "gitana": "^1.0.330",
     "handlebars": "^4.7.8",
     "hbs": "^4.2.0",
@@ -61,7 +62,7 @@
     "passport-google-oauth": "^2.0.0",
     "passport-local": "^1.0.0",
     "passport-oauth": "^1.0.0",
-    "@node-saml/passport-saml": "5.0.0",
+    "@node-saml/passport-saml": "5.1.0",
     "random-js": "^2.1.0",
     "recursive-readdir": "^2.2.3",
     "redis": "^4.7.0",
