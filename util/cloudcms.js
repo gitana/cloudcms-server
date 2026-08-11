@@ -5,6 +5,8 @@ var util = require("./util");
 var http = require("http");
 var https = require("https");
 
+const { pipeline } = require("stream");
+
 var request = require("./request");
 
 exports = module.exports = function()
@@ -407,25 +409,24 @@ exports = module.exports = function()
     
                     if (response.status >= 200 && response.status <= 204)
                     {
-                        response.data.pipe(tempStream).on("close", function (err) {
-            
+                        pipeline(response.data, tempStream, function (err) {
+
                             if (err) {
-                                // some went wrong at disk io level?
                                 return failFast(tempStream, err);
                             }
-            
+
                             contentStore.existsFile(filePath, function (exists) {
-                
+
                                 if (exists) {
-                    
+
                                     // write cache file
                                     var cacheInfo = buildCacheInfo(response);
                                     if (!cacheInfo) {
                                         return cb(null, filePath, null);
                                     }
-                    
+
                                     contentStore.writeFile(cacheFilePath, JSON.stringify(cacheInfo, null, "    "), function (err) {
-                        
+
                                         if (err) {
                                             // failed to write cache file, thus the whole thing is invalid
                                             return safeRemove(contentStore, cacheFilePath, function () {
@@ -434,10 +435,12 @@ exports = module.exports = function()
                                                 });
                                             });
                                         }
-                        
+
                                         cb(null, filePath, cacheInfo);
                                     });
-                                } else {
+                                }
+                                else
+                                {
                                     // for some reason, file wasn't found
                                     // roll back the whole thing
                                     safeRemove(contentStore, cacheFilePath, function () {
@@ -447,9 +450,6 @@ exports = module.exports = function()
                                     });
                                 }
                             });
-            
-                        }).on("error", function (err) {
-                            failFast(tempStream, err);
                         });
                     }
                     else
@@ -463,9 +463,9 @@ exports = module.exports = function()
                         });
         
                         response.data.on('end', function () {
-            
+
                             var afterCleanup = function () {
-                
+
                                 // see if it is "invalid_token"
                                 // if so, we can automatically retry
                                 var isInvalidToken = false;
@@ -486,7 +486,7 @@ exports = module.exports = function()
                                         "body": body
                                     }, cb);
                                 }
-                
+
                                 // otherwise, it's not worth retrying at this time
                                 cb({
                                     "message": "Unable to load asset from remote store",
@@ -494,10 +494,10 @@ exports = module.exports = function()
                                     "body": body
                                 });
                             };
-            
+
                             // ensure stream is closed
                             closeWriteStream(tempStream);
-            
+
                             // clean things up
                             safeRemove(contentStore, cacheFilePath, function () {
                                 safeRemove(contentStore, filePath, function () {
