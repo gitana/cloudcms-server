@@ -519,42 +519,50 @@ var __handleSyncUser = function(req, strategy, settings, key, domainId, provider
 
 var buildRulesArray = function(req, strategy, settings, groupsArray)
 {
-    var rules = [];
-
     if (!groupsArray || groupsArray.length === 0)
     {
-        return rules;
+        return [];
     }
 
     // if no groupMappings defined, bail
     if (!settings || !settings.sso || !settings.sso.groupMappings || settings.sso.groupMappings.length === 0) {
-        return rules;
+        return [];
     }
 
-    // copy mappings into a lookup list
-    // group key -> rules
+    // copy mappings into a lookup map (by group mapping key)
+    var groupRules = {};
     for (var i = 0; i < settings.sso.groupMappings.length; i++)
     {
-        var key = settings.sso.groupMappings[i].key;
-        var values = settings.sso.groupMappings[i].values;
-        if (values && values.length > 0)
-        {
-            for (var x = 0; x < values.length; x++)
-            {
-                var script = values[x];
+        groupRules[settings.sso.groupMappings[i].key] = settings.sso.groupMappings[i].values;
+    }
 
-                rules.push({
-                    // "condition": {
-                    //     "type": "belongsToGroup",
-                    //     "config": {
-                    //         "key": key
-                    //     }
-                    // },
-                    "script": script
-                });
+    // figure out which rules we should execute
+    var rulesToExecute = [];
+    for (var i = 0; i < groupsArray.length; i++)
+    {
+        var groupIdentifier = groupsArray[i];
+
+        var ruleScripts = groupRules[groupIdentifier];
+        if (ruleScripts)
+        {
+            for (var z = 0; z < ruleScripts.length; z++)
+            {
+                var script = ruleScripts[z];
+                if (script)
+                {
+                    rulesToExecute.push({
+                        // "condition": {
+                        //     "type": "belongsToGroup",
+                        //     "config": {
+                        //         "key": key
+                        //     }
+                        // },
+                        "script": script
+                    });
+                }
             }
         }
     }
 
-    return rules;
+    return rulesToExecute;
 };
