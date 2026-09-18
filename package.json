@@ -6,7 +6,7 @@
   },
   "name": "cloudcms-server",
   "description": "Cloud CMS Application Server Module",
-  "version": "3.2.356",
+  "version": "3.2.357",
   "repository": {
     "type": "git",
     "url": "git://github.com/gitana/cloudcms-server.git"
@@ -110,5 +110,9 @@
     "caching",
     "renditions"
   ],
-  "main": "index"
+  "main": "index",
+  "overrides": {
+    "undici": "^6.24.0",
+    "multiparty": "^4.3.0"
+  }
 }
