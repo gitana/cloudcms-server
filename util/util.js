@@ -11,8 +11,9 @@ var temp = require("temp");
 var onHeaders = require("on-headers");
 var sha1 = require("sha1");
 var klaw = require("klaw");
-var targz = require('targz');
 var archiver = require("archiver");
+
+const tar = require('tar');
 
 var request = require("./request");
 
@@ -1756,12 +1757,18 @@ var walkDirectory = exports.walkDirectory = function(dirPath, callback)
 
 var extractTarGz = exports.extractTarGz = function(tarGzFilePath, extractionPath, callback)
 {
-    targz.decompress({
-        src: tarGzFilePath,
-        dest: extractionPath
-    }, function(err) {
-        callback(err);
-    });
+    (async function() {
+        // node-tar will not create cwd for you; tar-fs used to
+        await fs.promises.mkdir(extractionPath, { recursive: true });
+
+        await tar.x({
+            file: tarGzFilePath,
+            cwd: extractionPath
+        });
+    })().then(
+        function() { callback(); },
+        function(err) { callback(err); }
+    );
 };
 
 var zip = exports.zip = function(directoryPath, writableStream)
