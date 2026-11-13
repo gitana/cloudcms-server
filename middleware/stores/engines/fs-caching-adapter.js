@@ -189,6 +189,12 @@ exports = module.exports = function(remoteStore, settings)
         {
             remoteStore.listFiles("/", { "recursive": true }, function(err, filepaths) {
 
+                // e.g. the remote store's credentials or permissions are wrong (S3 AccessDenied)
+                if (err) {
+                    log("err on remoteStore.listFiles: " + (err.message || err));
+                    return callback(err);
+                }
+
                 log("Populating cache with file paths:" + JSON.stringify(filepaths, null, 2));
 
                 var fns = [];

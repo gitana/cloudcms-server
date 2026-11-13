@@ -1,5 +1,7 @@
 var AWS = require("aws-sdk");
 
+var awsUtil = require("../../util/aws");
+
 var holder = {};
 
 module.exports = {};
@@ -39,22 +41,14 @@ module.exports.start = function(configuration, callback)
     var secretKey = configuration.secretKey;
     var region = configuration.region;
 
-    // adjust queueUrl to http for now since there are memory issues with https, node and the AWS SQS driver
-    if (queueUrl && queueUrl.indexOf("https:") === 0)
-    {
-        queueUrl = "http:" + queueUrl.substring(6);
-    }
-
     process.log("Connecting to queue: " + queueUrl);
 
     if (!holder.sqs)
     {
-        holder.sqs = new AWS.SQS({
-            "accessKeyId": accessKey,
-            "secretAccessKey": secretKey,
-            "region": region//,
-            //"sslEnabled": false // to protect against possible memory leak?
-        });
+        // the access key and secret are optional - without them, the AWS SDK's default credential chain is used
+        // (EKS Pod Identity, IAM roles for service accounts, instance profiles, ...)
+        holder.sqs = new AWS.SQS(awsUtil.clientOptions(accessKey, secretKey, region));
+        awsUtil.logCredentialSource("SQS notifications", holder.sqs);
 
         holder.sqsParams = {
             QueueUrl: queueUrl,
@@ -188,7 +182,7 @@ module.exports.process = function(callback)
                 if (err2)
                 {
                     console.log("Error while deleting deletionEntries");
-                    console.log(err2, err.stack);
+                    console.log(err2, err2.stack);
                 }
 
                 done(err, items, items);

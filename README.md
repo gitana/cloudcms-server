@@ -304,9 +304,22 @@ to the correct place, either a file system or S3.  Performance caching and direc
 time so that each virtual host works against the correct storage location.
 
 - CLOUDCMS_STORE_CONFIGURATION
-- CLOUDCMS_STORE_S3_ACCESS_KEY
-- CLOUDCMS_STORE_S3_SECRET_KEY
 - CLOUDCMS_STORE_S3_BUCKET
+- CLOUDCMS_STORE_S3_REGION (optional)
+- CLOUDCMS_STORE_S3_ACCESS_KEY (optional)
+- CLOUDCMS_STORE_S3_SECRET_KEY (optional)
+
+### AWS credentials
+The S3 stores and SQS notifications don't need AWS access keys. If an access key and secret key are configured (as
+above, or as "accessKey" / "secretKey" in the store or notifications configuration), they're used. Otherwise the AWS
+SDK's default credential chain is used, which picks up EKS Pod Identity, IAM roles for service accounts, ECS task
+roles, EC2 instance profiles, the AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY environment variables or a shared
+credentials file. On startup, each S3 store and the SQS listener log which of these they're using, e.g.
+
+    [aws] SQS notifications: using AWS credentials from container credentials endpoint (EKS Pod Identity or ECS task role) (region: us-east-1)
+
+The region comes from the configuration ("region", CLOUDCMS_STORE_S3_REGION or CLOUDCMS_NOTIFICATIONS_SQS_REGION) or
+else from AWS_REGION.
 
 ### GitHub
 The module supports dynamic application deployment from GitHub or BitBucket.  Application code is deployed into the

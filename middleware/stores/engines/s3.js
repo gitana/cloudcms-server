@@ -4,6 +4,7 @@ var path = require('path');
 var AWS = require('aws-sdk');
 
 var util = require("../../../util/util");
+var awsUtil = require("../../../util/aws");
 
 var Canoe = require("canoe");
 
@@ -72,18 +73,22 @@ exports = module.exports = function(engineConfig)
         {
             engineConfig.bucket = process.env.CLOUDCMS_STORE_S3_BUCKET;
         }
+        if (!engineConfig.region && process.env.CLOUDCMS_STORE_S3_REGION)
+        {
+            engineConfig.region = process.env.CLOUDCMS_STORE_S3_REGION;
+        }
 
-        // bail unless we have S3 config details
-        if (!engineConfig.accessKey || !engineConfig.secretKey)
+        // bail unless we have a bucket
+        if (!engineConfig.bucket)
         {
             return callback();
         }
 
         // build S3 client
-        s3 = new AWS.S3({
-            "accessKeyId": engineConfig.accessKey,
-            "secretAccessKey": engineConfig.secretKey
-        });
+        // the access key and secret are optional - without them, the AWS SDK's default credential chain is used
+        // (EKS Pod Identity, IAM roles for service accounts, instance profiles, ...)
+        s3 = new AWS.S3(awsUtil.clientOptions(engineConfig.accessKey, engineConfig.secretKey, engineConfig.region));
+        awsUtil.logCredentialSource("S3 store (" + engineConfig.bucket + ")", s3);
 
         canoe = new Canoe(s3);
 
@@ -233,9 +238,10 @@ exports = module.exports = function(engineConfig)
 
             var filenames = [];
 
-            for (var i = 0; i < data.Contents.length; i++)
+            var contents = data.Contents || [];
+            for (var i = 0; i < contents.length; i++)
             {
-                var contentKey = data.Contents[i].Key;
+                var contentKey = contents[i].Key;
                 var cdr = contentKey.substring(key.length);
 
                 if (cdr.indexOf("/") === 0)
@@ -276,9 +282,10 @@ exports = module.exports = function(engineConfig)
 
             var filenames = [];
 
-            for (var i = 0; i < data.Contents.length; i++)
+            var contents = data.Contents || [];
+            for (var i = 0; i < contents.length; i++)
             {
-                var contentKey = data.Contents[i].Key;
+                var contentKey = contents[i].Key;
                 console.log("contentKey: " + contentKey);
                 var cdr = contentKey.substring(params.Prefix.length);
                 console.log("cdr.1: " + cdr);
